@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# pre-commit: no commits on main (one branch per piece of work) + cargo fmt --check when there is Cargo.
+# Bypass only to bootstrap a repo: ALLOW_MAIN=1 git commit ...
+set -euo pipefail
+
+branch="$(git symbolic-ref --short HEAD 2>/dev/null || echo "")"
+if [ "$branch" = "main" ] && [ "${ALLOW_MAIN:-}" != "1" ]; then
+  echo "[pre-commit] ✗ commit on main not allowed: git switch -c <type>/<slug>" >&2
+  exit 1
+fi
+
+repo_root="$(git rev-parse --show-toplevel)"
+if [ -f "$repo_root/Cargo.toml" ] && command -v cargo >/dev/null 2>&1; then
+  if ! (cd "$repo_root" && cargo fmt --all -- --check); then
+    echo "[pre-commit] ✗ formatting: run 'cargo fmt --all'" >&2
+    exit 1
+  fi
+fi
+exit 0

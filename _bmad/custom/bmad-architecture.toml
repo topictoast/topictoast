@@ -1,0 +1,10 @@
+# Team override (never touched by the installer).
+[workflow]
+# The architecture lives in docs/architecture (repo layout in CLAUDE.md).
+spine_output_path = "{project-root}/docs/architecture"
+persistent_facts = [
+  "file:{project-root}/.specify/memory/constitution.md",
+  "Every architectural decision states the balance of features / costs / ease of maintenance and the alternative it discarded.",
+  "Workflow orchestrator in Rust; workflow format: Open Workflow Specification; DAGs are the primary model.",
+  "React web interface in the repo (dashboard/), rules in the dashboard-react project skill.",
+]

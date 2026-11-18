@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# post-commit: updates the graphify graph (AST extraction, no LLM). Never blocks.
+repo_root="$(git rev-parse --show-toplevel)"
+command -v graphify >/dev/null 2>&1 || exit 0
+if [ ! -f "$repo_root/graphify-out/graph.json" ]; then
+  echo "[post-commit] graph missing: build it once with '/graphify .' in Claude Code" >&2
+  exit 0
+fi
+# ponytail: synchronous; if it gets slow, run it in the background with nohup.
+(cd "$repo_root" && graphify update . >/dev/null 2>&1) \
+  || echo "[post-commit] graphify update failed (non-blocking)" >&2
+exit 0

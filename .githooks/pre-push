@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# pre-push: no push to main (changes go through a PR); clippy -D warnings + cargo test + cargo doc blocking
+# when there is Cargo; dashboard gate when there is dashboard/; then a Claude review of the diff (advisory, never blocks).
+# Only towards origin: the other remotes are deploy targets. Bypass: SKIP_CARGO=1 / SKIP_DASHBOARD=1 / SKIP_REVIEW=1 / ALLOW_MAIN=1 (bootstrap only), or --no-verify.
+# Build folder cap: TARGET_CAP_GB (40, then cargo clean).
+set -uo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+while read -r _local_ref local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ] && [ "${ALLOW_MAIN:-}" != "1" ]; then
+    echo "[pre-push] ✗ direct push to main not allowed: open a PR" >&2
+    exit 1
+  fi
+  # a deploy remote only receives code already pushed (and verified) on origin
+  if [ "${1:-origin}" != "origin" ] && ! git branch -r --contains "$local_sha" 2>/dev/null | grep -q "origin/"; then
+    echo "[pre-push] ✗ deploying a commit that is not on origin: git push origin first" >&2
+    exit 1
+  fi
+done
+
+# the deploy (the platform's remote, e.g. `clever deploy`) pushes commits already verified on origin
+if [ "${1:-origin}" != "origin" ]; then
+  exit 0
+fi
+
+if [ -f "$repo_root/Cargo.toml" ] && command -v cargo >/dev/null 2>&1 && [ "${SKIP_CARGO:-}" != "1" ]; then
+  # Cargo never deletes old builds: every change leaves new binaries next to the old ones (hundreds of GB
+  # in a few weeks, dozens of copies of the BDD binary). Above TARGET_CAP_GB (40) the folder is emptied
+  # before compiling: a full rebuild now and then instead of a full disk.
+  target_dir="${CARGO_TARGET_DIR:-$repo_root/target}"
+  cap_gb="${TARGET_CAP_GB:-40}"
+  if [ -d "$target_dir" ] && [ "$(du -s --block-size=1G "$target_dir" | cut -f1)" -gt "$cap_gb" ]; then
+    echo "[pre-push] build folder above ${cap_gb} GB ($target_dir): cargo clean" >&2
+    (cd "$repo_root" && cargo clean)
+  fi
+  if ! (cd "$repo_root" && cargo clippy --all-targets -- -D warnings); then
+    echo "[pre-push] ✗ clippy -D warnings failed" >&2
+    exit 1
+  fi
+  # compile first, then run the tests with a time cap: a stuck BDD run (e.g. a mock server released
+  # inside the async runtime) fails instead of hanging the push. timeout stops the whole process group;
+  # PRE_PUSH_TEST_MINUTES changes the cap
+  if ! (cd "$repo_root" && cargo test --no-run); then
+    echo "[pre-push] ✗ test compilation failed" >&2
+    exit 1
+  fi
+  minutes="${PRE_PUSH_TEST_MINUTES:-25}"
+  # timeout puts itself in its own process group and does not get the terminal's Ctrl-C: the trap stops the
+  # group (with exec the pid of timeout is the pgid), otherwise cargo test would be orphaned holding cargo's lock
+  (cd "$repo_root" && exec timeout -k 30 "${minutes}m" cargo test) &
+  tpid=$!
+  trap 'kill -TERM -- "-$tpid" 2>/dev/null; exit 130' INT TERM
+  wait "$tpid"
+  status=$?
+  trap - INT TERM
+  if [ "$status" -eq 124 ]; then
+    echo "[pre-push] ✗ cargo test took more than ${minutes} minutes: BDD probably stuck, push again" >&2
+    exit 1
+  elif [ "$status" -ne 0 ]; then
+    echo "[pre-push] ✗ cargo test failed (BDD included)" >&2
+    exit 1
+  fi
+  # the TypeScript types generated from the Rust types (ts-rs, written by cargo test) must be the committed ones
+  if [ -d "$repo_root/dashboard/src/api/generated" ] && ! (cd "$repo_root" && git diff --exit-code dashboard/src/api/generated); then
+    echo "[pre-push] ✗ dashboard/src/api/generated is out of date: run cargo test and commit the files" >&2
+    exit 1
+  fi
+  if ! (cd "$repo_root" && RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps); then
+    echo "[pre-push] ✗ cargo doc -D warnings failed" >&2
+    exit 1
+  fi
+fi
+
+# the interface gate: types, Biome, Vitest, Storybook and dashboard builds. The browser tests
+# (`npm run e2e`, they need Docker and cargo) stay out: they are run by hand before the PR.
+if [ -f "$repo_root/dashboard/package.json" ] && command -v npm >/dev/null 2>&1 && [ "${SKIP_DASHBOARD:-}" != "1" ]; then
+  if [ ! -d "$repo_root/dashboard/node_modules" ]; then
+    echo "[pre-push] ✗ dashboard without dependencies: run npm ci in dashboard/ (or SKIP_DASHBOARD=1)" >&2
+    exit 1
+  fi
+  if ! (cd "$repo_root/dashboard" && npm run gate); then
+    echo "[pre-push] ✗ dashboard gate failed (npm run gate)" >&2
+    exit 1
+  fi
+fi
+
+if [ "${SKIP_REVIEW:-}" != "1" ] && [ -x "$repo_root/scripts/review-diff.sh" ]; then
+  bash "$repo_root/scripts/review-diff.sh" || true
+fi
+exit 0
