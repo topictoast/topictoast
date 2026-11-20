@@ -573,6 +573,9 @@ manifest, con gli stessi campi. Realizza UJ-1, UJ-2.
     esterno viene rifiutato alla validazione senza aprire connessioni di rete.
   - Manifest e schemi ostili (riferimento esterno, oltre i limiti di NFR-14) entrano nel test di
     NFR-8.
+  - Mentre un tenant invia e avvia a ripetizione workflow con gli schemi e l'input più complessi
+    consentiti (NFR-14), le attività degli altri tenant restano entro l'obiettivo di NFR-2; il
+    caso entra nella corsa a carico misto di FR-53.
 - All'esecuzione il motore controlla l'input di ogni attività sullo schema di input del manifest
   e l'output sullo schema di output. Un input non conforme fa fallire il task prima della
   consegna, senza consumare tentativi; un output non conforme fa fallire l'attività con percorso
@@ -808,7 +811,9 @@ Ogni richiesta fatta per conto di un tenant vede e modifica solo le risorse di q
   suo conto con la credenziale dell'integratore (FR-28), a mano, con la sua pianificazione o da
   una sua pipeline stream, è di quel tenant e, tra i tenant, la vede solo lui; avviata dalla
   pianificazione del documento (FR-6) è del proprietario del workflow, che per un workflow
-  dell'integratore è l'integratore (FR-29).
+  dell'integratore è l'integratore (FR-29). Un workflow di un tenant gira sempre nel contesto di
+  quel tenant, anche quando lo avvia l'integratore; un'esecuzione dell'integratore esegue solo
+  workflow dell'integratore. Il caso entra nel test di NFR-8.
   - Funzioni, nodi personalizzati e sotto-workflow citati da un workflow si risolvono tra le
     risorse del proprietario del workflow e, se il proprietario è un tenant, tra quelle che
     l'integratore gli rende disponibili; i segreti si prendono dal proprietario
@@ -1220,9 +1225,10 @@ l'architettura li separa, i processi che eseguono espressioni jq, query delle pi
   misurano a regime `[ASSUMPTION: idea di Marco da studiare in architettura, con NFR-1 che conta
   tutti i processi attivi; obiettivo del riavvio a freddo in §11]`.
 - Con la configurazione predefinita, un workflow di esempio gira senza modificare nulla.
-- Il tenant predefinito esiste dal primo avvio (§4.6). Un workflow pubblicato dall'SDK senza
-  indicare un tenant va al tenant predefinito; renderlo disponibile a tutti i tenant, come
-  workflow dell'integratore (FR-29), è una scelta esplicita.
+- Il tenant predefinito esiste dal primo avvio (§4.6). Con la credenziale dell'integratore, un
+  workflow pubblicato dall'SDK senza indicare un tenant va al tenant predefinito; con quella di
+  un tenant va sempre al tenant della credenziale (FR-26). Renderlo disponibile a tutti i
+  tenant, come workflow dell'integratore (FR-29), è una scelta esplicita.
 - L'installazione predefinita non richiede Kubernetes, KVM né privilegi di root; solo la sandbox
   forte opzionale (FR-54) richiede KVM.
 - Nessuna chiave o credenziale che protegge identità, segreti o dashboard ha un valore predefinito
@@ -1261,7 +1267,8 @@ macchina di riferimento con un solo comando.
 - Il benchmark riporta attività, esecuzioni ed eventi accettati e poi persi dopo un guasto
   iniettato durante i test di NFR-3 e NFR-5 (obiettivo: zero, NFR-6).
 - Il benchmark include una corsa a carico misto: la latenza di NFR-2 misurata mentre una pipeline
-  stream gira a un ritmo dichiarato e un tenant è oltre quota.
+  stream gira a un ritmo dichiarato, un tenant è oltre quota e un tenant avvia a ripetizione con
+  gli schemi più complessi consentiti (FR-55).
 - Il benchmark dichiara forma del carico, dimensione dei payload, insieme di dati e modalità di
   scrittura, e riporta senza obiettivo la RAM sotto carico, la RAM per pipeline stream attiva e il
   tempo di riavvio a freddo dei processi ausiliari (FR-50).
@@ -1532,8 +1539,10 @@ topictoast è un prodotto per sviluppatori: le sue superfici pubbliche sono cont
 16. Linguaggio degli schemi di manifest e input (FR-55, FR-56): tipi (intero e decimale), valori
     predefiniti, campi in più, `null` e campo assente, regola di compatibilità tra campi:
     architettura.
-17. Se una scadenza rifiutata si ritenta, e se dopo più rifiuti la pianificazione si sospende da
-    sola con la causa (FR-6): spec della storia.
+17. Se una scadenza rifiutata si ritenta, se dopo più rifiuti la pianificazione si sospende da
+    sola con la causa, e dove l'operatore e il proprietario che non usa il kit (l'integratore,
+    per la pianificazione del documento) vedono le scadenze rifiutate (FR-6, FR-46): spec della
+    storia.
 18. Chi sospende e riprende la pianificazione scritta nel documento di un workflow condiviso, e
     da dove (SDK, dashboard): spec della storia.
 19. Quote e storico delle esecuzioni che appartengono all'integratore: quale quota le limita
