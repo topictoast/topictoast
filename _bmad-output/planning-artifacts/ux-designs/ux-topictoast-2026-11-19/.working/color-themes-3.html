@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Temi colore 3 - Carta chiara pastello</title>
+<style>
+/* TEMI COLORE ROUND 3 PER LA DIREZIONE C - 5 varianti PASTELLO. Contrasti WCAG 2.1 (luminanza relativa sRGB).
+Round 1 respinto: troppo acceso. Round 2 respinto: troppo spento. Round 3: riempimenti pastello chiari e ben visibili per tessere di categoria, badge di stato,
+segmenti della barra e scheda dell'elemento fallito; testo scuro neutro sopra (chiaro) o chiaro neutro (scuro); bordi a filo, mai accesi: la tessera pastello ha un bordo un passo
+piu' scuro del riempimento (hsl, 4-6 punti di luminosita' in meno), sempre morbido, decorativo, senza soglia.
+Tema scuro: grigi scuri; il riempimento e' una tinta pastello a bassa opacita' mescolata alla superficie (13-28%), icone e punti sono il pastello pieno (L ~72-80%), testo chiaro neutro.
+Soglie: 4.5:1 per ogni testo; 3:1 per gli indicatori non testuali che portano informazione (contorno del nodo selezionato, anello di focus, icone di stato e categoria,
+arco attivo, accento dashboard). Selezione e focus: contorno 1.5px in accento kit piu' alone pastello (accento al 20-22% di opacita', 4px): il rapporto 3:1 e' sul contorno, non sull'alone.
+Segmenti della barra di stato: i conteggi sono anche scritti in testo e c'e' l'aria-label, quindi i segmenti sono ESENTI dalla soglia 3:1; il rapporto e' riportato solo a titolo informativo.
+Archi inattivi: linea sottile grigio morbido volutamente sotto 3:1 (la connessione e' anche nella posizione e nelle porte); l'arco attivo usa un tono medio della famiglia «in esecuzione» e supera 3:1.
+Nessuna tinta condivisa tra CATEGORIA e STATO: distanza minima di tinta (gradi) riportata per ogni variante. Gli hex sono generati da formule hsl e mescole; tutti sono elencati sotto.
+Tessera/riempimento = hsl(tinta, S, L) della variante; icona/punto = stessa tinta, luminosita' cercata fino a >= 3.2:1 (chiaro) o >= 4.6:1 (scuro) contro riempimento, superficie e canvas.
+
+===== V1 Brina (intensita' 1/5, quasi neutra, un soffio di freddo) =====
+-- CHIARO token --
+canvas #f6f6f7 | punti #d3d3d9 | superficie #ffffff | bordo #e5e6e8 | testo #191a1f | testo2 #565761 | accento kit #53566e | pulsante #2e2f38 (testo #ffffff) | accento dashboard #7180bc | tinta voce nav #eeeff7 | arco #bfc0c4 | arco attivo #5589c3
+categorie: Funzione del worker fg #966ac8 su #ede6f5 (bordo #e2d7ef) | Nodo personalizzato fg #c25b9d su #f5e6ef (bordo #efd7e6) | Controllo di flusso fg #379295 su #e6f4f5 (bordo #d7eeef)
+stati: completata fg #379566 su #e6f5ed (bordo #d7efe3, segmento #ade1c7) | in esecuzione fg #5486c0 su #e6edf5 (bordo #d7e2ef, segmento #adc5e1) | ritentata fg #998538 su #f5f2e6 (bordo #efead7, segmento #e1d6ad) | fallita fg #c2665b su #f5e7e6 (bordo #efdad7, segmento #e1b2ad) | in attesa / in coda fg #80818e su #ebecef (bordo #dedee3, segmento #c4c4ca) | saltata / annullata / scaduta fg #80818e su #ebecef (bordo #dedee3, segmento #c4c4ca)
+derivati: card in attesa #fbfbfc | gruppo #fafafb | scheda errore #fbf4f4 | chip TS #e9e9ec | alone selezione rgba(83,86,110,0.2)
+-- CHIARO contrasti WCAG 2.1 --
+testo/superficie: #191a1f su #ffffff = 17.37:1 (min 4.5)
+testo/canvas: #191a1f su #f6f6f7 = 16.08:1 (min 4.5)
+testo secondario/superficie: #565761 su #ffffff = 7.16:1 (min 4.5)
+testo secondario/canvas: #565761 su #f6f6f7 = 6.63:1 (min 4.5)
+testo secondario/card in attesa: #565761 su #fbfbfc = 6.93:1 (min 4.5)
+testo/card in attesa: #191a1f su #fbfbfc = 16.80:1 (min 4.5)
+testo secondario/gruppo: #565761 su #fafafb = 6.87:1 (min 4.5)
+testo/gruppo: #191a1f su #fafafb = 16.65:1 (min 4.5)
+testo/scheda errore: #191a1f su #fbf4f4 = 16.01:1 (min 4.5)
+testo secondario/scheda errore: #565761 su #fbf4f4 = 6.60:1 (min 4.5)
+testo secondario/chip TS: #565761 su #e9e9ec = 5.91:1 (min 4.5)
+pulsante primario testo/sfondo: #ffffff su #2e2f38 = 13.29:1 (min 4.5)
+voce nav attiva testo/sfondo tinta: #191a1f su #eeeff7 = 15.16:1 (min 4.5)
+accento kit (selezione, focus, tab attiva)/canvas: #53566e su #f6f6f7 = 6.65:1 (min 3)
+accento kit/superficie: #53566e su #ffffff = 7.18:1 (min 3)
+accento kit (anello di focus sul pulsante)/pulsante e superficie barra: #53566e su #ffffff = 7.18:1 (min 3)
+accento dashboard (sottolineatura e logo)/superficie: #7180bc su #ffffff = 3.81:1 (min 3)
+accento dashboard/tinta voce nav: #7180bc su #eeeff7 = 3.32:1 (min 3)
+arco attivo/canvas: #5589c3 su #f6f6f7 = 3.38:1 (min 3)
+arco inattivo/canvas: #bfc0c4 su #f6f6f7 = 1.68:1 (min 3) [volutamente < 3: linea sottile e decorativa, la connessione è ridondante con posizione e porte] NON PASSA (informativo/esente)
+stato completata testo badge (neutro)/riempimento: #191a1f su #e6f5ed = 15.43:1 (min 4.5)
+stato completata icona/riempimento: #379566 su #e6f5ed = 3.30:1 (min 3)
+stato completata icona/superficie (conteggi, scheda): #379566 su #ffffff = 3.71:1 (min 3)
+stato in esecuzione testo badge (neutro)/riempimento: #191a1f su #e6edf5 = 14.72:1 (min 4.5)
+stato in esecuzione icona/riempimento: #5486c0 su #e6edf5 = 3.21:1 (min 3)
+stato in esecuzione icona/superficie (conteggi, scheda): #5486c0 su #ffffff = 3.79:1 (min 3)
+stato ritentata testo badge (neutro)/riempimento: #191a1f su #f5f2e6 = 15.49:1 (min 4.5)
+stato ritentata icona/riempimento: #998538 su #f5f2e6 = 3.25:1 (min 3)
+stato ritentata icona/superficie (conteggi, scheda): #998538 su #ffffff = 3.64:1 (min 3)
+stato fallita testo badge (neutro)/riempimento: #191a1f su #f5e7e6 = 14.44:1 (min 4.5)
+stato fallita icona/riempimento: #c2665b su #f5e7e6 = 3.27:1 (min 3)
+stato fallita icona/superficie (conteggi, scheda): #c2665b su #ffffff = 3.93:1 (min 3)
+stato in attesa / in coda testo badge (neutro)/riempimento: #191a1f su #ebecef = 14.71:1 (min 4.5)
+stato in attesa / in coda icona/riempimento: #80818e su #ebecef = 3.26:1 (min 3)
+stato in attesa / in coda icona/superficie (conteggi, scheda): #80818e su #ffffff = 3.85:1 (min 3)
+stato saltata / annullata / scaduta testo badge (neutro)/riempimento: #191a1f su #ebecef = 14.71:1 (min 4.5)
+stato saltata / annullata / scaduta icona/riempimento: #80818e su #ebecef = 3.26:1 (min 3)
+stato saltata / annullata / scaduta icona/superficie (conteggi, scheda): #80818e su #ffffff = 3.85:1 (min 3)
+segmento barra completata/superficie: #ade1c7 su #ffffff = 1.46:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra in esecuzione/superficie: #adc5e1 su #ffffff = 1.77:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra ritentata/superficie: #e1d6ad su #ffffff = 1.46:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra fallita/superficie: #e1b2ad su #ffffff = 1.88:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+categoria Funzione del worker icona/tessera: #966ac8 su #ede6f5 = 3.32:1 (min 3)
+categoria Funzione del worker icona/canvas (etichetta sopra il nodo): #966ac8 su #f6f6f7 = 3.74:1 (min 3)
+categoria Nodo personalizzato icona/tessera: #c25b9d su #f5e6ef = 3.31:1 (min 3)
+categoria Nodo personalizzato icona/canvas (etichetta sopra il nodo): #c25b9d su #f6f6f7 = 3.68:1 (min 3)
+categoria Controllo di flusso icona/tessera: #379295 su #e6f4f5 = 3.26:1 (min 3)
+categoria Controllo di flusso icona/canvas (etichetta sopra il nodo): #379295 su #f6f6f7 = 3.41:1 (min 3)
+-- SCURO token --
+canvas #141517 | punti #29292e | superficie #1c1c1f | bordo #2e2e33 | testo #e6e7ea | testo2 #a3a4ae | accento kit #bdbfdb | pulsante #d8d8df (testo #17171c) | accento dashboard #92a1dd | tinta voce nav #2a2d37 | arco #3e3f46 | arco attivo #8eb5e1
+categorie: Funzione del worker fg #b58ee1 su #2f2a37 (bordo #41384e) | Nodo personalizzato fg #e18ec3 su #352a34 (bordo #4c3847) | Controllo di flusso fg #8edee1 su #2a3437 (bordo #384b4e)
+stati: completata fg #8ee1b8 su #2a3532 (bordo #384c44, segmento #8ee1b8) | in esecuzione fg #8eb5e1 su #2a2f37 (bordo #38414e, segmento #8eb5e1) | ritentata fg #e1d08e su #35332d (bordo #4c483a, segmento #e1d08e) | fallita fg #e1968e su #352b2d (bordo #4c3a3a, segmento #e1968e) | in attesa / in coda fg #898a94 su #28282f (bordo #36373f, segmento #898a94) | saltata / annullata / scaduta fg #898a94 su #28282f (bordo #36373f, segmento #898a94)
+derivati: card in attesa #18181b | gruppo #18181b | scheda errore #2f282a | chip TS #2b2c31 | alone selezione rgba(189,191,219,0.22)
+-- SCURO contrasti WCAG 2.1 --
+testo/superficie: #e6e7ea su #1c1c1f = 13.75:1 (min 4.5)
+testo/canvas: #e6e7ea su #141517 = 14.78:1 (min 4.5)
+testo secondario/superficie: #a3a4ae su #1c1c1f = 6.86:1 (min 4.5)
+testo secondario/canvas: #a3a4ae su #141517 = 7.38:1 (min 4.5)
+testo secondario/card in attesa: #a3a4ae su #18181b = 7.15:1 (min 4.5)
+testo/card in attesa: #e6e7ea su #18181b = 14.33:1 (min 4.5)
+testo secondario/gruppo: #a3a4ae su #18181b = 7.15:1 (min 4.5)
+testo/gruppo: #e6e7ea su #18181b = 14.33:1 (min 4.5)
+testo/scheda errore: #e6e7ea su #2f282a = 11.65:1 (min 4.5)
+testo secondario/scheda errore: #a3a4ae su #2f282a = 5.82:1 (min 4.5)
+testo secondario/chip TS: #a3a4ae su #2b2c31 = 5.62:1 (min 4.5)
+pulsante primario testo/sfondo: #17171c su #d8d8df = 12.59:1 (min 4.5)
+voce nav attiva testo/sfondo tinta: #e6e7ea su #2a2d37 = 11.11:1 (min 4.5)
+accento kit (selezione, focus, tab attiva)/canvas: #bdbfdb su #141517 = 10.13:1 (min 3)
+accento kit/superficie: #bdbfdb su #1c1c1f = 9.42:1 (min 3)
+accento kit (anello di focus sul pulsante)/pulsante e superficie barra: #bdbfdb su #1c1c1f = 9.42:1 (min 3)
+accento dashboard (sottolineatura e logo)/superficie: #92a1dd su #1c1c1f = 6.77:1 (min 3)
+accento dashboard/tinta voce nav: #92a1dd su #2a2d37 = 5.47:1 (min 3)
+arco attivo/canvas: #8eb5e1 su #141517 = 8.57:1 (min 3)
+arco inattivo/canvas: #3e3f46 su #141517 = 1.74:1 (min 3) [volutamente < 3: linea sottile e decorativa, la connessione è ridondante con posizione e porte] NON PASSA (informativo/esente)
+stato completata testo badge (neutro)/riempimento: #e6e7ea su #2a3532 = 10.27:1 (min 4.5)
+stato completata icona/riempimento: #8ee1b8 su #2a3532 = 8.23:1 (min 3)
+stato completata icona/superficie (conteggi, scheda): #8ee1b8 su #1c1c1f = 11.02:1 (min 3)
+stato in esecuzione testo badge (neutro)/riempimento: #e6e7ea su #2a2f37 = 10.89:1 (min 4.5)
+stato in esecuzione icona/riempimento: #8eb5e1 su #2a2f37 = 6.31:1 (min 3)
+stato in esecuzione icona/superficie (conteggi, scheda): #8eb5e1 su #1c1c1f = 7.97:1 (min 3)
+stato ritentata testo badge (neutro)/riempimento: #e6e7ea su #35332d = 10.21:1 (min 4.5)
+stato ritentata icona/riempimento: #e1d08e su #35332d = 8.19:1 (min 3)
+stato ritentata icona/superficie (conteggi, scheda): #e1d08e su #1c1c1f = 11.02:1 (min 3)
+stato fallita testo badge (neutro)/riempimento: #e6e7ea su #352b2d = 11.07:1 (min 4.5)
+stato fallita icona/riempimento: #e1968e su #352b2d = 5.83:1 (min 3)
+stato fallita icona/superficie (conteggi, scheda): #e1968e su #1c1c1f = 7.25:1 (min 3)
+stato in attesa / in coda testo badge (neutro)/riempimento: #e6e7ea su #28282f = 11.84:1 (min 4.5)
+stato in attesa / in coda icona/riempimento: #898a94 su #28282f = 4.27:1 (min 3)
+stato in attesa / in coda icona/superficie (conteggi, scheda): #898a94 su #1c1c1f = 4.96:1 (min 3)
+stato saltata / annullata / scaduta testo badge (neutro)/riempimento: #e6e7ea su #28282f = 11.84:1 (min 4.5)
+stato saltata / annullata / scaduta icona/riempimento: #898a94 su #28282f = 4.27:1 (min 3)
+stato saltata / annullata / scaduta icona/superficie (conteggi, scheda): #898a94 su #1c1c1f = 4.96:1 (min 3)
+segmento barra completata/superficie: #8ee1b8 su #1c1c1f = 11.02:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra in esecuzione/superficie: #8eb5e1 su #1c1c1f = 7.97:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra ritentata/superficie: #e1d08e su #1c1c1f = 11.02:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra fallita/superficie: #e1968e su #1c1c1f = 7.25:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+categoria Funzione del worker icona/tessera: #b58ee1 su #2f2a37 = 5.26:1 (min 3)
+categoria Funzione del worker icona/canvas (etichetta sopra il nodo): #b58ee1 su #141517 = 6.89:1 (min 3)
+categoria Nodo personalizzato icona/tessera: #e18ec3 su #352a34 = 5.78:1 (min 3)
+categoria Nodo personalizzato icona/canvas (etichetta sopra il nodo): #e18ec3 su #141517 = 7.71:1 (min 3)
+categoria Controllo di flusso icona/tessera: #8edee1 su #2a3437 = 8.32:1 (min 3)
+categoria Controllo di flusso icona/canvas (etichetta sopra il nodo): #8edee1 su #141517 = 11.91:1 (min 3)
+distanza di tinta minima categorie-stati: 30° (Controllo di flusso 182° / in esecuzione 212°)
+
+===== V2 Sorbetto (intensita' 2/5, neutra, pastelli classici) =====
+-- CHIARO token --
+canvas #f6f6f6 | punti #d6d4d8 | superficie #ffffff | bordo #e7e6e8 | testo #1b191f | testo2 #5a5661 | accento kit #8c76b2 | pulsante #312e38 (testo #ffffff) | accento dashboard #8970b2 | tinta voce nav #e8e1f4 | arco #c1bfc4 | arco attivo #5f89c4
+categorie: Funzione del worker fg #8e65c3 su #e4d8f3 (bordo #d6c5ed) | Nodo personalizzato fg #b46746 su #f3e0d8 (bordo #edd1c5) | Controllo di flusso fg #388f8c su #d8f3f2 (bordo #c5edeb)
+stati: completata fg #39935f su #d8f3e3 (bordo #c5edd5, segmento #a0e4bc) | in esecuzione fg #4f7cba su #d8e3f3 (bordo #c5d5ed, segmento #a0bce4) | ritentata fg #8c8436 su #f3f1d8 (bordo #ede9c5, segmento #e4dea0) | fallita fg #bd5670 su #f3d8df (bordo #edc5cf, segmento #e4a0b1) | in attesa / in coda fg #85808e su #edecee (bordo #e0dfe2, segmento #c6c4ca) | saltata / annullata / scaduta fg #85808e su #edecee (bordo #e0dfe2, segmento #c6c4ca)
+derivati: card in attesa #fbfbfb | gruppo #fafafa | scheda errore #faedf1 | chip TS #eae9ec | alone selezione rgba(140,118,178,0.2)
+-- CHIARO contrasti WCAG 2.1 --
+testo/superficie: #1b191f su #ffffff = 17.42:1 (min 4.5)
+testo/canvas: #1b191f su #f6f6f6 = 16.12:1 (min 4.5)
+testo secondario/superficie: #5a5661 su #ffffff = 7.15:1 (min 4.5)
+testo secondario/canvas: #5a5661 su #f6f6f6 = 6.61:1 (min 4.5)
+testo secondario/card in attesa: #5a5661 su #fbfbfb = 6.91:1 (min 4.5)
+testo/card in attesa: #1b191f su #fbfbfb = 16.84:1 (min 4.5)
+testo secondario/gruppo: #5a5661 su #fafafa = 6.85:1 (min 4.5)
+testo/gruppo: #1b191f su #fafafa = 16.69:1 (min 4.5)
+testo/scheda errore: #1b191f su #faedf1 = 15.30:1 (min 4.5)
+testo secondario/scheda errore: #5a5661 su #faedf1 = 6.28:1 (min 4.5)
+testo secondario/chip TS: #5a5661 su #eae9ec = 5.91:1 (min 4.5)
+pulsante primario testo/sfondo: #ffffff su #312e38 = 13.30:1 (min 4.5)
+voce nav attiva testo/sfondo tinta: #1b191f su #e8e1f4 = 13.69:1 (min 4.5)
+accento kit (selezione, focus, tab attiva)/canvas: #8c76b2 su #f6f6f6 = 3.63:1 (min 3)
+accento kit/superficie: #8c76b2 su #ffffff = 3.93:1 (min 3)
+accento kit (anello di focus sul pulsante)/pulsante e superficie barra: #8c76b2 su #ffffff = 3.93:1 (min 3)
+accento dashboard (sottolineatura e logo)/superficie: #8970b2 su #ffffff = 4.18:1 (min 3)
+accento dashboard/tinta voce nav: #8970b2 su #e8e1f4 = 3.29:1 (min 3)
+arco attivo/canvas: #5f89c4 su #f6f6f6 = 3.31:1 (min 3)
+arco inattivo/canvas: #c1bfc4 su #f6f6f6 = 1.69:1 (min 3) [volutamente < 3: linea sottile e decorativa, la connessione è ridondante con posizione e porte] NON PASSA (informativo/esente)
+stato completata testo badge (neutro)/riempimento: #1b191f su #d8f3e3 = 14.81:1 (min 4.5)
+stato completata icona/riempimento: #39935f su #d8f3e3 = 3.24:1 (min 3)
+stato completata icona/superficie (conteggi, scheda): #39935f su #ffffff = 3.81:1 (min 3)
+stato in esecuzione testo badge (neutro)/riempimento: #1b191f su #d8e3f3 = 13.44:1 (min 4.5)
+stato in esecuzione icona/riempimento: #4f7cba su #d8e3f3 = 3.29:1 (min 3)
+stato in esecuzione icona/superficie (conteggi, scheda): #4f7cba su #ffffff = 4.26:1 (min 3)
+stato ritentata testo badge (neutro)/riempimento: #1b191f su #f3f1d8 = 15.25:1 (min 4.5)
+stato ritentata icona/riempimento: #8c8436 su #f3f1d8 = 3.36:1 (min 3)
+stato ritentata icona/superficie (conteggi, scheda): #8c8436 su #ffffff = 3.84:1 (min 3)
+stato fallita testo badge (neutro)/riempimento: #1b191f su #f3d8df = 13.02:1 (min 4.5)
+stato fallita icona/riempimento: #bd5670 su #f3d8df = 3.32:1 (min 3)
+stato fallita icona/superficie (conteggi, scheda): #bd5670 su #ffffff = 4.44:1 (min 3)
+stato in attesa / in coda testo badge (neutro)/riempimento: #1b191f su #edecee = 14.79:1 (min 4.5)
+stato in attesa / in coda icona/riempimento: #85808e su #edecee = 3.26:1 (min 3)
+stato in attesa / in coda icona/superficie (conteggi, scheda): #85808e su #ffffff = 3.84:1 (min 3)
+stato saltata / annullata / scaduta testo badge (neutro)/riempimento: #1b191f su #edecee = 14.79:1 (min 4.5)
+stato saltata / annullata / scaduta icona/riempimento: #85808e su #edecee = 3.26:1 (min 3)
+stato saltata / annullata / scaduta icona/superficie (conteggi, scheda): #85808e su #ffffff = 3.84:1 (min 3)
+segmento barra completata/superficie: #a0e4bc su #ffffff = 1.47:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra in esecuzione/superficie: #a0bce4 su #ffffff = 1.94:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra ritentata/superficie: #e4dea0 su #ffffff = 1.38:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra fallita/superficie: #e4a0b1 su #ffffff = 2.11:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+categoria Funzione del worker icona/tessera: #8e65c3 su #e4d8f3 = 3.21:1 (min 3)
+categoria Funzione del worker icona/canvas (etichetta sopra il nodo): #8e65c3 su #f6f6f6 = 4.05:1 (min 3)
+categoria Nodo personalizzato icona/tessera: #b46746 su #f3e0d8 = 3.31:1 (min 3)
+categoria Nodo personalizzato icona/canvas (etichetta sopra il nodo): #b46746 su #f6f6f6 = 3.91:1 (min 3)
+categoria Controllo di flusso icona/tessera: #388f8c su #d8f3f2 = 3.29:1 (min 3)
+categoria Controllo di flusso icona/canvas (etichetta sopra il nodo): #388f8c su #f6f6f6 = 3.55:1 (min 3)
+-- SCURO token --
+canvas #151516 | punti #2b2a2d | superficie #1d1c1e | bordo #302f32 | testo #e7e6ea | testo2 #a7a3ae | accento kit #c5b4e4 | pulsante #dad8df (testo #19171c) | accento dashboard #af96d9 | tinta voce nav #342e3e | arco #424044 | arco attivo #8bb0e4
+categorie: Funzione del worker fg #b28be4 su #352e3e (bordo #473b55) | Nodo personalizzato fg #e4a68b su #3e3330 (bordo #55433d) | Controllo di flusso fg #8be4e1 su #2f3d3e (bordo #3c5455)
+stati: completata fg #8be4b0 su #2f3d36 (bordo #3c5447, segmento #8be4b0) | in esecuzione fg #8bb0e4 su #2f343e (bordo #3c4555, segmento #8bb0e4) | ritentata fg #e4dc8b su #3e3c30 (bordo #55523d, segmento #e4dc8b) | fallita fg #e48ba1 su #3e2e34 (bordo #553b43, segmento #e48ba1) | in attesa / in coda fg #8d8994 su #2b292e (bordo #3a383e, segmento #8d8994) | saltata / annullata / scaduta fg #8d8994 su #2b292e (bordo #3a383e, segmento #8d8994)
+derivati: card in attesa #19191a | gruppo #19191a | scheda errore #352a2e | chip TS #2d2d2f | alone selezione rgba(197,180,228,0.22)
+-- SCURO contrasti WCAG 2.1 --
+testo/superficie: #e7e6ea su #1d1c1e = 13.66:1 (min 4.5)
+testo/canvas: #e7e6ea su #151516 = 14.69:1 (min 4.5)
+testo secondario/superficie: #a7a3ae su #1d1c1e = 6.87:1 (min 4.5)
+testo secondario/canvas: #a7a3ae su #151516 = 7.38:1 (min 4.5)
+testo secondario/card in attesa: #a7a3ae su #19191a = 7.11:1 (min 4.5)
+testo/card in attesa: #e7e6ea su #19191a = 14.14:1 (min 4.5)
+testo secondario/gruppo: #a7a3ae su #19191a = 7.11:1 (min 4.5)
+testo/gruppo: #e7e6ea su #19191a = 14.14:1 (min 4.5)
+testo/scheda errore: #e7e6ea su #352a2e = 11.11:1 (min 4.5)
+testo secondario/scheda errore: #a7a3ae su #352a2e = 5.58:1 (min 4.5)
+testo secondario/chip TS: #a7a3ae su #2d2d2f = 5.56:1 (min 4.5)
+pulsante primario testo/sfondo: #19171c su #dad8df = 12.59:1 (min 4.5)
+voce nav attiva testo/sfondo tinta: #e7e6ea su #342e3e = 10.52:1 (min 4.5)
+accento kit (selezione, focus, tab attiva)/canvas: #c5b4e4 su #151516 = 9.58:1 (min 3)
+accento kit/superficie: #c5b4e4 su #1d1c1e = 8.91:1 (min 3)
+accento kit (anello di focus sul pulsante)/pulsante e superficie barra: #c5b4e4 su #1d1c1e = 8.91:1 (min 3)
+accento dashboard (sottolineatura e logo)/superficie: #af96d9 su #1d1c1e = 6.62:1 (min 3)
+accento dashboard/tinta voce nav: #af96d9 su #342e3e = 5.10:1 (min 3)
+arco attivo/canvas: #8bb0e4 su #151516 = 8.19:1 (min 3)
+arco inattivo/canvas: #424044 su #151516 = 1.78:1 (min 3) [volutamente < 3: linea sottile e decorativa, la connessione è ridondante con posizione e porte] NON PASSA (informativo/esente)
+stato completata testo badge (neutro)/riempimento: #e7e6ea su #2f3d36 = 9.18:1 (min 4.5)
+stato completata icona/riempimento: #8be4b0 su #2f3d36 = 7.51:1 (min 3)
+stato completata icona/superficie (conteggi, scheda): #8be4b0 su #1d1c1e = 11.17:1 (min 3)
+stato in esecuzione testo badge (neutro)/riempimento: #e7e6ea su #2f343e = 10.05:1 (min 4.5)
+stato in esecuzione icona/riempimento: #8bb0e4 su #2f343e = 5.61:1 (min 3)
+stato in esecuzione icona/superficie (conteggi, scheda): #8bb0e4 su #1d1c1e = 7.62:1 (min 3)
+stato ritentata testo badge (neutro)/riempimento: #e7e6ea su #3e3c30 = 8.93:1 (min 4.5)
+stato ritentata icona/riempimento: #e4dc8b su #3e3c30 = 7.87:1 (min 3)
+stato ritentata icona/superficie (conteggi, scheda): #e4dc8b su #1d1c1e = 12.05:1 (min 3)
+stato fallita testo badge (neutro)/riempimento: #e7e6ea su #3e2e34 = 10.28:1 (min 4.5)
+stato fallita icona/riempimento: #e48ba1 su #3e2e34 = 5.17:1 (min 3)
+stato fallita icona/superficie (conteggi, scheda): #e48ba1 su #1d1c1e = 6.88:1 (min 3)
+stato in attesa / in coda testo badge (neutro)/riempimento: #e7e6ea su #2b292e = 11.58:1 (min 4.5)
+stato in attesa / in coda icona/riempimento: #8d8994 su #2b292e = 4.21:1 (min 3)
+stato in attesa / in coda icona/superficie (conteggi, scheda): #8d8994 su #1d1c1e = 4.96:1 (min 3)
+stato saltata / annullata / scaduta testo badge (neutro)/riempimento: #e7e6ea su #2b292e = 11.58:1 (min 4.5)
+stato saltata / annullata / scaduta icona/riempimento: #8d8994 su #2b292e = 4.21:1 (min 3)
+stato saltata / annullata / scaduta icona/superficie (conteggi, scheda): #8d8994 su #1d1c1e = 4.96:1 (min 3)
+segmento barra completata/superficie: #8be4b0 su #1d1c1e = 11.17:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra in esecuzione/superficie: #8bb0e4 su #1d1c1e = 7.62:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra ritentata/superficie: #e4dc8b su #1d1c1e = 12.05:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra fallita/superficie: #e48ba1 su #1d1c1e = 6.88:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+categoria Funzione del worker icona/tessera: #b28be4 su #352e3e = 4.78:1 (min 3)
+categoria Funzione del worker icona/canvas (etichetta sopra il nodo): #b28be4 su #151516 = 6.70:1 (min 3)
+categoria Nodo personalizzato icona/tessera: #e4a68b su #3e3330 = 5.88:1 (min 3)
+categoria Nodo personalizzato icona/canvas (etichetta sopra il nodo): #e4a68b su #151516 = 8.80:1 (min 3)
+categoria Controllo di flusso icona/tessera: #8be4e1 su #2f3d3e = 7.69:1 (min 3)
+categoria Controllo di flusso icona/canvas (etichetta sopra il nodo): #8be4e1 su #151516 = 12.41:1 (min 3)
+distanza di tinta minima categorie-stati: 33° (Nodo personalizzato 18° / fallita 345°)
+
+===== V3 Brezza (intensita' 3/5, fredda) =====
+-- CHIARO token --
+canvas #f5f6f7 | punti #d2d5da | superficie #ffffff | bordo #e5e6e9 | testo #191b1f | testo2 #565a61 | accento kit #6381b6 | pulsante #2e3138 (testo #ffffff) | accento dashboard #4d8ca3 | tinta voce nav #e0f0f5 | arco #bfc1c4 | arco attivo #558ac3
+categorie: Funzione del worker fg #915fc4 su #e6d7f4 (bordo #d9c3ef) | Nodo personalizzato fg #be50a5 su #f4d7ed (bordo #efc3e5) | Controllo di flusso fg #379095 su #d7f3f4 (bordo #c3edef)
+stati: completata fg #369163 su #d7f4e6 (bordo #c3efd9, segmento #94e6bd) | in esecuzione fg #4980bc su #d7e5f4 (bordo #c3d8ef, segmento #94bbe6) | ritentata fg #958237 su #f4eed7 (bordo #efe6c3, segmento #e6d594) | fallita fg #be5f50 su #f4dbd7 (bordo #efc8c3, segmento #e69f94) | in attesa / in coda fg #7d828c su #ebecef (bordo #dddfe4, segmento #c4c6ca) | saltata / annullata / scaduta fg #7d828c su #ebecef (bordo #dddfe4, segmento #c4c6ca)
+derivati: card in attesa #fbfbfc | gruppo #fafafb | scheda errore #faefed | chip TS #e8eaed | alone selezione rgba(99,129,182,0.2)
+-- CHIARO contrasti WCAG 2.1 --
+testo/superficie: #191b1f su #ffffff = 17.24:1 (min 4.5)
+testo/canvas: #191b1f su #f5f6f7 = 15.94:1 (min 4.5)
+testo secondario/superficie: #565a61 su #ffffff = 6.93:1 (min 4.5)
+testo secondario/canvas: #565a61 su #f5f6f7 = 6.40:1 (min 4.5)
+testo secondario/card in attesa: #565a61 su #fbfbfc = 6.70:1 (min 4.5)
+testo/card in attesa: #191b1f su #fbfbfc = 16.67:1 (min 4.5)
+testo secondario/gruppo: #565a61 su #fafafb = 6.64:1 (min 4.5)
+testo/gruppo: #191b1f su #fafafb = 16.53:1 (min 4.5)
+testo/scheda errore: #191b1f su #faefed = 15.30:1 (min 4.5)
+testo secondario/scheda errore: #565a61 su #faefed = 6.15:1 (min 4.5)
+testo secondario/chip TS: #565a61 su #e8eaed = 5.75:1 (min 4.5)
+pulsante primario testo/sfondo: #ffffff su #2e3138 = 13.02:1 (min 4.5)
+voce nav attiva testo/sfondo tinta: #191b1f su #e0f0f5 = 14.74:1 (min 4.5)
+accento kit (selezione, focus, tab attiva)/canvas: #6381b6 su #f5f6f7 = 3.63:1 (min 3)
+accento kit/superficie: #6381b6 su #ffffff = 3.93:1 (min 3)
+accento kit (anello di focus sul pulsante)/pulsante e superficie barra: #6381b6 su #ffffff = 3.93:1 (min 3)
+accento dashboard (sottolineatura e logo)/superficie: #4d8ca3 su #ffffff = 3.75:1 (min 3)
+accento dashboard/tinta voce nav: #4d8ca3 su #e0f0f5 = 3.21:1 (min 3)
+arco attivo/canvas: #558ac3 su #f5f6f7 = 3.34:1 (min 3)
+arco inattivo/canvas: #bfc1c4 su #f5f6f7 = 1.67:1 (min 3) [volutamente < 3: linea sottile e decorativa, la connessione è ridondante con posizione e porte] NON PASSA (informativo/esente)
+stato completata testo badge (neutro)/riempimento: #191b1f su #d7f4e6 = 14.76:1 (min 4.5)
+stato completata icona/riempimento: #369163 su #d7f4e6 = 3.34:1 (min 3)
+stato completata icona/superficie (conteggi, scheda): #369163 su #ffffff = 3.90:1 (min 3)
+stato in esecuzione testo badge (neutro)/riempimento: #191b1f su #d7e5f4 = 13.47:1 (min 4.5)
+stato in esecuzione icona/riempimento: #4980bc su #d7e5f4 = 3.22:1 (min 3)
+stato in esecuzione icona/superficie (conteggi, scheda): #4980bc su #ffffff = 4.12:1 (min 3)
+stato ritentata testo badge (neutro)/riempimento: #191b1f su #f4eed7 = 14.83:1 (min 4.5)
+stato ritentata icona/riempimento: #958237 su #f4eed7 = 3.27:1 (min 3)
+stato ritentata icona/superficie (conteggi, scheda): #958237 su #ffffff = 3.80:1 (min 3)
+stato fallita testo badge (neutro)/riempimento: #191b1f su #f4dbd7 = 13.10:1 (min 4.5)
+stato fallita icona/riempimento: #be5f50 su #f4dbd7 = 3.23:1 (min 3)
+stato fallita icona/superficie (conteggi, scheda): #be5f50 su #ffffff = 4.25:1 (min 3)
+stato in attesa / in coda testo badge (neutro)/riempimento: #191b1f su #ebecef = 14.60:1 (min 4.5)
+stato in attesa / in coda icona/riempimento: #7d828c su #ebecef = 3.27:1 (min 3)
+stato in attesa / in coda icona/superficie (conteggi, scheda): #7d828c su #ffffff = 3.86:1 (min 3)
+stato saltata / annullata / scaduta testo badge (neutro)/riempimento: #191b1f su #ebecef = 14.60:1 (min 4.5)
+stato saltata / annullata / scaduta icona/riempimento: #7d828c su #ebecef = 3.27:1 (min 3)
+stato saltata / annullata / scaduta icona/superficie (conteggi, scheda): #7d828c su #ffffff = 3.86:1 (min 3)
+segmento barra completata/superficie: #94e6bd su #ffffff = 1.47:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra in esecuzione/superficie: #94bbe6 su #ffffff = 2.00:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra ritentata/superficie: #e6d594 su #ffffff = 1.47:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra fallita/superficie: #e69f94 su #ffffff = 2.15:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+categoria Funzione del worker icona/tessera: #915fc4 su #e6d7f4 = 3.32:1 (min 3)
+categoria Funzione del worker icona/canvas (etichetta sopra il nodo): #915fc4 su #f5f6f7 = 4.18:1 (min 3)
+categoria Nodo personalizzato icona/tessera: #be50a5 su #f4d7ed = 3.24:1 (min 3)
+categoria Nodo personalizzato icona/canvas (etichetta sopra il nodo): #be50a5 su #f5f6f7 = 3.98:1 (min 3)
+categoria Controllo di flusso icona/tessera: #379095 su #d7f3f4 = 3.23:1 (min 3)
+categoria Controllo di flusso icona/canvas (etichetta sopra il nodo): #379095 su #f5f6f7 = 3.47:1 (min 3)
+-- SCURO token --
+canvas #141517 | punti #282a2f | superficie #1b1d20 | bordo #2d2f34 | testo #e6e7ea | testo2 #a3a7ae | accento kit #b0c5e8 | pulsante #d8dadf (testo #17191c) | accento dashboard #92c9dd | tinta voce nav #303f47 | arco #3d4148 | arco attivo #87b6e8
+categorie: Funzione del worker fg #ba8be9 su #393147 (bordo #4c3e5e) | Nodo personalizzato fg #e887d1 su #433142 (bordo #5b3e57) | Controllo di flusso fg #87e3e8 su #304347 (bordo #3c5a5e)
+stati: completata fg #87e8b8 su #30443d (bordo #3c5c4f, segmento #87e8b8) | in esecuzione fg #87b6e8 su #303b47 (bordo #3c4c5e, segmento #87b6e8) | ritentata fg #e8d587 su #434134 (bordo #5b5640, segmento #e8d587) | fallita fg #e89487 su #433434 (bordo #5b4240, segmento #e89487) | in attesa / in coda fg #898d94 su #272a30 (bordo #353941, segmento #898d94) | saltata / annullata / scaduta fg #898d94 su #272a30 (bordo #353941, segmento #898d94)
+derivati: card in attesa #17191c | gruppo #17191c | scheda errore #392e2f | chip TS #2a2d32 | alone selezione rgba(176,197,232,0.22)
+-- SCURO contrasti WCAG 2.1 --
+testo/superficie: #e6e7ea su #1b1d20 = 13.66:1 (min 4.5)
+testo/canvas: #e6e7ea su #141517 = 14.78:1 (min 4.5)
+testo secondario/superficie: #a3a7ae su #1b1d20 = 6.99:1 (min 4.5)
+testo secondario/canvas: #a3a7ae su #141517 = 7.57:1 (min 4.5)
+testo secondario/card in attesa: #a3a7ae su #17191c = 7.29:1 (min 4.5)
+testo/card in attesa: #e6e7ea su #17191c = 14.24:1 (min 4.5)
+testo secondario/gruppo: #a3a7ae su #17191c = 7.29:1 (min 4.5)
+testo/gruppo: #e6e7ea su #17191c = 14.24:1 (min 4.5)
+testo/scheda errore: #e6e7ea su #392e2f = 10.58:1 (min 4.5)
+testo secondario/scheda errore: #a3a7ae su #392e2f = 5.42:1 (min 4.5)
+testo secondario/chip TS: #a3a7ae su #2a2d32 = 5.72:1 (min 4.5)
+pulsante primario testo/sfondo: #17191c su #d8dadf = 12.59:1 (min 4.5)
+voce nav attiva testo/sfondo tinta: #e6e7ea su #303f47 = 8.81:1 (min 4.5)
+accento kit (selezione, focus, tab attiva)/canvas: #b0c5e8 su #141517 = 10.44:1 (min 3)
+accento kit/superficie: #b0c5e8 su #1b1d20 = 9.65:1 (min 3)
+accento kit (anello di focus sul pulsante)/pulsante e superficie barra: #b0c5e8 su #1b1d20 = 9.65:1 (min 3)
+accento dashboard (sottolineatura e logo)/superficie: #92c9dd su #1b1d20 = 9.35:1 (min 3)
+accento dashboard/tinta voce nav: #92c9dd su #303f47 = 6.03:1 (min 3)
+arco attivo/canvas: #87b6e8 su #141517 = 8.60:1 (min 3)
+arco inattivo/canvas: #3d4148 su #141517 = 1.78:1 (min 3) [volutamente < 3: linea sottile e decorativa, la connessione è ridondante con posizione e porte] NON PASSA (informativo/esente)
+stato completata testo badge (neutro)/riempimento: #e6e7ea su #30443d = 8.41:1 (min 4.5)
+stato completata icona/riempimento: #87e8b8 su #30443d = 7.06:1 (min 3)
+stato completata icona/superficie (conteggi, scheda): #87e8b8 su #1b1d20 = 11.47:1 (min 3)
+stato in esecuzione testo badge (neutro)/riempimento: #e6e7ea su #303b47 = 9.22:1 (min 4.5)
+stato in esecuzione icona/riempimento: #87b6e8 su #303b47 = 5.37:1 (min 3)
+stato in esecuzione icona/superficie (conteggi, scheda): #87b6e8 su #1b1d20 = 7.95:1 (min 3)
+stato ritentata testo badge (neutro)/riempimento: #e6e7ea su #434134 = 8.31:1 (min 4.5)
+stato ritentata icona/riempimento: #e8d587 su #434134 = 6.99:1 (min 3)
+stato ritentata icona/superficie (conteggi, scheda): #e8d587 su #1b1d20 = 11.50:1 (min 3)
+stato fallita testo badge (neutro)/riempimento: #e6e7ea su #433434 = 9.54:1 (min 4.5)
+stato fallita icona/riempimento: #e89487 su #433434 = 5.07:1 (min 3)
+stato fallita icona/superficie (conteggi, scheda): #e89487 su #1b1d20 = 7.25:1 (min 3)
+stato in attesa / in coda testo badge (neutro)/riempimento: #e6e7ea su #272a30 = 11.63:1 (min 4.5)
+stato in attesa / in coda icona/riempimento: #898d94 su #272a30 = 4.32:1 (min 3)
+stato in attesa / in coda icona/superficie (conteggi, scheda): #898d94 su #1b1d20 = 5.07:1 (min 3)
+stato saltata / annullata / scaduta testo badge (neutro)/riempimento: #e6e7ea su #272a30 = 11.63:1 (min 4.5)
+stato saltata / annullata / scaduta icona/riempimento: #898d94 su #272a30 = 4.32:1 (min 3)
+stato saltata / annullata / scaduta icona/superficie (conteggi, scheda): #898d94 su #1b1d20 = 5.07:1 (min 3)
+segmento barra completata/superficie: #87e8b8 su #1b1d20 = 11.47:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra in esecuzione/superficie: #87b6e8 su #1b1d20 = 7.95:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra ritentata/superficie: #e8d587 su #1b1d20 = 11.50:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra fallita/superficie: #e89487 su #1b1d20 = 7.25:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+categoria Funzione del worker icona/tessera: #ba8be9 su #393147 = 4.67:1 (min 3)
+categoria Funzione del worker icona/canvas (etichetta sopra il nodo): #ba8be9 su #141517 = 6.92:1 (min 3)
+categoria Nodo personalizzato icona/tessera: #e887d1 su #433142 = 5.02:1 (min 3)
+categoria Nodo personalizzato icona/canvas (etichetta sopra il nodo): #e887d1 su #141517 = 7.67:1 (min 3)
+categoria Controllo di flusso icona/tessera: #87e3e8 su #304347 = 7.02:1 (min 3)
+categoria Controllo di flusso icona/canvas (etichetta sopra il nodo): #87e3e8 su #141517 = 12.34:1 (min 3)
+distanza di tinta minima categorie-stati: 28° (Controllo di flusso 183° / in esecuzione 211°)
+
+===== V4 Albicocca (intensita' 4/5, calda) =====
+-- CHIARO token --
+canvas #f7f6f5 | punti #dad6d3 | superficie #fffdfb | bordo #e8e7e5 | testo #1f1c19 | testo2 #615c56 | accento kit #5b5048 | pulsante #38332e (testo #ffffff) | accento dashboard #ad6b58 | tinta voce nav #f5ddd6 | arco #c4c2bf | arco attivo #408cbf
+categorie: Funzione del worker fg #ae6a3d su #f5dccc (bordo #f0ceb7) | Nodo personalizzato fg #be4692 su #f5cce6 (bordo #f0b7db) | Controllo di flusso fg #9755c3 su #e4ccf5 (bordo #d9b7f0)
+stati: completata fg #379334 su #cef5cc (bordo #b9f0b7, segmento #91eb8e) | in esecuzione fg #3d81ae su #cce4f5 (bordo #b7d9f0, segmento #8ec6eb) | ritentata fg #8f8332 su #f5efcc (bordo #f0e9b7, segmento #ebdf8e) | fallita fg #c14e57 su #f5ccd0 (bordo #f0b7bc, segmento #eb8e96) | in attesa / in coda fg #8a827b su #efedeb (bordo #e3e0dd, segmento #cac7c4) | saltata / annullata / scaduta fg #8a827b su #efedeb (bordo #e3e0dd, segmento #cac7c4)
+derivati: card in attesa #fcfaf9 | gruppo #fbf9f8 | scheda errore #fbe7e8 | chip TS #edebe9 | alone selezione rgba(91,80,72,0.2)
+-- CHIARO contrasti WCAG 2.1 --
+testo/superficie: #1f1c19 su #fffdfb = 16.71:1 (min 4.5)
+testo/canvas: #1f1c19 su #f7f6f5 = 15.71:1 (min 4.5)
+testo secondario/superficie: #615c56 su #fffdfb = 6.52:1 (min 4.5)
+testo secondario/canvas: #615c56 su #f7f6f5 = 6.13:1 (min 4.5)
+testo secondario/card in attesa: #615c56 su #fcfaf9 = 6.36:1 (min 4.5)
+testo/card in attesa: #1f1c19 su #fcfaf9 = 16.30:1 (min 4.5)
+testo secondario/gruppo: #615c56 su #fbf9f8 = 6.30:1 (min 4.5)
+testo/gruppo: #1f1c19 su #fbf9f8 = 16.16:1 (min 4.5)
+testo/scheda errore: #1f1c19 su #fbe7e8 = 14.29:1 (min 4.5)
+testo secondario/scheda errore: #615c56 su #fbe7e8 = 5.58:1 (min 4.5)
+testo secondario/chip TS: #615c56 su #edebe9 = 5.57:1 (min 4.5)
+pulsante primario testo/sfondo: #ffffff su #38332e = 12.49:1 (min 4.5)
+voce nav attiva testo/sfondo tinta: #1f1c19 su #f5ddd6 = 13.08:1 (min 4.5)
+accento kit (selezione, focus, tab attiva)/canvas: #5b5048 su #f7f6f5 = 7.24:1 (min 3)
+accento kit/superficie: #5b5048 su #fffdfb = 7.71:1 (min 3)
+accento kit (anello di focus sul pulsante)/pulsante e superficie barra: #5b5048 su #fffdfb = 7.71:1 (min 3)
+accento dashboard (sottolineatura e logo)/superficie: #ad6b58 su #fffdfb = 4.12:1 (min 3)
+accento dashboard/tinta voce nav: #ad6b58 su #f5ddd6 = 3.23:1 (min 3)
+arco attivo/canvas: #408cbf su #f7f6f5 = 3.40:1 (min 3)
+arco inattivo/canvas: #c4c2bf su #f7f6f5 = 1.65:1 (min 3) [volutamente < 3: linea sottile e decorativa, la connessione è ridondante con posizione e porte] NON PASSA (informativo/esente)
+stato completata testo badge (neutro)/riempimento: #1f1c19 su #cef5cc = 14.18:1 (min 4.5)
+stato completata icona/riempimento: #379334 su #cef5cc = 3.26:1 (min 3)
+stato completata icona/superficie (conteggi, scheda): #379334 su #fffdfb = 3.84:1 (min 3)
+stato in esecuzione testo badge (neutro)/riempimento: #1f1c19 su #cce4f5 = 12.91:1 (min 4.5)
+stato in esecuzione icona/riempimento: #3d81ae su #cce4f5 = 3.23:1 (min 3)
+stato in esecuzione icona/superficie (conteggi, scheda): #3d81ae su #fffdfb = 4.18:1 (min 3)
+stato ritentata testo badge (neutro)/riempimento: #1f1c19 su #f5efcc = 14.62:1 (min 4.5)
+stato ritentata icona/riempimento: #8f8332 su #f5efcc = 3.31:1 (min 3)
+stato ritentata icona/superficie (conteggi, scheda): #8f8332 su #fffdfb = 3.79:1 (min 3)
+stato fallita testo badge (neutro)/riempimento: #1f1c19 su #f5ccd0 = 11.65:1 (min 4.5)
+stato fallita icona/riempimento: #c14e57 su #f5ccd0 = 3.21:1 (min 3)
+stato fallita icona/superficie (conteggi, scheda): #c14e57 su #fffdfb = 4.60:1 (min 3)
+stato in attesa / in coda testo badge (neutro)/riempimento: #1f1c19 su #efedeb = 14.52:1 (min 4.5)
+stato in attesa / in coda icona/riempimento: #8a827b su #efedeb = 3.23:1 (min 3)
+stato in attesa / in coda icona/superficie (conteggi, scheda): #8a827b su #fffdfb = 3.72:1 (min 3)
+stato saltata / annullata / scaduta testo badge (neutro)/riempimento: #1f1c19 su #efedeb = 14.52:1 (min 4.5)
+stato saltata / annullata / scaduta icona/riempimento: #8a827b su #efedeb = 3.23:1 (min 3)
+stato saltata / annullata / scaduta icona/superficie (conteggi, scheda): #8a827b su #fffdfb = 3.72:1 (min 3)
+segmento barra completata/superficie: #91eb8e su #fffdfb = 1.43:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra in esecuzione/superficie: #8ec6eb su #fffdfb = 1.81:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra ritentata/superficie: #ebdf8e su #fffdfb = 1.34:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra fallita/superficie: #eb8e96 su #fffdfb = 2.34:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+categoria Funzione del worker icona/tessera: #ae6a3d su #f5dccc = 3.24:1 (min 3)
+categoria Funzione del worker icona/canvas (etichetta sopra il nodo): #ae6a3d su #f7f6f5 = 3.95:1 (min 3)
+categoria Nodo personalizzato icona/tessera: #be4692 su #f5cce6 = 3.27:1 (min 3)
+categoria Nodo personalizzato icona/canvas (etichetta sopra il nodo): #be4692 su #f7f6f5 = 4.34:1 (min 3)
+categoria Controllo di flusso icona/tessera: #9755c3 su #e4ccf5 = 3.24:1 (min 3)
+categoria Controllo di flusso icona/canvas (etichetta sopra il nodo): #9755c3 su #f7f6f5 = 4.42:1 (min 3)
+-- SCURO token --
+canvas #171614 | punti #2e2b28 | superficie #1f1d1b | bordo #34302d | testo #eae8e6 | testo2 #aea8a3 | accento kit #e0c9b8 | pulsante #dfdbd8 (testo #1c1a17) | accento dashboard #dca493 | tinta voce nav #4d3932 | arco #47423e | arco attivo #82c2ed
+categorie: Funzione del worker fg #edad82 su #4d3d32 (bordo #654e3e) | Nodo personalizzato fg #ed82c6 su #4d3341 (bordo #653f55) | Controllo di flusso fg #c78bee su #43334a (bordo #563f62)
+stati: completata fg #86ed82 su #364b32 (bordo #41643e, segmento #86ed82) | in esecuzione fg #82c2ed su #35424a (bordo #405562, segmento #82c2ed) | ritentata fg #eddf82 su #4d4832 (bordo #655f3e, segmento #eddf82) | fallita fg #ee878f su #4d3334 (bordo #653f41, segmento #ee878f) | in attesa / in coda fg #948f89 su #2f2b27 (bordo #403b35, segmento #948f89) | saltata / annullata / scaduta fg #948f89 su #2f2b27 (bordo #403b35, segmento #948f89)
+derivati: card in attesa #1b1a18 | gruppo #1b1a18 | scheda errore #422e2e | chip TS #312e2b | alone selezione rgba(224,201,184,0.22)
+-- SCURO contrasti WCAG 2.1 --
+testo/superficie: #eae8e6 su #1f1d1b = 13.75:1 (min 4.5)
+testo/canvas: #eae8e6 su #171614 = 14.80:1 (min 4.5)
+testo secondario/superficie: #aea8a3 su #1f1d1b = 7.14:1 (min 4.5)
+testo secondario/canvas: #aea8a3 su #171614 = 7.69:1 (min 4.5)
+testo secondario/card in attesa: #aea8a3 su #1b1a18 = 7.39:1 (min 4.5)
+testo/card in attesa: #eae8e6 su #1b1a18 = 14.23:1 (min 4.5)
+testo secondario/gruppo: #aea8a3 su #1b1a18 = 7.39:1 (min 4.5)
+testo/gruppo: #eae8e6 su #1b1a18 = 14.23:1 (min 4.5)
+testo/scheda errore: #eae8e6 su #422e2e = 10.34:1 (min 4.5)
+testo secondario/scheda errore: #aea8a3 su #422e2e = 5.37:1 (min 4.5)
+testo secondario/chip TS: #aea8a3 su #312e2b = 5.74:1 (min 4.5)
+pulsante primario testo/sfondo: #1c1a17 su #dfdbd8 = 12.62:1 (min 4.5)
+voce nav attiva testo/sfondo tinta: #eae8e6 su #4d3932 = 8.83:1 (min 4.5)
+accento kit (selezione, focus, tab attiva)/canvas: #e0c9b8 su #171614 = 11.38:1 (min 3)
+accento kit/superficie: #e0c9b8 su #1f1d1b = 10.57:1 (min 3)
+accento kit (anello di focus sul pulsante)/pulsante e superficie barra: #e0c9b8 su #1f1d1b = 10.57:1 (min 3)
+accento dashboard (sottolineatura e logo)/superficie: #dca493 su #1f1d1b = 7.82:1 (min 3)
+accento dashboard/tinta voce nav: #dca493 su #4d3932 = 5.02:1 (min 3)
+arco attivo/canvas: #82c2ed su #171614 = 9.38:1 (min 3)
+arco inattivo/canvas: #47423e su #171614 = 1.82:1 (min 3) [volutamente < 3: linea sottile e decorativa, la connessione è ridondante con posizione e porte] NON PASSA (informativo/esente)
+stato completata testo badge (neutro)/riempimento: #eae8e6 su #364b32 = 7.78:1 (min 4.5)
+stato completata icona/riempimento: #86ed82 su #364b32 = 6.54:1 (min 3)
+stato completata icona/superficie (conteggi, scheda): #86ed82 su #1f1d1b = 11.56:1 (min 3)
+stato in esecuzione testo badge (neutro)/riempimento: #eae8e6 su #35424a = 8.47:1 (min 4.5)
+stato in esecuzione icona/riempimento: #82c2ed su #35424a = 5.37:1 (min 3)
+stato in esecuzione icona/superficie (conteggi, scheda): #82c2ed su #1f1d1b = 8.71:1 (min 3)
+stato ritentata testo badge (neutro)/riempimento: #eae8e6 su #4d4832 = 7.51:1 (min 4.5)
+stato ritentata icona/riempimento: #eddf82 su #4d4832 = 6.76:1 (min 3)
+stato ritentata icona/superficie (conteggi, scheda): #eddf82 su #1f1d1b = 12.38:1 (min 3)
+stato fallita testo badge (neutro)/riempimento: #eae8e6 su #4d3334 = 9.35:1 (min 4.5)
+stato fallita icona/riempimento: #ee878f su #4d3334 = 4.62:1 (min 3)
+stato fallita icona/superficie (conteggi, scheda): #ee878f su #1f1d1b = 6.80:1 (min 3)
+stato in attesa / in coda testo badge (neutro)/riempimento: #eae8e6 su #2f2b27 = 11.49:1 (min 4.5)
+stato in attesa / in coda icona/riempimento: #948f89 su #2f2b27 = 4.38:1 (min 3)
+stato in attesa / in coda icona/superficie (conteggi, scheda): #948f89 su #1f1d1b = 5.24:1 (min 3)
+stato saltata / annullata / scaduta testo badge (neutro)/riempimento: #eae8e6 su #2f2b27 = 11.49:1 (min 4.5)
+stato saltata / annullata / scaduta icona/riempimento: #948f89 su #2f2b27 = 4.38:1 (min 3)
+stato saltata / annullata / scaduta icona/superficie (conteggi, scheda): #948f89 su #1f1d1b = 5.24:1 (min 3)
+segmento barra completata/superficie: #86ed82 su #1f1d1b = 11.56:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra in esecuzione/superficie: #82c2ed su #1f1d1b = 8.71:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra ritentata/superficie: #eddf82 su #1f1d1b = 12.38:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra fallita/superficie: #ee878f su #1f1d1b = 6.80:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+categoria Funzione del worker icona/tessera: #edad82 su #4d3d32 = 5.37:1 (min 3)
+categoria Funzione del worker icona/canvas (etichetta sopra il nodo): #edad82 su #171614 = 9.39:1 (min 3)
+categoria Nodo personalizzato icona/tessera: #ed82c6 su #4d3341 = 4.62:1 (min 3)
+categoria Nodo personalizzato icona/canvas (etichetta sopra il nodo): #ed82c6 su #171614 = 7.41:1 (min 3)
+categoria Controllo di flusso icona/tessera: #c78bee su #43334a = 4.61:1 (min 3)
+categoria Controllo di flusso icona/canvas (etichetta sopra il nodo): #c78bee su #171614 = 7.20:1 (min 3)
+distanza di tinta minima categorie-stati: 28° (Funzione del worker 24° / ritentata 52°)
+
+===== V5 Gelato pieno (intensita' 5/5, neutra, i pastelli più ricchi) =====
+-- CHIARO token --
+canvas #f6f6f6 | punti #d5d4d9 | superficie #ffffff | bordo #e6e6e8 | testo #1a191f | testo2 #585661 | accento kit #8071bc | pulsante #302e38 (testo #ffffff) | accento dashboard #705ab5 | tinta voce nav #cec3ef | arco #c0bfc4 | arco attivo #5489c9
+categorie: Funzione del worker fg #774bc3 su #ccb8ef (bordo #ba9fea) | Nodo personalizzato fg #b03b85 su #efb8db (bordo #ea9fce) | Controllo di flusso fg #2e8a8a su #b8efef (bordo #9feaea)
+stati: completata fg #2e8a5f su #b8efd5 (bordo #9feac7, segmento #7ee7b6) | in esecuzione fg #3b6fb0 su #b8d1ef (bordo #9fc1ea, segmento #7eade7) | ritentata fg #8e782f su #efe2b8 (bordo #ead89f, segmento #e7ce7e) | fallita fg #b4443c su #efbcb8 (bordo #eaa49f, segmento #e7857e) | in attesa / in coda fg #82808e su #ececef (bordo #dfdee3, segmento #c5c4ca) | saltata / annullata / scaduta fg #82808e su #ececef (bordo #dfdee3, segmento #c5c4ca)
+derivati: card in attesa #fbfbfb | gruppo #fafafa | scheda errore #f8e1df | chip TS #eae9ec | alone selezione rgba(128,113,188,0.2)
+-- CHIARO contrasti WCAG 2.1 --
+testo/superficie: #1a191f su #ffffff = 17.46:1 (min 4.5)
+testo/canvas: #1a191f su #f6f6f6 = 16.16:1 (min 4.5)
+testo secondario/superficie: #585661 su #ffffff = 7.20:1 (min 4.5)
+testo secondario/canvas: #585661 su #f6f6f6 = 6.66:1 (min 4.5)
+testo secondario/card in attesa: #585661 su #fbfbfb = 6.95:1 (min 4.5)
+testo/card in attesa: #1a191f su #fbfbfb = 16.87:1 (min 4.5)
+testo secondario/gruppo: #585661 su #fafafa = 6.89:1 (min 4.5)
+testo/gruppo: #1a191f su #fafafa = 16.73:1 (min 4.5)
+testo/scheda errore: #1a191f su #f8e1df = 13.99:1 (min 4.5)
+testo secondario/scheda errore: #585661 su #f8e1df = 5.77:1 (min 4.5)
+testo secondario/chip TS: #585661 su #eae9ec = 5.95:1 (min 4.5)
+pulsante primario testo/sfondo: #ffffff su #302e38 = 13.35:1 (min 4.5)
+voce nav attiva testo/sfondo tinta: #1a191f su #cec3ef = 10.54:1 (min 4.5)
+accento kit (selezione, focus, tab attiva)/canvas: #8071bc su #f6f6f6 = 3.88:1 (min 3)
+accento kit/superficie: #8071bc su #ffffff = 4.19:1 (min 3)
+accento kit (anello di focus sul pulsante)/pulsante e superficie barra: #8071bc su #ffffff = 4.19:1 (min 3)
+accento dashboard (sottolineatura e logo)/superficie: #705ab5 su #ffffff = 5.50:1 (min 3)
+accento dashboard/tinta voce nav: #705ab5 su #cec3ef = 3.32:1 (min 3)
+arco attivo/canvas: #5489c9 su #f6f6f6 = 3.35:1 (min 3)
+arco inattivo/canvas: #c0bfc4 su #f6f6f6 = 1.69:1 (min 3) [volutamente < 3: linea sottile e decorativa, la connessione è ridondante con posizione e porte] NON PASSA (informativo/esente)
+stato completata testo badge (neutro)/riempimento: #1a191f su #b8efd5 = 13.59:1 (min 4.5)
+stato completata icona/riempimento: #2e8a5f su #b8efd5 = 3.32:1 (min 3)
+stato completata icona/superficie (conteggi, scheda): #2e8a5f su #ffffff = 4.27:1 (min 3)
+stato in esecuzione testo badge (neutro)/riempimento: #1a191f su #b8d1ef = 11.14:1 (min 4.5)
+stato in esecuzione icona/riempimento: #3b6fb0 su #b8d1ef = 3.28:1 (min 3)
+stato in esecuzione icona/superficie (conteggi, scheda): #3b6fb0 su #ffffff = 5.14:1 (min 3)
+stato ritentata testo badge (neutro)/riempimento: #1a191f su #efe2b8 = 13.50:1 (min 4.5)
+stato ritentata icona/riempimento: #8e782f su #efe2b8 = 3.33:1 (min 3)
+stato ritentata icona/superficie (conteggi, scheda): #8e782f su #ffffff = 4.31:1 (min 3)
+stato fallita testo badge (neutro)/riempimento: #1a191f su #efbcb8 = 10.44:1 (min 4.5)
+stato fallita icona/riempimento: #b4443c su #efbcb8 = 3.28:1 (min 3)
+stato fallita icona/superficie (conteggi, scheda): #b4443c su #ffffff = 5.48:1 (min 3)
+stato in attesa / in coda testo badge (neutro)/riempimento: #1a191f su #ececef = 14.81:1 (min 4.5)
+stato in attesa / in coda icona/riempimento: #82808e su #ececef = 3.28:1 (min 3)
+stato in attesa / in coda icona/superficie (conteggi, scheda): #82808e su #ffffff = 3.87:1 (min 3)
+stato saltata / annullata / scaduta testo badge (neutro)/riempimento: #1a191f su #ececef = 14.81:1 (min 4.5)
+stato saltata / annullata / scaduta icona/riempimento: #82808e su #ececef = 3.28:1 (min 3)
+stato saltata / annullata / scaduta icona/superficie (conteggi, scheda): #82808e su #ffffff = 3.87:1 (min 3)
+segmento barra completata/superficie: #7ee7b6 su #ffffff = 1.50:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra in esecuzione/superficie: #7eade7 su #ffffff = 2.33:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra ritentata/superficie: #e7ce7e su #ffffff = 1.55:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+segmento barra fallita/superficie: #e7857e su #ffffff = 2.61:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente] NON PASSA (informativo/esente)
+categoria Funzione del worker icona/tessera: #774bc3 su #ccb8ef = 3.26:1 (min 3)
+categoria Funzione del worker icona/canvas (etichetta sopra il nodo): #774bc3 su #f6f6f6 = 5.43:1 (min 3)
+categoria Nodo personalizzato icona/tessera: #b03b85 su #efb8db = 3.29:1 (min 3)
+categoria Nodo personalizzato icona/canvas (etichetta sopra il nodo): #b03b85 su #f6f6f6 = 5.10:1 (min 3)
+categoria Controllo di flusso icona/tessera: #2e8a8a su #b8efef = 3.25:1 (min 3)
+categoria Controllo di flusso icona/canvas (etichetta sopra il nodo): #2e8a8a su #f6f6f6 = 3.80:1 (min 3)
+-- SCURO token --
+canvas #151517 | punti #2a2a2d | superficie #1d1c1e | bordo #2f2f32 | testo #e7e6ea | testo2 #a5a3ae | accento kit #baadeb | pulsante #d9d8df (testo #18171c) | accento dashboard #ae9ce2 | tinta voce nav #3f3658 | arco #414045 | arco attivo #86b7f3
+categorie: Funzione del worker fg #bb99f5 su #433658 (bordo #534171) | Nodo personalizzato fg #f48bcd su #57364c (bordo #704160) | Controllo di flusso fg #7df2f2 su #365758 (bordo #417071)
+stati: completata fg #7df2bc su #365749 (bordo #41705b, segmento #7df2bc) | in esecuzione fg #86b7f3 su #364558 (bordo #415671, segmento #86b7f3) | ritentata fg #f2d77d su #574f37 (bordo #706542, segmento #f2d77d) | fallita fg #f4928b su #573837 (bordo #704442, segmento #f4928b) | in attesa / in coda fg #8b8994 su #2a292e (bordo #38373e, segmento #8b8994) | saltata / annullata / scaduta fg #8b8994 su #2a292e (bordo #38373e, segmento #8b8994)
+derivati: card in attesa #19181b | gruppo #19181b | scheda errore #493131 | chip TS #2d2c30 | alone selezione rgba(186,173,235,0.22)
+-- SCURO contrasti WCAG 2.1 --
+testo/superficie: #e7e6ea su #1d1c1e = 13.66:1 (min 4.5)
+testo/canvas: #e7e6ea su #151517 = 14.68:1 (min 4.5)
+testo secondario/superficie: #a5a3ae su #1d1c1e = 6.83:1 (min 4.5)
+testo secondario/canvas: #a5a3ae su #151517 = 7.34:1 (min 4.5)
+testo secondario/card in attesa: #a5a3ae su #19181b = 7.11:1 (min 4.5)
+testo/card in attesa: #e7e6ea su #19181b = 14.23:1 (min 4.5)
+testo secondario/gruppo: #a5a3ae su #19181b = 7.11:1 (min 4.5)
+testo/gruppo: #e7e6ea su #19181b = 14.23:1 (min 4.5)
+testo/scheda errore: #e7e6ea su #493131 = 9.57:1 (min 4.5)
+testo secondario/scheda errore: #a5a3ae su #493131 = 4.78:1 (min 4.5)
+testo secondario/chip TS: #a5a3ae su #2d2c30 = 5.58:1 (min 4.5)
+pulsante primario testo/sfondo: #18171c su #d9d8df = 12.59:1 (min 4.5)
+voce nav attiva testo/sfondo tinta: #e7e6ea su #3f3658 = 8.99:1 (min 4.5)
+accento kit (selezione, focus, tab attiva)/canvas: #baadeb su #151517 = 8.91:1 (min 3)
+accento kit/superficie: #baadeb su #1d1c1e = 8.30:1 (min 3)
+accento kit (anello di focus sul pulsante)/pulsante e superficie barra: #baadeb su #1d1c1e = 8.30:1 (min 3)
+accento dashboard (sottolineatura e logo)/superficie: #ae9ce2 su #1d1c1e = 6.99:1 (min 3)
+accento dashboard/tinta voce nav: #ae9ce2 su #3f3658 = 4.60:1 (min 3)
+arco attivo/canvas: #86b7f3 su #151517 = 8.75:1 (min 3)
+arco inattivo/canvas: #414045 su #151517 = 1.78:1 (min 3) [volutamente < 3: linea sottile e decorativa, la connessione è ridondante con posizione e porte] NON PASSA (informativo/esente)
+stato completata testo badge (neutro)/riempimento: #e7e6ea su #365749 = 6.46:1 (min 4.5)
+stato completata icona/riempimento: #7df2bc su #365749 = 5.85:1 (min 3)
+stato completata icona/superficie (conteggi, scheda): #7df2bc su #1d1c1e = 12.37:1 (min 3)
+stato in esecuzione testo badge (neutro)/riempimento: #e7e6ea su #364558 = 7.87:1 (min 4.5)
+stato in esecuzione icona/riempimento: #86b7f3 su #364558 = 4.69:1 (min 3)
+stato in esecuzione icona/superficie (conteggi, scheda): #86b7f3 su #1d1c1e = 8.15:1 (min 3)
+stato ritentata testo badge (neutro)/riempimento: #e7e6ea su #574f37 = 6.56:1 (min 4.5)
+stato ritentata icona/riempimento: #f2d77d su #574f37 = 5.74:1 (min 3)
+stato ritentata icona/superficie (conteggi, scheda): #f2d77d su #1d1c1e = 11.96:1 (min 3)
+stato fallita testo badge (neutro)/riempimento: #e7e6ea su #573837 = 8.34:1 (min 4.5)
+stato fallita icona/riempimento: #f4928b su #573837 = 4.61:1 (min 3)
+stato fallita icona/superficie (conteggi, scheda): #f4928b su #1d1c1e = 7.54:1 (min 3)
+stato in attesa / in coda testo badge (neutro)/riempimento: #e7e6ea su #2a292e = 11.62:1 (min 4.5)
+stato in attesa / in coda icona/riempimento: #8b8994 su #2a292e = 4.19:1 (min 3)
+stato in attesa / in coda icona/superficie (conteggi, scheda): #8b8994 su #1d1c1e = 4.93:1 (min 3)
+stato saltata / annullata / scaduta testo badge (neutro)/riempimento: #e7e6ea su #2a292e = 11.62:1 (min 4.5)
+stato saltata / annullata / scaduta icona/riempimento: #8b8994 su #2a292e = 4.19:1 (min 3)
+stato saltata / annullata / scaduta icona/superficie (conteggi, scheda): #8b8994 su #1d1c1e = 4.93:1 (min 3)
+segmento barra completata/superficie: #7df2bc su #1d1c1e = 12.37:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra in esecuzione/superficie: #86b7f3 su #1d1c1e = 8.15:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra ritentata/superficie: #f2d77d su #1d1c1e = 11.96:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+segmento barra fallita/superficie: #f4928b su #1d1c1e = 7.54:1 (min 3) [informativo: i conteggi sono anche in testo, segmento esente]
+categoria Funzione del worker icona/tessera: #bb99f5 su #433658 = 4.71:1 (min 3)
+categoria Funzione del worker icona/canvas (etichetta sopra il nodo): #bb99f5 su #151517 = 7.81:1 (min 3)
+categoria Nodo personalizzato icona/tessera: #f48bcd su #57364c = 4.62:1 (min 3)
+categoria Nodo personalizzato icona/canvas (etichetta sopra il nodo): #f48bcd su #151517 = 8.18:1 (min 3)
+categoria Controllo di flusso icona/tessera: #7df2f2 su #365758 = 5.96:1 (min 3)
+categoria Controllo di flusso icona/canvas (etichetta sopra il nodo): #7df2f2 su #151517 = 13.77:1 (min 3)
+distanza di tinta minima categorie-stati: 28° (Controllo di flusso 180° / completata 152°)
+*/
+*{box-sizing:border-box;margin:0}
+body{font:400 .875rem/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:#ececee;color:#1f2023;padding:32px 24px 64px;min-width:1488px}
+.mono,code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace}
+.intro,.v{max-width:1456px;margin:0 auto}.intro{margin-bottom:32px}.intro h1{font-size:1.25rem;font-weight:600;margin-bottom:8px}.intro p{max-width:860px;color:#46474c;margin-bottom:6px}
+.v{margin-top:48px;padding-top:24px;border-top:1px solid #d4d4d8}.v header h2{font-size:1.25rem;font-weight:600;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.v header p{max-width:900px;margin-top:4px;color:#46474c}
+.int{font-size:.75rem;font-weight:600;border:1px solid #d4d4d8;background:#fff;border-radius:999px;padding:1px 10px;color:#1f2023}.int s{text-decoration:none;letter-spacing:.12em;margin-left:6px}
+.panes{display:flex;gap:24px;margin-top:16px}.pane{width:716px;flex:none;padding:8px}.pane h4{font-size:.8125rem;font-weight:600;color:#46474c;margin-bottom:8px}
+.chips{background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:10px 12px;margin-bottom:12px;color:#1f2023}
+.g{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}.g b{width:84px;font-size:.6875rem;font-weight:600;color:#46474c;text-transform:uppercase;letter-spacing:.04em}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #e4e4e7;border-radius:8px;padding:2px 8px;font-size:.6875rem}.chip i{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.18);display:inline-grid;place-items:center}.chip i.two{width:18px;height:18px;border-width:1px}.chip i.two u{width:8px;height:8px;border-radius:50%;display:block}.chip code{color:#46474c}
+.shot{width:700px;border-radius:14px;overflow:hidden;background:var(--canvas);color:var(--text);border:1px solid var(--border);box-shadow:0 4px 16px rgba(20,22,26,.06)}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s{width:14px;height:14px}svg.xs{width:12px;height:12px}
+.canvas{position:relative;width:700px;height:430px;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);background-size:16px 16px;overflow:hidden}
+.canvas svg.edges{position:absolute;inset:0}.edges path{fill:none;stroke:var(--edge);stroke-width:1.25}.edges .act{stroke:var(--edge-act);stroke-width:1.75}.edges .pend{stroke-dasharray:5 4}.edges circle{fill:var(--surface);stroke:var(--edge);stroke-width:1.25}
+.node{position:absolute}
+.tag{position:absolute;top:-19px;left:0;display:inline-flex;align-items:center;gap:4px;font-size:.6875rem;font-weight:500;white-space:nowrap;color:var(--text2)}
+.tag.fn svg{color:var(--fn)}.tag.cu svg{color:var(--cu)}.tag.fl svg{color:var(--fl)}
+.card{height:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between}
+.card.sel{border:1.5px solid var(--accent);padding:9.5px 11.5px;box-shadow:0 0 0 4px var(--sel)}
+.card.pending{background:var(--pend)}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.tile{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;border:1px solid transparent}
+.tile.fn{background:var(--fn-bg);border-color:var(--fn-bd);color:var(--fn)}.tile.cu{background:var(--cu-bg);border-color:var(--cu-bd);color:var(--cu)}.tile.fl{background:var(--fl-bg);border-color:var(--fl-bd);color:var(--fl)}
+.nm{font-weight:500;white-space:nowrap}
+.ts{font-size:.6875rem;font-weight:500;padding:0 6px;border-radius:5px;background:var(--tsbg);color:var(--text2)}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:.75rem;font-weight:500;border-radius:999px;padding:0 9px 0 7px;border:1px solid transparent;line-height:1.5;white-space:nowrap;align-self:flex-start;color:var(--text)}
+.badge svg{stroke-width:1.9}
+.badge.ok{background:var(--ok-bg);border-color:var(--ok-bd)}.badge.run{background:var(--run-bg);border-color:var(--run-bd)}.badge.retry{background:var(--retry-bg);border-color:var(--retry-bd)}.badge.fail{background:var(--fail-bg);border-color:var(--fail-bd)}.badge.wait{background:var(--wait-bg);border-color:var(--wait-bd)}.badge.skip{background:var(--skip-bg);border-color:var(--skip-bd)}
+.badge.ok svg{color:var(--ok)}.badge.run svg{color:var(--run)}.badge.retry svg{color:var(--retry)}.badge.fail svg{color:var(--fail)}.badge.wait svg{color:var(--wait)}.badge.skip svg{color:var(--skip)}
+.group{position:absolute;inset:0;border:1px solid var(--border);border-radius:16px;background:var(--grp)}.group .hd{position:absolute;left:16px;right:16px;top:14px}
+.seg{display:flex;gap:2px;height:10px;margin:14px 0 12px}.seg i{display:block;border-radius:4px;min-width:6px}
+.seg .a{background:var(--ok-seg)}.seg .b{background:repeating-linear-gradient(135deg,var(--run-seg) 0 3px,var(--surface) 3px 5px)}.seg .c{background:var(--retry-seg)}.seg .d{background:var(--fail-seg)}
+.cnt{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:.8125rem}.cnt span{display:flex;align-items:center;gap:6px}.cnt b{font-weight:500;margin-left:auto;font-variant-numeric:tabular-nums}
+.k svg{stroke-width:1.9}.k.ok svg{color:var(--ok)}.k.run svg{color:var(--run)}.k.retry svg{color:var(--retry)}.k.fail svg{color:var(--fail)}
+.errcard{border-radius:12px;background:var(--err);border:1px solid var(--fail-bd);padding:10px 12px}.errcard p{color:var(--text2);font-size:.8125rem;margin-top:4px}
+.errlab{position:absolute;top:-19px;left:0;font-size:.6875rem;font-weight:500;color:var(--text2);display:inline-flex;gap:4px;align-items:center}.errlab svg{color:var(--fail)}
+.strip{background:var(--surface);border-top:1px solid var(--border)}
+.bar{height:48px;display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid var(--border);background:var(--surface)}.bar:last-child{border-bottom:0}
+.bar .logo{width:24px;height:24px;border-radius:6px;background:var(--border)}.bar strong{font-weight:600}
+.bar nav{display:flex;gap:4px;height:100%}.bar nav a{display:flex;align-items:center;padding:0 12px;color:var(--text2);border-bottom:2px solid transparent}
+.bar nav a.on{color:var(--text);font-weight:500;border-bottom-color:var(--accent)}
+.btn{margin-left:auto;display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 16px;border-radius:10px;border:1px solid transparent;background:var(--btn);color:var(--btn-on);font:500 .875rem system-ui,sans-serif;outline:1.5px solid var(--accent);outline-offset:2px}
+.bar.dash .wm{font-weight:600;font-size:1rem;display:flex;align-items:center;gap:8px}.bar.dash .wm i{width:22px;height:22px;border-radius:7px;background:var(--dash)}
+.bar.dash nav a.on{color:var(--text);background:var(--nav);border-radius:8px;border-bottom-color:transparent;height:32px;align-self:center;font-weight:500;box-shadow:inset 0 -2px 0 var(--dash)}
+
+/* variabili per variante e tema */
+.v1 .light{--canvas:#f6f6f7;--dot:#d3d3d9;--surface:#ffffff;--border:#e5e6e8;--text:#191a1f;--text2:#565761;--accent:#53566e;--btn:#2e2f38;--btn-on:#ffffff;--dash:#7180bc;--nav:#eeeff7;--edge:#bfc0c4;--edge-act:#5589c3;--pend:#fbfbfc;--grp:#fafafb;--err:#fbf4f4;--tsbg:#e9e9ec;--sel:rgba(83,86,110,0.2);--ok:#379566;--ok-bg:#e6f5ed;--ok-bd:#d7efe3;--ok-seg:#ade1c7;--run:#5486c0;--run-bg:#e6edf5;--run-bd:#d7e2ef;--run-seg:#adc5e1;--retry:#998538;--retry-bg:#f5f2e6;--retry-bd:#efead7;--retry-seg:#e1d6ad;--fail:#c2665b;--fail-bg:#f5e7e6;--fail-bd:#efdad7;--fail-seg:#e1b2ad;--wait:#80818e;--wait-bg:#ebecef;--wait-bd:#dedee3;--wait-seg:#c4c4ca;--skip:#80818e;--skip-bg:#ebecef;--skip-bd:#dedee3;--skip-seg:#c4c4ca;--fn:#966ac8;--fn-bg:#ede6f5;--fn-bd:#e2d7ef;--fn-seg:#c5ade1;--cu:#c25b9d;--cu-bg:#f5e6ef;--cu-bd:#efd7e6;--cu-seg:#e1adce;--fl:#379295;--fl-bg:#e6f4f5;--fl-bd:#d7eeef;--fl-seg:#addfe1}
+.v1 .dark{--canvas:#141517;--dot:#29292e;--surface:#1c1c1f;--border:#2e2e33;--text:#e6e7ea;--text2:#a3a4ae;--accent:#bdbfdb;--btn:#d8d8df;--btn-on:#17171c;--dash:#92a1dd;--nav:#2a2d37;--edge:#3e3f46;--edge-act:#8eb5e1;--pend:#18181b;--grp:#18181b;--err:#2f282a;--tsbg:#2b2c31;--sel:rgba(189,191,219,0.22);--ok:#8ee1b8;--ok-bg:#2a3532;--ok-bd:#384c44;--ok-seg:#8ee1b8;--run:#8eb5e1;--run-bg:#2a2f37;--run-bd:#38414e;--run-seg:#8eb5e1;--retry:#e1d08e;--retry-bg:#35332d;--retry-bd:#4c483a;--retry-seg:#e1d08e;--fail:#e1968e;--fail-bg:#352b2d;--fail-bd:#4c3a3a;--fail-seg:#e1968e;--wait:#898a94;--wait-bg:#28282f;--wait-bd:#36373f;--wait-seg:#898a94;--skip:#898a94;--skip-bg:#28282f;--skip-bd:#36373f;--skip-seg:#898a94;--fn:#b58ee1;--fn-bg:#2f2a37;--fn-bd:#41384e;--fn-seg:#b58ee1;--cu:#e18ec3;--cu-bg:#352a34;--cu-bd:#4c3847;--cu-seg:#e18ec3;--fl:#8edee1;--fl-bg:#2a3437;--fl-bd:#384b4e;--fl-seg:#8edee1}
+.v2 .light{--canvas:#f6f6f6;--dot:#d6d4d8;--surface:#ffffff;--border:#e7e6e8;--text:#1b191f;--text2:#5a5661;--accent:#8c76b2;--btn:#312e38;--btn-on:#ffffff;--dash:#8970b2;--nav:#e8e1f4;--edge:#c1bfc4;--edge-act:#5f89c4;--pend:#fbfbfb;--grp:#fafafa;--err:#faedf1;--tsbg:#eae9ec;--sel:rgba(140,118,178,0.2);--ok:#39935f;--ok-bg:#d8f3e3;--ok-bd:#c5edd5;--ok-seg:#a0e4bc;--run:#4f7cba;--run-bg:#d8e3f3;--run-bd:#c5d5ed;--run-seg:#a0bce4;--retry:#8c8436;--retry-bg:#f3f1d8;--retry-bd:#ede9c5;--retry-seg:#e4dea0;--fail:#bd5670;--fail-bg:#f3d8df;--fail-bd:#edc5cf;--fail-seg:#e4a0b1;--wait:#85808e;--wait-bg:#edecee;--wait-bd:#e0dfe2;--wait-seg:#c6c4ca;--skip:#85808e;--skip-bg:#edecee;--skip-bd:#e0dfe2;--skip-seg:#c6c4ca;--fn:#8e65c3;--fn-bg:#e4d8f3;--fn-bd:#d6c5ed;--fn-seg:#bda0e4;--cu:#b46746;--cu-bg:#f3e0d8;--cu-bd:#edd1c5;--cu-seg:#e4b4a0;--fl:#388f8c;--fl-bg:#d8f3f2;--fl-bd:#c5edeb;--fl-seg:#a0e4e2}
+.v2 .dark{--canvas:#151516;--dot:#2b2a2d;--surface:#1d1c1e;--border:#302f32;--text:#e7e6ea;--text2:#a7a3ae;--accent:#c5b4e4;--btn:#dad8df;--btn-on:#19171c;--dash:#af96d9;--nav:#342e3e;--edge:#424044;--edge-act:#8bb0e4;--pend:#19191a;--grp:#19191a;--err:#352a2e;--tsbg:#2d2d2f;--sel:rgba(197,180,228,0.22);--ok:#8be4b0;--ok-bg:#2f3d36;--ok-bd:#3c5447;--ok-seg:#8be4b0;--run:#8bb0e4;--run-bg:#2f343e;--run-bd:#3c4555;--run-seg:#8bb0e4;--retry:#e4dc8b;--retry-bg:#3e3c30;--retry-bd:#55523d;--retry-seg:#e4dc8b;--fail:#e48ba1;--fail-bg:#3e2e34;--fail-bd:#553b43;--fail-seg:#e48ba1;--wait:#8d8994;--wait-bg:#2b292e;--wait-bd:#3a383e;--wait-seg:#8d8994;--skip:#8d8994;--skip-bg:#2b292e;--skip-bd:#3a383e;--skip-seg:#8d8994;--fn:#b28be4;--fn-bg:#352e3e;--fn-bd:#473b55;--fn-seg:#b28be4;--cu:#e4a68b;--cu-bg:#3e3330;--cu-bd:#55433d;--cu-seg:#e4a68b;--fl:#8be4e1;--fl-bg:#2f3d3e;--fl-bd:#3c5455;--fl-seg:#8be4e1}
+.v3 .light{--canvas:#f5f6f7;--dot:#d2d5da;--surface:#ffffff;--border:#e5e6e9;--text:#191b1f;--text2:#565a61;--accent:#6381b6;--btn:#2e3138;--btn-on:#ffffff;--dash:#4d8ca3;--nav:#e0f0f5;--edge:#bfc1c4;--edge-act:#558ac3;--pend:#fbfbfc;--grp:#fafafb;--err:#faefed;--tsbg:#e8eaed;--sel:rgba(99,129,182,0.2);--ok:#369163;--ok-bg:#d7f4e6;--ok-bd:#c3efd9;--ok-seg:#94e6bd;--run:#4980bc;--run-bg:#d7e5f4;--run-bd:#c3d8ef;--run-seg:#94bbe6;--retry:#958237;--retry-bg:#f4eed7;--retry-bd:#efe6c3;--retry-seg:#e6d594;--fail:#be5f50;--fail-bg:#f4dbd7;--fail-bd:#efc8c3;--fail-seg:#e69f94;--wait:#7d828c;--wait-bg:#ebecef;--wait-bd:#dddfe4;--wait-seg:#c4c6ca;--skip:#7d828c;--skip-bg:#ebecef;--skip-bd:#dddfe4;--skip-seg:#c4c6ca;--fn:#915fc4;--fn-bg:#e6d7f4;--fn-bd:#d9c3ef;--fn-seg:#bd94e6;--cu:#be50a5;--cu-bg:#f4d7ed;--cu-bd:#efc3e5;--cu-seg:#e694d3;--fl:#379095;--fl-bg:#d7f3f4;--fl-bd:#c3edef;--fl-seg:#94e2e6}
+.v3 .dark{--canvas:#141517;--dot:#282a2f;--surface:#1b1d20;--border:#2d2f34;--text:#e6e7ea;--text2:#a3a7ae;--accent:#b0c5e8;--btn:#d8dadf;--btn-on:#17191c;--dash:#92c9dd;--nav:#303f47;--edge:#3d4148;--edge-act:#87b6e8;--pend:#17191c;--grp:#17191c;--err:#392e2f;--tsbg:#2a2d32;--sel:rgba(176,197,232,0.22);--ok:#87e8b8;--ok-bg:#30443d;--ok-bd:#3c5c4f;--ok-seg:#87e8b8;--run:#87b6e8;--run-bg:#303b47;--run-bd:#3c4c5e;--run-seg:#87b6e8;--retry:#e8d587;--retry-bg:#434134;--retry-bd:#5b5640;--retry-seg:#e8d587;--fail:#e89487;--fail-bg:#433434;--fail-bd:#5b4240;--fail-seg:#e89487;--wait:#898d94;--wait-bg:#272a30;--wait-bd:#353941;--wait-seg:#898d94;--skip:#898d94;--skip-bg:#272a30;--skip-bd:#353941;--skip-seg:#898d94;--fn:#ba8be9;--fn-bg:#393147;--fn-bd:#4c3e5e;--fn-seg:#ba8be9;--cu:#e887d1;--cu-bg:#433142;--cu-bd:#5b3e57;--cu-seg:#e887d1;--fl:#87e3e8;--fl-bg:#304347;--fl-bd:#3c5a5e;--fl-seg:#87e3e8}
+.v4 .light{--canvas:#f7f6f5;--dot:#dad6d3;--surface:#fffdfb;--border:#e8e7e5;--text:#1f1c19;--text2:#615c56;--accent:#5b5048;--btn:#38332e;--btn-on:#ffffff;--dash:#ad6b58;--nav:#f5ddd6;--edge:#c4c2bf;--edge-act:#408cbf;--pend:#fcfaf9;--grp:#fbf9f8;--err:#fbe7e8;--tsbg:#edebe9;--sel:rgba(91,80,72,0.2);--ok:#379334;--ok-bg:#cef5cc;--ok-bd:#b9f0b7;--ok-seg:#91eb8e;--run:#3d81ae;--run-bg:#cce4f5;--run-bd:#b7d9f0;--run-seg:#8ec6eb;--retry:#8f8332;--retry-bg:#f5efcc;--retry-bd:#f0e9b7;--retry-seg:#ebdf8e;--fail:#c14e57;--fail-bg:#f5ccd0;--fail-bd:#f0b7bc;--fail-seg:#eb8e96;--wait:#8a827b;--wait-bg:#efedeb;--wait-bd:#e3e0dd;--wait-seg:#cac7c4;--skip:#8a827b;--skip-bg:#efedeb;--skip-bd:#e3e0dd;--skip-seg:#cac7c4;--fn:#ae6a3d;--fn-bg:#f5dccc;--fn-bd:#f0ceb7;--fn-seg:#ebb38e;--cu:#be4692;--cu-bg:#f5cce6;--cu-bd:#f0b7db;--cu-seg:#eb8ec9;--fl:#9755c3;--fl-bg:#e4ccf5;--fl-bd:#d9b7f0;--fl-seg:#c68eeb}
+.v4 .dark{--canvas:#171614;--dot:#2e2b28;--surface:#1f1d1b;--border:#34302d;--text:#eae8e6;--text2:#aea8a3;--accent:#e0c9b8;--btn:#dfdbd8;--btn-on:#1c1a17;--dash:#dca493;--nav:#4d3932;--edge:#47423e;--edge-act:#82c2ed;--pend:#1b1a18;--grp:#1b1a18;--err:#422e2e;--tsbg:#312e2b;--sel:rgba(224,201,184,0.22);--ok:#86ed82;--ok-bg:#364b32;--ok-bd:#41643e;--ok-seg:#86ed82;--run:#82c2ed;--run-bg:#35424a;--run-bd:#405562;--run-seg:#82c2ed;--retry:#eddf82;--retry-bg:#4d4832;--retry-bd:#655f3e;--retry-seg:#eddf82;--fail:#ee878f;--fail-bg:#4d3334;--fail-bd:#653f41;--fail-seg:#ee878f;--wait:#948f89;--wait-bg:#2f2b27;--wait-bd:#403b35;--wait-seg:#948f89;--skip:#948f89;--skip-bg:#2f2b27;--skip-bd:#403b35;--skip-seg:#948f89;--fn:#edad82;--fn-bg:#4d3d32;--fn-bd:#654e3e;--fn-seg:#edad82;--cu:#ed82c6;--cu-bg:#4d3341;--cu-bd:#653f55;--cu-seg:#ed82c6;--fl:#c78bee;--fl-bg:#43334a;--fl-bd:#563f62;--fl-seg:#c78bee}
+.v5 .light{--canvas:#f6f6f6;--dot:#d5d4d9;--surface:#ffffff;--border:#e6e6e8;--text:#1a191f;--text2:#585661;--accent:#8071bc;--btn:#302e38;--btn-on:#ffffff;--dash:#705ab5;--nav:#cec3ef;--edge:#c0bfc4;--edge-act:#5489c9;--pend:#fbfbfb;--grp:#fafafa;--err:#f8e1df;--tsbg:#eae9ec;--sel:rgba(128,113,188,0.2);--ok:#2e8a5f;--ok-bg:#b8efd5;--ok-bd:#9feac7;--ok-seg:#7ee7b6;--run:#3b6fb0;--run-bg:#b8d1ef;--run-bd:#9fc1ea;--run-seg:#7eade7;--retry:#8e782f;--retry-bg:#efe2b8;--retry-bd:#ead89f;--retry-seg:#e7ce7e;--fail:#b4443c;--fail-bg:#efbcb8;--fail-bd:#eaa49f;--fail-seg:#e7857e;--wait:#82808e;--wait-bg:#ececef;--wait-bd:#dfdee3;--wait-seg:#c5c4ca;--skip:#82808e;--skip-bg:#ececef;--skip-bd:#dfdee3;--skip-seg:#c5c4ca;--fn:#774bc3;--fn-bg:#ccb8ef;--fn-bd:#ba9fea;--fn-seg:#a57ee7;--cu:#b03b85;--cu-bg:#efb8db;--cu-bd:#ea9fce;--cu-seg:#e77ec0;--fl:#2e8a8a;--fl-bg:#b8efef;--fl-bd:#9feaea;--fl-seg:#7ee7e7}
+.v5 .dark{--canvas:#151517;--dot:#2a2a2d;--surface:#1d1c1e;--border:#2f2f32;--text:#e7e6ea;--text2:#a5a3ae;--accent:#baadeb;--btn:#d9d8df;--btn-on:#18171c;--dash:#ae9ce2;--nav:#3f3658;--edge:#414045;--edge-act:#86b7f3;--pend:#19181b;--grp:#19181b;--err:#493131;--tsbg:#2d2c30;--sel:rgba(186,173,235,0.22);--ok:#7df2bc;--ok-bg:#365749;--ok-bd:#41705b;--ok-seg:#7df2bc;--run:#86b7f3;--run-bg:#364558;--run-bd:#415671;--run-seg:#86b7f3;--retry:#f2d77d;--retry-bg:#574f37;--retry-bd:#706542;--retry-seg:#f2d77d;--fail:#f4928b;--fail-bg:#573837;--fail-bd:#704442;--fail-seg:#f4928b;--wait:#8b8994;--wait-bg:#2a292e;--wait-bd:#38373e;--wait-seg:#8b8994;--skip:#8b8994;--skip-bg:#2a292e;--skip-bd:#38373e;--skip-seg:#8b8994;--fn:#bb99f5;--fn-bg:#433658;--fn-bd:#534171;--fn-seg:#bb99f5;--cu:#f48bcd;--cu-bg:#57364c;--cu-bd:#704160;--cu-seg:#f48bcd;--fl:#7df2f2;--fl-bg:#365758;--fl-bd:#417071;--fl-seg:#7df2f2}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="i-fn" viewBox="0 0 20 20"><path d="M8 4c-2 0-2 1-2 3v1c0 1-1 2-2 2 1 0 2 1 2 2v1c0 2 0 3 2 3M12 4c2 0 2 1 2 3v1c0 1 1 2 2 2-1 0-2 1-2 2v1c0 2 0 3-2 3"/></symbol>
+<symbol id="i-cu" viewBox="0 0 20 20"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4M11 4l-2 12"/></symbol>
+<symbol id="i-fl" viewBox="0 0 20 20"><path d="M4 3v14M4 10h6a4 4 0 014 4v3M4 10h6a4 4 0 004-4V3"/></symbol>
+<symbol id="i-ok" viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9"/></symbol>
+<symbol id="i-x" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></symbol>
+<symbol id="i-retry" viewBox="0 0 20 20"><path d="M16 10a6 6 0 11-2-4.5M16 3v4h-4"/></symbol>
+<symbol id="i-run" viewBox="0 0 20 20"><path d="M10 3a7 7 0 107 7"/><path d="M10 6v4l2.5 1.5"/></symbol>
+<symbol id="i-wait" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" stroke-dasharray="3 3"/></symbol>
+<symbol id="i-q" viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h7"/></symbol>
+<symbol id="i-skip" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M5 15L15 5"/></symbol>
+</defs></svg>
+<div class="intro"><h1>Temi colore per Carta chiara — round 3, pastello</h1>
+<p>Cinque varianti dello stesso layout, dalla più tenue alla più ricca. Tessere di categoria, badge di stato, segmenti della barra e scheda dell'elemento fallito hanno riempimenti pastello con testo scuro sopra; i bordi restano a filo, al massimo un passo più scuri del riempimento. Nel tema scuro i pastelli diventano colore di primo piano (icone, punti) e tinte a bassa opacità dietro testo chiaro.</p>
+<p>Selezione e focus: contorno 1.5px in accento kit più alone pastello; il bottone «Annulla» mostra l'anello di focus. Intensità da 1 (appena sopra il round 2) a 5 (i pastelli più pieni). Archi curvi, nomi mai troncati, stato sempre con icona e parola, nessuna tinta condivisa tra categoria e stato. Contrasti per ogni coppia nel commento di <code>&lt;style&gt;</code>.</p></div>
+<section class="v v1"><header><h2>1. Brina<span class="int">Intensità 1/5<s aria-hidden="true">●○○○○</s></span><span class="int">quasi neutra, un soffio di freddo</span></h2><p>Appena sopra il round 2: tinte molto chiare ma ora leggibili come colore. Menta, cielo, burro e rosa tenui; categorie in lavanda, orchidea e acqua.</p><p><b>Accento kit (selezione, focus, tab attiva):</b> grafite blu (contorno scuro neutro) con alone lavanda, chiaro <code>#53566e</code> (6.65:1 sul canvas), scuro <code>#bdbfdb</code> (10.13:1). <b>Accento dashboard:</b> chiaro <code>#7180bc</code>, scuro <code>#92a1dd</code>.</p><p><b>Categoria / stato:</b> nessuna tinta in comune, distanza minima 30° (Controllo di flusso 182° / in esecuzione 212°).</p></header>
+<div class="panes"><div class="pane light"><h4>Tema chiaro</h4><div class="chips">
+<div class="g"><b>Base</b><span class="chip"><i style="background:#f6f6f7"></i>canvas <code>#f6f6f7</code></span><span class="chip"><i style="background:#d3d3d9"></i>punti <code>#d3d3d9</code></span><span class="chip"><i style="background:#ffffff"></i>superficie <code>#ffffff</code></span><span class="chip"><i style="background:#e5e6e8"></i>bordo (filo) <code>#e5e6e8</code></span><span class="chip"><i style="background:#191a1f"></i>testo <code>#191a1f</code></span><span class="chip"><i style="background:#565761"></i>testo secondario <code>#565761</code></span></div>
+<div class="g"><b>Accenti</b><span class="chip"><i style="background:#53566e"></i>accento kit <code>#53566e</code></span><span class="chip"><i style="background:#2e2f38"></i>pulsante primario <code>#2e2f38</code></span><span class="chip"><i style="background:#7180bc"></i>accento dashboard <code>#7180bc</code></span><span class="chip"><i style="background:#bfc0c4"></i>arco <code>#bfc0c4</code></span><span class="chip"><i style="background:#5589c3"></i>arco attivo <code>#5589c3</code></span></div>
+<div class="g"><b>Categorie</b><span class="chip"><i class="two" style="background:#ede6f5;border-color:#e2d7ef"><u style="background:#966ac8"></u></i>Funzione del worker <code>riemp. #ede6f5</code> <code>fg #966ac8</code></span><span class="chip"><i class="two" style="background:#f5e6ef;border-color:#efd7e6"><u style="background:#c25b9d"></u></i>Nodo personalizzato <code>riemp. #f5e6ef</code> <code>fg #c25b9d</code></span><span class="chip"><i class="two" style="background:#e6f4f5;border-color:#d7eeef"><u style="background:#379295"></u></i>Controllo di flusso <code>riemp. #e6f4f5</code> <code>fg #379295</code></span></div>
+<div class="g"><b>Stati</b><span class="chip"><i class="two" style="background:#e6f5ed;border-color:#d7efe3"><u style="background:#379566"></u></i>completata <code>riemp. #e6f5ed</code> <code>fg #379566</code></span><span class="chip"><i class="two" style="background:#e6edf5;border-color:#d7e2ef"><u style="background:#5486c0"></u></i>in esecuzione <code>riemp. #e6edf5</code> <code>fg #5486c0</code></span><span class="chip"><i class="two" style="background:#f5f2e6;border-color:#efead7"><u style="background:#998538"></u></i>ritentata <code>riemp. #f5f2e6</code> <code>fg #998538</code></span><span class="chip"><i class="two" style="background:#f5e7e6;border-color:#efdad7"><u style="background:#c2665b"></u></i>fallita <code>riemp. #f5e7e6</code> <code>fg #c2665b</code></span><span class="chip"><i class="two" style="background:#ebecef;border-color:#dedee3"><u style="background:#80818e"></u></i>in attesa / in coda <code>riemp. #ebecef</code> <code>fg #80818e</code></span><span class="chip"><i class="two" style="background:#ebecef;border-color:#dedee3"><u style="background:#80818e"></u></i>saltata / annullata / scaduta <code>riemp. #ebecef</code> <code>fg #80818e</code></span></div></div><div class="shot"><div class="canvas"><svg class="edges" width="700" height="430">
+<path class="act" d="M436 165C470 165 466 106 500 106"/>
+<path class="pend" d="M520 142C520 240 460 306 496 306"/>
+<circle cx="436" cy="165" r="3.5"/><circle cx="500" cy="106" r="3.5"/><circle cx="520" cy="142" r="3.5"/><circle cx="496" cy="306" r="3.5"/>
+</svg>
+<div class="node" style="left:16px;top:34px;width:420px;height:266px"><span class="tag fl"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="hd"><div class="row"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span style="margin-left:auto"><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div></div></div>
+<div class="node" style="left:30px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:232px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:500px;top:70px;width:160px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card pending"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge wait"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+<div class="node" style="left:496px;top:270px;width:200px;height:72px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card pending"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+<div class="node" style="left:16px;top:332px;width:420px"><span class="errlab"><svg class="i xs"><use href="#i-x"/></svg>Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+</div><div class="strip"><div class="bar"><span class="logo"></span><strong>Threat Intel</strong><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a></nav><button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="bar dash"><span class="wm"><i></i>topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav></div></div></div></div><div class="pane dark"><h4>Tema scuro</h4><div class="chips">
+<div class="g"><b>Base</b><span class="chip"><i style="background:#141517"></i>canvas <code>#141517</code></span><span class="chip"><i style="background:#29292e"></i>punti <code>#29292e</code></span><span class="chip"><i style="background:#1c1c1f"></i>superficie <code>#1c1c1f</code></span><span class="chip"><i style="background:#2e2e33"></i>bordo (filo) <code>#2e2e33</code></span><span class="chip"><i style="background:#e6e7ea"></i>testo <code>#e6e7ea</code></span><span class="chip"><i style="background:#a3a4ae"></i>testo secondario <code>#a3a4ae</code></span></div>
+<div class="g"><b>Accenti</b><span class="chip"><i style="background:#bdbfdb"></i>accento kit <code>#bdbfdb</code></span><span class="chip"><i style="background:#d8d8df"></i>pulsante primario <code>#d8d8df</code></span><span class="chip"><i style="background:#92a1dd"></i>accento dashboard <code>#92a1dd</code></span><span class="chip"><i style="background:#3e3f46"></i>arco <code>#3e3f46</code></span><span class="chip"><i style="background:#8eb5e1"></i>arco attivo <code>#8eb5e1</code></span></div>
+<div class="g"><b>Categorie</b><span class="chip"><i class="two" style="background:#2f2a37;border-color:#41384e"><u style="background:#b58ee1"></u></i>Funzione del worker <code>riemp. #2f2a37</code> <code>fg #b58ee1</code></span><span class="chip"><i class="two" style="background:#352a34;border-color:#4c3847"><u style="background:#e18ec3"></u></i>Nodo personalizzato <code>riemp. #352a34</code> <code>fg #e18ec3</code></span><span class="chip"><i class="two" style="background:#2a3437;border-color:#384b4e"><u style="background:#8edee1"></u></i>Controllo di flusso <code>riemp. #2a3437</code> <code>fg #8edee1</code></span></div>
+<div class="g"><b>Stati</b><span class="chip"><i class="two" style="background:#2a3532;border-color:#384c44"><u style="background:#8ee1b8"></u></i>completata <code>riemp. #2a3532</code> <code>fg #8ee1b8</code></span><span class="chip"><i class="two" style="background:#2a2f37;border-color:#38414e"><u style="background:#8eb5e1"></u></i>in esecuzione <code>riemp. #2a2f37</code> <code>fg #8eb5e1</code></span><span class="chip"><i class="two" style="background:#35332d;border-color:#4c483a"><u style="background:#e1d08e"></u></i>ritentata <code>riemp. #35332d</code> <code>fg #e1d08e</code></span><span class="chip"><i class="two" style="background:#352b2d;border-color:#4c3a3a"><u style="background:#e1968e"></u></i>fallita <code>riemp. #352b2d</code> <code>fg #e1968e</code></span><span class="chip"><i class="two" style="background:#28282f;border-color:#36373f"><u style="background:#898a94"></u></i>in attesa / in coda <code>riemp. #28282f</code> <code>fg #898a94</code></span><span class="chip"><i class="two" style="background:#28282f;border-color:#36373f"><u style="background:#898a94"></u></i>saltata / annullata / scaduta <code>riemp. #28282f</code> <code>fg #898a94</code></span></div></div><div class="shot"><div class="canvas"><svg class="edges" width="700" height="430">
+<path class="act" d="M436 165C470 165 466 106 500 106"/>
+<path class="pend" d="M520 142C520 240 460 306 496 306"/>
+<circle cx="436" cy="165" r="3.5"/><circle cx="500" cy="106" r="3.5"/><circle cx="520" cy="142" r="3.5"/><circle cx="496" cy="306" r="3.5"/>
+</svg>
+<div class="node" style="left:16px;top:34px;width:420px;height:266px"><span class="tag fl"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="hd"><div class="row"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span style="margin-left:auto"><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div></div></div>
+<div class="node" style="left:30px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:232px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:500px;top:70px;width:160px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card pending"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge wait"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+<div class="node" style="left:496px;top:270px;width:200px;height:72px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card pending"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+<div class="node" style="left:16px;top:332px;width:420px"><span class="errlab"><svg class="i xs"><use href="#i-x"/></svg>Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+</div><div class="strip"><div class="bar"><span class="logo"></span><strong>Threat Intel</strong><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a></nav><button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="bar dash"><span class="wm"><i></i>topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav></div></div></div></div></div></section>
+<section class="v v2"><header><h2>2. Sorbetto<span class="int">Intensità 2/5<s aria-hidden="true">●●○○○</s></span><span class="int">neutra, pastelli classici</span></h2><p>Il sorbetto classico: menta, pesca, lavanda, burro e rosa. Stati menta / cielo / burro / rosa; categorie lavanda, pesca e acqua.</p><p><b>Accento kit (selezione, focus, tab attiva):</b> viola polvere (tono medio), chiaro <code>#8c76b2</code> (3.63:1 sul canvas), scuro <code>#c5b4e4</code> (9.58:1). <b>Accento dashboard:</b> chiaro <code>#8970b2</code>, scuro <code>#af96d9</code>.</p><p><b>Categoria / stato:</b> nessuna tinta in comune, distanza minima 33° (Nodo personalizzato 18° / fallita 345°).</p></header>
+<div class="panes"><div class="pane light"><h4>Tema chiaro</h4><div class="chips">
+<div class="g"><b>Base</b><span class="chip"><i style="background:#f6f6f6"></i>canvas <code>#f6f6f6</code></span><span class="chip"><i style="background:#d6d4d8"></i>punti <code>#d6d4d8</code></span><span class="chip"><i style="background:#ffffff"></i>superficie <code>#ffffff</code></span><span class="chip"><i style="background:#e7e6e8"></i>bordo (filo) <code>#e7e6e8</code></span><span class="chip"><i style="background:#1b191f"></i>testo <code>#1b191f</code></span><span class="chip"><i style="background:#5a5661"></i>testo secondario <code>#5a5661</code></span></div>
+<div class="g"><b>Accenti</b><span class="chip"><i style="background:#8c76b2"></i>accento kit <code>#8c76b2</code></span><span class="chip"><i style="background:#312e38"></i>pulsante primario <code>#312e38</code></span><span class="chip"><i style="background:#8970b2"></i>accento dashboard <code>#8970b2</code></span><span class="chip"><i style="background:#c1bfc4"></i>arco <code>#c1bfc4</code></span><span class="chip"><i style="background:#5f89c4"></i>arco attivo <code>#5f89c4</code></span></div>
+<div class="g"><b>Categorie</b><span class="chip"><i class="two" style="background:#e4d8f3;border-color:#d6c5ed"><u style="background:#8e65c3"></u></i>Funzione del worker <code>riemp. #e4d8f3</code> <code>fg #8e65c3</code></span><span class="chip"><i class="two" style="background:#f3e0d8;border-color:#edd1c5"><u style="background:#b46746"></u></i>Nodo personalizzato <code>riemp. #f3e0d8</code> <code>fg #b46746</code></span><span class="chip"><i class="two" style="background:#d8f3f2;border-color:#c5edeb"><u style="background:#388f8c"></u></i>Controllo di flusso <code>riemp. #d8f3f2</code> <code>fg #388f8c</code></span></div>
+<div class="g"><b>Stati</b><span class="chip"><i class="two" style="background:#d8f3e3;border-color:#c5edd5"><u style="background:#39935f"></u></i>completata <code>riemp. #d8f3e3</code> <code>fg #39935f</code></span><span class="chip"><i class="two" style="background:#d8e3f3;border-color:#c5d5ed"><u style="background:#4f7cba"></u></i>in esecuzione <code>riemp. #d8e3f3</code> <code>fg #4f7cba</code></span><span class="chip"><i class="two" style="background:#f3f1d8;border-color:#ede9c5"><u style="background:#8c8436"></u></i>ritentata <code>riemp. #f3f1d8</code> <code>fg #8c8436</code></span><span class="chip"><i class="two" style="background:#f3d8df;border-color:#edc5cf"><u style="background:#bd5670"></u></i>fallita <code>riemp. #f3d8df</code> <code>fg #bd5670</code></span><span class="chip"><i class="two" style="background:#edecee;border-color:#e0dfe2"><u style="background:#85808e"></u></i>in attesa / in coda <code>riemp. #edecee</code> <code>fg #85808e</code></span><span class="chip"><i class="two" style="background:#edecee;border-color:#e0dfe2"><u style="background:#85808e"></u></i>saltata / annullata / scaduta <code>riemp. #edecee</code> <code>fg #85808e</code></span></div></div><div class="shot"><div class="canvas"><svg class="edges" width="700" height="430">
+<path class="act" d="M436 165C470 165 466 106 500 106"/>
+<path class="pend" d="M520 142C520 240 460 306 496 306"/>
+<circle cx="436" cy="165" r="3.5"/><circle cx="500" cy="106" r="3.5"/><circle cx="520" cy="142" r="3.5"/><circle cx="496" cy="306" r="3.5"/>
+</svg>
+<div class="node" style="left:16px;top:34px;width:420px;height:266px"><span class="tag fl"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="hd"><div class="row"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span style="margin-left:auto"><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div></div></div>
+<div class="node" style="left:30px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:232px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:500px;top:70px;width:160px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card pending"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge wait"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+<div class="node" style="left:496px;top:270px;width:200px;height:72px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card pending"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+<div class="node" style="left:16px;top:332px;width:420px"><span class="errlab"><svg class="i xs"><use href="#i-x"/></svg>Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+</div><div class="strip"><div class="bar"><span class="logo"></span><strong>Threat Intel</strong><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a></nav><button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="bar dash"><span class="wm"><i></i>topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav></div></div></div></div><div class="pane dark"><h4>Tema scuro</h4><div class="chips">
+<div class="g"><b>Base</b><span class="chip"><i style="background:#151516"></i>canvas <code>#151516</code></span><span class="chip"><i style="background:#2b2a2d"></i>punti <code>#2b2a2d</code></span><span class="chip"><i style="background:#1d1c1e"></i>superficie <code>#1d1c1e</code></span><span class="chip"><i style="background:#302f32"></i>bordo (filo) <code>#302f32</code></span><span class="chip"><i style="background:#e7e6ea"></i>testo <code>#e7e6ea</code></span><span class="chip"><i style="background:#a7a3ae"></i>testo secondario <code>#a7a3ae</code></span></div>
+<div class="g"><b>Accenti</b><span class="chip"><i style="background:#c5b4e4"></i>accento kit <code>#c5b4e4</code></span><span class="chip"><i style="background:#dad8df"></i>pulsante primario <code>#dad8df</code></span><span class="chip"><i style="background:#af96d9"></i>accento dashboard <code>#af96d9</code></span><span class="chip"><i style="background:#424044"></i>arco <code>#424044</code></span><span class="chip"><i style="background:#8bb0e4"></i>arco attivo <code>#8bb0e4</code></span></div>
+<div class="g"><b>Categorie</b><span class="chip"><i class="two" style="background:#352e3e;border-color:#473b55"><u style="background:#b28be4"></u></i>Funzione del worker <code>riemp. #352e3e</code> <code>fg #b28be4</code></span><span class="chip"><i class="two" style="background:#3e3330;border-color:#55433d"><u style="background:#e4a68b"></u></i>Nodo personalizzato <code>riemp. #3e3330</code> <code>fg #e4a68b</code></span><span class="chip"><i class="two" style="background:#2f3d3e;border-color:#3c5455"><u style="background:#8be4e1"></u></i>Controllo di flusso <code>riemp. #2f3d3e</code> <code>fg #8be4e1</code></span></div>
+<div class="g"><b>Stati</b><span class="chip"><i class="two" style="background:#2f3d36;border-color:#3c5447"><u style="background:#8be4b0"></u></i>completata <code>riemp. #2f3d36</code> <code>fg #8be4b0</code></span><span class="chip"><i class="two" style="background:#2f343e;border-color:#3c4555"><u style="background:#8bb0e4"></u></i>in esecuzione <code>riemp. #2f343e</code> <code>fg #8bb0e4</code></span><span class="chip"><i class="two" style="background:#3e3c30;border-color:#55523d"><u style="background:#e4dc8b"></u></i>ritentata <code>riemp. #3e3c30</code> <code>fg #e4dc8b</code></span><span class="chip"><i class="two" style="background:#3e2e34;border-color:#553b43"><u style="background:#e48ba1"></u></i>fallita <code>riemp. #3e2e34</code> <code>fg #e48ba1</code></span><span class="chip"><i class="two" style="background:#2b292e;border-color:#3a383e"><u style="background:#8d8994"></u></i>in attesa / in coda <code>riemp. #2b292e</code> <code>fg #8d8994</code></span><span class="chip"><i class="two" style="background:#2b292e;border-color:#3a383e"><u style="background:#8d8994"></u></i>saltata / annullata / scaduta <code>riemp. #2b292e</code> <code>fg #8d8994</code></span></div></div><div class="shot"><div class="canvas"><svg class="edges" width="700" height="430">
+<path class="act" d="M436 165C470 165 466 106 500 106"/>
+<path class="pend" d="M520 142C520 240 460 306 496 306"/>
+<circle cx="436" cy="165" r="3.5"/><circle cx="500" cy="106" r="3.5"/><circle cx="520" cy="142" r="3.5"/><circle cx="496" cy="306" r="3.5"/>
+</svg>
+<div class="node" style="left:16px;top:34px;width:420px;height:266px"><span class="tag fl"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="hd"><div class="row"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span style="margin-left:auto"><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div></div></div>
+<div class="node" style="left:30px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:232px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:500px;top:70px;width:160px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card pending"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge wait"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+<div class="node" style="left:496px;top:270px;width:200px;height:72px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card pending"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+<div class="node" style="left:16px;top:332px;width:420px"><span class="errlab"><svg class="i xs"><use href="#i-x"/></svg>Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+</div><div class="strip"><div class="bar"><span class="logo"></span><strong>Threat Intel</strong><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a></nav><button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="bar dash"><span class="wm"><i></i>topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav></div></div></div></div></div></section>
+<section class="v v3"><header><h2>3. Brezza<span class="int">Intensità 3/5<s aria-hidden="true">●●●○○</s></span><span class="int">fredda</span></h2><p>Cielo, menta e lilla su una base grigio-azzurra; il corallo è riservato al fallimento. Categorie lilla, orchidea e turchese.</p><p><b>Accento kit (selezione, focus, tab attiva):</b> blu polvere (tono medio), chiaro <code>#6381b6</code> (3.63:1 sul canvas), scuro <code>#b0c5e8</code> (10.44:1). <b>Accento dashboard:</b> chiaro <code>#4d8ca3</code>, scuro <code>#92c9dd</code>.</p><p><b>Categoria / stato:</b> nessuna tinta in comune, distanza minima 28° (Controllo di flusso 183° / in esecuzione 211°).</p></header>
+<div class="panes"><div class="pane light"><h4>Tema chiaro</h4><div class="chips">
+<div class="g"><b>Base</b><span class="chip"><i style="background:#f5f6f7"></i>canvas <code>#f5f6f7</code></span><span class="chip"><i style="background:#d2d5da"></i>punti <code>#d2d5da</code></span><span class="chip"><i style="background:#ffffff"></i>superficie <code>#ffffff</code></span><span class="chip"><i style="background:#e5e6e9"></i>bordo (filo) <code>#e5e6e9</code></span><span class="chip"><i style="background:#191b1f"></i>testo <code>#191b1f</code></span><span class="chip"><i style="background:#565a61"></i>testo secondario <code>#565a61</code></span></div>
+<div class="g"><b>Accenti</b><span class="chip"><i style="background:#6381b6"></i>accento kit <code>#6381b6</code></span><span class="chip"><i style="background:#2e3138"></i>pulsante primario <code>#2e3138</code></span><span class="chip"><i style="background:#4d8ca3"></i>accento dashboard <code>#4d8ca3</code></span><span class="chip"><i style="background:#bfc1c4"></i>arco <code>#bfc1c4</code></span><span class="chip"><i style="background:#558ac3"></i>arco attivo <code>#558ac3</code></span></div>
+<div class="g"><b>Categorie</b><span class="chip"><i class="two" style="background:#e6d7f4;border-color:#d9c3ef"><u style="background:#915fc4"></u></i>Funzione del worker <code>riemp. #e6d7f4</code> <code>fg #915fc4</code></span><span class="chip"><i class="two" style="background:#f4d7ed;border-color:#efc3e5"><u style="background:#be50a5"></u></i>Nodo personalizzato <code>riemp. #f4d7ed</code> <code>fg #be50a5</code></span><span class="chip"><i class="two" style="background:#d7f3f4;border-color:#c3edef"><u style="background:#379095"></u></i>Controllo di flusso <code>riemp. #d7f3f4</code> <code>fg #379095</code></span></div>
+<div class="g"><b>Stati</b><span class="chip"><i class="two" style="background:#d7f4e6;border-color:#c3efd9"><u style="background:#369163"></u></i>completata <code>riemp. #d7f4e6</code> <code>fg #369163</code></span><span class="chip"><i class="two" style="background:#d7e5f4;border-color:#c3d8ef"><u style="background:#4980bc"></u></i>in esecuzione <code>riemp. #d7e5f4</code> <code>fg #4980bc</code></span><span class="chip"><i class="two" style="background:#f4eed7;border-color:#efe6c3"><u style="background:#958237"></u></i>ritentata <code>riemp. #f4eed7</code> <code>fg #958237</code></span><span class="chip"><i class="two" style="background:#f4dbd7;border-color:#efc8c3"><u style="background:#be5f50"></u></i>fallita <code>riemp. #f4dbd7</code> <code>fg #be5f50</code></span><span class="chip"><i class="two" style="background:#ebecef;border-color:#dddfe4"><u style="background:#7d828c"></u></i>in attesa / in coda <code>riemp. #ebecef</code> <code>fg #7d828c</code></span><span class="chip"><i class="two" style="background:#ebecef;border-color:#dddfe4"><u style="background:#7d828c"></u></i>saltata / annullata / scaduta <code>riemp. #ebecef</code> <code>fg #7d828c</code></span></div></div><div class="shot"><div class="canvas"><svg class="edges" width="700" height="430">
+<path class="act" d="M436 165C470 165 466 106 500 106"/>
+<path class="pend" d="M520 142C520 240 460 306 496 306"/>
+<circle cx="436" cy="165" r="3.5"/><circle cx="500" cy="106" r="3.5"/><circle cx="520" cy="142" r="3.5"/><circle cx="496" cy="306" r="3.5"/>
+</svg>
+<div class="node" style="left:16px;top:34px;width:420px;height:266px"><span class="tag fl"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="hd"><div class="row"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span style="margin-left:auto"><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div></div></div>
+<div class="node" style="left:30px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:232px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:500px;top:70px;width:160px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card pending"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge wait"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+<div class="node" style="left:496px;top:270px;width:200px;height:72px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card pending"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+<div class="node" style="left:16px;top:332px;width:420px"><span class="errlab"><svg class="i xs"><use href="#i-x"/></svg>Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+</div><div class="strip"><div class="bar"><span class="logo"></span><strong>Threat Intel</strong><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a></nav><button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="bar dash"><span class="wm"><i></i>topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav></div></div></div></div><div class="pane dark"><h4>Tema scuro</h4><div class="chips">
+<div class="g"><b>Base</b><span class="chip"><i style="background:#141517"></i>canvas <code>#141517</code></span><span class="chip"><i style="background:#282a2f"></i>punti <code>#282a2f</code></span><span class="chip"><i style="background:#1b1d20"></i>superficie <code>#1b1d20</code></span><span class="chip"><i style="background:#2d2f34"></i>bordo (filo) <code>#2d2f34</code></span><span class="chip"><i style="background:#e6e7ea"></i>testo <code>#e6e7ea</code></span><span class="chip"><i style="background:#a3a7ae"></i>testo secondario <code>#a3a7ae</code></span></div>
+<div class="g"><b>Accenti</b><span class="chip"><i style="background:#b0c5e8"></i>accento kit <code>#b0c5e8</code></span><span class="chip"><i style="background:#d8dadf"></i>pulsante primario <code>#d8dadf</code></span><span class="chip"><i style="background:#92c9dd"></i>accento dashboard <code>#92c9dd</code></span><span class="chip"><i style="background:#3d4148"></i>arco <code>#3d4148</code></span><span class="chip"><i style="background:#87b6e8"></i>arco attivo <code>#87b6e8</code></span></div>
+<div class="g"><b>Categorie</b><span class="chip"><i class="two" style="background:#393147;border-color:#4c3e5e"><u style="background:#ba8be9"></u></i>Funzione del worker <code>riemp. #393147</code> <code>fg #ba8be9</code></span><span class="chip"><i class="two" style="background:#433142;border-color:#5b3e57"><u style="background:#e887d1"></u></i>Nodo personalizzato <code>riemp. #433142</code> <code>fg #e887d1</code></span><span class="chip"><i class="two" style="background:#304347;border-color:#3c5a5e"><u style="background:#87e3e8"></u></i>Controllo di flusso <code>riemp. #304347</code> <code>fg #87e3e8</code></span></div>
+<div class="g"><b>Stati</b><span class="chip"><i class="two" style="background:#30443d;border-color:#3c5c4f"><u style="background:#87e8b8"></u></i>completata <code>riemp. #30443d</code> <code>fg #87e8b8</code></span><span class="chip"><i class="two" style="background:#303b47;border-color:#3c4c5e"><u style="background:#87b6e8"></u></i>in esecuzione <code>riemp. #303b47</code> <code>fg #87b6e8</code></span><span class="chip"><i class="two" style="background:#434134;border-color:#5b5640"><u style="background:#e8d587"></u></i>ritentata <code>riemp. #434134</code> <code>fg #e8d587</code></span><span class="chip"><i class="two" style="background:#433434;border-color:#5b4240"><u style="background:#e89487"></u></i>fallita <code>riemp. #433434</code> <code>fg #e89487</code></span><span class="chip"><i class="two" style="background:#272a30;border-color:#353941"><u style="background:#898d94"></u></i>in attesa / in coda <code>riemp. #272a30</code> <code>fg #898d94</code></span><span class="chip"><i class="two" style="background:#272a30;border-color:#353941"><u style="background:#898d94"></u></i>saltata / annullata / scaduta <code>riemp. #272a30</code> <code>fg #898d94</code></span></div></div><div class="shot"><div class="canvas"><svg class="edges" width="700" height="430">
+<path class="act" d="M436 165C470 165 466 106 500 106"/>
+<path class="pend" d="M520 142C520 240 460 306 496 306"/>
+<circle cx="436" cy="165" r="3.5"/><circle cx="500" cy="106" r="3.5"/><circle cx="520" cy="142" r="3.5"/><circle cx="496" cy="306" r="3.5"/>
+</svg>
+<div class="node" style="left:16px;top:34px;width:420px;height:266px"><span class="tag fl"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="hd"><div class="row"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span style="margin-left:auto"><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div></div></div>
+<div class="node" style="left:30px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:232px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:500px;top:70px;width:160px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card pending"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge wait"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+<div class="node" style="left:496px;top:270px;width:200px;height:72px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card pending"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+<div class="node" style="left:16px;top:332px;width:420px"><span class="errlab"><svg class="i xs"><use href="#i-x"/></svg>Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+</div><div class="strip"><div class="bar"><span class="logo"></span><strong>Threat Intel</strong><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a></nav><button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="bar dash"><span class="wm"><i></i>topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav></div></div></div></div></div></section>
+<section class="v v4"><header><h2>4. Albicocca<span class="int">Intensità 4/5<s aria-hidden="true">●●●●○</s></span><span class="int">calda</span></h2><p>Albicocca, pesca, rosa, burro e salvia su grigio caldo. Stati salvia / cielo spento / burro / rosa; categorie albicocca, malva e glicine.</p><p><b>Accento kit (selezione, focus, tab attiva):</b> carbone caldo (contorno scuro neutro) con alone albicocca, chiaro <code>#5b5048</code> (7.24:1 sul canvas), scuro <code>#e0c9b8</code> (11.38:1). <b>Accento dashboard:</b> chiaro <code>#ad6b58</code>, scuro <code>#dca493</code>.</p><p><b>Categoria / stato:</b> nessuna tinta in comune, distanza minima 28° (Funzione del worker 24° / ritentata 52°).</p></header>
+<div class="panes"><div class="pane light"><h4>Tema chiaro</h4><div class="chips">
+<div class="g"><b>Base</b><span class="chip"><i style="background:#f7f6f5"></i>canvas <code>#f7f6f5</code></span><span class="chip"><i style="background:#dad6d3"></i>punti <code>#dad6d3</code></span><span class="chip"><i style="background:#fffdfb"></i>superficie <code>#fffdfb</code></span><span class="chip"><i style="background:#e8e7e5"></i>bordo (filo) <code>#e8e7e5</code></span><span class="chip"><i style="background:#1f1c19"></i>testo <code>#1f1c19</code></span><span class="chip"><i style="background:#615c56"></i>testo secondario <code>#615c56</code></span></div>
+<div class="g"><b>Accenti</b><span class="chip"><i style="background:#5b5048"></i>accento kit <code>#5b5048</code></span><span class="chip"><i style="background:#38332e"></i>pulsante primario <code>#38332e</code></span><span class="chip"><i style="background:#ad6b58"></i>accento dashboard <code>#ad6b58</code></span><span class="chip"><i style="background:#c4c2bf"></i>arco <code>#c4c2bf</code></span><span class="chip"><i style="background:#408cbf"></i>arco attivo <code>#408cbf</code></span></div>
+<div class="g"><b>Categorie</b><span class="chip"><i class="two" style="background:#f5dccc;border-color:#f0ceb7"><u style="background:#ae6a3d"></u></i>Funzione del worker <code>riemp. #f5dccc</code> <code>fg #ae6a3d</code></span><span class="chip"><i class="two" style="background:#f5cce6;border-color:#f0b7db"><u style="background:#be4692"></u></i>Nodo personalizzato <code>riemp. #f5cce6</code> <code>fg #be4692</code></span><span class="chip"><i class="two" style="background:#e4ccf5;border-color:#d9b7f0"><u style="background:#9755c3"></u></i>Controllo di flusso <code>riemp. #e4ccf5</code> <code>fg #9755c3</code></span></div>
+<div class="g"><b>Stati</b><span class="chip"><i class="two" style="background:#cef5cc;border-color:#b9f0b7"><u style="background:#379334"></u></i>completata <code>riemp. #cef5cc</code> <code>fg #379334</code></span><span class="chip"><i class="two" style="background:#cce4f5;border-color:#b7d9f0"><u style="background:#3d81ae"></u></i>in esecuzione <code>riemp. #cce4f5</code> <code>fg #3d81ae</code></span><span class="chip"><i class="two" style="background:#f5efcc;border-color:#f0e9b7"><u style="background:#8f8332"></u></i>ritentata <code>riemp. #f5efcc</code> <code>fg #8f8332</code></span><span class="chip"><i class="two" style="background:#f5ccd0;border-color:#f0b7bc"><u style="background:#c14e57"></u></i>fallita <code>riemp. #f5ccd0</code> <code>fg #c14e57</code></span><span class="chip"><i class="two" style="background:#efedeb;border-color:#e3e0dd"><u style="background:#8a827b"></u></i>in attesa / in coda <code>riemp. #efedeb</code> <code>fg #8a827b</code></span><span class="chip"><i class="two" style="background:#efedeb;border-color:#e3e0dd"><u style="background:#8a827b"></u></i>saltata / annullata / scaduta <code>riemp. #efedeb</code> <code>fg #8a827b</code></span></div></div><div class="shot"><div class="canvas"><svg class="edges" width="700" height="430">
+<path class="act" d="M436 165C470 165 466 106 500 106"/>
+<path class="pend" d="M520 142C520 240 460 306 496 306"/>
+<circle cx="436" cy="165" r="3.5"/><circle cx="500" cy="106" r="3.5"/><circle cx="520" cy="142" r="3.5"/><circle cx="496" cy="306" r="3.5"/>
+</svg>
+<div class="node" style="left:16px;top:34px;width:420px;height:266px"><span class="tag fl"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="hd"><div class="row"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span style="margin-left:auto"><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div></div></div>
+<div class="node" style="left:30px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:232px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:500px;top:70px;width:160px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card pending"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge wait"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+<div class="node" style="left:496px;top:270px;width:200px;height:72px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card pending"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+<div class="node" style="left:16px;top:332px;width:420px"><span class="errlab"><svg class="i xs"><use href="#i-x"/></svg>Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+</div><div class="strip"><div class="bar"><span class="logo"></span><strong>Threat Intel</strong><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a></nav><button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="bar dash"><span class="wm"><i></i>topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav></div></div></div></div><div class="pane dark"><h4>Tema scuro</h4><div class="chips">
+<div class="g"><b>Base</b><span class="chip"><i style="background:#171614"></i>canvas <code>#171614</code></span><span class="chip"><i style="background:#2e2b28"></i>punti <code>#2e2b28</code></span><span class="chip"><i style="background:#1f1d1b"></i>superficie <code>#1f1d1b</code></span><span class="chip"><i style="background:#34302d"></i>bordo (filo) <code>#34302d</code></span><span class="chip"><i style="background:#eae8e6"></i>testo <code>#eae8e6</code></span><span class="chip"><i style="background:#aea8a3"></i>testo secondario <code>#aea8a3</code></span></div>
+<div class="g"><b>Accenti</b><span class="chip"><i style="background:#e0c9b8"></i>accento kit <code>#e0c9b8</code></span><span class="chip"><i style="background:#dfdbd8"></i>pulsante primario <code>#dfdbd8</code></span><span class="chip"><i style="background:#dca493"></i>accento dashboard <code>#dca493</code></span><span class="chip"><i style="background:#47423e"></i>arco <code>#47423e</code></span><span class="chip"><i style="background:#82c2ed"></i>arco attivo <code>#82c2ed</code></span></div>
+<div class="g"><b>Categorie</b><span class="chip"><i class="two" style="background:#4d3d32;border-color:#654e3e"><u style="background:#edad82"></u></i>Funzione del worker <code>riemp. #4d3d32</code> <code>fg #edad82</code></span><span class="chip"><i class="two" style="background:#4d3341;border-color:#653f55"><u style="background:#ed82c6"></u></i>Nodo personalizzato <code>riemp. #4d3341</code> <code>fg #ed82c6</code></span><span class="chip"><i class="two" style="background:#43334a;border-color:#563f62"><u style="background:#c78bee"></u></i>Controllo di flusso <code>riemp. #43334a</code> <code>fg #c78bee</code></span></div>
+<div class="g"><b>Stati</b><span class="chip"><i class="two" style="background:#364b32;border-color:#41643e"><u style="background:#86ed82"></u></i>completata <code>riemp. #364b32</code> <code>fg #86ed82</code></span><span class="chip"><i class="two" style="background:#35424a;border-color:#405562"><u style="background:#82c2ed"></u></i>in esecuzione <code>riemp. #35424a</code> <code>fg #82c2ed</code></span><span class="chip"><i class="two" style="background:#4d4832;border-color:#655f3e"><u style="background:#eddf82"></u></i>ritentata <code>riemp. #4d4832</code> <code>fg #eddf82</code></span><span class="chip"><i class="two" style="background:#4d3334;border-color:#653f41"><u style="background:#ee878f"></u></i>fallita <code>riemp. #4d3334</code> <code>fg #ee878f</code></span><span class="chip"><i class="two" style="background:#2f2b27;border-color:#403b35"><u style="background:#948f89"></u></i>in attesa / in coda <code>riemp. #2f2b27</code> <code>fg #948f89</code></span><span class="chip"><i class="two" style="background:#2f2b27;border-color:#403b35"><u style="background:#948f89"></u></i>saltata / annullata / scaduta <code>riemp. #2f2b27</code> <code>fg #948f89</code></span></div></div><div class="shot"><div class="canvas"><svg class="edges" width="700" height="430">
+<path class="act" d="M436 165C470 165 466 106 500 106"/>
+<path class="pend" d="M520 142C520 240 460 306 496 306"/>
+<circle cx="436" cy="165" r="3.5"/><circle cx="500" cy="106" r="3.5"/><circle cx="520" cy="142" r="3.5"/><circle cx="496" cy="306" r="3.5"/>
+</svg>
+<div class="node" style="left:16px;top:34px;width:420px;height:266px"><span class="tag fl"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="hd"><div class="row"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span style="margin-left:auto"><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div></div></div>
+<div class="node" style="left:30px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:232px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:500px;top:70px;width:160px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card pending"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge wait"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+<div class="node" style="left:496px;top:270px;width:200px;height:72px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card pending"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+<div class="node" style="left:16px;top:332px;width:420px"><span class="errlab"><svg class="i xs"><use href="#i-x"/></svg>Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+</div><div class="strip"><div class="bar"><span class="logo"></span><strong>Threat Intel</strong><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a></nav><button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="bar dash"><span class="wm"><i></i>topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav></div></div></div></div></div></section>
+<section class="v v5"><header><h2>5. Gelato pieno<span class="int">Intensità 5/5<s aria-hidden="true">●●●●●</s></span><span class="int">neutra, i pastelli più ricchi</span></h2><p>I pastelli più pieni ma ancora non vivaci: riempimenti ben presenti, testo scuro sopra, bordi morbidi un passo più scuri del riempimento.</p><p><b>Accento kit (selezione, focus, tab attiva):</b> indaco (tono medio), chiaro <code>#8071bc</code> (3.88:1 sul canvas), scuro <code>#baadeb</code> (8.91:1). <b>Accento dashboard:</b> chiaro <code>#705ab5</code>, scuro <code>#ae9ce2</code>.</p><p><b>Categoria / stato:</b> nessuna tinta in comune, distanza minima 28° (Controllo di flusso 180° / completata 152°).</p></header>
+<div class="panes"><div class="pane light"><h4>Tema chiaro</h4><div class="chips">
+<div class="g"><b>Base</b><span class="chip"><i style="background:#f6f6f6"></i>canvas <code>#f6f6f6</code></span><span class="chip"><i style="background:#d5d4d9"></i>punti <code>#d5d4d9</code></span><span class="chip"><i style="background:#ffffff"></i>superficie <code>#ffffff</code></span><span class="chip"><i style="background:#e6e6e8"></i>bordo (filo) <code>#e6e6e8</code></span><span class="chip"><i style="background:#1a191f"></i>testo <code>#1a191f</code></span><span class="chip"><i style="background:#585661"></i>testo secondario <code>#585661</code></span></div>
+<div class="g"><b>Accenti</b><span class="chip"><i style="background:#8071bc"></i>accento kit <code>#8071bc</code></span><span class="chip"><i style="background:#302e38"></i>pulsante primario <code>#302e38</code></span><span class="chip"><i style="background:#705ab5"></i>accento dashboard <code>#705ab5</code></span><span class="chip"><i style="background:#c0bfc4"></i>arco <code>#c0bfc4</code></span><span class="chip"><i style="background:#5489c9"></i>arco attivo <code>#5489c9</code></span></div>
+<div class="g"><b>Categorie</b><span class="chip"><i class="two" style="background:#ccb8ef;border-color:#ba9fea"><u style="background:#774bc3"></u></i>Funzione del worker <code>riemp. #ccb8ef</code> <code>fg #774bc3</code></span><span class="chip"><i class="two" style="background:#efb8db;border-color:#ea9fce"><u style="background:#b03b85"></u></i>Nodo personalizzato <code>riemp. #efb8db</code> <code>fg #b03b85</code></span><span class="chip"><i class="two" style="background:#b8efef;border-color:#9feaea"><u style="background:#2e8a8a"></u></i>Controllo di flusso <code>riemp. #b8efef</code> <code>fg #2e8a8a</code></span></div>
+<div class="g"><b>Stati</b><span class="chip"><i class="two" style="background:#b8efd5;border-color:#9feac7"><u style="background:#2e8a5f"></u></i>completata <code>riemp. #b8efd5</code> <code>fg #2e8a5f</code></span><span class="chip"><i class="two" style="background:#b8d1ef;border-color:#9fc1ea"><u style="background:#3b6fb0"></u></i>in esecuzione <code>riemp. #b8d1ef</code> <code>fg #3b6fb0</code></span><span class="chip"><i class="two" style="background:#efe2b8;border-color:#ead89f"><u style="background:#8e782f"></u></i>ritentata <code>riemp. #efe2b8</code> <code>fg #8e782f</code></span><span class="chip"><i class="two" style="background:#efbcb8;border-color:#eaa49f"><u style="background:#b4443c"></u></i>fallita <code>riemp. #efbcb8</code> <code>fg #b4443c</code></span><span class="chip"><i class="two" style="background:#ececef;border-color:#dfdee3"><u style="background:#82808e"></u></i>in attesa / in coda <code>riemp. #ececef</code> <code>fg #82808e</code></span><span class="chip"><i class="two" style="background:#ececef;border-color:#dfdee3"><u style="background:#82808e"></u></i>saltata / annullata / scaduta <code>riemp. #ececef</code> <code>fg #82808e</code></span></div></div><div class="shot"><div class="canvas"><svg class="edges" width="700" height="430">
+<path class="act" d="M436 165C470 165 466 106 500 106"/>
+<path class="pend" d="M520 142C520 240 460 306 496 306"/>
+<circle cx="436" cy="165" r="3.5"/><circle cx="500" cy="106" r="3.5"/><circle cx="520" cy="142" r="3.5"/><circle cx="496" cy="306" r="3.5"/>
+</svg>
+<div class="node" style="left:16px;top:34px;width:420px;height:266px"><span class="tag fl"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="hd"><div class="row"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span style="margin-left:auto"><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div></div></div>
+<div class="node" style="left:30px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:232px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:500px;top:70px;width:160px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card pending"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge wait"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+<div class="node" style="left:496px;top:270px;width:200px;height:72px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card pending"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+<div class="node" style="left:16px;top:332px;width:420px"><span class="errlab"><svg class="i xs"><use href="#i-x"/></svg>Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+</div><div class="strip"><div class="bar"><span class="logo"></span><strong>Threat Intel</strong><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a></nav><button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="bar dash"><span class="wm"><i></i>topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav></div></div></div></div><div class="pane dark"><h4>Tema scuro</h4><div class="chips">
+<div class="g"><b>Base</b><span class="chip"><i style="background:#151517"></i>canvas <code>#151517</code></span><span class="chip"><i style="background:#2a2a2d"></i>punti <code>#2a2a2d</code></span><span class="chip"><i style="background:#1d1c1e"></i>superficie <code>#1d1c1e</code></span><span class="chip"><i style="background:#2f2f32"></i>bordo (filo) <code>#2f2f32</code></span><span class="chip"><i style="background:#e7e6ea"></i>testo <code>#e7e6ea</code></span><span class="chip"><i style="background:#a5a3ae"></i>testo secondario <code>#a5a3ae</code></span></div>
+<div class="g"><b>Accenti</b><span class="chip"><i style="background:#baadeb"></i>accento kit <code>#baadeb</code></span><span class="chip"><i style="background:#d9d8df"></i>pulsante primario <code>#d9d8df</code></span><span class="chip"><i style="background:#ae9ce2"></i>accento dashboard <code>#ae9ce2</code></span><span class="chip"><i style="background:#414045"></i>arco <code>#414045</code></span><span class="chip"><i style="background:#86b7f3"></i>arco attivo <code>#86b7f3</code></span></div>
+<div class="g"><b>Categorie</b><span class="chip"><i class="two" style="background:#433658;border-color:#534171"><u style="background:#bb99f5"></u></i>Funzione del worker <code>riemp. #433658</code> <code>fg #bb99f5</code></span><span class="chip"><i class="two" style="background:#57364c;border-color:#704160"><u style="background:#f48bcd"></u></i>Nodo personalizzato <code>riemp. #57364c</code> <code>fg #f48bcd</code></span><span class="chip"><i class="two" style="background:#365758;border-color:#417071"><u style="background:#7df2f2"></u></i>Controllo di flusso <code>riemp. #365758</code> <code>fg #7df2f2</code></span></div>
+<div class="g"><b>Stati</b><span class="chip"><i class="two" style="background:#365749;border-color:#41705b"><u style="background:#7df2bc"></u></i>completata <code>riemp. #365749</code> <code>fg #7df2bc</code></span><span class="chip"><i class="two" style="background:#364558;border-color:#415671"><u style="background:#86b7f3"></u></i>in esecuzione <code>riemp. #364558</code> <code>fg #86b7f3</code></span><span class="chip"><i class="two" style="background:#574f37;border-color:#706542"><u style="background:#f2d77d"></u></i>ritentata <code>riemp. #574f37</code> <code>fg #f2d77d</code></span><span class="chip"><i class="two" style="background:#573837;border-color:#704442"><u style="background:#f4928b"></u></i>fallita <code>riemp. #573837</code> <code>fg #f4928b</code></span><span class="chip"><i class="two" style="background:#2a292e;border-color:#38373e"><u style="background:#8b8994"></u></i>in attesa / in coda <code>riemp. #2a292e</code> <code>fg #8b8994</code></span><span class="chip"><i class="two" style="background:#2a292e;border-color:#38373e"><u style="background:#8b8994"></u></i>saltata / annullata / scaduta <code>riemp. #2a292e</code> <code>fg #8b8994</code></span></div></div><div class="shot"><div class="canvas"><svg class="edges" width="700" height="430">
+<path class="act" d="M436 165C470 165 466 106 500 106"/>
+<path class="pend" d="M520 142C520 240 460 306 496 306"/>
+<circle cx="436" cy="165" r="3.5"/><circle cx="500" cy="106" r="3.5"/><circle cx="520" cy="142" r="3.5"/><circle cx="496" cy="306" r="3.5"/>
+</svg>
+<div class="node" style="left:16px;top:34px;width:420px;height:266px"><span class="tag fl"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="hd"><div class="row"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span style="margin-left:auto"><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div></div></div>
+<div class="node" style="left:30px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:232px;top:190px;width:190px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node" style="left:500px;top:70px;width:160px;height:72px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card pending"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge wait"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+<div class="node" style="left:496px;top:270px;width:200px;height:72px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card pending"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+<div class="node" style="left:16px;top:332px;width:420px"><span class="errlab"><svg class="i xs"><use href="#i-x"/></svg>Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+</div><div class="strip"><div class="bar"><span class="logo"></span><strong>Threat Intel</strong><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a></nav><button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="bar dash"><span class="wm"><i></i>topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav></div></div></div></div></div></section>
+</body></html>

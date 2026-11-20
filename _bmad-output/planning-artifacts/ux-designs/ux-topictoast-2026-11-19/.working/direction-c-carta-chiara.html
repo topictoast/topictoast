@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Direzione C - Carta chiara</title>
+<style>
+/* ===== TOKEN HEX =====
+TEMA CHIARO: canvas #f2f3f5 | punti #c9ccd2 | superficie #ffffff | superficie2 #f8f9fa | testo #1b1d22 | testo attenuato #666b75
+ | linea #e3e5e9 | arco #c3c7ce | arco attivo #2563eb | primario (pulsante) #16181d su #ffffff | accento/selezione #d0267f
+ | categoria Funzione #0b7f78 (sfondo #e0f3f1) | Nodo personalizzato #6d44d8 (#efe9fc) | Controllo di flusso #a85c08 (#fcefd9)
+ | completata #187a45 | in esecuzione #2563eb | ritentata #a8610a | fallita #c92a1f | in attesa/in coda #666b75
+TEMA SCURO: canvas #141518 | punti #2c2e34 | superficie #212328 | superficie2 #1b1c20 | testo #ecedf0 | testo attenuato #9ba0aa
+ | linea #33363d | arco #4a4e58 | arco attivo #6c9bff | primario (pulsante) #ecedf0 su #141518 | accento/selezione #ff5fb0
+ | Funzione #4fd8cd (sfondo #12332f) | Nodo personalizzato #b79bff (#2a2147) | Controllo di flusso #f0b25a (#3a2a10)
+ | completata #4cc585 | in esecuzione #6c9bff | ritentata #f0b25a | fallita #ff7a6e | in attesa/in coda #9ba0aa
+DASHBOARD (stesso sistema, cambia solo l'accento): chiaro #4f46e5, scuro #8f89ff
+Raggi: 6 (tag) / 10 (campi, pulsanti) / 12 (card nodo) / 16 (gruppo, pannelli) | Spaziatura base 4: 4 8 12 16 24 32
+Scala tipo (rem, base 16): 0.6875 / 0.75 / 0.8125 / 0.875 / 1 / 1.25 | pesi 400 e 500 (600 solo titoli) */
+*{box-sizing:border-box;margin:0}
+body{font:400 .875rem/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:#e6e8ec;color:#1b1d22;padding:32px 24px 64px;min-width:1488px}
+.mono,code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace}
+.intro{max-width:1440px;margin:0 auto 32px}
+.intro h1{font-size:1.25rem;font-weight:600;margin-bottom:8px}
+.intro p{max-width:760px;color:#4a4f59;margin-bottom:6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chip{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid #d9dce2;border-radius:10px;padding:4px 10px;font-size:.75rem}
+.chip i{width:14px;height:14px;border-radius:4px;border:1px solid rgba(0,0,0,.15)}
+.lbl{max-width:1440px;margin:40px auto 12px;font-size:.8125rem;font-weight:500;color:#4a4f59}
+/* ===== temi ===== */
+.light{--canvas:#f2f3f5;--dot:#c9ccd2;--surface:#fff;--surface2:#f8f9fa;--text:#1b1d22;--muted:#666b75;--line:#e3e5e9;--edge:#c3c7ce;--edge-done:#9aa0aa;
+--btn:#16181d;--btn-text:#fff;--accent:#d0267f;--run:#2563eb;--ok:#187a45;--warn:#a8610a;--err:#c92a1f;--wait:#666b75;--shadow:0 1px 2px rgba(20,24,32,.06);
+--fn:#0b7f78;--fn-bg:#e0f3f1;--cu:#6d44d8;--cu-bg:#efe9fc;--fl:#a85c08;--fl-bg:#fcefd9;--banner:#fdf3e1;--banner-line:#efd49b}
+.dark{--canvas:#141518;--dot:#2c2e34;--surface:#212328;--surface2:#1b1c20;--text:#ecedf0;--muted:#9ba0aa;--line:#33363d;--edge:#4a4e58;--edge-done:#7d828d;
+--btn:#ecedf0;--btn-text:#141518;--accent:#ff5fb0;--run:#6c9bff;--ok:#4cc585;--warn:#f0b25a;--err:#ff7a6e;--wait:#9ba0aa;--shadow:0 1px 2px rgba(0,0,0,.4);
+--fn:#4fd8cd;--fn-bg:#12332f;--cu:#b79bff;--cu-bg:#2a2147;--fl:#f0b25a;--fl-bg:#3a2a10;--banner:#33280f;--banner-line:#5c4818}
+.dash.light{--accent:#4f46e5}.dash.dark{--accent:#8f89ff}
+/* ===== cornice browser ===== */
+.frame{width:1440px;margin:0 auto;border-radius:14px;overflow:hidden;background:var(--canvas);color:var(--text);box-shadow:0 8px 30px rgba(20,24,32,.18);border:1px solid #cfd2d8}
+.dark.frame{border-color:#000}
+.chrome{height:40px;background:var(--surface2);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 16px}
+.chrome b{width:11px;height:11px;border-radius:50%;background:var(--line)}
+.url{margin-left:16px;flex:0 0 420px;height:24px;border-radius:12px;background:var(--canvas);color:var(--muted);font-size:.75rem;padding:2px 14px}
+.app{height:860px;display:flex;flex-direction:column;font-size:.875rem}
+.host{height:48px;flex:none;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:24px;padding:0 20px}
+.host .logo{width:24px;height:24px;border-radius:6px;background:#8c919b}
+.host strong{font-weight:600;font-size:.9375rem}
+.host nav{display:flex;gap:4px;margin-left:8px}
+.host nav a,.top nav a{padding:6px 12px;border-radius:8px;color:var(--muted)}
+.host nav a.on,.top nav a.on{background:var(--canvas);color:var(--text);font-weight:500}
+.host .who{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.8125rem}
+.av{width:28px;height:28px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-size:.75rem;color:var(--text);font-weight:500}
+.body{flex:1;display:flex;min-height:0}
+.rail{width:64px;flex:none;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:12px}
+.rail a{width:44px;padding:6px 0 4px;border-radius:10px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.6875rem}
+.rail a.on{background:var(--canvas);color:var(--text)}
+.rail a.on svg{color:var(--accent)}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.s{width:14px;height:14px}svg.xs{width:12px;height:12px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.wfbar{height:64px;flex:none;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 24px}
+.wfbar h2{font-size:1.0625rem;font-weight:500}
+.wfbar .meta{color:var(--muted);font-size:.8125rem}
+.sep{width:1px;height:24px;background:var(--line)}
+.btn{margin-left:auto;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 18px;border-radius:10px;border:1px solid transparent;background:var(--btn);color:var(--btn-text);font:500 .875rem system-ui,sans-serif}
+.btn.ghost{background:var(--surface);color:var(--text);border-color:var(--line);box-shadow:var(--shadow)}
+.center{display:flex;height:748px}
+.work{width:1016px;display:flex;flex-direction:column}
+.canvas{position:relative;height:548px;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);background-size:16px 16px;overflow:hidden}
+.canvas svg.edges{position:absolute;inset:0;pointer-events:none}
+.edges path{fill:none;stroke:var(--edge);stroke-width:1.5}
+.edges .done{stroke:var(--edge-done)}.edges .act{stroke:var(--run);stroke-width:2}.edges .pend{stroke-dasharray:4 4}
+.edges circle{fill:var(--surface);stroke:var(--edge-done);stroke-width:1.5}
+/* ===== nodi ===== */
+.node{position:absolute}
+.tag{position:absolute;top:-21px;left:0;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:.6875rem;font-weight:500;white-space:nowrap}
+.fn .tag{color:var(--fn);background:var(--fn-bg)}.cu .tag{color:var(--cu);background:var(--cu-bg)}.fl .tag{color:var(--fl);background:var(--fl-bg)}
+.card{height:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+.card.pending{border-style:dashed;background:color-mix(in srgb,var(--surface) 60%,transparent);box-shadow:none}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.tile{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none}
+.fn .tile{background:var(--fn-bg);color:var(--fn)}.cu .tile{background:var(--cu-bg);color:var(--cu)}.fl .tile{background:var(--fl-bg);color:var(--fl)}
+.nm{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ts{font-size:.6875rem;font-weight:500;padding:0 6px;border-radius:5px;background:var(--cu-bg);color:var(--cu)}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:.75rem;font-weight:500;color:var(--st);background:color-mix(in srgb,var(--st) 12%,transparent);border-radius:999px;padding:1px 8px 1px 6px;white-space:nowrap}
+.ok{--st:var(--ok)}.run{--st:var(--run)}.retry{--st:var(--warn)}.fail{--st:var(--err)}.wait{--st:var(--wait)}
+.group{position:absolute;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--surface) 55%,transparent)}
+.group .hd{position:absolute;left:16px;right:16px;top:14px}
+.seg{display:flex;gap:2px;height:10px;margin:14px 0 12px}
+.seg i{display:block;border-radius:3px;min-width:5px}
+.seg .a{background:var(--ok)}.seg .b{background:repeating-linear-gradient(135deg,var(--run) 0 3px,color-mix(in srgb,var(--run) 45%,var(--surface)) 3px 6px)}
+.seg .c{background:var(--warn)}.seg .d{background:var(--err)}
+.cnt{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:.8125rem}
+.cnt span{display:flex;align-items:center;gap:6px;color:var(--muted)}.cnt b{color:var(--text);font-weight:500;margin-left:auto;font-variant-numeric:tabular-nums}
+.cnt .k{color:var(--st)}
+.errcard{border-radius:12px;background:var(--surface);border:1px solid color-mix(in srgb,var(--err) 40%,var(--line));padding:10px 12px;box-shadow:var(--shadow)}
+.errcard p{color:var(--muted);font-size:.8125rem;margin-top:4px}
+.errlab{position:absolute;top:-21px;left:0;font-size:.6875rem;font-weight:500;color:var(--err);background:color-mix(in srgb,var(--err) 12%,transparent);padding:2px 8px;border-radius:6px}
+/* ===== log ===== */
+.log{height:200px;background:var(--surface);border-top:1px solid var(--line)}
+.tabs{display:flex;gap:4px;padding:0 16px;height:38px;align-items:flex-end;border-bottom:1px solid var(--line)}
+.tabs a{padding:8px 12px;color:var(--muted);font-size:.8125rem;border-bottom:2px solid transparent}
+.tabs a.on{color:var(--text);font-weight:500;border-color:var(--accent)}
+.tabs .r{margin-left:auto;color:var(--muted);font-size:.75rem;padding:8px 0}
+.lines{padding:6px 16px;font-size:.75rem}
+.lines div{display:grid;grid-template-columns:96px 64px 1fr;gap:12px;height:22px;align-items:center}
+.lines time{color:var(--muted)}.lines .lv{font-weight:500}
+.lines .info .lv{color:var(--muted)}.lines .warn .lv{color:var(--warn)}.lines .err .lv{color:var(--err)}.lines .okk .lv{color:var(--ok)}
+/* ===== pannello destro ===== */
+aside{width:360px;background:var(--surface);border-left:1px solid var(--line);padding:20px;overflow:hidden}
+aside h3{font-size:1rem;font-weight:500}
+aside .sub{color:var(--muted);font-size:.8125rem;margin-top:2px}
+aside h4{font-size:.75rem;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:20px 0 8px}
+.att{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--surface2)}
+.att .row{justify-content:space-between}
+.att p{color:var(--muted);font-size:.8125rem;margin-top:4px}
+pre{font:400 .75rem/1.55 ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;white-space:pre-wrap;color:var(--text)}
+.x{margin-left:auto;color:var(--muted)}
+/* ===== dashboard ===== */
+.top{height:56px;flex:none;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:24px;padding:0 24px}
+.wm{font-weight:600;font-size:1.0625rem;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.wm i{width:24px;height:24px;border-radius:7px;background:var(--btn);color:var(--btn-text);display:grid;place-items:center;font-style:normal;font-size:.8125rem}
+.top nav{display:flex;gap:4px}
+.page{flex:1;padding:24px 32px;overflow:hidden}
+.page h2{font-size:1.25rem;font-weight:500;display:flex;align-items:center;gap:16px}
+.page h2 .btn{height:32px;font-size:.8125rem;padding:0 14px}
+.banner{display:flex;gap:12px;align-items:flex-start;background:var(--banner);border:1px solid var(--banner-line);border-radius:14px;padding:14px 16px;margin:16px 0 24px;color:var(--text)}
+.banner svg{color:var(--warn);margin-top:2px}.banner p{color:var(--muted);font-size:.8125rem;margin-top:2px}.banner b{font-weight:500}
+.cols{display:flex;gap:24px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:.8125rem}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:.75rem;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface2)}
+td{padding:14px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tr.sel td{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.fnl{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:.6875rem;font-weight:500}
+.pill.fn{color:var(--fn);background:var(--fn-bg)}.pill.cu{color:var(--cu);background:var(--cu-bg)}
+.num{font-variant-numeric:tabular-nums}.mut{color:var(--muted)}
+.hist{padding:16px 20px}.hist h3{font-size:1rem;font-weight:500}
+.hist li{list-style:none;display:grid;grid-template-columns:64px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:.8125rem}
+.hist li:last-child{border:0}.hist time{color:var(--muted);font-size:.75rem;padding-top:2px}
+.hist .badge{margin-bottom:4px}.hist .mut{display:block;font-size:.75rem}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="i-fn" viewBox="0 0 20 20"><path d="M8 4c-2 0-2 1-2 3v1c0 1-1 2-2 2 1 0 2 1 2 2v1c0 2 0 3 2 3M12 4c2 0 2 1 2 3v1c0 1 1 2 2 2-1 0-2 1-2 2v1c0 2 0 3-2 3"/></symbol>
+<symbol id="i-cu" viewBox="0 0 20 20"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4M11 4l-2 12"/></symbol>
+<symbol id="i-fl" viewBox="0 0 20 20"><path d="M4 3v14M4 10h6a4 4 0 014 4v3M4 10h6a4 4 0 004-4V3"/></symbol>
+<symbol id="i-ok" viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9"/></symbol>
+<symbol id="i-x" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></symbol>
+<symbol id="i-retry" viewBox="0 0 20 20"><path d="M16 10a6 6 0 11-2-4.5M16 3v4h-4"/></symbol>
+<symbol id="i-run" viewBox="0 0 20 20"><path d="M10 3a7 7 0 107 7"/><path d="M10 6v4l2.5 1.5"/></symbol>
+<symbol id="i-wait" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" stroke-dasharray="3 3"/></symbol>
+<symbol id="i-list" viewBox="0 0 20 20"><path d="M4 5h12M4 10h12M4 15h8"/></symbol>
+<symbol id="i-wf" viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="5" rx="1.5"/><rect x="11" y="12" width="6" height="5" rx="1.5"/><path d="M6 8v3a2 2 0 002 2h3"/></symbol>
+<symbol id="i-key" viewBox="0 0 20 20"><circle cx="7" cy="13" r="3"/><path d="M9.5 10.5L16 4M13 7l2 2"/></symbol>
+<symbol id="i-pipe" viewBox="0 0 20 20"><path d="M3 6h6l2 4h6M3 14h6l2-4"/></symbol>
+<symbol id="i-srv" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="5" rx="1.5"/><rect x="3" y="11" width="14" height="5" rx="1.5"/><path d="M6 6.5h.01M6 13.5h.01"/></symbol>
+<symbol id="i-gauge" viewBox="0 0 20 20"><path d="M3 14a7 7 0 1114 0M10 14l4-5"/></symbol>
+<symbol id="i-warn" viewBox="0 0 20 20"><path d="M10 3l8 14H2zM10 8v4M10 14.5v.5"/></symbol>
+<symbol id="i-q" viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h7"/></symbol>
+</defs></svg>
+<div class="intro">
+<h1>Direzione C — Carta chiara</h1>
+<p>Carte bianche su un canvas grigio chiaro a griglia di punti, con tanto respiro e pesi tipografici regolari. Ogni nodo ha una piccola etichetta di categoria sopra la card, con una tessera icona dello stesso colore: il colore dice cosa è il nodo, non lo decora.</p>
+<p>Gli archi sono ortogonali, grigio chiaro, con piccoli punti di connessione; solo il percorso attivo si colora. Il nodo selezionato ha un contorno colorato, il pulsante primario è scuro. Il tema scuro mantiene la stessa struttura: carte grigio scuro su canvas più scuro, stesse etichette.</p>
+<div class="chips">
+<span class="chip"><i style="background:#f2f3f5"></i>canvas #f2f3f5</span><span class="chip"><i style="background:#fff"></i>superficie #ffffff</span><span class="chip"><i style="background:#1b1d22"></i>testo #1b1d22</span><span class="chip"><i style="background:#d0267f"></i>accento #d0267f</span><span class="chip"><i style="background:#0b7f78"></i>Funzione #0b7f78</span><span class="chip"><i style="background:#6d44d8"></i>Personalizzato #6d44d8</span><span class="chip"><i style="background:#a85c08"></i>Flusso #a85c08</span>
+<span class="chip"><i style="background:#141518"></i>scuro canvas #141518</span><span class="chip"><i style="background:#212328"></i>scuro superficie #212328</span><span class="chip"><i style="background:#ff5fb0"></i>scuro accento #ff5fb0</span>
+<span class="chip">Tipo 0.6875 · 0.75 · 0.8125 · 0.875 · 1 · 1.25 rem</span><span class="chip">Raggi 6 · 10 · 12 · 16 px</span><span class="chip">Spaziatura 4 · 8 · 12 · 16 · 24 · 32</span><span class="chip">Pesi 400 / 500</span>
+</div></div>
+<h2 class="lbl">Vista delle esecuzioni (kit, FR-41) — tema chiaro (principale)</h2>
+<div class="frame light"><div class="chrome"><b></b><b></b><b></b><span class="url mono">app.example.com/workflow/esecuzioni/4821</span></div>
+<div class="app">
+<header class="host"><span class="logo"></span><strong>Threat Intel</strong>
+<nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a><a>Impostazioni</a></nav>
+<span class="who"><span class="av">GR</span>Giulia</span></header>
+<div class="body">
+<div class="rail"><a><svg class="i"><use href="#i-wf"/></svg>Editor</a><a class="on"><svg class="i"><use href="#i-list"/></svg>Esecuzioni</a><a><svg class="i"><use href="#i-key"/></svg>Segreti</a><a><svg class="i"><use href="#i-pipe"/></svg>Stream</a></div>
+<div class="main">
+<div class="wfbar"><h2>Arricchimento indicatori</h2><span class="badge mono" style="color:var(--muted);background:var(--canvas)">versione 3</span><span class="sep"></span>
+<span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span>
+<span class="meta">Avviata alle 14:22 da Giulia · durata 1 min 48 s</span>
+<button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="center"><div class="work">
+<div class="canvas">
+<svg class="edges" width="1016" height="548">
+<path class="done" d="M194 232H212V255H230"/>
+<path class="act" d="M395 216H410V261H425"/><path class="act" d="M395 306H410V261"/>
+<path class="pend" d="M565 261H595"/><path class="pend" d="M735 261H775V274H790"/><path class="pend" d="M850 274H880"/>
+<circle cx="194" cy="232" r="3.5"/><circle cx="230" cy="255" r="3.5"/><circle cx="395" cy="216" r="3.5"/><circle cx="425" cy="261" r="3.5"/><circle cx="395" cy="306" r="3.5"/><circle cx="565" cy="261" r="3.5"/><circle cx="595" cy="261" r="3.5"/><circle cx="735" cy="261" r="3.5"/><circle cx="790" cy="274" r="3.5"/><circle cx="850" cy="274" r="3.5"/><circle cx="880" cy="274" r="3.5"/>
+</svg>
+<div class="node fn" style="left:24px;top:190px;width:170px;height:84px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><div class="card"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Ricevi elenco</span></div><span class="badge ok" style="align-self:flex-start"><svg class="i xs"><use href="#i-ok"/></svg>Completata</span></div></div>
+
+<div class="node fl" style="left:230px;top:30px;width:530px;height:450px"><span class="tag"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span>
+<div class="group" style="inset:0">
+<div class="hd"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span class="badge run" style="margin-left:auto"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div>
+</div></div>
+
+<div class="node fn" style="left:255px;top:180px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><div class="card"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run" style="align-self:flex-start"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node fn" style="left:255px;top:270px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><div class="card sel"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run" style="align-self:flex-start"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node fn" style="left:425px;top:225px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><div class="card"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge run" style="align-self:flex-start"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node cu" style="left:595px;top:225px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card"><div class="row"><span class="tile"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+
+<div class="node" style="left:255px;top:366px;width:480px"><span class="errlab">Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span class="mut" style="margin-left:auto;font-size:.75rem;color:var(--muted)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+
+<div class="node fl" style="left:790px;top:252px;width:60px;height:44px"><span class="tag" style="left:-4px"><svg class="i xs"><use href="#i-fl"/></svg>Join</span><div class="card pending" style="justify-content:center;align-items:center;padding:0"><svg class="i s" style="color:var(--wait)"><use href="#i-wait"/></svg></div></div>
+<div class="node fn" style="left:880px;top:238px;width:130px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><div class="card pending"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Inserisci</span></div><span class="badge wait" style="align-self:flex-start"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+</div>
+<div class="log"><div class="tabs"><a class="on">Log</a><a>Input</a><a>Output</a><span class="r mono">censys_search · 203.0.113.7</span></div>
+<div class="lines mono">
+<div class="info"><time>14:23:01.204</time><span class="lv">info</span><span>attività ricevuta da worker-ti-02</span></div>
+<div class="info"><time>14:23:01.219</time><span class="lv">info</span><span>tentativo 1 avviato</span></div>
+<div class="warn"><time>14:23:31.221</time><span class="lv">avviso</span><span>tentativo 1 scaduto dopo 30 s</span></div>
+<div class="warn"><time>14:23:31.230</time><span class="lv">avviso</span><span>ritentata: tentativo 2 tra 2 s</span></div>
+<div class="info"><time>14:23:33.240</time><span class="lv">info</span><span>attività ricevuta da worker-ti-01</span></div>
+<div class="okk"><time>14:23:34.512</time><span class="lv">ok</span><span>tentativo 2 completato in 1,27 s</span></div>
+<div class="err"><time>14:23:52.870</time><span class="lv">errore</span><span>198.51.100.42 fallita dopo 3 tentativi: errore 429</span></div>
+</div></div>
+</div>
+<aside>
+<div class="row" style="align-items:flex-start"><div><span class="pill" style="color:var(--fn);background:var(--fn-bg);margin-bottom:8px"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><h3 class="mono">censys_search</h3><p class="sub">Indicatore <span class="mono">203.0.113.7</span> · elemento 142 di 300</p></div><svg class="i x"><use href="#i-x"/></svg></div>
+<h4>Tentativi</h4>
+<div class="att"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Tentativo 1 · fallito</span><span class="mono mut" style="font-size:.75rem">14:23:01</span></div><p>timeout dopo 30 s · worker-ti-02</p></div>
+<div class="att"><div class="row"><span class="badge ok"><svg class="i xs"><use href="#i-ok"/></svg>Tentativo 2 · completato</span><span class="mono mut" style="font-size:.75rem">14:23:33</span></div><p>1,27 s · worker-ti-01</p></div>
+<h4>Input</h4>
+<pre>{
+  "indicator": "203.0.113.7",
+  "type": "ipv4",
+  "timeout_s": 30
+}</pre>
+<h4>Output</h4>
+<pre>{
+  "open_ports": [22, 443],
+  "services": 2,
+  "last_seen": "2026-11-18"
+}</pre>
+</aside></div>
+</div></div></div></div>
+<h2 class="lbl">Vista delle esecuzioni (kit, FR-41) — tema scuro</h2>
+<div class="frame dark"><div class="chrome"><b></b><b></b><b></b><span class="url mono">app.example.com/workflow/esecuzioni/4821</span></div>
+<div class="app">
+<header class="host"><span class="logo"></span><strong>Threat Intel</strong>
+<nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a><a>Impostazioni</a></nav>
+<span class="who"><span class="av">GR</span>Giulia</span></header>
+<div class="body">
+<div class="rail"><a><svg class="i"><use href="#i-wf"/></svg>Editor</a><a class="on"><svg class="i"><use href="#i-list"/></svg>Esecuzioni</a><a><svg class="i"><use href="#i-key"/></svg>Segreti</a><a><svg class="i"><use href="#i-pipe"/></svg>Stream</a></div>
+<div class="main">
+<div class="wfbar"><h2>Arricchimento indicatori</h2><span class="badge mono" style="color:var(--muted);background:var(--canvas)">versione 3</span><span class="sep"></span>
+<span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span>
+<span class="meta">Avviata alle 14:22 da Giulia · durata 1 min 48 s</span>
+<button class="btn"><svg class="i s"><use href="#i-x"/></svg>Annulla</button></div>
+<div class="center"><div class="work">
+<div class="canvas">
+<svg class="edges" width="1016" height="548">
+<path class="done" d="M194 232H212V255H230"/>
+<path class="act" d="M395 216H410V261H425"/><path class="act" d="M395 306H410V261"/>
+<path class="pend" d="M565 261H595"/><path class="pend" d="M735 261H775V274H790"/><path class="pend" d="M850 274H880"/>
+<circle cx="194" cy="232" r="3.5"/><circle cx="230" cy="255" r="3.5"/><circle cx="395" cy="216" r="3.5"/><circle cx="425" cy="261" r="3.5"/><circle cx="395" cy="306" r="3.5"/><circle cx="565" cy="261" r="3.5"/><circle cx="595" cy="261" r="3.5"/><circle cx="735" cy="261" r="3.5"/><circle cx="790" cy="274" r="3.5"/><circle cx="850" cy="274" r="3.5"/><circle cx="880" cy="274" r="3.5"/>
+</svg>
+<div class="node fn" style="left:24px;top:190px;width:170px;height:84px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><div class="card"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Ricevi elenco</span></div><span class="badge ok" style="align-self:flex-start"><svg class="i xs"><use href="#i-ok"/></svg>Completata</span></div></div>
+
+<div class="node fl" style="left:230px;top:30px;width:530px;height:450px"><span class="tag"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span>
+<div class="group" style="inset:0">
+<div class="hd"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm" style="font-size:1rem">Per ogni indicatore · 300</span><span class="badge run" style="margin-left:auto"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div>
+<div class="seg" role="img" aria-label="Completate 287, in esecuzione 9, ritentate 3, fallite 1"><i class="a" style="flex:287"></i><i class="b" style="flex:9"></i><i class="c" style="flex:3"></i><i class="d" style="flex:1"></i></div>
+<div class="cnt"><span class="k ok"><svg class="i xs"><use href="#i-ok"/></svg>completate<b>287</b></span><span class="k run"><svg class="i xs"><use href="#i-run"/></svg>in esecuzione<b>9</b></span><span class="k retry"><svg class="i xs"><use href="#i-retry"/></svg>ritentate<b>3</b></span><span class="k fail"><svg class="i xs"><use href="#i-x"/></svg>fallite<b>1</b></span></div></div>
+</div></div>
+
+<div class="node fn" style="left:255px;top:180px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><div class="card"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><span class="badge run" style="align-self:flex-start"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node fn" style="left:255px;top:270px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><div class="card sel"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><span class="badge run" style="align-self:flex-start"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node fn" style="left:425px;top:225px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><div class="card"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div><span class="badge run" style="align-self:flex-start"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span></div></div>
+<div class="node cu" style="left:595px;top:225px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card"><div class="row"><span class="tile"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>In coda</span><span class="ts mono">TS</span></div></div></div>
+
+<div class="node" style="left:255px;top:366px;width:480px"><span class="errlab">Elemento fallito</span><div class="errcard"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mono" style="font-size:.8125rem">198.51.100.42</span><span class="mut" style="margin-left:auto;font-size:.75rem;color:var(--muted)">elemento 87 di 300</span></div><p><span class="mono">censys_search</span> · 3 tentativi · errore 429: limite di richieste del servizio superato.</p></div></div>
+
+<div class="node fl" style="left:790px;top:252px;width:60px;height:44px"><span class="tag" style="left:-4px"><svg class="i xs"><use href="#i-fl"/></svg>Join</span><div class="card pending" style="justify-content:center;align-items:center;padding:0"><svg class="i s" style="color:var(--wait)"><use href="#i-wait"/></svg></div></div>
+<div class="node fn" style="left:880px;top:238px;width:130px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><div class="card pending"><div class="row"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Inserisci</span></div><span class="badge wait" style="align-self:flex-start"><svg class="i xs"><use href="#i-wait"/></svg>In attesa</span></div></div>
+</div>
+<div class="log"><div class="tabs"><a class="on">Log</a><a>Input</a><a>Output</a><span class="r mono">censys_search · 203.0.113.7</span></div>
+<div class="lines mono">
+<div class="info"><time>14:23:01.204</time><span class="lv">info</span><span>attività ricevuta da worker-ti-02</span></div>
+<div class="info"><time>14:23:01.219</time><span class="lv">info</span><span>tentativo 1 avviato</span></div>
+<div class="warn"><time>14:23:31.221</time><span class="lv">avviso</span><span>tentativo 1 scaduto dopo 30 s</span></div>
+<div class="warn"><time>14:23:31.230</time><span class="lv">avviso</span><span>ritentata: tentativo 2 tra 2 s</span></div>
+<div class="info"><time>14:23:33.240</time><span class="lv">info</span><span>attività ricevuta da worker-ti-01</span></div>
+<div class="okk"><time>14:23:34.512</time><span class="lv">ok</span><span>tentativo 2 completato in 1,27 s</span></div>
+<div class="err"><time>14:23:52.870</time><span class="lv">errore</span><span>198.51.100.42 fallita dopo 3 tentativi: errore 429</span></div>
+</div></div>
+</div>
+<aside>
+<div class="row" style="align-items:flex-start"><div><span class="pill" style="color:var(--fn);background:var(--fn-bg);margin-bottom:8px"><svg class="i xs"><use href="#i-fn"/></svg>Funzione</span><h3 class="mono">censys_search</h3><p class="sub">Indicatore <span class="mono">203.0.113.7</span> · elemento 142 di 300</p></div><svg class="i x"><use href="#i-x"/></svg></div>
+<h4>Tentativi</h4>
+<div class="att"><div class="row"><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Tentativo 1 · fallito</span><span class="mono mut" style="font-size:.75rem">14:23:01</span></div><p>timeout dopo 30 s · worker-ti-02</p></div>
+<div class="att"><div class="row"><span class="badge ok"><svg class="i xs"><use href="#i-ok"/></svg>Tentativo 2 · completato</span><span class="mono mut" style="font-size:.75rem">14:23:33</span></div><p>1,27 s · worker-ti-01</p></div>
+<h4>Input</h4>
+<pre>{
+  "indicator": "203.0.113.7",
+  "type": "ipv4",
+  "timeout_s": 30
+}</pre>
+<h4>Output</h4>
+<pre>{
+  "open_ports": [22, 443],
+  "services": 2,
+  "last_seen": "2026-11-18"
+}</pre>
+</aside></div>
+</div></div></div></div>
+<h2 class="lbl">Dashboard dell'operatore, pagina Worker (FR-48) — tema chiaro, accento dashboard</h2>
+<div class="frame light dash"><div class="chrome"><b></b><b></b><b></b><span class="url mono">dashboard.example.com/worker</span></div>
+<div class="app"><div class="body">
+<div class="rail"><div class="wm" style="margin:2px 0 10px"><i>t</i></div><a><svg class="i"><use href="#i-list"/></svg>Esecuzioni</a><a><svg class="i"><use href="#i-pipe"/></svg>Stream</a><a class="on"><svg class="i"><use href="#i-srv"/></svg>Worker</a><a><svg class="i"><use href="#i-gauge"/></svg>Quote</a></div>
+<div class="main">
+<div class="top"><span class="wm">topictoast</span><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav><span class="who host" style="margin-left:auto;border:0;padding:0;height:auto"><span class="av">OP</span></span></div>
+<div class="page">
+<h2>Worker <span class="badge ok" style="font-size:.75rem"><svg class="i xs"><use href="#i-ok"/></svg>3 collegati</span><span class="badge fail" style="font-size:.75rem"><svg class="i xs"><use href="#i-x"/></svg>1 non risponde</span><button class="btn ghost" style="margin-left:auto"><svg class="i s"><use href="#i-retry"/></svg>Aggiorna</button></h2>
+<div class="banner" role="status"><svg class="i"><use href="#i-warn"/></svg><div><b>Il motore sta tornando operativo dopo un arresto imprevisto.</b><p>Nessuna nuova esecuzione parte finché non è di nuovo attivo. Nessun dato è andato perso. Tempo trascorso: 12 s.</p></div></div>
+<div class="cols">
+<div class="panel" style="flex:1">
+<table><thead><tr><th>Worker</th><th>Stato</th><th>Funzioni</th><th>In corso</th><th>Più vecchia</th><th>Note</th></tr></thead><tbody>
+<tr class="sel"><td class="mono">worker-ti-01</td><td><span class="badge ok"><svg class="i xs"><use href="#i-ok"/></svg>Collegato</span></td><td><div class="fnl"><span class="pill fn mono">dns_lookup</span><span class="pill fn mono">censys_search</span></div></td><td class="num">8</td><td class="num">41 s</td><td class="mut">—</td></tr>
+<tr><td class="mono">worker-ti-02</td><td><span class="badge ok"><svg class="i xs"><use href="#i-ok"/></svg>Collegato</span></td><td><div class="fnl"><span class="pill fn mono">dns_lookup</span><span class="pill fn mono">censys_search</span></div></td><td class="num">9</td><td class="mut">—</td><td class="mut">—</td></tr>
+<tr><td class="mono">worker-score-01</td><td><span class="badge ok"><svg class="i xs"><use href="#i-ok"/></svg>Collegato</span></td><td><span class="pill cu"><svg class="i xs"><use href="#i-cu"/></svg>Calcola punteggio</span></td><td class="num">2</td><td class="mut">—</td><td class="mut">—</td></tr>
+<tr><td class="mono">worker-ti-03</td><td><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Non risponde</span></td><td><div class="fnl"><span class="pill fn mono">dns_lookup</span></div></td><td class="num">0</td><td class="mut">—</td><td>non risponde da 2 min · 4 attività riassegnate</td></tr>
+</tbody></table></div>
+<div class="panel hist" style="width:420px"><h3>Cronologia · <span class="mono">worker-ti-01</span></h3>
+<ul style="margin-top:8px">
+<li><time class="mono">14:23:58</time><div><span class="badge wait"><svg class="i xs"><use href="#i-q"/></svg>Ricevuta</span><span class="mut mono">censys_search · 203.0.113.19</span></div></li>
+<li><time class="mono">14:23:52</time><div><span class="badge run"><svg class="i xs"><use href="#i-run"/></svg>In esecuzione</span><span class="mut mono">dns_lookup · 198.51.100.8</span></div></li>
+<li><time class="mono">14:23:49</time><div><span class="badge ok"><svg class="i xs"><use href="#i-ok"/></svg>Completata</span><span class="mut mono">dns_lookup · 198.51.100.3</span></div></li>
+<li><time class="mono">14:23:41</time><div><span class="badge retry"><svg class="i xs"><use href="#i-retry"/></svg>Ritentata</span><span class="mut mono">censys_search · 198.51.100.42</span></div></li>
+<li><time class="mono">14:23:41</time><div><span class="badge fail"><svg class="i xs"><use href="#i-x"/></svg>Fallita</span><span class="mut">errore 429 · tentativo 2 di 3</span></div></li>
+</ul></div>
+</div></div></div></div></div></div>
+</body></html>

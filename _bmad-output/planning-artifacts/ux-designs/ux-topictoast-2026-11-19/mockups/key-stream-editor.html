@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor delle pipeline stream - desktop 1440</title>
+<style>
+/*
+  Mock 1:1 «Editor delle pipeline stream», desktop 1440x900, tema chiaro e scuro.
+  Il contratto sono le spine; questo file le illustra. Sezioni illustrate:
+  DESIGN.md: Colors (valori chiari e -dark), Typography (sans/mono, mono-sm per SQL), Layout & Spacing
+    (rail 4rem, pannello destro 22.5rem, pannelli agganciati con filo, T-51), Elevation (niente ombre),
+    Components: rail-item, panel, workflow-bar, code-editor (error-line, error-marker), validation-message,
+    form-field, select, data-table, state-badge, button-primary, button-secondary, chip.
+  EXPERIENCE.md: Information Architecture (voce «Pipeline stream», FR-43), Voice and Tone (pulsanti,
+    errore SQL «Riga 4, colonna 9: ...»), Component Patterns (code-editor, data-table), State Patterns
+    (Pipeline stream: attiva / sospesa / rallentata; righe in attesa FR-24; vuoto «Nessuna riga emessa
+    finora.» non mostrato), Key Flow UJ-3 (passi 2-5), pannello «Parametri» (FR-18, FR-24, FR-43).
+  Non specificato (scelta neutra): posizione e forma dell'elenco delle pipeline stream; barra dell'app
+    ospite; sintassi della finestra nella query; selettore del workflow di destinazione; stato disabilitato
+    di «Salva e attiva» (T-61); icona di «Sospesa»; colonne di «Ultime righe emesse»; nomi degli stream.
+    Finestra, ritardo tollerato e checkpoint: assenti dalla UI, rinviati a T-56.
+*/
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{background:#e9e9ec;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:#1a191f;padding:1.5rem;min-width:1488px}
+h2.cap{font-size:1.0625rem;font-weight:500;margin:0 0 .5rem;color:#1a191f}
+section.s{margin-bottom:2.5rem}
+svg.i{width:1.25rem;height:1.25rem;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i.md{width:.875rem;height:.875rem}
+svg.i.sm{width:.75rem;height:.75rem}
+
+/* Token: tema chiaro */
+.k{
+  --canvas:#f6f6f6;--canvas-dot:#d5d4d9;--surface:#ffffff;--border:#e6e6e8;--text:#1a191f;--text2:#585661;
+  --chip:#eae9ec;--border-control:#8a8991;--accent:#4a4854;--btn:#302e38;--on-btn:#ffffff;
+  --subtle:#fafafa;--err-bg:#f8e1df;
+  --run:#3b6fb0;--run-fill:#b8d1ef;--run-b:#9fc1ea;
+  --ret:#8e782f;--ret-fill:#efe2b8;--ret-b:#ead89f;
+  --fail:#b4443c;--neu:#82808e;--neu-fill:#ececef;--neu-b:#dfdee3;
+  --halo:#d4d3d6;
+}
+/* Token: tema scuro, varianti -dark */
+.k.dark{
+  --canvas:#151517;--canvas-dot:#2a2a2d;--surface:#1d1c1e;--border:#2f2f32;--text:#e7e6ea;--text2:#a5a3ae;
+  --chip:#2d2c30;--border-control:#706f77;--accent:#c9c7d1;--btn:#d9d8df;--on-btn:#18171c;
+  --subtle:#19181b;--err-bg:#493131;
+  --run:#86b7f3;--run-fill:#364558;--run-b:#415671;
+  --ret:#f2d77d;--ret-fill:#574f37;--ret-b:#706542;
+  --fail:#f4928b;--neu:#8b8994;--neu-fill:#2a292e;--neu-b:#38373e;
+  --halo:#3d3c40;
+}
+.k{width:1440px;height:900px;display:grid;grid-template-rows:3rem 1fr;background:var(--canvas);color:var(--text);
+  font-size:.875rem;line-height:1.45;overflow:hidden;border:1px solid var(--border)}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* Intestazione dell'app ospite: non fa parte del kit */
+.host{background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 1.5rem;font-weight:500;color:var(--text2)}
+.area{display:grid;grid-template-columns:4rem 15rem 1fr 22.5rem;min-height:0}
+
+/* rail-item */
+.rail{background:var(--surface);border-right:1px solid var(--border);padding:.5rem .25rem;display:flex;flex-direction:column;gap:.25rem}
+.rail a{min-height:2.75rem;border-radius:.625rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.125rem;
+  color:var(--text2);font-size:.6875rem;font-weight:500;line-height:1.2;text-align:center;padding:.375rem .125rem}
+.rail a.on{background:var(--canvas);color:var(--text)}
+.rail a.on svg{color:var(--accent)}
+
+/* elenco delle pipeline stream */
+.list{background:var(--surface);border-right:1px solid var(--border);padding:.75rem;display:flex;flex-direction:column;gap:.75rem;min-height:0}
+.list h3{font-size:1rem;font-weight:500;line-height:1.4}
+.pl{list-style:none;border-top:1px solid var(--border)}
+.pl li{padding:.625rem .5rem .625rem .75rem;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:.375rem;position:relative}
+.pl li.sel{background:var(--subtle)}
+.pl li.sel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:.1875rem;background:var(--accent)}
+.pl .n{font-weight:500}
+
+/* bottoni, chip, badge */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.375rem;min-height:2.25rem;padding:0 .875rem;border-radius:.625rem;
+  font:500 .875rem/1.45 inherit;font-family:inherit;border:1px solid var(--border);background:var(--surface);color:var(--text);white-space:nowrap}
+.btn.p{background:var(--btn);color:var(--on-btn);border-color:var(--btn)}
+.btn.dis{opacity:.5}
+.chip{display:inline-flex;align-items:center;background:var(--chip);color:var(--text2);border-radius:.375rem;padding:.0625rem .5rem;font-size:.6875rem;font-weight:500;line-height:1.45}
+.badge{display:inline-flex;align-items:center;gap:.375rem;border-radius:9999px;padding:.125rem .625rem .125rem .5rem;font-size:.75rem;font-weight:500;line-height:1.5;
+  color:var(--text);border:1px solid;align-self:flex-start;white-space:nowrap}
+.badge.run{background:var(--run-fill);border-color:var(--run-b)}.badge.run svg{color:var(--run)}
+.badge.ret{background:var(--ret-fill);border-color:var(--ret-b)}.badge.ret svg{color:var(--ret)}
+.badge.neu{background:var(--neu-fill);border-color:var(--neu-b)}.badge.neu svg{color:var(--neu)}
+
+/* centro: canvas a punti */
+.main{background-color:var(--canvas);background-image:radial-gradient(var(--canvas-dot) 1px,transparent 1px);background-size:1rem 1rem;
+  display:flex;flex-direction:column;min-width:0;min-height:0}
+.bar{background:var(--surface);border-bottom:1px solid var(--border);min-height:4rem;display:flex;align-items:center;gap:.75rem;padding:.5rem 1.5rem}
+.bar h1{font-size:1.0625rem;font-weight:500;line-height:1.4}
+.bar .sep{width:1px;height:1.5rem;background:var(--border)}
+.bar .meta{font-size:.8125rem;color:var(--text2)}
+.bar .act{margin-left:auto;display:flex;gap:.5rem}
+.content{padding:1.5rem;display:flex;flex-direction:column;gap:1.5rem;min-height:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:.75rem}
+.card>header{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;border-bottom:1px solid var(--border)}
+.sh{font-size:.75rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--text2);line-height:1.45}
+
+/* code-editor */
+.ed{margin:.75rem 1rem 0;background:var(--surface);border:1px solid var(--border-control);border-radius:.625rem;overflow:hidden}
+.ln{display:grid;grid-template-columns:3rem 1fr;font-family:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:.75rem;line-height:1.55;min-height:1.5rem;align-items:center}
+.ln .g{color:var(--text2);text-align:right;padding:.1875rem .625rem .1875rem 0;border-right:1px solid var(--border);display:flex;justify-content:flex-end;align-items:center;gap:.375rem;align-self:stretch}
+.ln .c{padding:.1875rem .75rem;white-space:pre;color:var(--text)}
+.ln.e{background:var(--err-bg)}
+.ln.e .g svg{color:var(--fail)}
+.ln .bad{text-decoration:underline wavy var(--fail);text-underline-offset:3px}
+.vm{margin:.75rem 1rem 0;background:var(--err-bg);border-radius:.625rem;padding:.625rem .75rem;display:flex;gap:.5rem;align-items:flex-start;font-size:.8125rem;color:var(--text)}
+.vm svg{color:var(--fail);margin-top:.125rem}
+.vm code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:.8125rem}
+.hint{padding:.5rem 1rem .75rem;font-size:.8125rem;color:var(--text2)}
+
+/* data-table */
+table{width:100%;border-collapse:collapse}
+th{background:var(--subtle);color:var(--text2);font-size:.75rem;font-weight:500;line-height:1.5;text-align:left;padding:.5rem 1rem;border-bottom:1px solid var(--border)}
+td{font-size:.8125rem;padding:.5rem 1rem;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:0}
+td.id{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:.8125rem}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.t{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:.75rem;color:var(--text2)}
+
+/* pannello destro: Parametri */
+.right{background:var(--surface);border-left:1px solid var(--border);padding:1rem;display:flex;flex-direction:column;gap:1.25rem;min-height:0}
+.right h3{font-size:1rem;font-weight:500;line-height:1.4}
+.sec{display:flex;flex-direction:column;gap:.5rem}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;padding:.5rem 0;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:0}
+.row .v{font-size:.8125rem;color:var(--text2)}
+.ff{display:flex;flex-direction:column;gap:.25rem}
+.ff .l{font-size:.8125rem;color:var(--text2)}
+.sel-c{min-height:2.25rem;border:1px solid var(--border-control);border-radius:.625rem;background:var(--surface);padding:0 .75rem;display:flex;align-items:center;justify-content:space-between;color:var(--text)}
+.sel-c svg{color:var(--text2)}
+.ff .h{font-size:.8125rem;color:var(--text2)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="cycle" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></symbol>
+<symbol id="pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="r-wf" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="12" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M8.5 6.5c4 0 3 5.5 7 5.5M8.5 17.5c4 0 3-5.5 7-5.5"/></symbol>
+<symbol id="r-ed" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6M9 13h4"/></symbol>
+<symbol id="r-ex" viewBox="0 0 24 24"><path d="M7 5l11 7-11 7z"/></symbol>
+<symbol id="r-se" viewBox="0 0 24 24"><circle cx="8.5" cy="12" r="3.5"/><path d="M12 12h8M17 12v3"/></symbol>
+<symbol id="r-st" viewBox="0 0 24 24"><path d="M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0"/></symbol>
+</defs>
+</svg>
+<section class="s">
+<h2 class="cap">Tema chiaro</h2>
+<div class="k light">
+  <div class="host">Threat Intel</div>
+  <div class="area">
+    <nav class="rail" aria-label="Sezioni">
+      <a><svg class="i"><use href="#r-wf"/></svg>Workflow</a>
+      <a><svg class="i"><use href="#r-ed"/></svg>Editor</a>
+      <a><svg class="i"><use href="#r-ex"/></svg>Esecuzioni</a>
+      <a><svg class="i"><use href="#r-se"/></svg>Segreti</a>
+      <a class="on" aria-current="page"><svg class="i"><use href="#r-st"/></svg>Pipeline stream</a>
+    </nav>
+
+    <aside class="list" aria-label="Pipeline stream">
+      <h3>Pipeline stream</h3>
+      <a class="btn p">Nuova pipeline stream</a>
+      <ul class="pl">
+        <li class="sel" aria-current="true"><span class="n">Ondate per ASN</span><span class="badge run"><svg class="i md"><use href="#clock"/></svg>Attiva</span></li>
+        <li><span class="n">Feed DNS sospetti</span><span class="badge neu"><svg class="i md"><use href="#pause"/></svg>Sospesa</span></li>
+        <li><span class="n">Volumi per origine</span><span class="badge ret"><svg class="i md"><use href="#cycle"/></svg>Rallentata</span></li>
+      </ul>
+    </aside>
+
+    <main class="main">
+      <div class="bar">
+        <h1>Ondate per ASN</h1>
+        <span class="chip">versione 3</span>
+        <span class="sep"></span>
+        <span class="badge run"><svg class="i md"><use href="#clock"/></svg>Attiva</span>
+        <span class="meta tnum">Righe in attesa: 0</span>
+        <div class="act">
+          <a class="btn">Sospendi</a>
+          <a class="btn p dis" aria-disabled="true">Salva e attiva</a>
+        </div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <header><span class="sh">Query</span></header>
+          <div class="ed" role="group" aria-label="Query SQL">
+            <div class="ln"><span class="g">1</span><span class="c">SELECT</span></div>
+            <div class="ln"><span class="g">2</span><span class="c">    asn,</span></div>
+            <div class="ln"><span class="g">3</span><span class="c">    COUNT(*) AS indicatori,</span></div>
+            <div class="ln e"><span class="g"><svg class="i sm"><use href="#x"/></svg>4</span><span class="c">    MAX(<span class="bad">asn_nome</span>) AS nome</span></div>
+            <div class="ln"><span class="g">5</span><span class="c">FROM indicatori</span></div>
+            <div class="ln"><span class="g">6</span><span class="c">GROUP BY asn, TUMBLE(ts, INTERVAL '5' MINUTE)</span></div>
+            <div class="ln"><span class="g">7</span><span class="c">HAVING COUNT(*) &gt; 50</span></div>
+          </div>
+          <div class="vm" role="alert"><svg class="i md"><use href="#x"/></svg><span><code>Riga 4, colonna 9: colonna sconosciuta `asn_nome`</code></span></div>
+          <p class="hint">Esc, poi Tab per uscire</p>
+        </div>
+
+        <div class="card">
+          <header><span class="sh">Ultime righe emesse</span></header>
+          <table>
+            <thead><tr><th>Emessa alle</th><th>asn</th><th class="num">indicatori</th></tr></thead>
+            <tbody>
+              <tr><td class="t">14:25:00</td><td class="id">AS64500</td><td class="num id">87</td></tr>
+              <tr><td class="t">14:25:00</td><td class="id">AS64503</td><td class="num id">64</td></tr>
+              <tr><td class="t">14:20:00</td><td class="id">AS64507</td><td class="num id">112</td></tr>
+              <tr><td class="t">14:20:00</td><td class="id">AS64511</td><td class="num id">53</td></tr>
+              <tr><td class="t">14:15:00</td><td class="id">AS64502</td><td class="num id">71</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <aside class="right" aria-label="Parametri">
+      <h3>Parametri</h3>
+      <div class="sec">
+        <span class="sh">Stream del cliente</span>
+        <div>
+          <div class="row"><span class="id mono">indicatori</span><span class="v">conservazione 10 min</span></div>
+          <div class="row"><span class="id mono">asn-sospetti</span><span class="v">conservazione 8 min</span></div>
+        </div>
+      </div>
+      <div class="sec">
+        <span class="sh">Destinazione</span>
+        <div class="ff"><span class="l">Destinazione</span>
+          <div class="sel-c"><span>Workflow</span><svg class="i md"><use href="#chev"/></svg></div></div>
+        <div class="ff"><span class="l">Workflow</span>
+          <div class="sel-c"><span>Arricchimento ASN</span><svg class="i md"><use href="#chev"/></svg></div>
+          <span class="h">Avvia il workflow di arricchimento per ogni riga.</span></div>
+      </div>
+    </aside>
+  </div>
+</div>
+</section>
+<section class="s">
+<h2 class="cap">Tema scuro</h2>
+<div class="k dark">
+  <div class="host">Threat Intel</div>
+  <div class="area">
+    <nav class="rail" aria-label="Sezioni">
+      <a><svg class="i"><use href="#r-wf"/></svg>Workflow</a>
+      <a><svg class="i"><use href="#r-ed"/></svg>Editor</a>
+      <a><svg class="i"><use href="#r-ex"/></svg>Esecuzioni</a>
+      <a><svg class="i"><use href="#r-se"/></svg>Segreti</a>
+      <a class="on" aria-current="page"><svg class="i"><use href="#r-st"/></svg>Pipeline stream</a>
+    </nav>
+
+    <aside class="list" aria-label="Pipeline stream">
+      <h3>Pipeline stream</h3>
+      <a class="btn p">Nuova pipeline stream</a>
+      <ul class="pl">
+        <li class="sel" aria-current="true"><span class="n">Ondate per ASN</span><span class="badge run"><svg class="i md"><use href="#clock"/></svg>Attiva</span></li>
+        <li><span class="n">Feed DNS sospetti</span><span class="badge neu"><svg class="i md"><use href="#pause"/></svg>Sospesa</span></li>
+        <li><span class="n">Volumi per origine</span><span class="badge ret"><svg class="i md"><use href="#cycle"/></svg>Rallentata</span></li>
+      </ul>
+    </aside>
+
+    <main class="main">
+      <div class="bar">
+        <h1>Ondate per ASN</h1>
+        <span class="chip">versione 3</span>
+        <span class="sep"></span>
+        <span class="badge run"><svg class="i md"><use href="#clock"/></svg>Attiva</span>
+        <span class="meta tnum">Righe in attesa: 0</span>
+        <div class="act">
+          <a class="btn">Sospendi</a>
+          <a class="btn p dis" aria-disabled="true">Salva e attiva</a>
+        </div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <header><span class="sh">Query</span></header>
+          <div class="ed" role="group" aria-label="Query SQL">
+            <div class="ln"><span class="g">1</span><span class="c">SELECT</span></div>
+            <div class="ln"><span class="g">2</span><span class="c">    asn,</span></div>
+            <div class="ln"><span class="g">3</span><span class="c">    COUNT(*) AS indicatori,</span></div>
+            <div class="ln e"><span class="g"><svg class="i sm"><use href="#x"/></svg>4</span><span class="c">    MAX(<span class="bad">asn_nome</span>) AS nome</span></div>
+            <div class="ln"><span class="g">5</span><span class="c">FROM indicatori</span></div>
+            <div class="ln"><span class="g">6</span><span class="c">GROUP BY asn, TUMBLE(ts, INTERVAL '5' MINUTE)</span></div>
+            <div class="ln"><span class="g">7</span><span class="c">HAVING COUNT(*) &gt; 50</span></div>
+          </div>
+          <div class="vm" role="alert"><svg class="i md"><use href="#x"/></svg><span><code>Riga 4, colonna 9: colonna sconosciuta `asn_nome`</code></span></div>
+          <p class="hint">Esc, poi Tab per uscire</p>
+        </div>
+
+        <div class="card">
+          <header><span class="sh">Ultime righe emesse</span></header>
+          <table>
+            <thead><tr><th>Emessa alle</th><th>asn</th><th class="num">indicatori</th></tr></thead>
+            <tbody>
+              <tr><td class="t">14:25:00</td><td class="id">AS64500</td><td class="num id">87</td></tr>
+              <tr><td class="t">14:25:00</td><td class="id">AS64503</td><td class="num id">64</td></tr>
+              <tr><td class="t">14:20:00</td><td class="id">AS64507</td><td class="num id">112</td></tr>
+              <tr><td class="t">14:20:00</td><td class="id">AS64511</td><td class="num id">53</td></tr>
+              <tr><td class="t">14:15:00</td><td class="id">AS64502</td><td class="num id">71</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <aside class="right" aria-label="Parametri">
+      <h3>Parametri</h3>
+      <div class="sec">
+        <span class="sh">Stream del cliente</span>
+        <div>
+          <div class="row"><span class="id mono">indicatori</span><span class="v">conservazione 10 min</span></div>
+          <div class="row"><span class="id mono">asn-sospetti</span><span class="v">conservazione 8 min</span></div>
+        </div>
+      </div>
+      <div class="sec">
+        <span class="sh">Destinazione</span>
+        <div class="ff"><span class="l">Destinazione</span>
+          <div class="sel-c"><span>Workflow</span><svg class="i md"><use href="#chev"/></svg></div></div>
+        <div class="ff"><span class="l">Workflow</span>
+          <div class="sel-c"><span>Arricchimento ASN</span><svg class="i md"><use href="#chev"/></svg></div>
+          <span class="h">Avvia il workflow di arricchimento per ogni riga.</span></div>
+      </div>
+    </aside>
+  </div>
+</div>
+</section>
+</body>
+</html>
