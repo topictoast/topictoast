@@ -8,14 +8,15 @@ Workflow orchestrator (in the style of Hatchet and Argo Workflows) with first-cl
 
 ## Current state
 
-**Product phase.** Methodology installed on 2026-11-18. Next step: `bmad-product-brief`.
+**Product phase.** Brief, PRD and UX are final (2026-11-20) in `_bmad-output/planning-artifacts/`
+(`briefs/`, `prds/`, `ux-designs/`). Next step: `bmad-architecture`.
 No product code before the architecture is accepted (constitution I).
 
-Open question for the brief: the OWS DSL is sequential with `fork`, `switch` and `then`, without
-explicit DAGs. How to express DAGs (a DSL extension, compiling `fork`/`then` into a graph, something
-else) is decided in the brief and the architecture. Still to verify in depth: the full DSL
-(`open-workflow-specification/specification`, `dsl.md`) and the Rust SDK
-(`open-workflow-specification/sdk-rust`).
+Open for the architecture: the PRD expresses DAGs as an extension of the OWS DSL (FR-1, FR-2);
+the mapping onto OWS, the propagation rule and the other items owned by the architecture are in
+PRD §11. Still to verify in depth: the full DSL (`open-workflow-specification/specification`,
+`dsl.md`) and the Rust SDK (`open-workflow-specification/sdk-rust`). UJ-3 (stream pipelines) is
+still an assumption until a real case, before the stream spike.
 
 ## Repo layout
 

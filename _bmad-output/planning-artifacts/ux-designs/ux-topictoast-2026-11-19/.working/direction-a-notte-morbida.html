@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1520">
+<title>Direzione A — Notte morbida</title>
+<style>
+/*
+  DIREZIONE A — NOTTE MORBIDA. Valori hex per tema, da riprendere nei token.
+
+  TEMA SCURO (.dark)
+    bg          #0b0b0d   sfondo cornice / app
+    canvas      #0f0f11   canvas con griglia di punti
+    s1          #151518   pannelli (destra, log, barre)
+    s2          #1b1b1f   card dei nodi
+    s3          #232328   riquadri incassati (JSON, log)
+    line        #26262b   bordi sottili
+    line2       #313137   bordi nodo
+    edge        #4a4a52   archi curvi
+    dot         #2a2a30   punti della griglia
+    text        #ececef   testo
+    muted       #8d8e97   testo secondario
+    faint       #5f6068   solo decorazione
+    accent      #8da2ff   kit (percorso attivo, selezione)
+    ok          #62c196   completata
+    run         #8da2ff   in esecuzione
+    retry       #e2b562   ritentata
+    fail        #f07a76   fallita / non risponde
+    wait        #6c6d76   in attesa / in coda
+    accent dashboard operatore  #e6a86a
+
+  TEMA CHIARO (.light)
+    bg #f5f4f2  canvas #f7f6f4  s1 #fbfaf9  s2 #ffffff  s3 #f1efec
+    line #e7e4df  line2 #d9d6d0  edge #c2bfb8  dot #dedbd5
+    text #26272b  muted #6d6f78  faint #a4a6ad
+    accent #5568d8  ok #2f9467  run #5568d8  retry #a8741a  fail #cc4a47  wait #9c9ea6
+    accent dashboard operatore  #b8742b
+
+  Scala tipografica (rem, base 16): 0.6875 / 0.75 / 0.8125 / 0.875 / 1 / 1.25 / 1.5
+  Raggi: 8 (controlli) / 14 (nodi) / 18 (gruppi, pannelli). Spaziatura: 4 / 8 / 12 / 16 / 24 / 40
+  Pesi: 300 (corpo, tema scuro) / 400 (etichette, tema chiaro)
+*/
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#070709;color:#e6e6e9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-weight:300;padding:40px;min-width:1520px}
+.mono,code,pre{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+
+/* intestazione della pagina */
+.intro{width:1440px;margin:0 auto 40px}
+.intro h1{font-size:1.5rem;font-weight:300;letter-spacing:.01em;margin-bottom:12px}
+.intro h1 span{color:#8d8e97}
+.intro p{max-width:760px;font-size:.875rem;line-height:1.65;color:#a4a5ad}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}
+.chip{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px 0 8px;border:1px solid #232328;border-radius:14px;font-size:.75rem;color:#c9cad0;background:#0e0e11}
+.chip.t{padding-left:12px}
+.chip i{width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,.14)}
+.chip b{font-weight:400;font-family:ui-monospace,Menlo,Consolas,monospace;color:#8d8e97;font-size:.6875rem}
+.cap{width:1440px;margin:0 auto 12px;font-size:.75rem;font-weight:400;letter-spacing:.08em;text-transform:uppercase;color:#8d8e97}
+.wrap{margin:0 auto 56px;width:1440px}
+
+/* token */
+.dark{--bg:#0b0b0d;--canvas:#0f0f11;--s1:#151518;--s2:#1b1b1f;--s3:#232328;--line:#26262b;--line2:#313137;--edge:#4a4a52;--dot:#2a2a30;--text:#ececef;--muted:#8d8e97;--faint:#5f6068;--accent:#8da2ff;--accent-soft:rgba(141,162,255,.12);--ok:#62c196;--run:#8da2ff;--retry:#e2b562;--fail:#f07a76;--wait:#6c6d76;--fail-soft:rgba(240,122,118,.07);--fail-line:rgba(240,122,118,.26);--warn-soft:rgba(226,181,98,.07);--warn-line:rgba(226,181,98,.24);--glow:0 0 0 1px rgba(141,162,255,.30),0 0 48px rgba(141,162,255,.15),0 0 120px rgba(141,162,255,.07);--shadow:0 12px 40px rgba(0,0,0,.45);--inv-bg:#ececef;--inv-text:#0b0b0d;--w:300;--chrome:#09090a}
+.light{--bg:#f5f4f2;--canvas:#f7f6f4;--s1:#fbfaf9;--s2:#ffffff;--s3:#f1efec;--line:#e7e4df;--line2:#d9d6d0;--edge:#c2bfb8;--dot:#dedbd5;--text:#26272b;--muted:#6d6f78;--faint:#a4a6ad;--accent:#5568d8;--accent-soft:rgba(85,104,216,.09);--ok:#2f9467;--run:#5568d8;--retry:#a8741a;--fail:#cc4a47;--wait:#9c9ea6;--fail-soft:rgba(204,74,71,.06);--fail-line:rgba(204,74,71,.28);--warn-soft:rgba(168,116,26,.07);--warn-line:rgba(168,116,26,.26);--glow:0 0 0 1px rgba(85,104,216,.24),0 12px 44px rgba(85,104,216,.17);--shadow:0 10px 32px rgba(40,36,30,.10);--inv-bg:#26272b;--inv-text:#f7f6f4;--w:400;--chrome:#ecebe8}
+.op.dark{--accent:#e6a86a;--accent-soft:rgba(230,168,106,.11)}
+
+/* cornice */
+.frame{width:1440px;height:900px;position:relative;overflow:hidden;border-radius:12px;background:var(--bg);color:var(--text);font-weight:var(--w);font-size:.875rem;border:1px solid var(--line2);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.chrome{height:40px;background:var(--chrome);display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line)}
+.chrome .d{width:10px;height:10px;border-radius:50%;background:var(--line2)}
+.chrome .url{margin:0 auto;width:420px;height:24px;border-radius:12px;background:var(--s3);color:var(--muted);font-size:.75rem;display:flex;align-items:center;justify-content:center}
+.chrome .sp{width:46px}
+.host{height:48px;display:flex;align-items:center;gap:32px;padding:0 24px;border-bottom:1px solid var(--line)}
+.host .logo{display:flex;align-items:center;gap:10px;font-weight:400;letter-spacing:.01em}
+.host .logo i{width:22px;height:22px;border-radius:5px;background:var(--wait);opacity:.55}
+.host nav{display:flex;gap:4px}
+.host nav a{padding:6px 14px;border-radius:8px;color:var(--muted);font-size:.8125rem}
+.host nav a.on{background:var(--s2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+.host .av{margin-left:auto;width:28px;height:28px;border-radius:50%;background:var(--s3);color:var(--muted);display:grid;place-items:center;font-size:.75rem}
+
+/* stati: punto + testo, mai solo colore */
+.st{display:inline-flex;align-items:center;gap:7px;font-size:.75rem;font-weight:400;white-space:nowrap}
+.st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.st.ok{color:var(--ok)}.st.run{color:var(--run)}.st.retry{color:var(--retry)}.st.fail{color:var(--fail)}.st.wait{color:var(--muted)}.st.wait::before{background:var(--wait)}
+.st.run::before{box-shadow:0 0 0 3px var(--accent-soft),0 0 10px var(--run)}
+.st.fail::before{border-radius:2px;transform:rotate(45deg);width:6px;height:6px}
+.st.retry::before{background:none;border:1.5px solid currentColor;width:7px;height:7px}
+.st.wait::before{background:none;border:1.5px dashed var(--wait)}
+
+/* barra del workflow */
+.wfbar{height:64px;display:flex;align-items:center;gap:16px;padding:0 24px;border-bottom:1px solid var(--line);background:var(--bg)}
+.wfbar h2{font-size:1.25rem;font-weight:300;letter-spacing:.005em}
+.pill{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:12px;background:var(--s2);box-shadow:inset 0 0 0 1px var(--line);color:var(--muted);font-size:.75rem;font-weight:400}
+.wfbar .meta{margin-left:auto;display:flex;align-items:center;gap:20px;color:var(--muted);font-size:.8125rem}
+.wfbar .meta .mono{color:var(--text);font-size:.8125rem}
+.btn{height:32px;padding:0 16px;border-radius:8px;border:1px solid var(--line2);background:transparent;color:var(--text);font:inherit;font-size:.8125rem;font-weight:400}
+.statusbig{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 12px;border-radius:14px;background:var(--accent-soft);color:var(--run);font-size:.8125rem;font-weight:400}
+.statusbig::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor}
+
+/* corpo */
+.main{display:grid;grid-template-columns:1100px 340px;height:748px}
+.left{display:grid;grid-template-rows:538px 210px;border-right:1px solid var(--line)}
+.canvas{position:relative;overflow:hidden;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1.1px,transparent 1.2px);background-size:24px 24px;background-position:12px 12px}
+.canvas svg{position:absolute;inset:0;pointer-events:none;z-index:3}
+.edge{fill:none;stroke:var(--edge);stroke-width:1.25}
+.edge.act{stroke:var(--accent);stroke-opacity:.7}
+.edge.pend{stroke-dasharray:3 5;stroke-opacity:.8}
+.pt{stroke:var(--canvas);stroke-width:2}
+.pt.ok{fill:var(--ok)}.pt.run{fill:var(--run)}.pt.wait{fill:var(--wait)}
+
+/* nodi */
+.node{position:absolute;background:var(--s2);border:1px solid var(--line2);border-radius:14px;padding:13px 16px 12px;z-index:2}
+.light .node{box-shadow:0 2px 14px rgba(40,36,30,.05)}
+.node .nm{font-size:.875rem;font-weight:400;line-height:20px}
+.node .kd{font-size:.6875rem;color:var(--muted);line-height:16px;display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.ts{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.625rem;padding:0 5px;border-radius:4px;background:var(--s3);color:var(--muted);line-height:15px}
+.node.wt{border-style:dashed;background:transparent}
+.node.sel{box-shadow:0 0 0 1px var(--accent)}
+.node.pillnode{padding:0 14px;height:30px;border-radius:15px;display:flex;align-items:center;gap:8px;font-size:.75rem}
+
+/* gruppo fan-out */
+.group{position:absolute;left:230px;top:24px;width:390px;height:408px;border-radius:18px;background:var(--s1);border:1px solid var(--line2);box-shadow:var(--glow);padding:20px;z-index:2;display:flex;flex-direction:column}
+.group .hd{display:flex;align-items:flex-start;gap:12px}
+.group .hd .nm{font-size:1rem;font-weight:400;display:flex;align-items:center;gap:10px}
+.group .hd .cnt{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.75rem;padding:1px 9px;border-radius:10px;background:var(--accent-soft);color:var(--accent)}
+.group .hd .kd{font-size:.6875rem;color:var(--muted);margin-top:3px}
+.group .hd .st{margin-left:auto;margin-top:3px}
+.seg{display:flex;gap:2px;height:7px;margin-top:18px}
+.seg b{display:block;border-radius:4px;min-width:4px}
+.seg .a{flex:287 1 0;background:var(--ok);opacity:.85}
+.seg .b{flex:9 1 0;background:var(--run);box-shadow:0 0 12px var(--run)}
+.seg .c{flex:3 1 0;background:var(--retry)}
+.seg .d{flex:1 1 0;background:var(--fail)}
+.leg{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:14px}
+.leg .st{color:var(--text);font-weight:300;font-size:.75rem}
+.leg .st b{font-weight:400;font-family:ui-monospace,Menlo,Consolas,monospace;margin-left:2px}
+.leg .st.ok::before{background:var(--ok)}.leg .st.run::before{background:var(--run)}.leg .st.retry::before{border-color:var(--retry)}.leg .st.fail::before{background:var(--fail)}
+.sub{font-size:.6875rem;color:var(--muted);margin:18px 0 8px;display:flex;gap:8px;align-items:center}
+.sub::after{content:"";flex:1;height:1px;background:var(--line)}
+.inner{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.inner .node{position:static;border-radius:12px;padding:10px 12px;background:var(--s2)}
+.inner .node .kd{margin-bottom:6px}
+.fail-card{margin-top:14px;border:1px solid var(--fail-line);background:var(--fail-soft);border-radius:12px;padding:11px 14px}
+.fail-card .r1{display:flex;align-items:center;gap:10px;font-size:.8125rem}
+.fail-card .r1 .mono{font-size:.75rem}
+.fail-card .r1 .st{margin-left:auto}
+.fail-card p{font-size:.75rem;color:var(--muted);line-height:1.5;margin-top:6px}
+.fail-card p b{font-weight:400;color:var(--text)}
+
+/* barra mobile in basso al canvas */
+.float{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;height:44px;border-radius:22px;background:var(--s1);border:1px solid var(--line2);box-shadow:var(--shadow);display:flex;align-items:center;gap:4px;padding:0 6px;z-index:4}
+.float span{height:32px;min-width:32px;padding:0 10px;display:grid;place-items:center;border-radius:16px;font-size:.8125rem;color:var(--muted);font-weight:400}
+.float .sepv{width:1px;height:18px;background:var(--line2);min-width:0;padding:0;border-radius:0}
+.float .on{background:var(--inv-bg);color:var(--inv-text)}
+
+/* log in basso */
+.log{background:var(--s1);border-top:1px solid var(--line);display:flex;flex-direction:column}
+.tabs{height:40px;display:flex;align-items:center;gap:4px;padding:0 16px;border-bottom:1px solid var(--line)}
+.tabs a{padding:5px 12px;border-radius:8px;font-size:.8125rem;color:var(--muted);font-weight:400}
+.tabs a.on{background:var(--s3);color:var(--text)}
+.tabs .flt{margin-left:auto;font-size:.75rem;color:var(--muted)}
+.lines{padding:8px 16px;font-size:.75rem}
+.lines div{display:grid;grid-template-columns:100px 56px 150px 1fr;height:22px;align-items:center;gap:8px}
+.lines .t{color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.6875rem}
+.lines .src{color:var(--muted);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.6875rem}
+.lines .lv{font-size:.6875rem;font-weight:400}
+.lines .lv.i{color:var(--muted)}.lines .lv.w{color:var(--retry)}.lines .lv.e{color:var(--fail)}.lines .lv.o{color:var(--ok)}
+
+/* pannello destro */
+.side{background:var(--s1);padding:20px 20px 0;overflow:hidden}
+.side .eyebrow{font-size:.6875rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-weight:400}
+.side h3{font-size:1.25rem;font-weight:300;margin:6px 0 2px}
+.side .ind{font-size:.8125rem;color:var(--muted);margin-bottom:12px}
+.side .ind .mono{color:var(--text)}
+.sec{font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:400;margin:22px 0 10px}
+.att{position:relative;padding:10px 12px;border-radius:12px;background:var(--s2);border:1px solid var(--line);margin-bottom:8px}
+.att .r{display:flex;align-items:center;gap:10px;font-size:.8125rem}
+.att .r .st{margin-left:auto}
+.att small{display:block;margin-top:4px;font-size:.75rem;color:var(--muted)}
+.att.f{border-color:var(--fail-line)}
+pre{background:var(--s3);border-radius:12px;padding:12px 14px;font-size:.75rem;line-height:1.6;color:var(--text);white-space:pre;overflow:hidden}
+pre .k{color:var(--muted)}pre .n{color:var(--accent)}
+
+/* dashboard operatore */
+.dash{height:844px;padding:32px 40px;display:grid;grid-template-columns:880px 1fr;gap:24px;align-content:start}
+.dash .ttl{grid-column:1/3}
+.dash .ttl h2{font-size:1.5rem;font-weight:300}
+.dash .ttl p{color:var(--muted);font-size:.8125rem;margin-top:4px}
+.wm{font-size:1.125rem;font-weight:300;letter-spacing:.02em;display:flex;align-items:center;gap:9px}
+.wm i{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+.banner{display:flex;align-items:center;gap:18px;padding:18px 22px;border-radius:18px;background:var(--warn-soft);border:1px solid var(--warn-line);margin-bottom:20px}
+.banner .ic{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--retry);display:grid;place-items:center;color:var(--retry);flex:none}
+.banner h4{font-size:.9375rem;font-weight:400}
+.banner p{font-size:.8125rem;color:var(--muted);margin-top:3px;line-height:1.5}
+.banner .el{margin-left:auto;text-align:right}
+.banner .el b{display:block;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:300;font-size:1.5rem;color:var(--retry)}
+.banner .el span{font-size:.6875rem;color:var(--muted)}
+.tbl{border-radius:18px;background:var(--s1);border:1px solid var(--line);overflow:hidden}
+.tr{display:grid;grid-template-columns:190px 140px 250px 80px 1fr;align-items:center;gap:12px;padding:0 24px;height:64px;border-top:1px solid var(--line)}
+.tr.h{height:44px;border-top:0;font-size:.6875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:400}
+.tr.sel{background:var(--s2);box-shadow:inset 3px 0 0 var(--accent)}
+.tr .w{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8125rem}
+.fn{display:flex;gap:6px;flex-wrap:wrap}
+.fn .ts{font-size:.6875rem;padding:2px 8px;border-radius:8px;line-height:16px}
+.tr .nt{color:var(--muted);font-size:.8125rem}
+.tr.down .nt{color:var(--text)}
+.hist{border-radius:18px;background:var(--s1);border:1px solid var(--line);padding:22px 24px;align-self:start}
+.hist h4{font-size:1rem;font-weight:400}
+.hist .sb{font-size:.75rem;color:var(--muted);margin:3px 0 18px}
+.tl{position:relative;padding-left:22px}
+.tl::before{content:"";position:absolute;left:3px;top:6px;bottom:10px;width:1px;background:var(--line2)}
+.ev{position:relative;padding-bottom:16px}
+.ev .st{margin-left:-22px;margin-bottom:3px;width:calc(100% + 22px);gap:15px}
+
+.ev .t{margin-left:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.6875rem;color:var(--muted);font-weight:300}
+.ev p{font-size:.75rem;color:var(--muted);line-height:1.45}
+.ev p .mono{color:var(--text)}
+</style>
+</head>
+<body>
+<header class="intro">
+<h1>Direzione A <span>— Notte morbida</span></h1>
+<p>Quasi nero con gradini di superficie appena percettibili, caratteri leggeri e molto spazio: il canvas respira e il colore compare solo come punto di stato o come alone del gruppo in esecuzione. Gli archi sono curve sottili e grigie, le porte sono puntini, la barra mobile in basso tiene i controlli fuori dal contenuto. Il tema chiaro mantiene la stessa calma, con superfici calde e contrasto basso ma conforme AA.</p>
+<div class="chips">
+<span class="chip"><i style="background:#0b0b0d"></i>sfondo <b>#0b0b0d</b></span>
+<span class="chip"><i style="background:#1b1b1f"></i>nodo <b>#1b1b1f</b></span>
+<span class="chip"><i style="background:#ececef"></i>testo <b>#ececef</b></span>
+<span class="chip"><i style="background:#8da2ff"></i>accento kit <b>#8da2ff</b></span>
+<span class="chip"><i style="background:#e6a86a"></i>accento operatore <b>#e6a86a</b></span>
+<span class="chip"><i style="background:#62c196"></i>ok <b>#62c196</b></span>
+<span class="chip"><i style="background:#e2b562"></i>ritentata <b>#e2b562</b></span>
+<span class="chip"><i style="background:#f07a76"></i>fallita <b>#f07a76</b></span>
+<span class="chip"><i style="background:#f5f4f2"></i>chiaro bg <b>#f5f4f2</b></span>
+<span class="chip"><i style="background:#5568d8"></i>chiaro accento <b>#5568d8</b></span>
+<span class="chip t">sans di sistema 300 / 400</span>
+<span class="chip t">scala 11 · 12 · 13 · 14 · 16 · 20 · 24 px</span>
+<span class="chip t">raggi 8 · 14 · 18</span>
+<span class="chip t">spazio 4 · 8 · 12 · 16 · 24 · 40</span>
+</div>
+</header>
+<section class="wrap">
+<div class="cap" style="width:auto;margin-left:0">Vista delle esecuzioni · kit · tema scuro (principale)</div>
+<div class="frame dark">
+<div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><div class="url">intel.example.com/workflow/esecuzioni/4812</div><span class="sp"></span></div>
+<div class="host"><div class="logo"><i></i>Threat Intel</div><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a><a>Impostazioni</a></nav><div class="av">G</div></div>
+<div class="wfbar">
+<h2>Arricchimento indicatori</h2><span class="pill">versione 3</span>
+<span class="statusbig">In esecuzione</span>
+<div class="meta"><span>avviata alle 14:22 da Giulia</span><span class="mono">1 min 48 s</span><button class="btn">Annulla</button></div>
+</div>
+<div class="main">
+<div class="left">
+<div class="canvas">
+<svg width="1100" height="538" viewBox="0 0 1100 538" aria-hidden="true">
+<path class="edge act" d="M184 228 C207 228 207 228 230 228"/>
+<path class="edge act" d="M620 228 C650 228 640 100 670 100"/>
+<path class="edge pend" d="M840 100 L900 100"/>
+<path class="edge pend" d="M985 140 C985 175 1000 165 1000 200"/>
+<path class="edge pend" d="M1000 230 C1000 268 925 262 925 300"/>
+<circle class="pt ok" cx="184" cy="228" r="4.5"/><circle class="pt run" cx="230" cy="228" r="4.5"/>
+<circle class="pt run" cx="620" cy="228" r="4.5"/><circle class="pt wait" cx="670" cy="100" r="4.5"/>
+<circle class="pt wait" cx="840" cy="100" r="4.5"/><circle class="pt wait" cx="900" cy="100" r="4.5"/>
+<circle class="pt wait" cx="985" cy="140" r="4.5"/><circle class="pt wait" cx="1000" cy="200" r="4.5"/>
+<circle class="pt wait" cx="1000" cy="230" r="4.5"/><circle class="pt wait" cx="925" cy="300" r="4.5"/>
+</svg>
+
+<div class="node" style="left:24px;top:186px;width:160px"><div class="nm">Ricevi elenco</div><div class="kd">funzione del worker</div><span class="st ok">completata</span></div>
+
+<div class="group">
+<div class="hd"><div><div class="nm">Per ogni indicatore <span class="cnt">300</span></div><div class="kd">controllo di flusso · fan-out</div></div><span class="st run">in esecuzione</span></div>
+<div class="seg" role="img" aria-label="completate 287, in esecuzione 9, ritentate 3, fallite 1"><b class="a"></b><b class="b"></b><b class="c"></b><b class="d"></b></div>
+<div class="leg"><span class="st ok">completate <b>287</b></span><span class="st run">in esecuzione <b>9</b></span><span class="st retry">ritentate <b>3</b></span><span class="st fail">fallite <b>1</b></span></div>
+<div class="sub"><span>in parallelo · <span class="mono">203.0.113.7</span></span></div>
+<div class="inner">
+<div class="node"><div class="nm">dns_lookup</div><div class="kd">funzione del worker</div><span class="st ok">completata</span></div>
+<div class="node sel"><div class="nm">censys_search</div><div class="kd">funzione del worker</div><span class="st ok">completata · tentativo 2</span></div>
+</div>
+<div class="fail-card">
+<div class="r1"><span class="mono">198.51.100.23</span><span class="st fail">fallita</span></div>
+<p><b>censys_search</b>: limite di richieste superato (HTTP 429). 3 tentativi su 3 esauriti, ultimo alle 14:23:12.</p>
+</div>
+</div>
+
+<div class="node wt" style="left:670px;top:60px;width:170px"><div class="nm">Arricchisci</div><div class="kd">funzione del worker</div><span class="st wait">in attesa</span></div>
+<div class="node wt" style="left:900px;top:60px;width:170px"><div class="nm">Calcola punteggio</div><div class="kd">nodo personalizzato <span class="ts">TypeScript</span></div><span class="st wait">in attesa</span></div>
+<div class="node wt pillnode" style="left:940px;top:200px;width:120px"><span class="st wait">join · in attesa</span></div>
+<div class="node wt" style="left:840px;top:300px;width:170px"><div class="nm">Inserisci</div><div class="kd">funzione del worker</div><span class="st wait">in attesa</span></div>
+
+<div class="float"><span>&minus;</span><span>100%</span><span>+</span><span class="sepv"></span><span>Adatta</span><span class="sepv"></span><span class="on">Segui esecuzione</span></div>
+</div>
+
+<div class="log">
+<div class="tabs"><a class="on">Log</a><a>Input</a><a>Output</a><span class="flt">censys_search · 203.0.113.7</span></div>
+<div class="lines">
+<div><span class="t">14:22:31.112</span><span class="lv i">info</span><span class="src">censys_search</span><span>attività ricevuta da worker-ti-01</span></div>
+<div><span class="t">14:22:31.140</span><span class="lv i">info</span><span class="src">censys_search</span><span>tentativo 1 avviato</span></div>
+<div><span class="t">14:23:01.204</span><span class="lv e">errore</span><span class="src">censys_search</span><span>tentativo 1 scaduto dopo 30 s</span></div>
+<div><span class="t">14:23:01.211</span><span class="lv w">avviso</span><span class="src">censys_search</span><span>ritentata, tentativo 2 di 3</span></div>
+<div><span class="t">14:23:01.390</span><span class="lv i">info</span><span class="src">censys_search</span><span>attività ricevuta da worker-ti-02</span></div>
+<div><span class="t">14:23:03.871</span><span class="lv o">ok</span><span class="src">censys_search</span><span>tentativo 2 completato, 2 servizi trovati</span></div>
+<div><span class="t">14:23:12.480</span><span class="lv e">errore</span><span class="src">198.51.100.23</span><span>fallita: limite di richieste superato (HTTP 429), 3 tentativi su 3</span></div>
+</div>
+</div>
+</div>
+
+<aside class="side">
+<div class="eyebrow">Task selezionato</div>
+<h3>censys_search</h3>
+<div class="ind">indicatore <span class="mono">203.0.113.7</span></div>
+<span class="st ok">completata · tentativo 2 di 3</span>
+<div class="sec">Tentativi</div>
+<div class="att f"><div class="r"><span>Tentativo 1</span><span class="st fail">fallito</span></div><small>timeout dopo 30 s · 14:22:31 &rarr; 14:23:01</small></div>
+<div class="att"><div class="r"><span>Tentativo 2</span><span class="st ok">completato</span></div><small>14:23:01 &rarr; 14:23:03 · 2,5 s · worker-ti-02</small></div>
+<div class="sec">Input</div>
+<pre class="mono">{
+  <span class="k">"indicator"</span>: "203.0.113.7",
+  <span class="k">"kind"</span>: "ipv4",
+  <span class="k">"timeout_s"</span>: <span class="n">30</span>
+}</pre>
+<div class="sec">Output</div>
+<pre class="mono">{
+  <span class="k">"services"</span>: <span class="n">2</span>,
+  <span class="k">"open_ports"</span>: [<span class="n">443</span>, <span class="n">8443</span>],
+  <span class="k">"last_seen"</span>: "2026-11-18"
+}</pre>
+</aside>
+</div>
+</div>
+</section>
+<section class="wrap">
+<div class="cap" style="width:auto;margin-left:0">Vista delle esecuzioni · kit · tema chiaro</div>
+<div class="frame light">
+<div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><div class="url">intel.example.com/workflow/esecuzioni/4812</div><span class="sp"></span></div>
+<div class="host"><div class="logo"><i></i>Threat Intel</div><nav><a>Indicatori</a><a class="on">Workflow</a><a>Report</a><a>Impostazioni</a></nav><div class="av">G</div></div>
+<div class="wfbar">
+<h2>Arricchimento indicatori</h2><span class="pill">versione 3</span>
+<span class="statusbig">In esecuzione</span>
+<div class="meta"><span>avviata alle 14:22 da Giulia</span><span class="mono">1 min 48 s</span><button class="btn">Annulla</button></div>
+</div>
+<div class="main">
+<div class="left">
+<div class="canvas">
+<svg width="1100" height="538" viewBox="0 0 1100 538" aria-hidden="true">
+<path class="edge act" d="M184 228 C207 228 207 228 230 228"/>
+<path class="edge act" d="M620 228 C650 228 640 100 670 100"/>
+<path class="edge pend" d="M840 100 L900 100"/>
+<path class="edge pend" d="M985 140 C985 175 1000 165 1000 200"/>
+<path class="edge pend" d="M1000 230 C1000 268 925 262 925 300"/>
+<circle class="pt ok" cx="184" cy="228" r="4.5"/><circle class="pt run" cx="230" cy="228" r="4.5"/>
+<circle class="pt run" cx="620" cy="228" r="4.5"/><circle class="pt wait" cx="670" cy="100" r="4.5"/>
+<circle class="pt wait" cx="840" cy="100" r="4.5"/><circle class="pt wait" cx="900" cy="100" r="4.5"/>
+<circle class="pt wait" cx="985" cy="140" r="4.5"/><circle class="pt wait" cx="1000" cy="200" r="4.5"/>
+<circle class="pt wait" cx="1000" cy="230" r="4.5"/><circle class="pt wait" cx="925" cy="300" r="4.5"/>
+</svg>
+
+<div class="node" style="left:24px;top:186px;width:160px"><div class="nm">Ricevi elenco</div><div class="kd">funzione del worker</div><span class="st ok">completata</span></div>
+
+<div class="group">
+<div class="hd"><div><div class="nm">Per ogni indicatore <span class="cnt">300</span></div><div class="kd">controllo di flusso · fan-out</div></div><span class="st run">in esecuzione</span></div>
+<div class="seg" role="img" aria-label="completate 287, in esecuzione 9, ritentate 3, fallite 1"><b class="a"></b><b class="b"></b><b class="c"></b><b class="d"></b></div>
+<div class="leg"><span class="st ok">completate <b>287</b></span><span class="st run">in esecuzione <b>9</b></span><span class="st retry">ritentate <b>3</b></span><span class="st fail">fallite <b>1</b></span></div>
+<div class="sub"><span>in parallelo · <span class="mono">203.0.113.7</span></span></div>
+<div class="inner">
+<div class="node"><div class="nm">dns_lookup</div><div class="kd">funzione del worker</div><span class="st ok">completata</span></div>
+<div class="node sel"><div class="nm">censys_search</div><div class="kd">funzione del worker</div><span class="st ok">completata · tentativo 2</span></div>
+</div>
+<div class="fail-card">
+<div class="r1"><span class="mono">198.51.100.23</span><span class="st fail">fallita</span></div>
+<p><b>censys_search</b>: limite di richieste superato (HTTP 429). 3 tentativi su 3 esauriti, ultimo alle 14:23:12.</p>
+</div>
+</div>
+
+<div class="node wt" style="left:670px;top:60px;width:170px"><div class="nm">Arricchisci</div><div class="kd">funzione del worker</div><span class="st wait">in attesa</span></div>
+<div class="node wt" style="left:900px;top:60px;width:170px"><div class="nm">Calcola punteggio</div><div class="kd">nodo personalizzato <span class="ts">TypeScript</span></div><span class="st wait">in attesa</span></div>
+<div class="node wt pillnode" style="left:940px;top:200px;width:120px"><span class="st wait">join · in attesa</span></div>
+<div class="node wt" style="left:840px;top:300px;width:170px"><div class="nm">Inserisci</div><div class="kd">funzione del worker</div><span class="st wait">in attesa</span></div>
+
+<div class="float"><span>&minus;</span><span>100%</span><span>+</span><span class="sepv"></span><span>Adatta</span><span class="sepv"></span><span class="on">Segui esecuzione</span></div>
+</div>
+
+<div class="log">
+<div class="tabs"><a class="on">Log</a><a>Input</a><a>Output</a><span class="flt">censys_search · 203.0.113.7</span></div>
+<div class="lines">
+<div><span class="t">14:22:31.112</span><span class="lv i">info</span><span class="src">censys_search</span><span>attività ricevuta da worker-ti-01</span></div>
+<div><span class="t">14:22:31.140</span><span class="lv i">info</span><span class="src">censys_search</span><span>tentativo 1 avviato</span></div>
+<div><span class="t">14:23:01.204</span><span class="lv e">errore</span><span class="src">censys_search</span><span>tentativo 1 scaduto dopo 30 s</span></div>
+<div><span class="t">14:23:01.211</span><span class="lv w">avviso</span><span class="src">censys_search</span><span>ritentata, tentativo 2 di 3</span></div>
+<div><span class="t">14:23:01.390</span><span class="lv i">info</span><span class="src">censys_search</span><span>attività ricevuta da worker-ti-02</span></div>
+<div><span class="t">14:23:03.871</span><span class="lv o">ok</span><span class="src">censys_search</span><span>tentativo 2 completato, 2 servizi trovati</span></div>
+<div><span class="t">14:23:12.480</span><span class="lv e">errore</span><span class="src">198.51.100.23</span><span>fallita: limite di richieste superato (HTTP 429), 3 tentativi su 3</span></div>
+</div>
+</div>
+</div>
+
+<aside class="side">
+<div class="eyebrow">Task selezionato</div>
+<h3>censys_search</h3>
+<div class="ind">indicatore <span class="mono">203.0.113.7</span></div>
+<span class="st ok">completata · tentativo 2 di 3</span>
+<div class="sec">Tentativi</div>
+<div class="att f"><div class="r"><span>Tentativo 1</span><span class="st fail">fallito</span></div><small>timeout dopo 30 s · 14:22:31 &rarr; 14:23:01</small></div>
+<div class="att"><div class="r"><span>Tentativo 2</span><span class="st ok">completato</span></div><small>14:23:01 &rarr; 14:23:03 · 2,5 s · worker-ti-02</small></div>
+<div class="sec">Input</div>
+<pre class="mono">{
+  <span class="k">"indicator"</span>: "203.0.113.7",
+  <span class="k">"kind"</span>: "ipv4",
+  <span class="k">"timeout_s"</span>: <span class="n">30</span>
+}</pre>
+<div class="sec">Output</div>
+<pre class="mono">{
+  <span class="k">"services"</span>: <span class="n">2</span>,
+  <span class="k">"open_ports"</span>: [<span class="n">443</span>, <span class="n">8443</span>],
+  <span class="k">"last_seen"</span>: "2026-11-18"
+}</pre>
+</aside>
+</div>
+</div>
+</section>
+<section class="wrap">
+<div class="cap" style="width:auto;margin-left:0">Dashboard dell'operatore · Worker · tema scuro</div>
+<div class="frame dark op">
+<div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><div class="url">topictoast.example.net/worker</div><span class="sp"></span></div>
+<div class="host"><div class="wm"><i></i>topictoast</div><nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav><div class="av">M</div></div>
+<div class="dash">
+<div class="ttl"><h2>Worker</h2><p>4 worker registrati · 3 collegati · 1 non risponde</p></div>
+<div>
+<div class="banner">
+<div class="ic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 2.5v3h-3"/></svg></div>
+<div><h4>Il motore è in ripresa dopo un crash</h4><p>Nessuna esecuzione nuova parte finché non torna. Nessun dato è andato perso.</p></div>
+<div class="el"><b>12 s</b><span>tempo trascorso</span></div>
+</div>
+<div class="tbl">
+<div class="tr h"><span>Worker</span><span>Stato</span><span>Funzioni</span><span>In corso</span><span>Note</span></div>
+<div class="tr sel"><span class="w">worker-ti-01</span><span class="st ok">collegato</span><span class="fn"><span class="ts">dns_lookup</span><span class="ts">censys_search</span></span><span>8</span><span class="nt">la più vecchia da 41 s</span></div>
+<div class="tr"><span class="w">worker-ti-02</span><span class="st ok">collegato</span><span class="fn"><span class="ts">dns_lookup</span><span class="ts">censys_search</span></span><span>9</span><span class="nt">&mdash;</span></div>
+<div class="tr"><span class="w">worker-score-01</span><span class="st ok">collegato</span><span class="fn"><span class="ts">Calcola punteggio</span></span><span>2</span><span class="nt">nodo personalizzato</span></div>
+<div class="tr down"><span class="w">worker-ti-03</span><span class="st fail">non risponde</span><span class="fn"><span class="ts">dns_lookup</span><span class="ts">censys_search</span></span><span>&mdash;</span><span class="nt">da 2 min · 4 attività riassegnate</span></div>
+</div>
+</div>
+<div class="hist">
+<h4>Cronologia recente</h4>
+<div class="sb"><span class="mono" style="color:var(--text)">worker-ti-01</span> · ultimi 2 minuti</div>
+<div class="tl">
+<div class="ev"><span class="st wait">ricevuta<span class="t">14:23:14.020</span></span><p><span class="mono">dns_lookup</span> · 198.51.100.31</p></div>
+<div class="ev"><span class="st fail">fallita<span class="t">14:23:12.480</span></span><p><span class="mono">censys_search</span> · 198.51.100.23<br>limite di richieste superato</p></div>
+<div class="ev"><span class="st ok">completata<span class="t">14:23:09.915</span></span><p><span class="mono">dns_lookup</span> · 203.0.113.19</p></div>
+<div class="ev"><span class="st retry">ritentata<span class="t">14:23:01.211</span></span><p><span class="mono">censys_search</span> · 203.0.113.7<br>tentativo 2 di 3</p></div>
+<div class="ev"><span class="st fail">fallita<span class="t">14:23:01.204</span></span><p><span class="mono">censys_search</span> · 203.0.113.7<br>timeout dopo 30 s</p></div>
+<div class="ev"><span class="st run">in esecuzione<span class="t">14:22:31.140</span></span><p><span class="mono">censys_search</span> · 203.0.113.7</p></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</body></html>

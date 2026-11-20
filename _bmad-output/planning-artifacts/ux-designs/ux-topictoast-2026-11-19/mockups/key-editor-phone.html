@@ -1,0 +1,200 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Editor dei workflow, telefono 390</title><style>
+/* Schermata chiave: editor dei workflow sul telefono, 390x844 (kit nell'app ospite «Threat Intel», senza marchio topictoast).
+   Spine illustrate:
+   DESIGN.md: Colors (valori hex chiaro e -dark), Typography, Layout & Spacing (Telefono; Nodi), Elevation & Depth,
+     Shapes (archi curvi, porte), Components: canvas, node-card, category-tag, icon-tile, fanout-group, chip, edge,
+     workflow-bar, button-primary, button-secondary, icon-button, bottom-sheet, palette-item, form-field, select,
+     data-mapping, rail-item; target-min 2.75rem (44 px) con pointer coarse.
+   EXPERIENCE.md: Responsive & Platform (Telefono, bottom-sheet a mezza o tutta altezza, rail in fondo), Interaction
+     Primitives (Canvas, Telefono, Selezione e configurazione, Collegare, Aggiungere dalla palette), Component Patterns
+     (canvas, palette-item, select, data-mapping, edge, bottom-sheet), Voice and Tone, Key Flow UJ-2 variante «da telefono, 390 px».
+   .memlog.md: stesso canvas del desktop con foglio dal basso; disposizione automatica dall'alto in basso; manifest. */
+:root{--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace}
+.light{--canvas:#f6f6f6;--dot:#d5d4d9;--surface:#fff;--sub:#fafafa;--border:#e6e6e8;--bc:#8a8991;--text:#1a191f;--t2:#585661;--chip:#eae9ec;--acc:#4a4854;--btn:#302e38;--bon:#fff;--edge:#8e8d95;--port:#8e8d95;--fn:#774bc3;--fn-f:#ccb8ef;--fn-b:#ba9fea;--cu:#b03b85;--cu-f:#efb8db;--cu-b:#ea9fce;--fl:#2e8a8a;--fl-f:#b8efef;--fl-b:#9feaea;--halo:#d4d3d6}
+.dark{--canvas:#151517;--dot:#2a2a2d;--surface:#1d1c1e;--sub:#19181b;--border:#2f2f32;--bc:#706f77;--text:#e7e6ea;--t2:#a5a3ae;--chip:#2d2c30;--acc:#c9c7d1;--btn:#d9d8df;--bon:#18171c;--edge:#74737b;--port:#74737b;--fn:#bb99f5;--fn-f:#433658;--fn-b:#534171;--cu:#f48bcd;--cu-f:#57364c;--cu-b:#704160;--fl:#7df2f2;--fl-f:#365758;--fl-b:#417071;--halo:#3d3c40}
+*{box-sizing:border-box;margin:0}
+body{font-family:var(--sans);background:#dcdce0;color:#1a191f;padding:24px 16px 48px}
+h1{font-size:1.25rem;font-weight:500;text-align:center;margin-bottom:4px}
+.lead{text-align:center;color:#585661;font-size:.8125rem;margin-bottom:20px}
+.row3{display:flex;gap:28px;justify-content:center;flex-wrap:wrap;margin-bottom:32px}
+figure{display:flex;flex-direction:column;align-items:center;gap:10px}
+figcaption{font-size:.8125rem;color:#585661;max-width:390px;text-align:center;line-height:1.45}
+h2.band{text-align:center;font-size:1rem;font-weight:500;margin:8px 0 14px}
+.phone{width:390px;height:844px;border-radius:28px;overflow:hidden;position:relative;background:var(--canvas);color:var(--text);outline:8px solid #2b2a2f;display:flex;flex-direction:column;font-size:.875rem;line-height:1.45}
+.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}.i.s{width:14px;height:14px}.i.xs{width:12px;height:12px}
+.mono{font-family:var(--mono)}
+.status{height:24px;flex:none;background:var(--surface);display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:.75rem;font-weight:500}
+.sb{display:flex;gap:3px}.sb i{width:12px;height:7px;border-radius:2px;background:var(--text)}
+.host{height:48px;flex:none;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 16px}
+.hl{width:22px;height:22px;border-radius:6px;background:var(--chip);border:1px solid var(--border)}.host strong{font-weight:500}.hm{margin-left:auto;font-size:.8125rem;color:var(--t2)}
+.wfbar{flex:none;background:var(--surface);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;flex-direction:column;gap:6px}
+.r1{display:flex;align-items:center;gap:8px;min-height:28px}.r2{display:flex;gap:8px}
+.tt{all:unset;font-size:1.0625rem;font-weight:500;line-height:1.4;color:var(--text)}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--chip);color:var(--t2);border-radius:6px;padding:0 7px;font-size:.6875rem;font-weight:500;line-height:1.45;min-height:20px}
+.chip.ts{font-family:var(--mono)}.chip.cat{min-height:22px}.chip.cat svg{color:var(--fn)}
+.btn{flex:1;min-height:44px;border-radius:10px;font:inherit;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.btn.pri{background:var(--btn);color:var(--bon);border:1px solid var(--btn)}.btn.scd{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.ib{width:44px;height:44px;border-radius:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);display:grid;place-items:center;flex:none;cursor:pointer;padding:0}
+.canvas{flex:1;position:relative;overflow:hidden;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);background-size:16px 16px}
+.zoomed{position:absolute;left:0;top:6px;width:390px;height:700px;transform:scale(.93);transform-origin:50% 0}
+.edges{position:absolute;inset:0}.edges path{fill:none;stroke:var(--edge);stroke-width:1.25}.edges circle{fill:var(--surface);stroke:var(--port);stroke-width:1.25}
+.node{position:absolute}.tag{position:absolute;top:-19px;left:0;display:inline-flex;align-items:center;gap:4px;font-size:.6875rem;font-weight:500;white-space:nowrap;color:var(--t2)}
+.tag.fn svg{color:var(--fn)}.tag.cu svg{color:var(--cu)}.tag.fl svg{color:var(--fl)}
+.card{min-height:72px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.card.sel{border:1.5px solid var(--acc);box-shadow:0 0 0 4px var(--halo)}
+.row{display:flex;align-items:center;gap:8px}.nm{font-size:.875rem;font-weight:500;min-width:0}.nm.mono{font-size:.875rem}.gt{font-size:1rem}
+.tile{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;border:1px solid transparent}
+.tile.fn{background:var(--fn-f);border-color:var(--fn-b);color:var(--fn)}.tile.cu{background:var(--cu-f);border-color:var(--cu-b);color:var(--cu)}.tile.fl{background:var(--fl-f);border-color:var(--fl-b);color:var(--fl)}
+.group{position:absolute;inset:0;border:1px solid var(--border);border-radius:16px;background:var(--sub)}
+.zoom{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;gap:6px}
+.rail{height:48px;flex:none;background:var(--surface);border-top:1px solid var(--border);display:flex}
+.rail a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:.625rem;font-weight:500;line-height:1.15;text-align:center;color:var(--t2);min-height:44px;margin:2px;border-radius:10px}
+.rail a .i{width:18px;height:18px}.rail a.on{background:var(--canvas);color:var(--text)}.rail a.on .i{color:var(--acc)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border);border-radius:16px 16px 0 0;overflow:hidden;display:flex;flex-direction:column}
+.sheet.half{height:422px}.sheet.full{top:72px}
+.handle{position:absolute;top:5px;left:50%;margin-left:-16px;width:32px;height:4px;border-radius:2px;background:var(--border)}
+.sh{flex:none;display:flex;align-items:center;gap:6px;padding:12px 8px 4px 16px}.sh h2{flex:1;font-size:1rem;font-weight:500;line-height:1.4}
+.sh.top{align-items:flex-start}.who{flex:1;display:flex;flex-direction:column;gap:4px;padding-top:2px}.pn{font-size:.875rem;font-weight:500}.pn.big{font-size:.875rem}
+.sb-body{flex:1;min-height:0;overflow:hidden;padding:4px 16px 0}
+.lab{display:block;font-size:.8125rem;color:var(--t2);margin:2px 0 4px}
+.field{min-height:44px;border:1px solid var(--bc);border-radius:10px;background:var(--surface);display:flex;align-items:center;gap:8px;padding:0 12px;justify-content:space-between}
+.field.sm{min-width:128px;flex:none}.ph{color:var(--t2);flex:1;text-align:left}.field .md{font-size:.8125rem}.field svg{color:var(--t2)}
+.gh,.sec{font-size:.75rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--t2);margin:14px 0 6px}
+.pi{display:flex;gap:10px;align-items:flex-start;min-height:44px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--surface)}
+.pd{font-size:.8125rem;color:var(--t2)}
+.sub{font-size:.8125rem;color:var(--t2);margin-bottom:2px}
+.cfg .sec{margin:12px 0 6px}
+.dm{border-top:1px solid var(--border);padding:8px 0 10px;display:flex;flex-direction:column;gap:6px}.dmh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.fl1{font-size:.8125rem;font-weight:500}.ft{font-size:.75rem;color:var(--t2)}.ft .mono{font-size:.75rem}
+.help{font-size:.75rem;color:var(--t2);margin-top:4px;line-height:1.35}.two{display:flex;gap:10px}.two>div{flex:1}
+.lk{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding:4px 0}.lk .btn{flex:none;padding:0 12px}.ln{font-size:.875rem;font-weight:500}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-fn" viewBox="0 0 20 20"><path d="M8 4c-2 0-2 1-2 3v1c0 1-1 2-2 2 1 0 2 1 2 2v1c0 2 0 3 2 3M12 4c2 0 2 1 2 3v1c0 1 1 2 2 2-1 0-2 1-2 2v1c0 2 0 3-2 3"/></symbol>
+<symbol id="i-cu" viewBox="0 0 20 20"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4M11 4l-2 12"/></symbol>
+<symbol id="i-fl" viewBox="0 0 20 20"><path d="M4 3v14M4 10h6a4 4 0 014 4v3M4 10h6a4 4 0 004-4V3"/></symbol>
+<symbol id="i-x" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></symbol>
+<symbol id="i-plus" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></symbol>
+<symbol id="i-minus" viewBox="0 0 20 20"><path d="M4 10h12"/></symbol>
+<symbol id="i-fit" viewBox="0 0 20 20"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"/></symbol>
+<symbol id="i-play" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z"/></symbol>
+<symbol id="i-up" viewBox="0 0 20 20"><path d="M5 12l5-5 5 5"/></symbol>
+<symbol id="i-down" viewBox="0 0 20 20"><path d="M5 8l5 5 5-5"/></symbol>
+<symbol id="i-chev" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4"/></symbol>
+<symbol id="i-search" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 1.5"/></symbol>
+<symbol id="i-key" viewBox="0 0 20 20"><circle cx="7" cy="10" r="3.5"/><path d="M10.5 10H17M14 10v3"/></symbol>
+<symbol id="i-lines" viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h7"/></symbol>
+</defs></svg>
+<h1>Editor dei workflow sul telefono, 390 × 844</h1><p class="lead">Kit dentro l'app ospite «Threat Intel». Tema chiaro: canvas a riposo, palette a mezza altezza, configurazione a tutta altezza.</p><div class="row3">
+<figure><div class="phone light"><div class="scr" style="display:contents">
+<div class="status"><span>9:41</span><span class="sb"><i></i><i></i><i></i></span></div>
+<div class="host"><span class="hl"></span><strong>Threat Intel</strong><span class="hm">Workflow</span></div>
+<div class="wfbar"><div class="r1"><button class="tt" type="button">Arricchimento indicatori</button><span class="chip">versione 3</span></div>
+<div class="r2"><button class="btn scd" type="button"><svg class="i"><use href="#i-play"/></svg>Esegui</button><button class="btn pri" type="button">Salva</button></div></div>
+<div class="canvas" role="region" aria-label="Grafo del workflow, 5 task"><div class="zoomed">
+<svg class="edges" width="390" height="700" aria-hidden="true">
+<path d="M195 98C195 106 195 111 195 119"/><path d="M195 298C195 306 195 311 195 319"/><path d="M195 416C195 424 195 429 195 437"/><path d="M195 534C195 542 195 547 195 555"/>
+<circle cx="195" cy="98" r="3.5"/><circle cx="195" cy="119" r="3.5"/><circle cx="195" cy="298" r="3.5"/><circle cx="195" cy="319" r="3.5"/><circle cx="195" cy="416" r="3.5"/><circle cx="195" cy="437" r="3.5"/><circle cx="195" cy="534" r="3.5"/><circle cx="195" cy="555" r="3.5"/>
+</svg>
+<div class="node" style="left:105px;top:26px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Ricevi elenco</span></div></div></div>
+<div class="node" style="left:12px;top:144px;width:366px;height:154px"><span class="tag fl" style="top:-19px"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="row" style="position:absolute;left:16px;top:14px"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm gt">Per ogni indicatore</span></div></div></div>
+<div class="node" style="left:28px;top:212px;width:163px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_<wbr>lookup</span></div></div></div>
+<div class="node" style="left:199px;top:212px;width:163px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card "><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_<wbr>search</span></div></div></div>
+<div class="node" style="left:105px;top:344px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div></div></div>
+<div class="node" style="left:105px;top:462px;width:180px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="chip ts">TS</span></div></div></div>
+<div class="node" style="left:105px;top:580px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Inserisci</span></div></div></div>
+</div>
+<div class="zoom"><button class="ib" type="button" aria-label="Ingrandisci"><svg class="i"><use href="#i-plus"/></svg></button><button class="ib" type="button" aria-label="Rimpicciolisci"><svg class="i"><use href="#i-minus"/></svg></button><button class="ib" type="button" aria-label="Adatta"><svg class="i"><use href="#i-fit"/></svg></button></div></div>
+<nav class="rail" aria-label="Sezioni"><a><svg class="i"><use href="#i-fl"/></svg>Workflow</a><a class="on" aria-current="page"><svg class="i"><use href="#i-cu"/></svg>Editor</a><a><svg class="i"><use href="#i-clock"/></svg>Esecuzioni</a><a><svg class="i"><use href="#i-key"/></svg>Segreti</a><a><svg class="i"><use href="#i-lines"/></svg>Pipeline stream</a></nav>
+</div></div><figcaption>Canvas a riposo, disposto in automatico dall'alto in basso; zoom, «Esegui» e «Salva» nella barra.</figcaption></figure>
+<figure><div class="phone light"><div class="scr" style="display:contents">
+<div class="status"><span>9:41</span><span class="sb"><i></i><i></i><i></i></span></div>
+<div class="host"><span class="hl"></span><strong>Threat Intel</strong><span class="hm">Workflow</span></div>
+<div class="wfbar"><div class="r1"><button class="tt" type="button">Arricchimento indicatori</button><span class="chip">versione 3</span></div>
+<div class="r2"><button class="btn scd" type="button"><svg class="i"><use href="#i-play"/></svg>Esegui</button><button class="btn pri" type="button">Salva</button></div></div>
+<div class="canvas" role="region" aria-label="Grafo del workflow, 5 task"><div class="zoomed">
+<svg class="edges" width="390" height="700" aria-hidden="true">
+<path d="M195 98C195 106 195 111 195 119"/><path d="M195 298C195 306 195 311 195 319"/><path d="M195 416C195 424 195 429 195 437"/><path d="M195 534C195 542 195 547 195 555"/>
+<circle cx="195" cy="98" r="3.5"/><circle cx="195" cy="119" r="3.5"/><circle cx="195" cy="298" r="3.5"/><circle cx="195" cy="319" r="3.5"/><circle cx="195" cy="416" r="3.5"/><circle cx="195" cy="437" r="3.5"/><circle cx="195" cy="534" r="3.5"/><circle cx="195" cy="555" r="3.5"/>
+</svg>
+<div class="node" style="left:105px;top:26px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Ricevi elenco</span></div></div></div>
+<div class="node" style="left:12px;top:144px;width:366px;height:154px"><span class="tag fl" style="top:-19px"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="row" style="position:absolute;left:16px;top:14px"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm gt">Per ogni indicatore</span></div></div></div>
+<div class="node" style="left:28px;top:212px;width:163px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_<wbr>lookup</span></div></div></div>
+<div class="node" style="left:199px;top:212px;width:163px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card "><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_<wbr>search</span></div></div></div>
+<div class="node" style="left:105px;top:344px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div></div></div>
+<div class="node" style="left:105px;top:462px;width:180px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="chip ts">TS</span></div></div></div>
+<div class="node" style="left:105px;top:580px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Inserisci</span></div></div></div>
+</div>
+<div class="zoom"><button class="ib" type="button" aria-label="Ingrandisci"><svg class="i"><use href="#i-plus"/></svg></button><button class="ib" type="button" aria-label="Rimpicciolisci"><svg class="i"><use href="#i-minus"/></svg></button><button class="ib" type="button" aria-label="Adatta"><svg class="i"><use href="#i-fit"/></svg></button></div></div>
+<nav class="rail" aria-label="Sezioni"><a><svg class="i"><use href="#i-fl"/></svg>Workflow</a><a class="on" aria-current="page"><svg class="i"><use href="#i-cu"/></svg>Editor</a><a><svg class="i"><use href="#i-clock"/></svg>Esecuzioni</a><a><svg class="i"><use href="#i-key"/></svg>Segreti</a><a><svg class="i"><use href="#i-lines"/></svg>Pipeline stream</a></nav>
+<div class="sheet half" role="dialog" aria-label="Aggiungi task"><span class="handle"></span>
+<div class="sh"><h2>Aggiungi task</h2><button class="ib" type="button" aria-label="Espandi"><svg class="i"><use href="#i-up"/></svg></button><button class="ib" type="button" aria-label="Chiudi"><svg class="i"><use href="#i-x"/></svg></button></div>
+<div class="sb-body"><label class="lab">Cerca</label><div class="field"><svg class="i s"><use href="#i-search"/></svg><span class="ph">Nome o descrizione</span></div>
+<h3 class="gh">DNS</h3>
+<div class="pi"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><div><div class="pn mono">dns_lookup</div><div class="pd">Risolve un nome di dominio nei suoi record DNS.</div></div></div>
+<div class="pi"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><div><div class="pn mono">whois_lookup</div><div class="pd">Recupera i dati di registrazione di un dominio.</div></div></div>
+<h3 class="gh">Arricchimento</h3>
+<div class="pi"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><div><div class="pn mono">censys_search</div><div class="pd">Cerca un indirizzo IP su Censys e restituisce servizi e certificati.</div></div></div>
+<h3 class="gh">Controllo di flusso</h3>
+<div class="pi"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><div><div class="pn">switch</div><div class="pd">Sceglie il ramo da seguire in base a una condizione.</div></div></div>
+</div></div>
+</div></div><figcaption>Palette a mezza altezza: gruppi dal manifest, ricerca, voci da 44 px; «Espandi» e «Chiudi» in testa.</figcaption></figure>
+<figure><div class="phone light"><div class="scr" style="display:contents">
+<div class="status"><span>9:41</span><span class="sb"><i></i><i></i><i></i></span></div>
+<div class="host"><span class="hl"></span><strong>Threat Intel</strong><span class="hm">Workflow</span></div>
+<div class="wfbar"><div class="r1"><button class="tt" type="button">Arricchimento indicatori</button><span class="chip">versione 3</span></div>
+<div class="r2"><button class="btn scd" type="button"><svg class="i"><use href="#i-play"/></svg>Esegui</button><button class="btn pri" type="button">Salva</button></div></div>
+<div class="canvas" role="region" aria-label="Grafo del workflow, 5 task"><div class="zoomed">
+<svg class="edges" width="390" height="700" aria-hidden="true">
+<path d="M195 98C195 106 195 111 195 119"/><path d="M195 298C195 306 195 311 195 319"/><path d="M195 416C195 424 195 429 195 437"/><path d="M195 534C195 542 195 547 195 555"/>
+<circle cx="195" cy="98" r="3.5"/><circle cx="195" cy="119" r="3.5"/><circle cx="195" cy="298" r="3.5"/><circle cx="195" cy="319" r="3.5"/><circle cx="195" cy="416" r="3.5"/><circle cx="195" cy="437" r="3.5"/><circle cx="195" cy="534" r="3.5"/><circle cx="195" cy="555" r="3.5"/>
+</svg>
+<div class="node" style="left:105px;top:26px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Ricevi elenco</span></div></div></div>
+<div class="node" style="left:12px;top:144px;width:366px;height:154px"><span class="tag fl" style="top:-19px"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="row" style="position:absolute;left:16px;top:14px"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm gt">Per ogni indicatore</span></div></div></div>
+<div class="node" style="left:28px;top:212px;width:163px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_<wbr>lookup</span></div></div></div>
+<div class="node" style="left:199px;top:212px;width:163px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_<wbr>search</span></div></div></div>
+<div class="node" style="left:105px;top:344px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div></div></div>
+<div class="node" style="left:105px;top:462px;width:180px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="chip ts">TS</span></div></div></div>
+<div class="node" style="left:105px;top:580px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Inserisci</span></div></div></div>
+</div>
+<div class="zoom"><button class="ib" type="button" aria-label="Ingrandisci"><svg class="i"><use href="#i-plus"/></svg></button><button class="ib" type="button" aria-label="Rimpicciolisci"><svg class="i"><use href="#i-minus"/></svg></button><button class="ib" type="button" aria-label="Adatta"><svg class="i"><use href="#i-fit"/></svg></button></div></div>
+<nav class="rail" aria-label="Sezioni"><a><svg class="i"><use href="#i-fl"/></svg>Workflow</a><a class="on" aria-current="page"><svg class="i"><use href="#i-cu"/></svg>Editor</a><a><svg class="i"><use href="#i-clock"/></svg>Esecuzioni</a><a><svg class="i"><use href="#i-key"/></svg>Segreti</a><a><svg class="i"><use href="#i-lines"/></svg>Pipeline stream</a></nav>
+<div class="sheet full" role="dialog" aria-label="Configurazione di censys_search"><span class="handle"></span>
+<div class="sh top"><div class="who"><span class="chip cat"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="pn mono big">censys_search</div></div><button class="ib" type="button" aria-label="Comprimi"><svg class="i"><use href="#i-down"/></svg></button><button class="ib" type="button" aria-label="Chiudi"><svg class="i"><use href="#i-x"/></svg></button></div>
+<div class="sb-body cfg"><p class="sub">Cerca un indirizzo IP su Censys e restituisce servizi e certificati.</p>
+<h3 class="sec">Dati</h3>
+<div class="dm"><div class="dmh"><div><div class="fl1">Indirizzo IP</div><div class="ft"><span class="mono">testo</span> · obbligatorio</div></div><div class="field sm"><span>Da un task</span><svg class="i s"><use href="#i-chev"/></svg></div></div><div class="field"><span class="mono md">Ricevi elenco · indicatore</span><svg class="i s"><use href="#i-chev"/></svg></div></div>
+<div class="dm"><div class="dmh"><div><div class="fl1">Risultati massimi</div><div class="ft"><span class="mono">numero</span></div></div><div class="field sm"><span>Valore</span><svg class="i s"><use href="#i-chev"/></svg></div></div><div class="field"><span>50</span></div></div>
+<h3 class="sec">Connessioni</h3>
+<label class="lab">Censys</label><div class="field"><span class="mono md">censys-api</span><svg class="i s"><use href="#i-chev"/></svg></div><div class="help">Solo segreti per Censys.</div>
+<h3 class="sec">Tentativi e timeout</h3>
+<div class="two"><div><label class="lab">Tentativi</label><div class="field"><span>3</span></div><div class="help">predefinito: 3, massimo: 10</div></div><div><label class="lab">Timeout</label><div class="field"><span>30 s</span></div><div class="help">predefinito: 30 s, massimo: 10 min</div></div></div>
+<h3 class="sec">Collegamenti</h3>
+<div class="lk"><div><div class="ft">Dipende da</div><div class="ln">Ricevi elenco</div></div><button class="btn scd" type="button" aria-label="Rimuovi collegamento a Ricevi elenco"><svg class="i s"><use href="#i-x"/></svg>Rimuovi</button></div>
+<div class="lk"><div><div class="ft">Precede</div><div class="ln">Arricchisci</div></div><button class="btn scd" type="button" aria-label="Rimuovi collegamento a Arricchisci"><svg class="i s"><use href="#i-x"/></svg>Rimuovi</button></div>
+</div></div>
+</div></div><figcaption>Configurazione di censys_search a tutta altezza: «Dati», «Connessioni», «Collegamenti» con «Rimuovi».</figcaption></figure>
+</div><h2 class="band">Tema scuro</h2><div class="row3">
+<figure><div class="phone dark"><div class="scr" style="display:contents">
+<div class="status"><span>9:41</span><span class="sb"><i></i><i></i><i></i></span></div>
+<div class="host"><span class="hl"></span><strong>Threat Intel</strong><span class="hm">Workflow</span></div>
+<div class="wfbar"><div class="r1"><button class="tt" type="button">Arricchimento indicatori</button><span class="chip">versione 3</span></div>
+<div class="r2"><button class="btn scd" type="button"><svg class="i"><use href="#i-play"/></svg>Esegui</button><button class="btn pri" type="button">Salva</button></div></div>
+<div class="canvas" role="region" aria-label="Grafo del workflow, 5 task"><div class="zoomed">
+<svg class="edges" width="390" height="700" aria-hidden="true">
+<path d="M195 98C195 106 195 111 195 119"/><path d="M195 298C195 306 195 311 195 319"/><path d="M195 416C195 424 195 429 195 437"/><path d="M195 534C195 542 195 547 195 555"/>
+<circle cx="195" cy="98" r="3.5"/><circle cx="195" cy="119" r="3.5"/><circle cx="195" cy="298" r="3.5"/><circle cx="195" cy="319" r="3.5"/><circle cx="195" cy="416" r="3.5"/><circle cx="195" cy="437" r="3.5"/><circle cx="195" cy="534" r="3.5"/><circle cx="195" cy="555" r="3.5"/>
+</svg>
+<div class="node" style="left:105px;top:26px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Ricevi elenco</span></div></div></div>
+<div class="node" style="left:12px;top:144px;width:366px;height:154px"><span class="tag fl" style="top:-19px"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="group"><div class="row" style="position:absolute;left:16px;top:14px"><span class="tile fl"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm gt">Per ogni indicatore</span></div></div></div>
+<div class="node" style="left:28px;top:212px;width:163px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_<wbr>lookup</span></div></div></div>
+<div class="node" style="left:199px;top:212px;width:163px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card "><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_<wbr>search</span></div></div></div>
+<div class="node" style="left:105px;top:344px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div></div></div>
+<div class="node" style="left:105px;top:462px;width:180px"><span class="tag cu"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card"><div class="row"><span class="tile cu"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div class="row"><span class="chip ts">TS</span></div></div></div>
+<div class="node" style="left:105px;top:580px;width:180px"><span class="tag fn"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="row"><span class="tile fn"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Inserisci</span></div></div></div>
+</div>
+<div class="zoom"><button class="ib" type="button" aria-label="Ingrandisci"><svg class="i"><use href="#i-plus"/></svg></button><button class="ib" type="button" aria-label="Rimpicciolisci"><svg class="i"><use href="#i-minus"/></svg></button><button class="ib" type="button" aria-label="Adatta"><svg class="i"><use href="#i-fit"/></svg></button></div></div>
+<nav class="rail" aria-label="Sezioni"><a><svg class="i"><use href="#i-fl"/></svg>Workflow</a><a class="on" aria-current="page"><svg class="i"><use href="#i-cu"/></svg>Editor</a><a><svg class="i"><use href="#i-clock"/></svg>Esecuzioni</a><a><svg class="i"><use href="#i-key"/></svg>Segreti</a><a><svg class="i"><use href="#i-lines"/></svg>Pipeline stream</a></nav>
+</div></div><figcaption>Canvas a riposo, tema scuro.</figcaption></figure>
+</div></body></html>

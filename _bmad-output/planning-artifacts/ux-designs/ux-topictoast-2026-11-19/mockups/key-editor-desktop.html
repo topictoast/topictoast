@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Editor dei workflow, desktop 1440</title>
+<style>
+/* ===== Mock key-editor-desktop (illustra, non sostituisce, le spine) =====
+DESIGN.md: frontmatter (tutti gli hex, chiaro e -dark), Colors (Accenti, Categorie, Stati), Layout & Spacing
+  (area workflow del kit, desktop 1440: barra icone 4rem, palette 15rem, pannello destro 22.5rem, barra workflow 4rem),
+  Elevation & Depth (nessuna ombra), Shapes (porte, archi curvi, icone tratto 1.6), Components: canvas, node-card,
+  category-tag, icon-tile, chip, fanout-group, edge, condition-chip, workflow-bar, button-primary/secondary, icon-button,
+  panel, palette-item, form-field, select, data-mapping, code-editor, validation-message, rail-item, Selezione e focus.
+EXPERIENCE.md: Voice and Tone (tabella: «Connessione senza segreto»), Component Patterns (canvas, node-card, edge,
+  condition-chip, workflow-bar, palette-item, form-field, select, data-mapping, validation-message, panel),
+  State Patterns (Errori di validazione: sul task, prima del salvataggio), Interaction Primitives (Selezione e
+  configurazione, Collegare, Aggiungere dalla palette, switch con «Rami»), Key Flow UJ-2 passi 2-4.
+Layout del grafo: direzione di .working/direction-c-carta-chiara.html; colori e archi ortogonali di quel mock superati.
+Kit senza marchio: nessun nome o logo del prodotto, solo l'intestazione generica dell'app ospite. */
+*{box-sizing:border-box;margin:0}
+:root{--sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace}
+.light{--canvas:#f6f6f6;--dot:#d5d4d9;--surface:#ffffff;--subtle:#fafafa;--border:#e6e6e8;--text:#1a191f;--text2:#585661;--chip:#eae9ec;--bc:#8a8991;--port:#8e8d95;--accent:#4a4854;--btn:#302e38;--onbtn:#ffffff;--edge:#8e8d95;--halo:#d4d3d6;--errsurf:#f8e1df;--failed:#b4443c;
+--fn:#774bc3;--fn-fill:#ccb8ef;--fn-bd:#ba9fea;--cu:#b03b85;--cu-fill:#efb8db;--cu-bd:#ea9fce;--fl:#2e8a8a;--fl-fill:#b8efef;--fl-bd:#9feaea}
+.dark{--canvas:#151517;--dot:#2a2a2d;--surface:#1d1c1e;--subtle:#19181b;--border:#2f2f32;--text:#e7e6ea;--text2:#a5a3ae;--chip:#2d2c30;--bc:#706f77;--port:#74737b;--accent:#c9c7d1;--btn:#d9d8df;--onbtn:#18171c;--edge:#74737b;--halo:#3d3c40;--errsurf:#493131;--failed:#f4928b;
+--fn:#bb99f5;--fn-fill:#433658;--fn-bd:#534171;--cu:#f48bcd;--cu-fill:#57364c;--cu-bd:#704160;--fl:#7df2f2;--fl-fill:#365758;--fl-bd:#417071}
+body{font:400 .875rem/1.45 var(--sans);background:#dcdcdf;color:#1a191f;padding:24px 0 48px;min-width:1488px}
+.cap{width:1440px;margin:0 auto 12px;font-size:.8125rem;color:#3c3b42}
+.cap b{font-weight:500}
+.frame{width:1440px;height:900px;margin:0 auto 48px;overflow:hidden;background:var(--canvas);color:var(--text);display:flex;flex-direction:column;outline:1px solid #b8b8bd;font-size:.875rem}
+.mono{font-family:var(--mono)}
+svg.i{width:1.25rem;height:1.25rem;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.s{width:.875rem;height:.875rem;stroke-width:2.29}
+svg.xs{width:.75rem;height:.75rem;stroke-width:2.67}
+/* intestazione dell'app ospite: non fa parte del kit */
+.host{height:48px;flex:none;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 20px}
+.host .logo{width:24px;height:24px;background:var(--text2);opacity:.55;border-radius:4px}
+.host strong{font-weight:600;font-size:.9375rem}
+.host a{padding:6px 12px;border-radius:8px;background:var(--canvas);font-weight:500;margin-left:8px}
+.host .av{margin-left:auto;width:28px;height:28px;border-radius:50%;background:var(--chip);display:grid;place-items:center;font-size:.75rem;font-weight:500;color:var(--text2)}
+.body{flex:1;display:flex;min-height:0}
+/* rail-item */
+.rail{width:4rem;flex:none;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:12px}
+.rail a{width:3.5rem;min-height:2.75rem;padding:6px 2px 4px;border-radius:.625rem;color:var(--text2);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.6875rem;font-weight:500;line-height:1.2;text-align:center}
+.rail a.on{background:var(--canvas);color:var(--text)}
+.rail a.on svg{color:var(--accent)}
+/* palette */
+.pal{width:15rem;flex:none;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.pal .hd{display:flex;align-items:center;justify-content:space-between;padding:12px 12px 0 16px;height:52px}
+.pal h3,.pnl h3{font-size:1rem;font-weight:500;line-height:1.4}
+.ib{width:2.25rem;height:2.25rem;border-radius:.625rem;background:var(--surface);border:1px solid var(--border);color:var(--text);display:grid;place-items:center;flex:none}
+.fld{padding:8px 12px 12px}
+.lab{display:block;font-size:.8125rem;color:var(--text2);margin-bottom:4px}
+.inp{display:flex;align-items:center;gap:8px;min-height:2.25rem;border:1px solid var(--bc);border-radius:.625rem;background:var(--surface);padding:0 10px;font-size:.875rem;color:var(--text)}
+.inp .ph{color:var(--text2)}
+.inp.err{border-color:var(--failed)}
+.inp .car{margin-left:auto;color:var(--text2)}
+.plist{flex:1;overflow:hidden;padding:0 12px}
+.gh{font-size:.75rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--text2);line-height:1.45;padding:12px 0 6px}
+.pi{border:1px solid var(--border);border-radius:.625rem;background:var(--surface);padding:10px;margin-bottom:8px}
+.pi .r{display:flex;align-items:center;gap:8px}
+.pi .nm{font-size:.875rem;font-weight:500}
+.pi .d{font-size:.8125rem;color:var(--text2);margin-top:4px}
+.tile{width:1.625rem;height:1.625rem;border-radius:.5rem;display:grid;place-items:center;flex:none;background:var(--c-fill);border:1px solid var(--c-bd);color:var(--c)}
+.fn{--c:var(--fn);--c-fill:var(--fn-fill);--c-bd:var(--fn-bd)}
+.cu{--c:var(--cu);--c-fill:var(--cu-fill);--c-bd:var(--cu-bd)}
+.fl{--c:var(--fl);--c-fill:var(--fl-fill);--c-bd:var(--fl-bd)}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--chip);color:var(--text2);border-radius:.375rem;font-size:.6875rem;font-weight:500;line-height:1.45;padding:1px 8px}
+.chip svg{color:var(--c)}
+/* barra del workflow */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.bar{height:4rem;flex:none;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 24px}
+.bar h2{font-size:1.0625rem;font-weight:500;line-height:1.4}
+.bar .meta{font-size:.8125rem;color:var(--text2)}
+.sep{width:1px;height:24px;background:var(--border)}
+.bar .act{margin-left:auto;display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:2.25rem;padding:0 16px;border-radius:.625rem;font:500 .875rem/1.45 var(--sans);background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.btn.p{background:var(--btn);color:var(--onbtn);border-color:var(--btn)}
+.btn.sm{padding:0 12px}
+.work{flex:1;display:flex;min-height:0}
+/* canvas */
+.cv{position:relative;flex:1;overflow:hidden;background-color:var(--canvas);background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);background-size:1rem 1rem}
+.graph{position:absolute;left:10px;top:50px;width:950px;height:700px;transform:scale(.8);transform-origin:0 0}
+.graph svg.e{position:absolute;left:0;top:0;pointer-events:none}
+.e path{fill:none;stroke:var(--edge);stroke-width:1.25}
+.e circle{fill:var(--surface);stroke:var(--port);stroke-width:1.25}
+.nd{position:absolute}
+.tag{position:absolute;left:0;top:-1.75em;display:flex;align-items:center;gap:4px;font-size:.6875rem;font-weight:500;line-height:1.45;color:var(--text2);white-space:nowrap}
+.tag svg{color:var(--c)}
+.card{height:100%;background:var(--surface);border:1px solid var(--border);border-radius:.75rem;padding:.75rem;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.card .r{display:flex;align-items:center;gap:8px;min-width:0}
+.card .nm{font-size:.875rem;font-weight:500;line-height:1.45}
+.card .nm.mono{font-family:var(--mono);font-size:.875rem}
+.card.sel{border:.09375rem solid var(--accent);box-shadow:0 0 0 .25rem var(--halo)}
+.card.bad{border-color:var(--failed)}
+.card.sel.bad{border-color:var(--accent)}
+.card .er{display:flex;align-items:center;gap:6px;font-size:.8125rem;color:var(--text)}
+.card .er svg{color:var(--failed)}
+.grp{position:absolute;background:var(--subtle);border:1px solid var(--border);border-radius:1rem}
+.grp .t{position:absolute;left:16px;top:12px;right:16px;display:flex;align-items:center;gap:8px}
+.grp .t span.n{font-size:1rem;font-weight:500;line-height:1.4}
+.out{position:absolute;right:12px;font-size:.6875rem;font-weight:500;line-height:1.45;color:var(--text2);height:22px;display:flex;align-items:center}
+.cc{position:absolute;transform:translate(-50%,-50%);background:var(--surface);border:1px solid var(--border);border-radius:.375rem;color:var(--text);font-size:.6875rem;font-weight:500;line-height:1.45;padding:2px 8px;max-width:8.75rem;white-space:nowrap}
+.zoom{position:absolute;left:16px;bottom:16px;display:flex;gap:8px}
+/* pannello destro */
+.pnl{width:22.5rem;flex:none;background:var(--surface);border-left:1px solid var(--border);padding:16px;overflow:hidden;position:relative}
+.phd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:16px}
+.phd h3{font-family:var(--mono);font-size:.875rem;font-weight:500;margin:6px 0 2px}
+.phd p{font-size:.8125rem;color:var(--text2)}
+.sh{font-size:.75rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--text2);line-height:1.45;margin:16px 0 8px}
+.dm{border-top:1px solid var(--border);padding:8px 0}
+.dm .l{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.dm .f{font-size:.8125rem}
+.dm .f small{font:400 .75rem/1.55 var(--mono);color:var(--text2);margin-left:4px}
+.dm .f em{display:block;font-style:normal;font-size:.6875rem;font-weight:500;color:var(--text2)}
+.dm .sl{width:7.5rem;flex:none;min-height:2.25rem;font-size:.8125rem}
+.src{font:400 .8125rem/1.45 var(--mono)}
+.code{display:flex;align-items:center;min-height:2.25rem;border:1px solid var(--bc);border-radius:.625rem;background:var(--surface);font:400 .75rem/1.55 var(--mono)}
+.code i{font-style:normal;color:var(--text2);width:28px;text-align:center;border-right:1px solid var(--border);align-self:stretch;display:grid;place-items:center}
+.code span{padding:0 10px}
+.vm{display:flex;gap:8px;align-items:flex-start;background:var(--errsurf);color:var(--text);border-radius:.625rem;padding:8px 10px;margin-top:8px;font-size:.8125rem}
+.vm svg{color:var(--failed);margin-top:2px}
+.vm code{font:400 .8125rem/1.45 var(--mono)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+.g2 .h{font-size:.6875rem;color:var(--text2);margin-top:2px;line-height:1.35}
+.lk{font-size:.75rem;font-weight:500;color:var(--text2);margin:4px 0}
+.lkr{display:flex;align-items:center;justify-content:space-between;min-height:2.25rem;font-size:.875rem}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-fn" viewBox="0 0 20 20"><path d="M8 4c-2 0-2 1-2 3v1c0 1-1 2-2 2 1 0 2 1 2 2v1c0 2 0 3 2 3M12 4c2 0 2 1 2 3v1c0 1 1 2 2 2-1 0-2 1-2 2v1c0 2 0 3-2 3"/></symbol>
+<symbol id="i-cu" viewBox="0 0 20 20"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4M11 4l-2 12"/></symbol>
+<symbol id="i-fl" viewBox="0 0 20 20"><path d="M4 3v14M4 10h6a4 4 0 014 4v3M4 10h6a4 4 0 004-4V3"/></symbol>
+<symbol id="i-x" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></symbol>
+<symbol id="i-run" viewBox="0 0 20 20"><path d="M10 3a7 7 0 107 7"/><path d="M10 6v4l2.5 1.5"/></symbol>
+<symbol id="i-list" viewBox="0 0 20 20"><path d="M4 5h12M4 10h12M4 15h8"/></symbol>
+<symbol id="i-wf" viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="5" rx="1.5"/><rect x="11" y="12" width="6" height="5" rx="1.5"/><path d="M6 8v3a2 2 0 002 2h3"/></symbol>
+<symbol id="i-key" viewBox="0 0 20 20"><circle cx="7" cy="13" r="3"/><path d="M9.5 10.5L16 4M13 7l2 2"/></symbol>
+<symbol id="i-pipe" viewBox="0 0 20 20"><path d="M3 6h6l2 4h6M3 14h6l2-4"/></symbol>
+<symbol id="i-play" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z"/></symbol>
+<symbol id="i-chl" viewBox="0 0 20 20"><path d="M12 4l-6 6 6 6"/></symbol>
+<symbol id="i-search" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5"/><path d="M13 13l4 4"/></symbol>
+<symbol id="i-plus" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></symbol>
+<symbol id="i-minus" viewBox="0 0 20 20"><path d="M4 10h12"/></symbol>
+<symbol id="i-fit" viewBox="0 0 20 20"><path d="M3 7V4h3M14 4h3v3M17 13v3h-3M6 16H3v-3"/></symbol>
+<symbol id="i-reorder" viewBox="0 0 20 20"><rect x="2.5" y="7.5" width="5" height="5" rx="1.5"/><rect x="12.5" y="3" width="5" height="4" rx="1.2"/><rect x="12.5" y="13" width="5" height="4" rx="1.2"/><path d="M7.5 10h2a2 2 0 002-2V7M9.5 10a2 2 0 012 2v1"/></symbol>
+<symbol id="i-car" viewBox="0 0 20 20"><path d="M5 8l5 5 5-5"/></symbol>
+</defs></svg>
+<p class="cap"><b>Editor dei workflow</b> · desktop 1440 × 900 · tema chiaro (stato canonico): «Arricchimento indicatori» in modifica, task <span class="mono">censys_search</span> selezionato con un errore di validazione prima del salvataggio.</p>
+<div class="frame light">
+<div class="host"><span class="logo"></span><strong>Threat Intel</strong><a>Workflow</a><span class="av">G</span></div>
+<div class="body">
+<nav class="rail" aria-label="Sezioni workflow">
+<a><svg class="i"><use href="#i-list"/></svg>Workflow</a>
+<a class="on"><svg class="i"><use href="#i-wf"/></svg>Editor</a>
+<a><svg class="i"><use href="#i-run"/></svg>Esecuzioni</a>
+<a><svg class="i"><use href="#i-key"/></svg>Segreti</a>
+<a><svg class="i"><use href="#i-pipe"/></svg>Pipeline stream</a>
+</nav>
+<aside class="pal" aria-label="Palette">
+<div class="hd"><h3>Palette</h3><span class="ib" title="Comprimi palette"><svg class="i"><use href="#i-chl"/></svg></span></div>
+<div class="fld"><span class="lab">Cerca</span><div class="inp"><svg class="i s"><use href="#i-search"/></svg><span class="ph">Cercare una funzione</span></div></div>
+<div class="plist">
+<div class="gh">DNS</div>
+<div class="pi fn"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><div class="d">Risolve un dominio in record.</div></div>
+<div class="gh">Arricchimento</div>
+<div class="pi fn"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><div class="d">Cerca un indicatore su Censys.</div></div>
+<div class="gh">Punteggio</div>
+<div class="pi cu"><div class="r"><span class="tile"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span><span class="chip" style="margin-left:auto">TS</span></div><div class="d">Calcola il punteggio.</div></div>
+<div class="gh">Controllo di flusso</div>
+<div class="pi fl"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm mono">switch</span></div><div class="d">Sceglie un ramo.</div></div>
+<div class="pi fl"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm">Per ogni</span></div><div class="d">Ripete per ogni elemento.</div></div>
+<div class="pi fl"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm mono">wait</span></div><div class="d">Attende un tempo fisso.</div></div>
+<div class="pi fl"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm mono">raise</span></div><div class="d">Interrompe con un errore.</div></div>
+<div class="pi fl"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm mono">set</span></div><div class="d">Imposta una variabile.</div></div>
+</div>
+</aside>
+<div class="main">
+<header class="bar"><h2>Arricchimento indicatori</h2><span class="chip">versione 3</span><span class="sep"></span><span class="meta">Modifiche non salvate</span>
+<div class="act"><span class="btn"><svg class="i s"><use href="#i-list"/></svg>Elenco</span><span class="btn"><svg class="i s"><use href="#i-play"/></svg>Esegui</span><span class="btn p">Salva</span></div></header>
+<div class="work">
+<div class="cv" role="region" aria-label="Grafo del workflow, 6 task">
+<div class="graph">
+<svg class="e" width="950" height="700"><g>
+<path d="M196 385C216 385 216 400 236 400"/><path d="M196 490C216 490 216 400 236 400"/>
+<path d="M376 400H400"/>
+<path d="M540 407C594 407 594 290 648 290"/><path d="M540 429C594 429 594 510 648 510"/>
+<path d="M788 290H812"/></g></svg>
+<div class="chip-layer">
+<span class="cc" style="left:594px;top:348.5px">Punteggio alto</span>
+<span class="cc" style="left:594px;top:469.5px">altrimenti</span>
+</div>
+<div class="nd fl" style="left:12px;top:256px;width:200px;height:288px"><span class="tag"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span>
+<div class="grp" style="left:0;top:0;width:200px;height:288px"><div class="t"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="n">Per ogni indicatore</span></div></div></div>
+<div class="nd fn" style="left:28px;top:349px;width:168px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div></div></div>
+<div class="nd fn" style="left:28px;top:454px;width:168px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel bad"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><div class="er"><svg class="i xs"><use href="#i-x"/></svg>Errore</div></div></div>
+<div class="nd fn" style="left:236px;top:364px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div></div></div>
+<div class="nd fl" style="left:400px;top:352px;width:140px;height:96px"><span class="tag"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="card" style="justify-content:flex-start"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm">Valuta</span></div></div>
+<span class="out" style="top:44px">Punteggio alto</span><span class="out" style="top:66px">altrimenti</span></div>
+<div class="nd cu" style="left:648px;top:248px;width:140px;height:84px"><span class="tag"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card"><div class="r"><span class="tile"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div><span class="chip">TS</span></div></div></div>
+<div class="nd fl" style="left:648px;top:474px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="card"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm">Interrompi</span></div></div></div>
+<div class="nd fn" style="left:812px;top:254px;width:130px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Inserisci</span></div></div></div>
+<svg class="e" width="950" height="700"><g>
+<circle cx="28" cy="385" r="3.5"/><circle cx="196" cy="385" r="3.5"/><circle cx="28" cy="490" r="3.5"/><circle cx="196" cy="490" r="3.5"/>
+<circle cx="236" cy="400" r="3.5"/><circle cx="376" cy="400" r="3.5"/><circle cx="400" cy="400" r="3.5"/>
+<circle cx="540" cy="407" r="3.5"/><circle cx="540" cy="429" r="3.5"/>
+<circle cx="648" cy="290" r="3.5"/><circle cx="788" cy="290" r="3.5"/><circle cx="648" cy="510" r="3.5"/>
+<circle cx="812" cy="290" r="3.5"/><circle cx="942" cy="290" r="3.5"/></g></svg>
+</div>
+<div class="zoom"><span class="ib" title="Ingrandisci"><svg class="i"><use href="#i-plus"/></svg></span><span class="ib" title="Rimpicciolisci"><svg class="i"><use href="#i-minus"/></svg></span><span class="ib" title="Adatta"><svg class="i"><use href="#i-fit"/></svg></span><span class="ib" title="Riordina"><svg class="i"><use href="#i-reorder"/></svg></span></div>
+</div>
+<aside class="pnl" aria-label="Configurazione del task">
+<div class="phd"><div class="fn"><span class="chip"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><h3>censys_search</h3><p>Cerca un indicatore su Censys.</p></div><span class="ib" title="Chiudi"><svg class="i"><use href="#i-x"/></svg></span></div>
+<div class="sh" style="margin-top:0">Dati</div>
+<div class="dm"><div class="l"><div class="f">indicatore<small>testo</small><em>obbligatorio</em></div><div class="inp sl">Da un task<svg class="i s car"><use href="#i-car"/></svg></div></div>
+<div class="inp src">Per ogni indicatore · elemento<svg class="i s car"><use href="#i-car"/></svg></div></div>
+<div class="dm"><div class="l"><div class="f">risultati_max<small>numero</small><em>facoltativo</em></div><div class="inp sl">jq<svg class="i s car"><use href="#i-car"/></svg></div></div>
+<div class="code"><i>1</i><span>.limite // 10</span></div></div>
+<div class="sh">Connessioni</div>
+<span class="lab">Censys</span>
+<div class="inp err" aria-invalid="true"><span class="ph">Selezionare un segreto per Censys</span><svg class="i s car"><use href="#i-car"/></svg></div>
+<div class="vm"><svg class="i xs"><use href="#i-x"/></svg><div><code>censys_search</code>: connessione Censys senza segreto</div></div>
+<div class="sh">Ripetizione</div>
+<div class="g2">
+<div><span class="lab">Tentativi</span><div class="inp">3</div><div class="h">predefinito: 3, massimo: 10</div></div>
+<div><span class="lab">Attesa</span><div class="inp">2 s</div><div class="h">predefinito: 2 s, massimo: 1 min</div></div>
+<div><span class="lab">Crescita dell'attesa</span><div class="inp">2</div><div class="h">predefinito: 2, massimo: 10</div></div>
+<div><span class="lab">Timeout</span><div class="inp">30 s</div><div class="h">predefinito: 30 s, massimo: 10 min</div></div>
+</div>
+<div class="sh">Collegamenti</div>
+<div class="lk">Dipende da</div><div class="lkr" style="color:var(--text2)">Nessun predecessore.</div>
+<div class="lk">Precede</div><div class="lkr"><span>Arricchisci</span><span class="btn sm" aria-label="Rimuovi collegamento a Arricchisci">Rimuovi</span></div>
+<span class="btn" style="margin-top:8px">Collega a…</span>
+<span class="btn" style="margin-top:8px;display:flex">Elimina task</span>
+</aside>
+</div></div></div></div>
+<p class="cap"><b>Stesso schermo</b> · tema scuro.</p>
+<div class="frame dark">
+<div class="host"><span class="logo"></span><strong>Threat Intel</strong><a>Workflow</a><span class="av">G</span></div>
+<div class="body">
+<nav class="rail" aria-label="Sezioni workflow">
+<a><svg class="i"><use href="#i-list"/></svg>Workflow</a>
+<a class="on"><svg class="i"><use href="#i-wf"/></svg>Editor</a>
+<a><svg class="i"><use href="#i-run"/></svg>Esecuzioni</a>
+<a><svg class="i"><use href="#i-key"/></svg>Segreti</a>
+<a><svg class="i"><use href="#i-pipe"/></svg>Pipeline stream</a>
+</nav>
+<aside class="pal" aria-label="Palette">
+<div class="hd"><h3>Palette</h3><span class="ib" title="Comprimi palette"><svg class="i"><use href="#i-chl"/></svg></span></div>
+<div class="fld"><span class="lab">Cerca</span><div class="inp"><svg class="i s"><use href="#i-search"/></svg><span class="ph">Cercare una funzione</span></div></div>
+<div class="plist">
+<div class="gh">DNS</div>
+<div class="pi fn"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div><div class="d">Risolve un dominio in record.</div></div>
+<div class="gh">Arricchimento</div>
+<div class="pi fn"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><div class="d">Cerca un indicatore su Censys.</div></div>
+<div class="gh">Punteggio</div>
+<div class="pi cu"><div class="r"><span class="tile"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span><span class="chip" style="margin-left:auto">TS</span></div><div class="d">Calcola il punteggio.</div></div>
+<div class="gh">Controllo di flusso</div>
+<div class="pi fl"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm mono">switch</span></div><div class="d">Sceglie un ramo.</div></div>
+<div class="pi fl"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm">Per ogni</span></div><div class="d">Ripete per ogni elemento.</div></div>
+<div class="pi fl"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm mono">wait</span></div><div class="d">Attende un tempo fisso.</div></div>
+<div class="pi fl"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm mono">raise</span></div><div class="d">Interrompe con un errore.</div></div>
+<div class="pi fl"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm mono">set</span></div><div class="d">Imposta una variabile.</div></div>
+</div>
+</aside>
+<div class="main">
+<header class="bar"><h2>Arricchimento indicatori</h2><span class="chip">versione 3</span><span class="sep"></span><span class="meta">Modifiche non salvate</span>
+<div class="act"><span class="btn"><svg class="i s"><use href="#i-list"/></svg>Elenco</span><span class="btn"><svg class="i s"><use href="#i-play"/></svg>Esegui</span><span class="btn p">Salva</span></div></header>
+<div class="work">
+<div class="cv" role="region" aria-label="Grafo del workflow, 6 task">
+<div class="graph">
+<svg class="e" width="950" height="700"><g>
+<path d="M196 385C216 385 216 400 236 400"/><path d="M196 490C216 490 216 400 236 400"/>
+<path d="M376 400H400"/>
+<path d="M540 407C594 407 594 290 648 290"/><path d="M540 429C594 429 594 510 648 510"/>
+<path d="M788 290H812"/></g></svg>
+<div class="chip-layer">
+<span class="cc" style="left:594px;top:348.5px">Punteggio alto</span>
+<span class="cc" style="left:594px;top:469.5px">altrimenti</span>
+</div>
+<div class="nd fl" style="left:12px;top:256px;width:200px;height:288px"><span class="tag"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span>
+<div class="grp" style="left:0;top:0;width:200px;height:288px"><div class="t"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="n">Per ogni indicatore</span></div></div></div>
+<div class="nd fn" style="left:28px;top:349px;width:168px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">dns_lookup</span></div></div></div>
+<div class="nd fn" style="left:28px;top:454px;width:168px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card sel bad"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm mono">censys_search</span></div><div class="er"><svg class="i xs"><use href="#i-x"/></svg>Errore</div></div></div>
+<div class="nd fn" style="left:236px;top:364px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Arricchisci</span></div></div></div>
+<div class="nd fl" style="left:400px;top:352px;width:140px;height:96px"><span class="tag"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="card" style="justify-content:flex-start"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm">Valuta</span></div></div>
+<span class="out" style="top:44px">Punteggio alto</span><span class="out" style="top:66px">altrimenti</span></div>
+<div class="nd cu" style="left:648px;top:248px;width:140px;height:84px"><span class="tag"><svg class="i xs"><use href="#i-cu"/></svg>Nodo personalizzato</span><div class="card"><div class="r"><span class="tile"><svg class="i s"><use href="#i-cu"/></svg></span><span class="nm">Calcola punteggio</span></div><div><span class="chip">TS</span></div></div></div>
+<div class="nd fl" style="left:648px;top:474px;width:140px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fl"/></svg>Controllo di flusso</span><div class="card"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fl"/></svg></span><span class="nm">Interrompi</span></div></div></div>
+<div class="nd fn" style="left:812px;top:254px;width:130px;height:72px"><span class="tag"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><div class="card"><div class="r"><span class="tile"><svg class="i s"><use href="#i-fn"/></svg></span><span class="nm">Inserisci</span></div></div></div>
+<svg class="e" width="950" height="700"><g>
+<circle cx="28" cy="385" r="3.5"/><circle cx="196" cy="385" r="3.5"/><circle cx="28" cy="490" r="3.5"/><circle cx="196" cy="490" r="3.5"/>
+<circle cx="236" cy="400" r="3.5"/><circle cx="376" cy="400" r="3.5"/><circle cx="400" cy="400" r="3.5"/>
+<circle cx="540" cy="407" r="3.5"/><circle cx="540" cy="429" r="3.5"/>
+<circle cx="648" cy="290" r="3.5"/><circle cx="788" cy="290" r="3.5"/><circle cx="648" cy="510" r="3.5"/>
+<circle cx="812" cy="290" r="3.5"/><circle cx="942" cy="290" r="3.5"/></g></svg>
+</div>
+<div class="zoom"><span class="ib" title="Ingrandisci"><svg class="i"><use href="#i-plus"/></svg></span><span class="ib" title="Rimpicciolisci"><svg class="i"><use href="#i-minus"/></svg></span><span class="ib" title="Adatta"><svg class="i"><use href="#i-fit"/></svg></span><span class="ib" title="Riordina"><svg class="i"><use href="#i-reorder"/></svg></span></div>
+</div>
+<aside class="pnl" aria-label="Configurazione del task">
+<div class="phd"><div class="fn"><span class="chip"><svg class="i xs"><use href="#i-fn"/></svg>Funzione del worker</span><h3>censys_search</h3><p>Cerca un indicatore su Censys.</p></div><span class="ib" title="Chiudi"><svg class="i"><use href="#i-x"/></svg></span></div>
+<div class="sh" style="margin-top:0">Dati</div>
+<div class="dm"><div class="l"><div class="f">indicatore<small>testo</small><em>obbligatorio</em></div><div class="inp sl">Da un task<svg class="i s car"><use href="#i-car"/></svg></div></div>
+<div class="inp src">Per ogni indicatore · elemento<svg class="i s car"><use href="#i-car"/></svg></div></div>
+<div class="dm"><div class="l"><div class="f">risultati_max<small>numero</small><em>facoltativo</em></div><div class="inp sl">jq<svg class="i s car"><use href="#i-car"/></svg></div></div>
+<div class="code"><i>1</i><span>.limite // 10</span></div></div>
+<div class="sh">Connessioni</div>
+<span class="lab">Censys</span>
+<div class="inp err" aria-invalid="true"><span class="ph">Selezionare un segreto per Censys</span><svg class="i s car"><use href="#i-car"/></svg></div>
+<div class="vm"><svg class="i xs"><use href="#i-x"/></svg><div><code>censys_search</code>: connessione Censys senza segreto</div></div>
+<div class="sh">Ripetizione</div>
+<div class="g2">
+<div><span class="lab">Tentativi</span><div class="inp">3</div><div class="h">predefinito: 3, massimo: 10</div></div>
+<div><span class="lab">Attesa</span><div class="inp">2 s</div><div class="h">predefinito: 2 s, massimo: 1 min</div></div>
+<div><span class="lab">Crescita dell'attesa</span><div class="inp">2</div><div class="h">predefinito: 2, massimo: 10</div></div>
+<div><span class="lab">Timeout</span><div class="inp">30 s</div><div class="h">predefinito: 30 s, massimo: 10 min</div></div>
+</div>
+<div class="sh">Collegamenti</div>
+<div class="lk">Dipende da</div><div class="lkr" style="color:var(--text2)">Nessun predecessore.</div>
+<div class="lk">Precede</div><div class="lkr"><span>Arricchisci</span><span class="btn sm" aria-label="Rimuovi collegamento a Arricchisci">Rimuovi</span></div>
+<span class="btn" style="margin-top:8px">Collega a…</span>
+<span class="btn" style="margin-top:8px;display:flex">Elimina task</span>
+</aside>
+</div></div></div></div>
+</body></html>

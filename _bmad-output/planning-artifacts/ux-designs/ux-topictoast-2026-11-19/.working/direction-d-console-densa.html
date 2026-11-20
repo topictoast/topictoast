@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direzione D — Console densa</title>
+<style>
+/*
+  DIREZIONE D — CONSOLE DENSA · valori hex per tema
+  TEMA SCURO
+    sfondo app        #0d0f12   canvas        #101317   superficie  #171b20   superficie-2 #1c2127
+    bordo             #2a313a   bordo forte   #39424d   punti griglia #252c35
+    testo             #e6e9ee   testo-2       #a0aab8   testo-3     #808c9b
+    completata #3fb97f · in esecuzione #4da3ff · ritentata #e5a42b · fallita #f26b67
+    in attesa #8a95a5 · in coda #7f8ea3 · scaduta #e8833a · saltata #808c9b · annullata #a0aab8
+    accento kit #a493ff (testo su accento #14101f) · accento dashboard #2dd4bf (testo su accento #04201c)
+    banner attenzione #251f10
+  TEMA CHIARO
+    sfondo app        #f3f4f6   canvas        #f7f8fa   superficie  #ffffff   superficie-2 #f1f3f5
+    bordo             #d3d9e0   bordo forte   #b8c1cc   punti griglia #cfd5dc
+    testo             #14181d   testo-2       #454f5c   testo-3     #5f6b79
+    completata #13803f · in esecuzione #1565c0 · ritentata #8f5a00 · fallita #c4262e
+    in attesa #566273 · in coda #4d5b6c · scaduta #b4521a · saltata #5f6b79 · annullata #454f5c
+    accento kit #5a3fd0 · accento dashboard #0f766e
+    banner attenzione #fdf3dc
+  Scala tipografica (rem, base 16 px): 0.6875 (11) · 0.75 (12) · 0.8125 (13, base) · 0.875 (14) · 1 (16)
+  Raggi: 3 px badge · 4 px card/nodi/pulsanti · 8 px cornice browser
+  Spaziatura: 4 · 8 · 12 · 16 px; righe tabella 34 px, righe log 18 px
+*/
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{background:#08090b;color:#e6e9ee;font:400 .8125rem/1.35 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-variant-numeric:tabular-nums;padding:28px 28px 60px;min-width:1500px}
+.mono,pre,code{font-family:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,"Liberation Mono",monospace}
+
+/* ===== temi ===== */
+.th-dark{--bg:#0d0f12;--cv:#101317;--sf:#171b20;--sf2:#1c2127;--bd:#2a313a;--bd2:#39424d;--dot:#252c35;--tx:#e6e9ee;--tx2:#a0aab8;--tx3:#808c9b;--done:#3fb97f;--run:#4da3ff;--retry:#e5a42b;--fail:#f26b67;--wait:#8a95a5;--queue:#7f8ea3;--tout:#e8833a;--ac:#a493ff;--acfg:#14101f;--warnbg:#251f10;color-scheme:dark}
+.th-light{--bg:#f3f4f6;--cv:#f7f8fa;--sf:#ffffff;--sf2:#f1f3f5;--bd:#d3d9e0;--bd2:#b8c1cc;--dot:#cfd5dc;--tx:#14181d;--tx2:#454f5c;--tx3:#5f6b79;--done:#13803f;--run:#1565c0;--retry:#8f5a00;--fail:#c4262e;--wait:#566273;--queue:#4d5b6c;--tout:#b4521a;--ac:#5a3fd0;--acfg:#ffffff;--warnbg:#fdf3dc;color-scheme:light}
+.dash.th-dark{--ac:#2dd4bf;--acfg:#04201c}
+.dash.th-light{--ac:#0f766e}
+
+/* ===== intestazione della pagina ===== */
+.intro{max-width:1440px;margin:0 auto 22px}
+.intro h1{font-size:1.5rem;font-weight:650;letter-spacing:-.01em;margin-bottom:6px}
+.intro h1 span{color:#2dd4bf;font-weight:500}
+.intro p{max-width:900px;color:#a0aab8;font-size:.875rem;line-height:1.5;margin-bottom:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px 6px;margin-bottom:6px}
+.chiph{width:100%;font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em;color:#808c9b;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px 0 4px;border:1px solid #2a313a;border-radius:4px;background:#12151a;font-size:.75rem;color:#cfd5dd}
+.chip i{display:inline-block;width:14px;height:14px;border-radius:2px;border:1px solid #ffffff33}
+.chip.t{padding-left:8px}
+.chip b{font-weight:600;color:#e6e9ee}
+.label{max-width:1440px;margin:26px auto 8px;font-size:.75rem;color:#808c9b;text-transform:uppercase;letter-spacing:.06em}
+.label b{color:#e6e9ee;font-weight:600}
+
+/* ===== cornice browser ===== */
+.frame{width:1440px;height:900px;margin:0 auto;border:1px solid var(--bd);border-radius:8px;overflow:hidden;background:var(--bg);color:var(--tx);display:flex;flex-direction:column;position:relative}
+.bbar{height:36px;flex:none;display:flex;align-items:center;gap:12px;padding:0 12px;background:var(--sf2);border-bottom:1px solid var(--bd)}
+.bbar .dots{display:flex;gap:6px}.bbar .dots i{width:10px;height:10px;border-radius:50%;background:var(--bd2)}
+.bbar .url{flex:0 1 560px;height:22px;border:1px solid var(--bd);border-radius:4px;background:var(--bg);color:var(--tx3);font-size:.75rem;display:flex;align-items:center;padding:0 10px}
+.host{height:40px;flex:none;display:flex;align-items:center;gap:20px;padding:0 16px;background:var(--sf);border-bottom:1px solid var(--bd)}
+.host .logo{display:flex;align-items:center;gap:8px;font-weight:650;font-size:.875rem}
+.host .logo i{width:18px;height:18px;border-radius:3px;background:var(--bd2)}
+.host nav{display:flex;gap:2px;height:100%}
+.host nav a{display:flex;align-items:center;padding:0 12px;color:var(--tx2);border-bottom:2px solid transparent;font-size:.8125rem}
+.host nav a.on{color:var(--tx);border-bottom-color:var(--ac);font-weight:600}
+.host .me{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--tx2);font-size:.75rem}
+.host .me i{width:22px;height:22px;border-radius:50%;background:var(--bd2);color:var(--tx);display:grid;place-items:center;font-style:normal;font-size:.6875rem;font-weight:600}
+
+/* ===== barra del workflow ===== */
+.wfbar{height:44px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;background:var(--bg);border-bottom:1px solid var(--bd)}
+.wfbar h2{font-size:.875rem;font-weight:650}
+.wfbar .meta{color:var(--tx2);font-size:.75rem}.wfbar .meta b{color:var(--tx);font-weight:600}
+.wfbar .sep{width:1px;height:18px;background:var(--bd)}
+.wfbar .spacer{margin-left:auto}
+.bd{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 6px;border:1px solid var(--bd2);border-radius:3px;font-size:.6875rem;color:var(--tx2);white-space:nowrap;font-weight:500}
+.bd.st{color:var(--c);border-color:var(--c);font-weight:600}
+.btn{height:26px;padding:0 10px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bd2);border-radius:4px;background:var(--sf);color:var(--tx);font:inherit;font-size:.75rem;font-weight:600}
+.btn.danger{color:var(--fail);border-color:var(--fail)}
+.btn.pri{background:var(--ac);color:var(--acfg);border-color:var(--ac)}
+
+/* stati: colore + simbolo + testo */
+.s-done{--c:var(--done)}.s-run{--c:var(--run)}.s-wait{--c:var(--wait)}.s-retry{--c:var(--retry)}.s-fail{--c:var(--fail)}.s-queue{--c:var(--queue)}.s-tout{--c:var(--tout)}
+
+/* ===== area di lavoro ===== */
+.work{flex:1;display:flex;min-height:0}
+.left{flex:1;display:flex;flex-direction:column;min-width:0}
+.canvas{flex:1;position:relative;overflow:hidden;background-color:var(--cv);background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);background-size:16px 16px}
+.edges{position:absolute;left:0;top:0}
+.edges path{fill:none;stroke-width:1.5}
+.e-d{stroke:var(--tx2)}.e-r{stroke:var(--run)}.e-w{stroke:var(--tx3);stroke-dasharray:4 3}
+
+.n{position:absolute;z-index:2;background:var(--sf);border:1px solid var(--bd2);border-left:3px solid var(--c);border-radius:4px;padding:5px 8px;display:flex;flex-direction:column;justify-content:center;gap:1px;overflow:hidden}
+.n.s-wait{border-style:dashed;border-left-style:solid}
+.n .t{font-weight:600;font-size:.8125rem;white-space:nowrap;line-height:1.25}
+.n .k{font-size:.6875rem;color:var(--tx3);white-space:nowrap;line-height:1.25}
+.n .b{font-size:.6875rem;color:var(--c);font-weight:600;white-space:nowrap;display:flex;justify-content:space-between;align-items:center;line-height:1.25}
+.n .r{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.n .r .b{display:block}
+.tag{border:1px solid var(--bd2);border-radius:2px;padding:0 3px;font-size:.625rem;color:var(--tx2);font-weight:600;line-height:1.3}
+.sel{outline:2px solid var(--ac);outline-offset:2px}
+
+.grp{position:absolute;z-index:1;left:196px;top:60px;width:350px;height:350px;background:var(--sf2);border:1px solid var(--bd2);border-left:3px solid var(--run);border-radius:4px}
+.grp>div{position:absolute;left:10px;right:10px}
+.grp .gh{top:6px;height:34px;display:flex;justify-content:space-between;align-items:flex-start}
+.grp .gh .t{font-weight:650;font-size:.8125rem;display:flex;align-items:center;gap:6px}
+.grp .gh .k{font-size:.6875rem;color:var(--tx3)}
+.grp .gh .b{font-size:.6875rem;font-weight:600;color:var(--run)}
+.seg{top:46px;height:8px;display:flex;gap:1px;border-radius:2px;overflow:hidden;background:var(--bd)}
+.seg i{display:block;height:100%;background:var(--c)}
+.cnt{top:62px}
+.cnt .row{display:grid;grid-template-columns:10px 1fr 44px 52px;align-items:center;gap:6px;height:20px;border-bottom:1px solid var(--bd);font-size:.75rem}
+.cnt .row:last-child{border-bottom:0}
+.cnt .sw{width:8px;height:8px;border-radius:1px;background:var(--c)}
+.cnt .row span{color:var(--tx2)}.cnt .row b{text-align:right;font-weight:650;color:var(--tx)}.cnt .row em{text-align:right;font-style:normal;color:var(--tx3)}
+.err{top:150px;height:56px;background:var(--sf);border:1px solid var(--bd2);border-left:3px solid var(--fail);border-radius:3px;padding:5px 8px;font-size:.6875rem;color:var(--tx2);line-height:1.4}
+.err b{color:var(--tx);font-weight:600;font-size:.75rem}.err .f{color:var(--fail);font-weight:600}
+.tpl{top:216px;font-size:.6875rem;color:var(--tx3);border-top:1px solid var(--bd);padding-top:5px}
+
+.legend{position:absolute;left:12px;bottom:10px;z-index:3;display:flex;gap:12px;height:24px;align-items:center;padding:0 10px;border:1px solid var(--bd);border-radius:4px;background:var(--sf);font-size:.6875rem;color:var(--tx2)}
+.legend span{display:flex;gap:4px;align-items:center}.legend b{color:var(--c);font-weight:700}
+.zoom{position:absolute;right:12px;top:10px;z-index:3;display:flex;height:24px;border:1px solid var(--bd);border-radius:4px;background:var(--sf);font-size:.6875rem;color:var(--tx2);align-items:center}
+.zoom span{padding:0 8px}.zoom span+span{border-left:1px solid var(--bd)}
+
+/* ===== pannello in basso ===== */
+.bottom{height:240px;flex:none;border-top:1px solid var(--bd2);background:var(--sf);display:flex;flex-direction:column}
+.tabs{height:30px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid var(--bd);padding:0 8px;gap:2px}
+.tabs a{display:flex;align-items:center;padding:0 10px;font-size:.75rem;color:var(--tx2);border-bottom:2px solid transparent}
+.tabs a.on{color:var(--tx);font-weight:600;border-bottom-color:var(--ac)}
+.tabs .ctx{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:.6875rem;color:var(--tx3)}
+.log{flex:1;overflow:hidden;padding:4px 0;font-size:.75rem}
+.log .l{display:grid;grid-template-columns:96px 46px 100px 1fr;gap:10px;height:18px;align-items:center;padding:0 12px}
+.log .l:hover,.log .l.hi{background:var(--sf2)}
+.log .l.hi{box-shadow:inset 3px 0 0 var(--ac)}
+.log .tm{color:var(--tx3)}.log .src{color:var(--tx2)}
+.log .lv{font-weight:700;color:var(--c,var(--tx3));font-size:.6875rem}
+.log .msg{color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ===== pannello a destra ===== */
+.right{width:360px;flex:none;border-left:1px solid var(--bd2);background:var(--sf);padding:12px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.right .hd .row1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.right .hd h3{font-size:.875rem;font-weight:650}
+.right .hd p{color:var(--tx3);font-size:.6875rem;margin-top:3px}
+.right .hd p b{color:var(--tx2);font-weight:600}
+.kv{display:grid;grid-template-columns:96px 1fr;gap:3px 8px;font-size:.75rem}
+.kv dt{color:var(--tx3)}.kv dd{color:var(--tx)}
+.sh{font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);font-weight:600;margin-bottom:5px;display:flex;justify-content:space-between}
+.att{width:100%;border-collapse:collapse;font-size:.75rem}
+.att td{height:26px;padding:0 6px;border-top:1px solid var(--bd)}
+.att tr td:first-child{border-left:3px solid var(--c);color:var(--tx3);width:26px}
+.att .res{color:var(--c);font-weight:600;white-space:nowrap}
+.att .dur{text-align:right;color:var(--tx2);white-space:nowrap}
+pre{background:var(--bg);border:1px solid var(--bd);border-radius:4px;padding:6px 8px;font-size:.6875rem;line-height:1.5;color:var(--tx);overflow:hidden}
+pre i{font-style:normal;color:var(--tx3)}
+
+/* ===== dashboard ===== */
+.dnav{height:44px;flex:none;display:flex;align-items:center;gap:28px;padding:0 20px;background:var(--sf);border-bottom:1px solid var(--bd)}
+.word{font-weight:750;font-size:1rem;letter-spacing:-.02em}.word i{font-style:normal;color:var(--ac)}
+.dnav nav{display:flex;height:100%}
+.dnav nav a{display:flex;align-items:center;padding:0 14px;color:var(--tx2);border-bottom:2px solid transparent;font-size:.8125rem}
+.dnav nav a.on{color:var(--tx);font-weight:600;border-bottom-color:var(--ac)}
+.dpage{flex:1;padding:16px 20px;display:flex;flex-direction:column;gap:14px;min-height:0;overflow:hidden}
+.dtitle{display:flex;align-items:baseline;gap:12px}.dtitle h2{font-size:1rem;font-weight:650}.dtitle span{color:var(--tx3);font-size:.75rem}
+.banner{display:flex;align-items:center;gap:14px;padding:10px 14px;background:var(--warnbg);border:1px solid var(--retry);border-left:3px solid var(--retry);border-radius:4px}
+.banner .ic{color:var(--retry);font-weight:700;font-size:1rem}
+.banner .tx{flex:1}.banner .tx b{display:block;font-size:.8125rem;color:var(--tx);font-weight:650}.banner .tx span{color:var(--tx2);font-size:.75rem}
+.banner .el{text-align:right}.banner .el b{display:block;font-size:1.125rem;font-weight:650;color:var(--retry);font-family:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace}.banner .el span{font-size:.6875rem;color:var(--tx3)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{border:1px solid var(--bd);background:var(--sf);border-radius:4px;padding:8px 12px;border-left:3px solid var(--c,var(--bd2))}
+.stat span{font-size:.6875rem;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em}
+.stat b{display:block;font-size:1.25rem;font-weight:650;line-height:1.2}.stat b small{font-size:.75rem;font-weight:500;color:var(--tx3)}
+.panel{border:1px solid var(--bd);background:var(--sf);border-radius:4px;overflow:hidden}
+.panel>.ph{height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--bd);font-size:.75rem;font-weight:650}
+.panel>.ph span{font-weight:400;color:var(--tx3);font-size:.6875rem}
+.tb{width:100%;border-collapse:collapse;font-size:.8125rem}
+.tb th{height:26px;text-align:left;font-weight:600;font-size:.6875rem;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;padding:0 12px;border-bottom:1px solid var(--bd);background:var(--sf2)}
+.tb td{height:34px;padding:0 12px;border-bottom:1px solid var(--bd);color:var(--tx)}
+.tb tr:last-child td{border-bottom:0}
+.tb td:first-child{border-left:3px solid var(--c,transparent)}
+.tb th:first-child{border-left:3px solid transparent}
+.tb .num{text-align:right}.tb th.num{text-align:right}
+.tb .fn{color:var(--tx2);font-size:.75rem}
+.tb tr.sel2 td{background:var(--sf2)}
+.tb tr.sel2 td:first-child{box-shadow:inset 0 0 0 0}
+.st2{color:var(--c);font-weight:600;white-space:nowrap}
+.hist .l{display:grid;grid-template-columns:100px 220px 120px 1fr;gap:12px;height:26px;align-items:center;padding:0 12px;border-bottom:1px solid var(--bd);font-size:.75rem}
+.hist .l:last-child{border-bottom:0}
+.hist .tm{color:var(--tx3)}.hist .d{color:var(--tx2)}
+.hist .ph2{color:var(--c);font-weight:600}
+</style>
+</head>
+<body>
+
+<header class="intro">
+  <h1>Direzione D <span>— Console densa</span></h1>
+  <p>Nasce dal pubblico del prodotto: analisti SOC che seguono fan-out di migliaia di attività e operatori che tengono d'occhio molti worker. Testo base da 13 px, numeri tabulari ovunque, nodi compatti con raggio 4 px, archi ortogonali e una sottile striscia sinistra colorata per lo stato (sempre accompagnata da simbolo e parola).</p>
+  <p>Il fan-out da 300 non disegna rami: un gruppo con tabella compatta dei conteggi per stato e barra segmentata. Il colore resta significato puro su una base neutra; chiaro e scuro hanno lo stesso peso.</p>
+
+  <div class="chips">
+    <div class="chiph">Colori · scuro</div>
+    <span class="chip"><i style="background:#0d0f12"></i>sfondo <b>#0d0f12</b></span>
+    <span class="chip"><i style="background:#171b20"></i>superficie <b>#171b20</b></span>
+    <span class="chip"><i style="background:#e6e9ee"></i>testo <b>#e6e9ee</b></span>
+    <span class="chip"><i style="background:#a493ff"></i>accento kit <b>#a493ff</b></span>
+    <span class="chip"><i style="background:#2dd4bf"></i>accento dashboard <b>#2dd4bf</b></span>
+    <span class="chip"><i style="background:#3fb97f"></i>completata <b>#3fb97f</b></span>
+    <span class="chip"><i style="background:#4da3ff"></i>in esecuzione <b>#4da3ff</b></span>
+    <span class="chip"><i style="background:#e5a42b"></i>ritentata <b>#e5a42b</b></span>
+    <span class="chip"><i style="background:#f26b67"></i>fallita <b>#f26b67</b></span>
+    <div class="chiph">Colori · chiaro</div>
+    <span class="chip"><i style="background:#f3f4f6"></i>sfondo <b>#f3f4f6</b></span>
+    <span class="chip"><i style="background:#ffffff"></i>superficie <b>#ffffff</b></span>
+    <span class="chip"><i style="background:#14181d"></i>testo <b>#14181d</b></span>
+    <span class="chip"><i style="background:#5a3fd0"></i>accento kit <b>#5a3fd0</b></span>
+    <span class="chip"><i style="background:#0f766e"></i>accento dashboard <b>#0f766e</b></span>
+    <span class="chip"><i style="background:#13803f"></i>completata <b>#13803f</b></span>
+    <span class="chip"><i style="background:#1565c0"></i>in esecuzione <b>#1565c0</b></span>
+    <span class="chip"><i style="background:#8f5a00"></i>ritentata <b>#8f5a00</b></span>
+    <span class="chip"><i style="background:#c4262e"></i>fallita <b>#c4262e</b></span>
+    <div class="chiph">Tipografia, raggi, spaziatura</div>
+    <span class="chip t">sans di sistema · mono di sistema</span>
+    <span class="chip t">scala <b>0.6875 · 0.75 · 0.8125 · 0.875 · 1 rem</b></span>
+    <span class="chip t">base <b>0.8125 rem (13 px)</b></span>
+    <span class="chip t">numeri <b>tabular-nums</b></span>
+    <span class="chip t">raggi <b>3 · 4 · 8 px</b></span>
+    <span class="chip t">spaziatura <b>4 · 8 · 12 · 16 px</b></span>
+    <span class="chip t">riga tabella <b>34 px</b> · riga log <b>18 px</b></span>
+    <span class="chip t">archi <b>ortogonali 1.5 px</b></span>
+  </div>
+</header>
+
+<div class="label"><b>Kit · Vista delle esecuzioni</b> · tema scuro</div>
+<section class="frame th-dark" aria-label="Vista delle esecuzioni, tema scuro">
+  <div class="bbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">https://ti.example.com/workflow/esecuzioni/8f3a1c</span></div>
+  <div class="host">
+    <span class="logo"><i></i>Threat Intel</span>
+    <nav><a>Indicatori</a><a class="on">Workflow</a><a>Segnalazioni</a><a>Impostazioni</a></nav>
+    <span class="me">Giulia <i>G</i></span>
+  </div>
+  <div class="wfbar">
+    <h2>Arricchimento indicatori</h2>
+    <span class="bd">versione 3</span>
+    <span class="bd st s-run">◐ In esecuzione</span>
+    <span class="sep"></span>
+    <span class="meta">Avviata <b>alle 14:22</b> da <b>Giulia</b></span>
+    <span class="meta">Durata <b>1 min 48 s</b></span>
+    <span class="spacer"></span>
+    <span class="btn danger">Annulla</span>
+  </div>
+  <div class="work">
+    <div class="left">
+      <div class="canvas">
+        <svg class="edges" width="1078" height="540" aria-hidden="true">
+          <defs>
+            <marker id="add" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" style="fill:var(--tx2);stroke:none"/></marker>
+            <marker id="ard" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" style="fill:var(--run);stroke:none"/></marker>
+            <marker id="awd" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" style="fill:var(--tx3);stroke:none"/></marker>
+          </defs>
+          <path class="e-d" d="M156 162H176V235H196" marker-end="url(#add)"/>
+          <path class="e-w" d="M546 235H576" marker-end="url(#awd)"/>
+          <path class="e-w" d="M684 235H708" marker-end="url(#awd)"/>
+          <path class="e-w" d="M842 235H866" marker-end="url(#awd)"/>
+          <path class="e-w" d="M938 235H962" marker-end="url(#awd)"/>
+          <path class="e-r" d="M214 347H227V321H240" marker-end="url(#ard)"/>
+          <path class="e-r" d="M227 347V373H240" marker-end="url(#ard)"/>
+          <path class="e-r" d="M440 321H453V347H466"/>
+          <path class="e-r" d="M440 373H453V347"/>
+          <circle cx="214" cy="347" r="3" style="fill:var(--run)"/>
+          <circle cx="466" cy="347" r="3" style="fill:var(--run)"/>
+        </svg>
+
+        <div class="n s-done" style="left:16px;top:130px;width:140px;height:64px">
+          <span class="t">Ricevi elenco</span><span class="k">funzione del worker</span><span class="b"><span>✓ completata</span><span class="mono" style="font-weight:400;color:var(--tx3)">0,9 s</span></span>
+        </div>
+
+        <div class="grp s-run">
+          <div class="gh"><span><span class="t">Per ogni indicatore <span class="bd" style="color:var(--tx);font-weight:650">× 300</span></span><span class="k">controllo di flusso · fan-out</span></span><span class="b">◐ in esecuzione</span></div>
+          <div class="seg" role="img" aria-label="287 completate, 9 in esecuzione, 3 ritentate, 1 fallita">
+            <i class="s-done" style="flex:287"></i><i class="s-run" style="flex:9;min-width:4px"></i><i class="s-retry" style="flex:3;min-width:3px"></i><i class="s-fail" style="flex:1;min-width:3px"></i>
+          </div>
+          <div class="cnt">
+            <div class="row s-done"><i class="sw"></i><span>✓ completate</span><b>287</b><em>95,7%</em></div>
+            <div class="row s-run"><i class="sw"></i><span>◐ in esecuzione</span><b>9</b><em>3,0%</em></div>
+            <div class="row s-retry"><i class="sw"></i><span>↻ ritentate</span><b>3</b><em>1,0%</em></div>
+            <div class="row s-fail"><i class="sw"></i><span>✕ fallite</span><b>1</b><em>0,3%</em></div>
+          </div>
+          <div class="err s-fail"><b class="mono">#118 · 198.51.100.23</b> · censys_search<br><span class="f">✕ fallita</span> · quota API esaurita (HTTP 429)<br>dopo 3 tentativi · 14:23:44.510</div>
+          <div class="tpl">Modello per elemento · in parallelo · 300 istanze</div>
+        </div>
+
+        <div class="n in s-done" style="left:240px;top:300px;width:200px;height:42px">
+          <span class="r"><span class="t">dns_lookup</span><span class="b">✓ completata</span></span><span class="k">funzione del worker · 300/300</span>
+        </div>
+        <div class="n in s-run sel" style="left:240px;top:352px;width:200px;height:42px">
+          <span class="r"><span class="t">censys_search</span><span class="b">◐ in esecuzione</span></span><span class="k">funzione del worker · 287/300</span>
+        </div>
+
+        <div class="n s-wait" style="left:576px;top:203px;width:108px;height:64px">
+          <span class="t">Arricchisci</span><span class="k">funzione del worker</span><span class="b">○ in attesa</span>
+        </div>
+        <div class="n s-wait" style="left:708px;top:203px;width:134px;height:64px">
+          <span class="t">Calcola punteggio</span><span class="k">nodo personalizzato</span><span class="b"><span>○ in attesa</span><span class="tag">TS</span></span>
+        </div>
+        <div class="n s-wait" style="left:866px;top:203px;width:72px;height:64px;padding:5px 6px">
+          <span class="t">join</span><span class="k">controllo</span><span class="b">○ in attesa</span>
+        </div>
+        <div class="n s-wait" style="left:962px;top:203px;width:96px;height:64px">
+          <span class="t">Inserisci</span><span class="k">funzione del worker</span><span class="b">○ in attesa</span>
+        </div>
+
+        <div class="zoom"><span>−</span><span class="mono">100%</span><span>+</span><span>Adatta</span></div>
+        <div class="legend"><span class="s-done"><b>✓</b>completata</span><span class="s-run"><b>◐</b>in esecuzione</span><span class="s-wait"><b>○</b>in attesa</span><span class="s-retry"><b>↻</b>ritentata</span><span class="s-fail"><b>✕</b>fallita</span></div>
+      </div>
+
+      <div class="bottom">
+        <div class="tabs"><a class="on">Log · 10</a><a>Input</a><a>Output</a>
+          <span class="ctx"><span class="bd">censys_search</span><span class="bd mono">203.0.113.7</span><span>elemento 142 di 300</span></span></div>
+        <div class="log mono">
+          <div class="l"><span class="tm">14:22:29.870</span><span class="lv">INFO</span><span class="src">scheduler</span><span class="msg">elemento 142 messo in coda (203.0.113.7)</span></div>
+          <div class="l hi"><span class="tm">14:22:30.112</span><span class="lv">INFO</span><span class="src">worker-ti-02</span><span class="msg">attività ricevuta da worker-ti-02 · censys_search · tentativo 1</span></div>
+          <div class="l hi"><span class="tm">14:22:30.131</span><span class="lv">INFO</span><span class="src">worker-ti-02</span><span class="msg">in esecuzione · richiesta inviata a censys_search (203.0.113.7)</span></div>
+          <div class="l hi s-retry"><span class="tm">14:23:01.204</span><span class="lv">AVVISO</span><span class="src">worker-ti-02</span><span class="msg">tentativo 1 scaduto dopo 30 s</span></div>
+          <div class="l hi s-retry"><span class="tm">14:23:01.206</span><span class="lv">AVVISO</span><span class="src">scheduler</span><span class="msg">ritentata · tentativo 2 di 3 tra 2 s</span></div>
+          <div class="l hi"><span class="tm">14:23:03.241</span><span class="lv">INFO</span><span class="src">worker-ti-02</span><span class="msg">attività ricevuta da worker-ti-02 · censys_search · tentativo 2</span></div>
+          <div class="l hi"><span class="tm">14:23:05.017</span><span class="lv">INFO</span><span class="src">worker-ti-02</span><span class="msg">completata in 1,8 s · 3 host noti, 2 porte aperte</span></div>
+          <div class="l"><span class="tm">14:23:05.019</span><span class="lv">INFO</span><span class="src">scheduler</span><span class="msg">elemento 142 completato · 241 completate su 300</span></div>
+          <div class="l s-fail"><span class="tm">14:23:44.510</span><span class="lv">ERRORE</span><span class="src">worker-ti-01</span><span class="msg">elemento 118 fallito · quota API esaurita (HTTP 429) dopo 3 tentativi</span></div>
+          <div class="l"><span class="tm">14:24:09.330</span><span class="lv">INFO</span><span class="src">scheduler</span><span class="msg">287 completate · 9 in esecuzione · 3 ritentate · 1 fallita</span></div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="right" aria-label="Task selezionato">
+      <div class="hd">
+        <div class="row1"><h3 class="mono">censys_search</h3><span class="bd st s-done">✓ completata</span></div>
+        <p>funzione del worker · indicatore <b class="mono">203.0.113.7</b> · elemento <b>142 di 300</b></p>
+      </div>
+      <dl class="kv">
+        <dt>Worker</dt><dd class="mono">worker-ti-02</dd>
+        <dt>Avviata</dt><dd class="mono">14:22:30.131</dd>
+        <dt>Durata totale</dt><dd>34,9 s</dd>
+        <dt>Tentativi</dt><dd>2 di 3</dd>
+      </dl>
+      <div>
+        <div class="sh"><span>Tentativi</span><span>2</span></div>
+        <table class="att">
+          <tr class="s-fail"><td>1</td><td class="res">✕ fallito</td><td>timeout dopo 30 s</td><td class="dur mono">30,0 s</td></tr>
+          <tr class="s-done"><td>2</td><td class="res">✓ completato</td><td>—</td><td class="dur mono">1,8 s</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="sh"><span>Input</span><span>JSON</span></div>
+<pre>{
+  <i>"indicatore":</i> "203.0.113.7",
+  <i>"tipo":</i> "ip",
+  <i>"timeout_s":</i> 30
+}</pre>
+      </div>
+      <div>
+        <div class="sh"><span>Output</span><span>JSON</span></div>
+<pre>{
+  <i>"host_noti":</i> 3,
+  <i>"porte_aperte":</i> [22, 443],
+  <i>"servizi":</i> ["ssh", "https"],
+  <i>"ultima_vista":</i> "2026-11-18"
+}</pre>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<div class="label"><b>Kit · Vista delle esecuzioni</b> · tema chiaro</div>
+<section class="frame th-light" aria-label="Vista delle esecuzioni, tema chiaro">
+  <div class="bbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">https://ti.example.com/workflow/esecuzioni/8f3a1c</span></div>
+  <div class="host">
+    <span class="logo"><i></i>Threat Intel</span>
+    <nav><a>Indicatori</a><a class="on">Workflow</a><a>Segnalazioni</a><a>Impostazioni</a></nav>
+    <span class="me">Giulia <i>G</i></span>
+  </div>
+  <div class="wfbar">
+    <h2>Arricchimento indicatori</h2>
+    <span class="bd">versione 3</span>
+    <span class="bd st s-run">◐ In esecuzione</span>
+    <span class="sep"></span>
+    <span class="meta">Avviata <b>alle 14:22</b> da <b>Giulia</b></span>
+    <span class="meta">Durata <b>1 min 48 s</b></span>
+    <span class="spacer"></span>
+    <span class="btn danger">Annulla</span>
+  </div>
+  <div class="work">
+    <div class="left">
+      <div class="canvas">
+        <svg class="edges" width="1078" height="540" aria-hidden="true">
+          <defs>
+            <marker id="adl" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" style="fill:var(--tx2);stroke:none"/></marker>
+            <marker id="arl" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" style="fill:var(--run);stroke:none"/></marker>
+            <marker id="awl" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" style="fill:var(--tx3);stroke:none"/></marker>
+          </defs>
+          <path class="e-d" d="M156 162H176V235H196" marker-end="url(#adl)"/>
+          <path class="e-w" d="M546 235H576" marker-end="url(#awl)"/>
+          <path class="e-w" d="M684 235H708" marker-end="url(#awl)"/>
+          <path class="e-w" d="M842 235H866" marker-end="url(#awl)"/>
+          <path class="e-w" d="M938 235H962" marker-end="url(#awl)"/>
+          <path class="e-r" d="M214 347H227V321H240" marker-end="url(#arl)"/>
+          <path class="e-r" d="M227 347V373H240" marker-end="url(#arl)"/>
+          <path class="e-r" d="M440 321H453V347H466"/>
+          <path class="e-r" d="M440 373H453V347"/>
+          <circle cx="214" cy="347" r="3" style="fill:var(--run)"/>
+          <circle cx="466" cy="347" r="3" style="fill:var(--run)"/>
+        </svg>
+
+        <div class="n s-done" style="left:16px;top:130px;width:140px;height:64px">
+          <span class="t">Ricevi elenco</span><span class="k">funzione del worker</span><span class="b"><span>✓ completata</span><span class="mono" style="font-weight:400;color:var(--tx3)">0,9 s</span></span>
+        </div>
+
+        <div class="grp s-run">
+          <div class="gh"><span><span class="t">Per ogni indicatore <span class="bd" style="color:var(--tx);font-weight:650">× 300</span></span><span class="k">controllo di flusso · fan-out</span></span><span class="b">◐ in esecuzione</span></div>
+          <div class="seg" role="img" aria-label="287 completate, 9 in esecuzione, 3 ritentate, 1 fallita">
+            <i class="s-done" style="flex:287"></i><i class="s-run" style="flex:9;min-width:4px"></i><i class="s-retry" style="flex:3;min-width:3px"></i><i class="s-fail" style="flex:1;min-width:3px"></i>
+          </div>
+          <div class="cnt">
+            <div class="row s-done"><i class="sw"></i><span>✓ completate</span><b>287</b><em>95,7%</em></div>
+            <div class="row s-run"><i class="sw"></i><span>◐ in esecuzione</span><b>9</b><em>3,0%</em></div>
+            <div class="row s-retry"><i class="sw"></i><span>↻ ritentate</span><b>3</b><em>1,0%</em></div>
+            <div class="row s-fail"><i class="sw"></i><span>✕ fallite</span><b>1</b><em>0,3%</em></div>
+          </div>
+          <div class="err s-fail"><b class="mono">#118 · 198.51.100.23</b> · censys_search<br><span class="f">✕ fallita</span> · quota API esaurita (HTTP 429)<br>dopo 3 tentativi · 14:23:44.510</div>
+          <div class="tpl">Modello per elemento · in parallelo · 300 istanze</div>
+        </div>
+
+        <div class="n in s-done" style="left:240px;top:300px;width:200px;height:42px">
+          <span class="r"><span class="t">dns_lookup</span><span class="b">✓ completata</span></span><span class="k">funzione del worker · 300/300</span>
+        </div>
+        <div class="n in s-run sel" style="left:240px;top:352px;width:200px;height:42px">
+          <span class="r"><span class="t">censys_search</span><span class="b">◐ in esecuzione</span></span><span class="k">funzione del worker · 287/300</span>
+        </div>
+
+        <div class="n s-wait" style="left:576px;top:203px;width:108px;height:64px">
+          <span class="t">Arricchisci</span><span class="k">funzione del worker</span><span class="b">○ in attesa</span>
+        </div>
+        <div class="n s-wait" style="left:708px;top:203px;width:134px;height:64px">
+          <span class="t">Calcola punteggio</span><span class="k">nodo personalizzato</span><span class="b"><span>○ in attesa</span><span class="tag">TS</span></span>
+        </div>
+        <div class="n s-wait" style="left:866px;top:203px;width:72px;height:64px;padding:5px 6px">
+          <span class="t">join</span><span class="k">controllo</span><span class="b">○ in attesa</span>
+        </div>
+        <div class="n s-wait" style="left:962px;top:203px;width:96px;height:64px">
+          <span class="t">Inserisci</span><span class="k">funzione del worker</span><span class="b">○ in attesa</span>
+        </div>
+
+        <div class="zoom"><span>−</span><span class="mono">100%</span><span>+</span><span>Adatta</span></div>
+        <div class="legend"><span class="s-done"><b>✓</b>completata</span><span class="s-run"><b>◐</b>in esecuzione</span><span class="s-wait"><b>○</b>in attesa</span><span class="s-retry"><b>↻</b>ritentata</span><span class="s-fail"><b>✕</b>fallita</span></div>
+      </div>
+
+      <div class="bottom">
+        <div class="tabs"><a class="on">Log · 10</a><a>Input</a><a>Output</a>
+          <span class="ctx"><span class="bd">censys_search</span><span class="bd mono">203.0.113.7</span><span>elemento 142 di 300</span></span></div>
+        <div class="log mono">
+          <div class="l"><span class="tm">14:22:29.870</span><span class="lv">INFO</span><span class="src">scheduler</span><span class="msg">elemento 142 messo in coda (203.0.113.7)</span></div>
+          <div class="l hi"><span class="tm">14:22:30.112</span><span class="lv">INFO</span><span class="src">worker-ti-02</span><span class="msg">attività ricevuta da worker-ti-02 · censys_search · tentativo 1</span></div>
+          <div class="l hi"><span class="tm">14:22:30.131</span><span class="lv">INFO</span><span class="src">worker-ti-02</span><span class="msg">in esecuzione · richiesta inviata a censys_search (203.0.113.7)</span></div>
+          <div class="l hi s-retry"><span class="tm">14:23:01.204</span><span class="lv">AVVISO</span><span class="src">worker-ti-02</span><span class="msg">tentativo 1 scaduto dopo 30 s</span></div>
+          <div class="l hi s-retry"><span class="tm">14:23:01.206</span><span class="lv">AVVISO</span><span class="src">scheduler</span><span class="msg">ritentata · tentativo 2 di 3 tra 2 s</span></div>
+          <div class="l hi"><span class="tm">14:23:03.241</span><span class="lv">INFO</span><span class="src">worker-ti-02</span><span class="msg">attività ricevuta da worker-ti-02 · censys_search · tentativo 2</span></div>
+          <div class="l hi"><span class="tm">14:23:05.017</span><span class="lv">INFO</span><span class="src">worker-ti-02</span><span class="msg">completata in 1,8 s · 3 host noti, 2 porte aperte</span></div>
+          <div class="l"><span class="tm">14:23:05.019</span><span class="lv">INFO</span><span class="src">scheduler</span><span class="msg">elemento 142 completato · 241 completate su 300</span></div>
+          <div class="l s-fail"><span class="tm">14:23:44.510</span><span class="lv">ERRORE</span><span class="src">worker-ti-01</span><span class="msg">elemento 118 fallito · quota API esaurita (HTTP 429) dopo 3 tentativi</span></div>
+          <div class="l"><span class="tm">14:24:09.330</span><span class="lv">INFO</span><span class="src">scheduler</span><span class="msg">287 completate · 9 in esecuzione · 3 ritentate · 1 fallita</span></div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="right" aria-label="Task selezionato">
+      <div class="hd">
+        <div class="row1"><h3 class="mono">censys_search</h3><span class="bd st s-done">✓ completata</span></div>
+        <p>funzione del worker · indicatore <b class="mono">203.0.113.7</b> · elemento <b>142 di 300</b></p>
+      </div>
+      <dl class="kv">
+        <dt>Worker</dt><dd class="mono">worker-ti-02</dd>
+        <dt>Avviata</dt><dd class="mono">14:22:30.131</dd>
+        <dt>Durata totale</dt><dd>34,9 s</dd>
+        <dt>Tentativi</dt><dd>2 di 3</dd>
+      </dl>
+      <div>
+        <div class="sh"><span>Tentativi</span><span>2</span></div>
+        <table class="att">
+          <tr class="s-fail"><td>1</td><td class="res">✕ fallito</td><td>timeout dopo 30 s</td><td class="dur mono">30,0 s</td></tr>
+          <tr class="s-done"><td>2</td><td class="res">✓ completato</td><td>—</td><td class="dur mono">1,8 s</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="sh"><span>Input</span><span>JSON</span></div>
+<pre>{
+  <i>"indicatore":</i> "203.0.113.7",
+  <i>"tipo":</i> "ip",
+  <i>"timeout_s":</i> 30
+}</pre>
+      </div>
+      <div>
+        <div class="sh"><span>Output</span><span>JSON</span></div>
+<pre>{
+  <i>"host_noti":</i> 3,
+  <i>"porte_aperte":</i> [22, 443],
+  <i>"servizi":</i> ["ssh", "https"],
+  <i>"ultima_vista":</i> "2026-11-18"
+}</pre>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<div class="label"><b>Dashboard · Worker</b> · tema scuro (principale)</div>
+<section class="frame dash th-dark" aria-label="Dashboard, pagina Worker, tema scuro">
+  <div class="bbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">https://toast.example.net/worker</span></div>
+  <div class="dnav">
+    <span class="word">topic<i>toast</i></span>
+    <nav><a>Esecuzioni</a><a>Pipeline stream</a><a class="on">Worker</a><a>Quote</a></nav>
+  </div>
+  <div class="dpage">
+    <div class="dtitle"><h2>Worker</h2><span>4 registrati · aggiornato ogni 2 s</span></div>
+
+    <div class="banner" role="status">
+      <span class="ic">⚠</span>
+      <div class="tx"><b>Motore in ripresa dopo un crash</b><span>Nessuna esecuzione nuova parte finché il motore non torna. Nessun dato è andato perso.</span></div>
+      <div class="el"><b>12 s</b><span>tempo trascorso</span></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat s-done"><span>Worker collegati</span><b>3 <small>di 4</small></b></div>
+      <div class="stat s-run"><span>Attività in corso</span><b>19</b></div>
+      <div class="stat s-fail"><span>Non rispondono</span><b>1</b></div>
+      <div class="stat s-retry"><span>Attività riassegnate</span><b>4</b></div>
+    </div>
+
+    <div class="panel">
+      <div class="ph">Elenco dei worker <span>ordinati per nome</span></div>
+      <table class="tb">
+        <tr><th>Worker</th><th>Stato</th><th>Funzioni</th><th class="num">In corso</th><th class="num">La più vecchia</th><th>Ultimo segnale</th><th>Note</th></tr>
+        <tr class="s-done sel2"><td class="mono">worker-ti-01</td><td class="st2">● collegato</td><td class="fn mono">dns_lookup, censys_search</td><td class="num">8</td><td class="num">41 s</td><td class="mono">0,4 s fa</td><td class="fn">selezionato</td></tr>
+        <tr class="s-done"><td class="mono">worker-ti-02</td><td class="st2">● collegato</td><td class="fn mono">dns_lookup, censys_search</td><td class="num">9</td><td class="num">29 s</td><td class="mono">0,9 s fa</td><td class="fn">—</td></tr>
+        <tr class="s-done"><td class="mono">worker-score-01</td><td class="st2">● collegato</td><td class="fn">Calcola punteggio · nodo personalizzato</td><td class="num">2</td><td class="num">6 s</td><td class="mono">1,2 s fa</td><td class="fn">—</td></tr>
+        <tr class="s-fail"><td class="mono">worker-ti-03</td><td class="st2">⚠ non risponde</td><td class="fn mono">dns_lookup, censys_search</td><td class="num">0</td><td class="num">—</td><td class="mono" style="color:var(--fail)">2 min fa</td><td style="color:var(--retry);font-weight:600">4 attività riassegnate</td></tr>
+      </table>
+    </div>
+
+    <div class="panel hist">
+      <div class="ph">Cronologia recente · <span class="mono" style="color:var(--tx);font-size:.75rem;font-weight:600;margin-left:-4px">worker-ti-01</span><span>fasi: ricevuta · in esecuzione · completata · fallita · ritentata</span></div>
+      <div class="l s-queue"><span class="tm mono">14:24:08.402</span><span class="mono">censys_search · 203.0.113.41</span><span class="ph2">◌ ricevuta</span><span class="d">assegnata dallo scheduler</span></div>
+      <div class="l s-run"><span class="tm mono">14:24:08.415</span><span class="mono">censys_search · 203.0.113.41</span><span class="ph2">◐ in esecuzione</span><span class="d">tentativo 1 di 3</span></div>
+      <div class="l s-done"><span class="tm mono">14:24:07.880</span><span class="mono">dns_lookup · example.com</span><span class="ph2">✓ completata</span><span class="d">212 ms</span></div>
+      <div class="l s-done"><span class="tm mono">14:24:03.912</span><span class="mono">dns_lookup · example.org</span><span class="ph2">✓ completata</span><span class="d">187 ms</span></div>
+      <div class="l s-retry"><span class="tm mono">14:23:58.340</span><span class="mono">censys_search · 198.51.100.77</span><span class="ph2">↻ ritentata</span><span class="d">tentativo 2 di 3 tra 2 s</span></div>
+      <div class="l s-fail"><span class="tm mono">14:23:44.510</span><span class="mono">censys_search · 198.51.100.23</span><span class="ph2">✕ fallita</span><span class="d">quota API esaurita (HTTP 429) dopo 3 tentativi</span></div>
+      <div class="l s-run"><span class="tm mono">14:23:41.002</span><span class="mono">censys_search · 198.51.100.23</span><span class="ph2">◐ in esecuzione</span><span class="d">tentativo 3 di 3</span></div>
+      <div class="l s-queue"><span class="tm mono">14:23:40.771</span><span class="mono">censys_search · 198.51.100.23</span><span class="ph2">◌ ricevuta</span><span class="d">assegnata dallo scheduler</span></div>
+    </div>
+  </div>
+</section>
+</body>
+</html>
