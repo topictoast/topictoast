@@ -2,7 +2,7 @@
 title: topictoast — PRD
 status: final
 created: 2026-11-19
-updated: 2026-11-20
+updated: 2026-11-21
 ---
 
 # PRD: topictoast
@@ -1207,8 +1207,9 @@ L'operatore vede per ogni tenant l'uso delle quote e i tenant vicini al limite e
 
 **Descrizione:** topictoast si installa con pochi componenti e si configura con valori predefiniti
 che funzionano. Il vincolo tecnico indicato da Marco (addendum del brief, §8), da confermare in
-architettura, è topictoast più il bus Iggy, con SQLite incorporato o Postgres; lo storage per
-payload grandi e file (RustFS) arriva dopo la v1, come componente opzionale. Realizza UJ-1, UJ-5.
+architettura, è topictoast più il bus Iggy, con SQLite incorporato o Postgres. RustFS entra nella
+v1 solo come archivio facoltativo dello storico dei payload e dei checkpoint (architettura, AD-17);
+lo storage per payload grandi e file arriva dopo la v1. Realizza UJ-1, UJ-5.
 
 #### FR-50: Installazione minima
 
@@ -1423,9 +1424,10 @@ topictoast è un prodotto per sviluppatori: le sue superfici pubbliche sono cont
 ### 8.2 Fuori dalla v1
 
 - **OAuth gestito dal motore** — dopo la v1; la v1 parte con le chiavi API.
-- **Storage per payload grandi e file (RustFS)** — dopo la v1; finché manca valgono il limite e il
-  tetto del join di FR-11. Con lo storage arriva il join che riceve i risultati a pagine o per
-  riferimento.
+- **Storage per payload grandi e file** — dopo la v1; finché manca valgono il limite e il tetto del
+  join di FR-11. Con lo storage arriva il join che riceve i risultati a pagine o per riferimento.
+  RustFS è già nella v1 come archivio facoltativo dello storico dei payload e dei checkpoint
+  (architettura, AD-17), senza cambiare il limite di FR-11.
 - **Backup e ripristino coerenti di database e bus** — dopo la v1; limite documentato (NFR-6).
 - **Rotazione della chiave di firma delle identità** (FR-27) — dopo la v1 `[ASSUMPTION]`; la
   rotazione della chiave della cassaforte invece è nella v1 (FR-34).
@@ -1511,8 +1513,8 @@ topictoast è un prodotto per sviluppatori: le sue superfici pubbliche sono cont
 2. Obiettivo numerico delle pipeline stream (NFR-5) e memoria di stato attesa per pipeline
    stream: dopo lo spike.
 3. Confermare NFR-12 (avvio e memoria della sandbox) dopo lo spike.
-4. Dove salvare i checkpoint delle pipeline stream nella v1, visto che RustFS arriva dopo:
-   architettura.
+4. Dove salvare i checkpoint delle pipeline stream nella v1: chiusa dall'architettura. Stanno
+   nell'archivio dei payload, su disco o su RustFS facoltativo (AD-17).
 5. Nome e confini del possibile progetto separato con i nodi pronti.
 6. Connessioni per tenant: il lato di prodotto è chiuso (il segreto dichiara la connessione che
    soddisfa, FR-32, FR-55); come si salvano segreti e connessioni: architettura.

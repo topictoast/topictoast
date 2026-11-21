@@ -1,6 +1,6 @@
 # topictoast — Constitution
 
-**Version:** 1.0.0 · **Ratified:** 2026-11-18 · **Last amended:** 2026-11-18
+**Version:** 1.0.1 · **Ratified:** 2026-11-18 · **Last amended:** 2026-11-21
 
 Single source of the principles. `CLAUDE.md` imports it; no other file repeats them.
 
@@ -14,7 +14,7 @@ alternative it discarded.
 ### II. BDD first, TDD inside (NON-NEGOTIABLE)
 Every story enters through Gherkin scenarios in Italian (`features/<area>/<story>.feature`,
 `# language: it`) run with `cucumber` at the public boundary of the system; external services are
-simulated. Scenarios are written and seen **failing** before the code. Inside, TDD
+simulated. The kit and dashboard flows run the same Italian Gherkin with `playwright-bdd`. Scenarios are written and seen **failing** before the code. Inside, TDD
 red → green → refactor. A bug is fixed starting from a scenario that reproduces it. No merge with
 red scenarios or tests.
 
@@ -27,13 +27,15 @@ Gateway = one-shot external service; Repository = collection of owned aggregates
 ### IV. Tight boundaries
 Serde validation at the boundary: invalid input = validation error, never a panic, never
 `unwrap()` on external input. Adapter errors are translated into domain errors; no library type
-leaves an adapter. The HTTP client lives in a single module, enforced by `clippy.toml` once it
-arrives. Never log tokens, keys, cookies, secrets.
+leaves an adapter. The HTTP client lives in a single module per artifact (the engine's adapters, the
+Rust SDK), enforced by `clippy.toml` once it arrives. Never log tokens, keys, cookies, secrets.
 
 ### V. Typed data
 Typed columns and child tables for the data the system interprets; no `jsonb`/`TEXT JSON` for
 structured data. The application's database user is not a superuser and does not have
-`BYPASSRLS`.
+`BYPASSRLS`. With every database, a single repository adapter always applies the tenant filter and
+a test with two tenants covers each of its methods; with Postgres, RLS is a second barrier. SQLite
+has no database users or RLS, so there the adapter is the only barrier.
 
 ### VI. Simplicity (ponytail)
 YAGNI, shortest diff, no single-use abstractions; every piece of code work applies the

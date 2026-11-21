@@ -9,21 +9,35 @@ Workflow orchestrator (in the style of Hatchet and Argo Workflows) with first-cl
 ## Current state
 
 **Product phase.** Brief, PRD and UX are final (2026-11-20) in `_bmad-output/planning-artifacts/`
-(`briefs/`, `prds/`, `ux-designs/`). Next step: `bmad-architecture`.
-No product code before the architecture is accepted (constitution I).
+(`briefs/`, `prds/`, `ux-designs/`). Architecture spine (approved by the user on 2026-11-21,
+accepted when its PR is merged):
+`docs/architecture/architecture-topictoast-2026-11-20/ARCHITECTURE-SPINE.md`, ADRs in
+`docs/decisions/`. No product code before the architecture is accepted (constitution I). Next bmad
+step: `bmad-create-epics-and-stories`. Before the first design-system story, align the UX spines
+(`DESIGN.md`, `EXPERIENCE.md`) with `packages/ui` and T-57 through a `bmad-ux` Update.
 
-Open for the architecture: the PRD expresses DAGs as an extension of the OWS DSL (FR-1, FR-2);
-the mapping onto OWS, the propagation rule and the other items owned by the architecture are in
-PRD §11. Still to verify in depth: the full DSL (`open-workflow-specification/specification`,
-`dsl.md`) and the Rust SDK (`open-workflow-specification/sdk-rust`). UJ-3 (stream pipelines) is
-still an assumption until a real case, before the stream spike.
+**Spikes before sprint 1**, in this order; each one closes with a measured ADR and a PR that updates
+the spine (`bmad-architecture` Update intent, AD ids stable):
+
+1. Bus: Iggy or the Valkey hot tier; the three worker links (direct on the bus topics, through the
+   engine over gRPC + TLS, through the engine over iroh); recovery, upgrade without loss. Full
+   criteria in the spine, S-1.
+2. Sandbox: light level and microVM.
+3. Stream pipelines on DataFusion. The case is the PRD's UJ-3 example, an assumption until a real
+   case arrives.
+4. Kit in the browser: the napi-rs `wasm32-wasip1` validator on Chromium, Firefox and Safari.
+
+Sprint 1 starts only after all four. Each of the spine's Open Questions closes by the deadline
+written in its row.
 
 ## Repo layout
 
 | Path | What goes there |
 |---|---|
-| `crates/` | Rust code (Cargo workspace), after the architecture |
-| `dashboard/` | React web interface ("Dashboard" section) |
+| `crates/` | Rust code (Cargo workspace): `ows` (our pure model of the supported OWS 1.1 subset + `dag`), pure domain with the validator (both compile to wasm), `protocol` (pure API and worker-protocol types, source of the OpenAPI schema), engine, adapters, Rust SDK, CLI, napi-rs binding, benchmark |
+| `packages/` | npm workspace: `ui` (design system shared by kit and dashboard), `core` (kit JS core and API client; validator loaded lazily), `react` (kit React components), `sdk` (TS SDK), `validator` (napi-rs output, native and `wasm32-wasip1`) |
+| `dashboard/` | operator's React web interface ("Dashboard" section) |
+| `spikes/<name>/` | spike code that decides the architecture; outside the Cargo and npm workspaces and the gate; results go into ADRs |
 | `features/<area>/*.feature` | BDD scenarios in Italian |
 | `specs/<NNN-slug>/` | spec-kit: one folder per story |
 | `_bmad/`, `_bmad-output/` | installed bmad and its artifacts (brief, PRD, UX, epics, sprints, retros) |
@@ -105,8 +119,11 @@ version 1.0.1 persists it in `.specify/feature.json` and the next call inherits 
 ## BDD and tests
 
 - Gherkin in Italian: `# language: it` — `Funzionalità`, `Scenario`, `Dato`, `Quando`, `Allora`.
-- Boundary of the scenarios: the public boundary of the system (API, CLI or SDK), decided by the architecture; no harness until then. External services simulated (`wiremock`); real
-  database via `testcontainers` when there is one.
+- Boundary of the scenarios, on two levels (spine AD-14), both run with cucumber-rs: contract
+  scenarios on the engine's public HTTP API plus a Rust test worker that speaks the worker
+  protocol; scenarios driven through the Rust SDK. On both levels bus and database are real via
+  `testcontainers`; external services simulated (`wiremock`). Kit and dashboard flows use
+  Playwright BDD.
 - Scenarios compare the exact JSON, types included (`3` is not `3.0`).
 - Inside: TDD on the domain (pure, fast tests).
 - The user's manual proofs run on the real services; mocks live only in the automated tests.
@@ -126,7 +143,9 @@ elsewhere.
 
 Detailed rules live in the project skill **`dashboard-react`**: load it for every piece of work in
 `dashboard/` and cite it in the subagents' prompt; for React performance there is
-`vercel-react-best-practices` (on conflicts `dashboard-react` wins). In short:
+`vercel-react-best-practices` (on conflicts `dashboard-react` wins). The kit (`packages/core`,
+`packages/react`) runs inside other people's pages, so `dashboard-react` does not apply to it: a kit
+skill is written before the first kit story. In short:
 
 - TypeScript, function components only, **micro components**; a design system built together with
   the dashboard, every reusable component documented in **Storybook**.
@@ -184,7 +203,8 @@ PID saved at start, never `pkill -f`. Migrations already handed over for proving
 add a new one. Conventional Commits, WITHOUT any attribution line (no Co-Authored-By,
 Claude-Session:, "Generated with Claude Code", claude.ai/code/session_… links). Finish with:
 cargo fmt, cargo clippy --all-targets -- -D warnings, the tests of the crates and features you
-touched, RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps green; the full suite runs in
+touched, RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps green, plus
+(cd packages && npm run gate) if you touched packages/; the full suite runs in
 the main session's pre-push. Report: files touched, tests added, gate result.
 ```
 
@@ -196,6 +216,8 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 (cd dashboard && npm run gate)   # once dashboard/ exists
+(cd packages && npm run gate)    # once packages/ exists
+cargo build --manifest-path crates/domain/Cargo.toml --target wasm32-wasip1   # once crates/domain exists: the validator stays wasm-compatible
 ```
 
 The hooks run them on their own (see Git). No CI workflow until production.
@@ -214,17 +236,21 @@ The hooks run them on their own (see Git). No CI workflow until production.
 - End of a piece of work: PR → merge → `git switch main && git pull && git branch -d <branch>`.
   The remote branch **stays**: never `git push --delete`, never `gh pr merge --delete-branch`.
 - Hooks: `pre-commit` (main + fmt), `commit-msg`, `pre-push` (main + clippy + tests with a time
-  cap + doc + dashboard gate + advisory review `scripts/review-diff.sh`), `post-commit`
-  (graphify). `ALLOW_MAIN=1` only for the first commit of the repo.
+  cap + doc + dashboard gate + packages gate + `crates/domain` build for `wasm32-wasip1` +
+  advisory review `scripts/review-diff.sh`), `post-commit` (graphify). `ALLOW_MAIN=1` only for
+  the first commit of the repo.
 
 ## Builds and environments
 
 - Cargo target never in `/tmp` (tmpfs in RAM): `CARGO_TARGET_DIR` on `/home`. One target folder per
   active worktree; when the worktree is removed, its folder is deleted too. Before long builds
   `df -h /home`.
-- Local dev: a single `docker compose`, without profiles and without restart policies.
+- Local dev: a single `docker compose`, without profiles and without restart policies. It starts
+  the bus, Postgres and RustFS together; the engine picks its adapters from its configuration.
 - Dependencies pinned to an exact version, published at least two weeks earlier; a new one only if
-  the platform and the libraries already present are not enough.
+  the platform and the libraries already present are not enough. Exception: a version that fixes a
+  published vulnerability (RustSec, GHSA or CVE advisory), including in a transitive dependency of
+  the lockfiles, is pinned at once, citing the advisory in the commit.
 - `claude` launched from a script: with `--print`, always `--no-session-persistence`.
 
 ## graphify
