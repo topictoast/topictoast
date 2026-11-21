@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # pre-push: no push to main (changes go through a PR); clippy -D warnings + cargo test + cargo doc blocking
-# when there is Cargo; dashboard gate when there is dashboard/; then a Claude review of the diff (advisory, never blocks).
-# Only towards origin: the other remotes are deploy targets. Bypass: SKIP_CARGO=1 / SKIP_DASHBOARD=1 / SKIP_REVIEW=1 / ALLOW_MAIN=1 (bootstrap only), or --no-verify.
+# when there is Cargo; dashboard gate when there is dashboard/; packages gate when there is packages/; crates/domain
+# build for wasm32-wasip1 when it exists; then a Claude review of the diff (advisory, never blocks).
+# Only towards origin: the other remotes are deploy targets. Bypass: SKIP_CARGO=1 / SKIP_DASHBOARD=1 / SKIP_PACKAGES=1 / SKIP_REVIEW=1 / ALLOW_MAIN=1 (bootstrap only), or --no-verify.
 # Build folder cap: TARGET_CAP_GB (40, then cargo clean).
 set -uo pipefail
 
@@ -61,11 +62,6 @@ if [ -f "$repo_root/Cargo.toml" ] && command -v cargo >/dev/null 2>&1 && [ "${SK
     echo "[pre-push] ✗ cargo test failed (BDD included)" >&2
     exit 1
   fi
-  # the TypeScript types generated from the Rust types (ts-rs, written by cargo test) must be the committed ones
-  if [ -d "$repo_root/dashboard/src/api/generated" ] && ! (cd "$repo_root" && git diff --exit-code dashboard/src/api/generated); then
-    echo "[pre-push] ✗ dashboard/src/api/generated is out of date: run cargo test and commit the files" >&2
-    exit 1
-  fi
   if ! (cd "$repo_root" && RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps); then
     echo "[pre-push] ✗ cargo doc -D warnings failed" >&2
     exit 1
@@ -81,6 +77,32 @@ if [ -f "$repo_root/dashboard/package.json" ] && command -v npm >/dev/null 2>&1 
   fi
   if ! (cd "$repo_root/dashboard" && npm run gate); then
     echo "[pre-push] ✗ dashboard gate failed (npm run gate)" >&2
+    exit 1
+  fi
+fi
+
+# the npm workspace gate (ui, core, react, sdk, validator), same pattern as the dashboard
+if [ -f "$repo_root/packages/package.json" ] && command -v npm >/dev/null 2>&1 && [ "${SKIP_PACKAGES:-}" != "1" ]; then
+  if [ ! -d "$repo_root/packages/node_modules" ]; then
+    echo "[pre-push] ✗ packages without dependencies: run npm ci in packages/ (or SKIP_PACKAGES=1)" >&2
+    exit 1
+  fi
+  if ! (cd "$repo_root/packages" && npm run gate); then
+    echo "[pre-push] ✗ packages gate failed (npm run gate)" >&2
+    exit 1
+  fi
+  # after the gate, which regenerates them: the TypeScript API types generated from the OpenAPI
+  # schema (spine AD-12) must be the committed ones
+  if [ -d "$repo_root/packages/core/src/api/generated" ] && [ -n "$(cd "$repo_root" && git status --porcelain -- packages/core/src/api/generated)" ]; then
+    echo "[pre-push] ✗ packages/core/src/api/generated is out of date: regenerate the API types and commit the files" >&2
+    exit 1
+  fi
+fi
+
+# the domain (with the validator) must stay wasm-compatible for the browser kit (spine AD-11)
+if [ -f "$repo_root/crates/domain/Cargo.toml" ] && command -v cargo >/dev/null 2>&1 && [ "${SKIP_CARGO:-}" != "1" ]; then
+  if ! (cd "$repo_root" && cargo build --manifest-path crates/domain/Cargo.toml --target wasm32-wasip1); then
+    echo "[pre-push] ✗ crates/domain does not build for wasm32-wasip1 (missing target: rustup target add wasm32-wasip1)" >&2
     exit 1
   fi
 fi
