@@ -93,7 +93,7 @@ if [ -f "$repo_root/packages/package.json" ] && command -v npm >/dev/null 2>&1 &
   fi
   # after the gate, which regenerates them: the TypeScript API types generated from the OpenAPI
   # schema (spine AD-12) must be the committed ones
-  if [ -d "$repo_root/packages/core/src/api/generated" ] && ! (cd "$repo_root" && git diff --exit-code packages/core/src/api/generated); then
+  if [ -d "$repo_root/packages/core/src/api/generated" ] && [ -n "$(cd "$repo_root" && git status --porcelain -- packages/core/src/api/generated)" ]; then
     echo "[pre-push] ✗ packages/core/src/api/generated is out of date: regenerate the API types and commit the files" >&2
     exit 1
   fi
