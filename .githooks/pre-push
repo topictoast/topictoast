@@ -62,11 +62,6 @@ if [ -f "$repo_root/Cargo.toml" ] && command -v cargo >/dev/null 2>&1 && [ "${SK
     echo "[pre-push] ✗ cargo test failed (BDD included)" >&2
     exit 1
   fi
-  # the TypeScript API types generated from the OpenAPI schema (spine AD-12) must be the committed ones
-  if [ -d "$repo_root/packages/core/src/api/generated" ] && ! (cd "$repo_root" && git diff --exit-code packages/core/src/api/generated); then
-    echo "[pre-push] ✗ packages/core/src/api/generated is out of date: regenerate the API types and commit the files" >&2
-    exit 1
-  fi
   if ! (cd "$repo_root" && RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps); then
     echo "[pre-push] ✗ cargo doc -D warnings failed" >&2
     exit 1
@@ -94,6 +89,12 @@ if [ -f "$repo_root/packages/package.json" ] && command -v npm >/dev/null 2>&1 &
   fi
   if ! (cd "$repo_root/packages" && npm run gate); then
     echo "[pre-push] ✗ packages gate failed (npm run gate)" >&2
+    exit 1
+  fi
+  # after the gate, which regenerates them: the TypeScript API types generated from the OpenAPI
+  # schema (spine AD-12) must be the committed ones
+  if [ -d "$repo_root/packages/core/src/api/generated" ] && ! (cd "$repo_root" && git diff --exit-code packages/core/src/api/generated); then
+    echo "[pre-push] ✗ packages/core/src/api/generated is out of date: regenerate the API types and commit the files" >&2
     exit 1
   fi
 fi

@@ -101,5 +101,6 @@ disappears.
   board, compute the bounding boxes of all the boards on the page and use a free spot.
 - Dependencies pinned to an exact version, published at least two weeks earlier; a new dependency
   only if the platform or a library already present is not enough, and if the spine does not say
-  otherwise. Exception: a version that fixes a published vulnerability (RustSec or GHSA advisory)
-  is pinned at once, citing the advisory in the commit.
+  otherwise. Exception: a version that fixes a published vulnerability (RustSec, GHSA or CVE
+  advisory), including in a transitive dependency of the lockfiles, is pinned at once, citing the
+  advisory in the commit.
