@@ -1,0 +1,32 @@
+# Spike S-1 fase 2: crate autonomo, fuori dai workspace e dal gate. Codice da buttare.
+[package]
+name = "busspike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+tokio = { version = "=1.54.1", features = ["full"] }
+tokio-stream = "=0.1.19"
+tonic = { version = "=0.14.9", features = ["tls-ring", "transport"] }
+tonic-prost = "=0.14.9"
+prost = "=0.14.4"
+iggy = "=0.12.0"
+redis = { version = "=1.8.1", features = ["tokio-comp"] }
+sqlx = { version = "=0.9.1", features = ["runtime-tokio", "sqlite", "postgres"] }
+hdrhistogram = "=7.6.0"
+aes-gcm = "=0.11.1"
+hkdf = "=0.13.0"
+sha2 = "=0.11.1"
+rcgen = "=0.14.10"
+uuid = { version = "=1.29.1", features = ["v7"] }
+libc = "=0.2.191"
+bytes = "=1.12.1"
+
+[build-dependencies]
+tonic-prost-build = "=0.14.9"
+
+[profile.release]
+debug = 1

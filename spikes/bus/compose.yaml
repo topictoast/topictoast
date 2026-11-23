@@ -1,0 +1,37 @@
+# Spike S-1 fase 2: servizi del bus e del database, solo su localhost.
+# Credenziali generate in .env (fuori dal repository) da ./gen-env.sh; nessun valore predefinito accettato.
+name: ttspikebus
+services:
+  iggy:
+    image: apache/iggy:0.10.0
+    cap_add: [SYS_NICE]
+    security_opt: ["seccomp:unconfined"]
+    ulimits: { memlock: { soft: -1, hard: -1 } }
+    environment:
+      IGGY_NODE_ADVERTISED_ADDRESS: localhost
+      IGGY_ROOT_USERNAME: ${IGGY_ROOT_USERNAME:?genera .env}
+      IGGY_ROOT_PASSWORD: ${IGGY_ROOT_PASSWORD:?genera .env}
+      # una sola configurazione per tutte le misure
+      IGGY_SHARDING_CPU_ALLOCATION: ${IGGY_SHARDS:-2}
+      IGGY_PARTITION_WAL_GROUP_COMMIT_DELAY_MICROS: ${IGGY_GC_DELAY:-500}
+      IGGY_TCP_ADDRESS: 0.0.0.0:8090
+      IGGY_HTTP_ENABLED: "false"
+      IGGY_QUIC_ENABLED: "false"
+      IGGY_WEBSOCKET_ENABLED: "false"
+    ports: ["127.0.0.1:47001:8090"]
+    volumes: ["./data/iggy:/local_data"]
+  valkey:
+    image: valkey/valkey:9.1.4
+    command: >
+      valkey-server --appendonly yes --appendfsync ${VALKEY_FSYNC:-always} --save ""
+      --requirepass ${VALKEY_PASSWORD:?genera .env} --dir /data
+    ports: ["127.0.0.1:47002:6379"]
+    volumes: ["./data/valkey:/data"]
+  postgres:
+    image: postgres:18.7
+    environment:
+      POSTGRES_USER: spike
+      POSTGRES_DB: spike
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?genera .env}
+    ports: ["127.0.0.1:47003:5432"]
+    volumes: ["./data/postgres:/var/lib/postgresql"]
