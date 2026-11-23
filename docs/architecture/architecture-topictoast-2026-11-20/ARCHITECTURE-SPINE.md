@@ -430,14 +430,47 @@ flowchart TB
   nell'URL o in un cookie. Il motore chiude uno stream quando la sua credenziale scade. La CSP
   della pagina ospite deve permettere `connect-src` verso il motore e `'wasm-unsafe-eval'` (S-4).
 
-## Open Spike Decisions
+### AD-20 — Funzioni e nodi dal catalogo predefinito di OWS [ADOPTED]
 
-La spine esce ora con le decisioni prese. Ogni spike chiude con un ADR misurato in
-`docs/decisions/` e una PR che aggiorna questa spine (intento Update, AD-n stabili). Ordine: bus
-(3-4 giorni) → sandbox (2-3) → pipeline stream (circa 3) → kit nel browser (mezza giornata),
-circa 2 settimane. Lo sprint 1 parte solo dopo tutti gli spike. Il codice degli spike sta in
-`spikes/<nome>/` (AD-15). Ogni ADR di spike controlla la licenza delle tecnologie scelte contro
-NFR-11.
+- **Binds:** FR-1, FR-15, FR-18, FR-29, FR-40, FR-55, PRD §11 n.7; validatore del dominio, motore (risoluzione), editor, nucleo JS, SDK TypeScript e Rust, host della sandbox.
+- **Prevents:** forme di chiamata diverse tra editor, SDK e motore; un nodo del tenant che prende il posto di una funzione o di ciò che esegue un workflow dell'integratore; documenti che caricano risorse esterne durante la validazione.
+- **Rule:**
+  - Una funzione di un worker si chiama `call: <nome>:latest@default`; un nodo personalizzato
+    `call: node.<nome>:latest@default`. È il catalogo predefinito di OWS 1.1, implicito: il
+    documento non lo dichiara. `with` porta solo l'input della chiamata.
+  - Nomi di funzioni e nodi: ASCII, `[a-z][a-z0-9_]*`, al massimo 64 caratteri; non possono
+    essere un nome riservato di OWS (`http`, `grpc`, `openapi`, `asyncapi`, `a2a`, `mcp`) né
+    `node`. Una sola funzione del dominio legge la chiamata, ed è la stessa nel browser
+    (`packages/validator`, AD-11), con gli stessi casi di prova.
+  - Nella v1 la versione è sempre `latest`, una convenzione di topictoast: OWS la definisce solo
+    per `run.workflow`. Un'altra versione è rifiutata con un errore C-7. Ogni esecuzione risolve
+    all'avvio ogni chiamata in un riferimento fisso, l'impronta del manifest per una funzione o
+    l'impronta del nodo (C-5) per un nodo, e lo conserva con l'esecuzione: tentativi e ripresa
+    usano quello (FR-15). Per un nodo `latest` è l'ultima versione accettata dal motore. Quale
+    manifest vale con due worker discordi resta a M-08; cosa succede ai workflow salvati e alle
+    attività in coda quando un manifest cambia, a M-09.
+  - Il validatore rifiuta, senza aprire connessioni e anche nel browser (AD-11), `use.catalogs`
+    (compreso `default`), `use.functions` (fuori dal sottoinsieme di FR-1), una chiamata verso un
+    URL e ogni `schema.resource` (FR-55). OWS li ammette: è una deviazione voluta, coerente con
+    FR-1 (topictoast non è un runtime OWS conforme).
+  - I nomi di un documento si risolvono nel contesto del proprietario di quel documento, e il
+    validatore li controlla sul contesto di validazione (AD-11); i segreti invece sono quelli di
+    chi avvia l'esecuzione (FR-29). Un documento dell'integratore vede le funzioni dei worker e
+    mai i nodi dei tenant: `node.` vi è sempre un errore. Un documento di un tenant vede le
+    funzioni a lui disponibili e i propri nodi. Un sotto-workflow risolve i propri nomi nel
+    contesto del suo proprietario. Un nome che non esiste e un nome non disponibile danno lo
+    stesso errore C-7, e la ricerca dei nomi entra nel test a due tenant di AD-5.
+  - Una chiamata a funzione o nodo non nomina segreti: i segreti di un task sono quelli delle
+    connessioni del suo manifest (FR-55), risolte all'avvio (FR-29). La forma della connessione e
+    dei segreti di un task senza manifest (`call http`, che FR-29 vuole dichiarata nel documento)
+    ha un solo proprietario, il validatore del dominio, e la fissa la spec della storia delle
+    connessioni (M-37). Vincoli: niente `$secrets` (AD-8), valori solo al confine della chiamata,
+    e una chiave API in un header deve essere esprimibile (le politiche di autenticazione di OWS
+    coprono solo basic, bearer, digest, oauth2 e oidc).
+  - Un workflow scrive su uno stream tramite una funzione o un nodo che usa l'SDK o l'host della
+    sandbox (FR-18), con il tenant ricavato dal tentativo (C-2) e sulla stessa strada dei
+    risultati del tentativo (AD-17); mai direttamente dal documento (`emit` è fuori dal
+    sottoinsieme di FR-1).
 
 ### S-1 — Bus
 
@@ -457,7 +490,10 @@ NFR-11.
   misurato: retry con attesa attraverso un crash iniettato. Trasporto delle righe di log dei
   worker (FR-59), con il segnaposto dei segreti consegnati applicato prima del bus e
   dell'archivio (C-12): chi è l'unico scrittore dei pezzi (AD-17), intervallo di chiusura di un
-  pezzo entro l'1 s di FR-59, creazione solo se assente su disco e su RustFS. Benchmark di base
+  pezzo entro l'1 s di FR-59, creazione solo se assente su disco e su RustFS. Cosa porta una
+  consegna (input, contesto con proprietario, esecuzione e tentativo, segreti dichiarati risolti
+  alla consegna, C-12) e come un worker scrive su uno stream: tenant ricavato dal tentativo (C-2),
+  stessa strada e cifratura dei risultati (AD-17, AD-20). Benchmark di base
   (M-49). Candidati, verificati 2026-11-21: Valkey 9.1.4 e iroh 1.4.2 (solo con l'eccezione di
   sicurezza), tonic 0.14.9, redis 1.8.1.
 - **Misure per variante di collegamento:** latenza p50 e p99 di un passo del DAG, throughput al
@@ -793,10 +829,10 @@ docs/
 
 | Capability / Area | Lives in | Governed by |
 | --- | --- | --- |
-| Definizione dei workflow: FR-1…FR-5, FR-56 | `crates/ows` (modello), `crates/domain` (validatore); motore (versioni) | AD-4, AD-8, AD-9, AD-10, AD-11, C-5 |
+| Definizione dei workflow: FR-1…FR-5, FR-56 | `crates/ows` (modello), `crates/domain` (validatore); motore (versioni) | AD-4, AD-8, AD-9, AD-10, AD-11, AD-20, C-5 |
 | Esecuzione: FR-6…FR-11, FR-59 | motore, bus, proiettore, archivio dei payload, SDK, host della sandbox | AD-2, AD-3, AD-9, AD-17, AD-18, C-2, C-3, C-4, C-9, C-12, S-1 (annullamento di FR-10, trasporto delle righe di log) |
-| Worker: FR-12…FR-14, FR-55 | motore, adattatore del collegamento dei worker, SDK | AD-1, AD-10, C-6, C-11, S-1 |
-| Nodi personalizzati e sandbox: FR-15…FR-17, FR-54 | processi ausiliari, pool microVM | AD-6, AD-16, C-5, S-2 |
+| Worker: FR-12…FR-14, FR-55 | motore, adattatore del collegamento dei worker, SDK | AD-1, AD-10, AD-20, C-6, C-11, S-1 |
+| Nodi personalizzati e sandbox: FR-15…FR-17, FR-54 | processi ausiliari, pool microVM | AD-6, AD-16, AD-20, C-5, S-2 |
 | Pipeline stream: FR-18…FR-25 | processo ausiliario per tenant con DataFusion, bus, archivio dei payload | AD-6, AD-7, AD-13, AD-17, C-4, S-3 |
 | Separazione tra tenant: FR-26…FR-31 | adattatore del repository, API, eventi in tempo reale | AD-5, AD-7, AD-13, AD-18, C-13, C-15 |
 | Cassaforte dei segreti: FR-32…FR-34 | motore (chiave), adattatore della cassaforte | AD-2, AD-6, AD-7, C-12 |
@@ -830,6 +866,7 @@ docs/
 | T-65 prestazioni con grafi grandi | dipende dal limite sul numero di task | quando si fissa quel limite (NFR-14) |
 | T-67 segreti nelle righe di log: lato di prodotto chiuso da FR-59 (segnaposto del valore esatto, applicato all'origine e ricontrollato dal motore, C-12) | restano dettagli: forma del segnaposto, segreti molto corti, un valore spezzato su più righe | spec della consegna dei segreti e dei log (FR-33, FR-59) |
 | Ordine tra eventi del motore e righe del codice nel log di un tentativo, e orologio che dà l'ora delle righe (FR-59) | lettura e tempo reale sono già legati al numero di riga (AD-17) | spec delle storie dei log dei task (FR-59) |
+| Idempotenza delle scritture sugli stream da parte di un tentativo, tra tentativi successivi e dentro lo stesso tentativo (FR-18, C-2) | AD-20 fissa da dove si scrive e con quale tenant | spec della storia della scrittura sugli stream (FR-18) |
 | T-68 dashboard con canale in tempo reale interrotto | il canale è fissato (C-8, AD-18) | spec della dashboard |
 | Ricerca per valore tra gli elementi di un fan-out (A-5 della UX, oltre gli FR) | i payload stanno fuori dal database (AD-3): serve una scelta di prodotto | spec della storia del fan-out |
 | AMB-1, AMB-5, AMB-6, AMB-9 (ambiguità del PRD) | comportamento di prodotto, non struttura | spec delle storie che le toccano |
@@ -842,10 +879,9 @@ docs/
 
 | Domanda | Proprietario | Si chiude |
 | --- | --- | --- |
-| M-02 (PRD §11 n.7): come un task invoca funzioni e nodi personalizzati e come dichiara segreti e connessioni dentro il formato; come un task o un worker scrive su uno stream (FR-18, FR-26: tenant ricavato dall'`attemptId` di C-2?); rifiuto senza rete delle risorse esterne del documento (`schema.resource`, `call` verso un URL, `use.catalogs`). Punto di divergenza tra editor, SDK e motore. Già fissato: lo schema di input del workflow è `input.schema` di OWS (AD-10) | architettura | Update della spine prima della prima storia che lo tocca |
 | M-04 (PRD §11 n.12): dove la pianificazione del documento porta il proprio input dentro il formato | architettura | Update della spine prima della prima storia delle pianificazioni |
 | Join dei dati, `$context` concorrente e sintassi del fan-out dinamico dentro `dag` (FR-3), con la politica d'errore del fan-out «il join riceve l'errore» rispetto ad AD-9 (l'elemento fallito conta come dipendenza fallita? rende fallita l'esecuzione?) | architettura; Marco se tocca AD-9 | Update della spine prima della prima storia `dag` |
-| M-37: risoluzione e forma delle connessioni (sotto-workflow dell'integratore chiamato da un tenant, nomi di piattaforma, due connessioni della stessa piattaforma); C-12 e C-13 non lo coprono | spec (PRD §11 n.14) | spec della storia delle connessioni (FR-29, FR-33) |
+| M-37: risoluzione e forma delle connessioni (sotto-workflow dell'integratore chiamato da un tenant, nomi di piattaforma, due connessioni della stessa piattaforma) e forma della connessione e dei segreti di un task senza manifest (`call http`) nel documento, con i vincoli di AD-20; C-12 e C-13 non lo coprono | spec (PRD §11 n.14) | spec della storia delle connessioni (FR-29, FR-33) |
 | T-58: librerie di canvas, layout del DAG ed editor di codice. Candidate `@xyflow/react` (fissabile 12.12.1; valutare la 13.x, fissabile dal 2026-11-30), `@dagrejs/dagre`, CodeMirror 6; elkjs escluso per scelta (copyleft). Criteri: quelli di T-58 del triage, tastiera e lettori di schermo come vuole la UX (provati con NVDA e un telefono), direzione da sinistra a destra e dall'alto in basso, prestazioni con il massimo di task di NFR-14, CSP dell'ospite (AD-19), gate della skill sugli stili in linea | architettura | Update della spine o skill del kit, prima della prima storia del kit |
 | Editor: le posizioni dei nodi fanno parte della versione (FR-5) e dell'export? A cosa si legano (percorso dei nomi dei task) e in che unità? I moduli dei costrutti (`call http`, `wait`, `switch`, fan-out…) si generano da una descrizione dei campi esportata dal dominio nel linguaggio di AD-10, o si scrivono a mano con un test di parità contro il validatore? | architettura | prima della prima storia dell'editor |
 | Ambito della verità sul bus: quali risorse, oltre alle esecuzioni, passano dal bus (workflow, tenant, quote, pianificazioni, credenziali dei worker); dove si fanno, oltre a idempotenza, C-3, C-4 e `If-Match` (AD-18), gli altri controlli sullo stato più recente (quote di FR-30, concorrenza di FR-13, credenziali revocate di C-11, segreto presente all'avvio di FR-33, riferimenti all'eliminazione di FR-58, una pianificazione per workflow di FR-57); da dove l'API legge input e output di un'esecuzione viva (bus o archivio dei payload); quale stato operativo vive solo in memoria nel motore (vitalità dei worker, uso delle quote, metriche delle pipeline stream) e quale si proietta (fasi delle attività, motivi di attesa, ultimo uso dei segreti) | architettura | S-1, con il costo dentro NFR-4 |
@@ -863,5 +899,5 @@ docs/
 | Soglie di peso e di avvio del kit (né PRD né UX ne fissano) | Marco | ADR di S-4 |
 | Da valutare, rilievi dei revisori rimasti fuori da E-1…E-9 di `review-decisions.md`, identità e chiavi: tipo del dominio per il proprietario (integratore o tenant) e caso integratore contro tenant nel test di AD-5 (avversaria R15; l'identità è in AD-5); «versione» nella chiave di C-3 (avversaria R16); spazio e forma canonica della chiave di C-4, errore `idempotency.conflict` (avversaria R17); percorso del task con l'escape di RFC 6901 e istanza con gli indici, prima della prima storia di validazione (avversaria R18); precisione dei tempi al microsecondo (avversaria R24); impronta del nodo `sha256:` sui byte caricati (avversaria R33); indirizzo dei payload come HMAC o impronta del cifrato (rubrica, AD-3); elenco esatto delle parole chiave per minimi, massimi e lunghezze di AD-10 (rubrica) | architettura | prima della prima storia che li tocca |
 | Da valutare, rilievi dei revisori rimasti fuori da E-1…E-9 di `review-decisions.md`, API e client: `If-Match` obbligatorio con 428 e `If-None-Match: *` (avversaria R25); canonicalizzazione esposta ai client, nessuna versione per un documento canonicamente uguale (avversaria R22); predefiniti applicati solo dal motore (avversaria R23); payload come byte invariati, impronta e limite di 1 MB sui byte ricevuti (avversaria R28); `cron` in UTC e prossima scadenza calcolata solo dal dominio (avversaria R29, rubrica); da cosa dipende `packages/sdk` (rubrica; i tipi dell'API stanno in `crates/protocol`, AD-15); autorizzazione per operazione in una tabella con un test per operazione (rubrica) | architettura | prima della prima storia che li tocca |
-| Da valutare, rilievi dei revisori rimasti fuori da E-1…E-9 di `review-decisions.md`, sicurezza e processo: rinnovo delle chiavi dei tenant alla rotazione della principale e dati associati (AAD) (sicurezza M4; il formato con l'id della chiave è in C-12); eccezione solo con provenienza verificata, `npm ci --ignore-scripts`, `cargo audit` nel pre-push (sicurezza M13); nei log e nelle etichette solo identificativi opachi, `/metrics` fuori da localhost con credenziale dell'operatore (sicurezza M8); «localhost» = socket Unix o loopback su un ascolto loopback, deciso dall'indirizzo del socket e mai dalle intestazioni, con il costo del TLS tra i container di sviluppo e test (sicurezza M12); tipo di ambito del tenant per ogni metodo del repository, che serva anche a proiettore, ripresa e pianificatore (sicurezza B2); consegne con segreti a database fermo in attesa senza consumare tentativi (rubrica); M-02 chiusa prima di S-1, con un solo proprietario della forma delle connessioni (rubrica); controllo citato (test, gate o lint) per le Rule di AD-1, AD-3, AD-4, AD-8, AD-9, AD-10, AD-12, AD-15, AD-17, AD-19 (rubrica); campi di correlazione fissi nelle righe di log (rubrica) | architettura | prima della prima storia che li tocca; la proposta su M-02 prima di S-1 |
+| Da valutare, rilievi dei revisori rimasti fuori da E-1…E-9 di `review-decisions.md`, sicurezza e processo: rinnovo delle chiavi dei tenant alla rotazione della principale e dati associati (AAD) (sicurezza M4; il formato con l'id della chiave è in C-12); eccezione solo con provenienza verificata, `npm ci --ignore-scripts`, `cargo audit` nel pre-push (sicurezza M13); nei log e nelle etichette solo identificativi opachi, `/metrics` fuori da localhost con credenziale dell'operatore (sicurezza M8); «localhost» = socket Unix o loopback su un ascolto loopback, deciso dall'indirizzo del socket e mai dalle intestazioni, con il costo del TLS tra i container di sviluppo e test (sicurezza M12); tipo di ambito del tenant per ogni metodo del repository, che serva anche a proiettore, ripresa e pianificatore (sicurezza B2); consegne con segreti a database fermo in attesa senza consumare tentativi (rubrica); controllo citato (test, gate o lint) per le Rule di AD-1, AD-3, AD-4, AD-8, AD-9, AD-10, AD-12, AD-15, AD-17, AD-19 (rubrica); campi di correlazione fissi nelle righe di log (rubrica) | architettura | prima della prima storia che li tocca |
 | Dove vivono nello schema OpenAPI il catalogo dei codici di C-7 e il tipo del contesto di validazione di AD-11, che stanno nel dominio, visto che `crates/protocol` non dipende da nessun crate del workspace | architettura | prima della prima storia dell'API |

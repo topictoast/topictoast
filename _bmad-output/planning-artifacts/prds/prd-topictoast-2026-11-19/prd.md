@@ -330,16 +330,19 @@ espressioni jq, `schedule` del documento cron o a intervallo (FR-6).
 - Un documento OWS 1.1 che usa solo il sottoinsieme viene accettato ed eseguito con la semantica
   della specifica.
 - Un documento che usa un costrutto fuori dal sottoinsieme viene rifiutato all'invio con un errore
-  che nomina il costrutto e il percorso nel documento.
+  che nomina il costrutto e il percorso nel documento. Sono rifiutati anche costrutti che OWS
+  ammette ma topictoast no: cataloghi dichiarati, funzioni definite nel documento, funzioni
+  chiamate da un URL e chiamate con una versione diversa da `latest` (AD-20).
 - Si accettano documenti con `document.dsl` 1.1.x; gli altri valori vengono rifiutati con un errore
   che indica le versioni accettate `[ASSUMPTION]`.
 
 **Fuori perimetro:** `call` gRPC, OpenAPI, AsyncAPI e A2A; `run` di container, script e shell;
 `emit` e `listen`; conformità completa al CTK di OWS.
 
-**Note:** come un task invoca una funzione o un nodo personalizzato, e come dichiara segreti e
-connessioni dentro il formato OWS, lo fissa un aggiornamento dell'architettura, con la proposta prima
-dello spike del bus (§11 n. 7).
+**Note:** un task chiama una funzione di un worker con `call: <nome>:latest@default` e un nodo
+personalizzato con `call: node.<nome>:latest@default`, il catalogo predefinito di OWS (AD-20).
+Come un task senza manifest dichiara connessione e segreti lo fissa la spec della storia delle
+connessioni (§11 n. 7).
 
 #### FR-2: Dipendenze arbitrarie tra task
 
@@ -1592,8 +1595,10 @@ architettura, epiche e storie li citano.
    connessioni.
 7. Come un task OWS invoca funzioni e nodi personalizzati, come dichiara segreti e connessioni e
    come un workflow dichiara lo schema di input (FR-56), dentro il formato. **Chiusa in parte:**
-   lo schema di input è `input.schema` di OWS (AD-10); il resto lo fissa un aggiornamento
-   dell'architettura, con la proposta prima dello spike del bus.
+   lo schema di input è `input.schema` di OWS (AD-10); funzioni e nodi si chiamano dal catalogo
+   predefinito di OWS, i nodi con il prefisso `node.`, e su uno stream si scrive solo dall'SDK o
+   dalla sandbox (AD-20). Connessione e segreti di un task senza manifest: spec della storia delle
+   connessioni.
 8. Regola di propagazione di fallimenti e salti tra dipendenze DAG, e incrocio con `then` e
    `switch`. **Chiusa in parte:** la regola è in FR-2 (AD-9); `then`, `exit`, `end` e `switch`
    stanno in un `do` annidato dentro il `dag`, che conta come un solo task (AD-8). Restano aperti,

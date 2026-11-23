@@ -526,6 +526,7 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
 
 #### Domande aperte con scadenza
 - **AR-86** M-02 (invocazione funzioni/nodi custom, segreti e connessioni nel formato, scrittura su stream con tenant da `attemptId`, rifiuto di risorse esterne): Update spine prima della prima storia che lo tocca. ⚠ un'altra riga ("Da valutare… sicurezza e processo") dice "la proposta su M-02 prima di S-1". (OQ L799, L823)
+  → deciso il 2026-11-23: AD-20 (catalogo predefinito, prefisso `node.`, rifiuto senza rete, scrittura sugli stream dall'SDK); connessione e segreti dei task senza manifest alla spec delle connessioni (AR-89).
 - **AR-87** M-04 (input delle pianificazioni nel formato): Update spine prima della prima storia delle pianificazioni. (OQ L800)
 - **AR-88** Join dei dati, `$context` concorrente, sintassi fan-out dinamico in `dag` e politica d'errore vs AD-9 (se tocca AD-9 decide Marco): Update spine prima della prima storia `dag`. (OQ L801)
 - **AR-89** M-37 (forma delle connessioni): spec della storia delle connessioni (FR-29, FR-33). (OQ L802)
@@ -543,15 +544,18 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
 - **AR-100** Chi serve i file della dashboard (proposta: il motore, stessa origine), sessione operatore, CSRF: prima della storia d'accesso (FR-45, M-44). (OQ L813)
 - **AR-101** Salvataggio e pulizia dell'archivio payload insieme al DB: prima della storia che scrive il primo file. (OQ L814)
 - **AR-102** Formato di configurazione (file, chiavi, variabili d'ambiente, validazione con predefiniti dopo C-10, massimi NFR-14, ricarica): prima di S-1. (OQ L815)
+  → deciso il 2026-11-23: C-19 (ADR `2026-11-23-configuration-format`).
 - **AR-103** Formato di distribuzione e chi riavvia il motore (NFR-15) con endpoint salute/prontezza: riavvio ed endpoint nell'ADR di S-2 con M-28; distribuzione nella spec della prima storia di installazione (FR-50, NFR-13). (OQ L816)
 - **AR-104** Distribuzione librerie client (npm, crates.io) e piattaforme del validatore nativo per Node: prima della prima storia SDK o kit. (OQ L817)
 - **AR-105** Livello BDD di SDK TS e CLI (proposta: worker di prova TS al livello contratto, CLI guidata da scenari cucumber-rs): prima della prima storia SDK TS o CLI. (OQ L818)
 - **AR-106** Licenze ammesse (Apache-2.0; oggi escluso solo elkjs): Marco, prima della prima dipendenza dello sprint 1. (OQ L819)
+  → deciso da Marco il 2026-11-23: elenco nello Stack della spine (ADR `2026-11-23-dependency-licenses`).
 - **AR-107** Soglie di peso e avvio del kit: Marco, ADR di S-4. (OQ L820)
 - **AR-108** Rilievi dei revisori, identità e chiavi (tipo proprietario e caso integratore nel test AD-5, "versione" in C-3, chiave C-4 e `idempotency.conflict`, escape RFC 6901, tempi al microsecondo, impronta `sha256:` del nodo, indirizzo payload HMAC, parole chiave AD-10): prima della prima storia che li tocca. (OQ L821)
 - **AR-109** Rilievi, API e client (`If-Match` obbligatorio con 428 e `If-None-Match: *`, canonicalizzazione, predefiniti solo dal motore, payload a byte invariati con limite 1 MB, `cron` UTC, dipendenze di `packages/sdk`, autorizzazione per operazione con test): prima della prima storia che li tocca. (OQ L822)
 - **AR-110** Rilievi, sicurezza e processo (rinnovo chiavi tenant e AAD, `npm ci --ignore-scripts`, `cargo audit` nel pre-push, `/metrics` fuori da localhost con credenziale operatore, definizione di "localhost", ambito tenant per metodo del repository, consegne con segreti a DB fermo, controllo citato per le Rule di AD-1, 3, 4, 8, 9, 10, 12, 15, 17, 19, campi di correlazione nei log): prima della prima storia che li tocca; M-02 prima di S-1. (OQ L823)
 - **AR-111** Driver SQL e versione di SQLite (assente dallo Stack): prima di S-1. (OQ L824)
+  → deciso il 2026-11-23: sqlx 0.9.1 con SQLite 3.54 (ADR `2026-11-23-sql-driver`).
 - **AR-112** Dove vivono nello schema OpenAPI il catalogo codici C-7 e il tipo del contesto di validazione AD-11 (stanno nel dominio, `protocol` non dipende dal workspace): prima della prima storia dell'API. (OQ L825)
 
 #### Rimandato
@@ -603,7 +607,7 @@ come indice.
 | n.4 checkpoint | chiusa | AD-17 |
 | n.5 progetto separato con i nodi pronti | fuori dalla v1 | nessuna storia |
 | n.6 salvataggio di segreti e connessioni | busta e chiavi decise (AD-7, C-12) | forma delle connessioni: spec della storia delle connessioni (M-37, AR-89) |
-| n.7 invocazione di funzioni e nodi nel formato | chiusa in parte: schema di input in `input.schema` (AD-10); il resto aperto (M-02) | proposta prima di S-1, Update della spine prima della prima storia che la tocca (AR-86, AR-110: vale la scadenza più stretta) |
+| n.7 invocazione di funzioni e nodi nel formato | chiusa in parte: schema di input in `input.schema` (AD-10); chiamata dal catalogo predefinito e scrittura sugli stream (AD-20); connessione e segreti dei task senza manifest alla spec (M-37) | AD-20 (2026-11-23); resto: spec della storia delle connessioni, AR-89 | storia che la tocca (AR-86, AR-110: vale la scadenza più stretta) |
 | n.8 propagazione nel DAG | chiusa in parte: regola in AD-9; aperti join dei dati, `$context`, sintassi del fan-out e politica «il join riceve l'errore» | AD-9; join e fan-out dentro `dag`: Update della spine prima della prima storia `dag` (AR-88) |
 | n.9 riavvio a freddo degli ausiliari | aperta (M-28) | ADR di S-2 (AR-14) |
 | n.10 manifest senza worker o conteso | assegnata (M-08) | spec della storia di registrazione (AR-114) |
@@ -982,12 +986,12 @@ Lo sprint 1 parte solo quando tutte le voci sono chiuse.
 | S-2 Sandbox (AR-14…AR-16) | livello leggero e microVM; riavvio a freddo; chi riavvia il motore (AR-103) | architettura | 1, 10, 13 |
 | S-3 Pipeline stream (AR-17…AR-19) | DataFusion con stato, finestre, watermark, checkpoint sul caso UJ-3 | architettura | 11 |
 | S-4 Kit nel browser (AR-20, AR-21) | validatore `wasm32-wasip1` su Chromium, Firefox, Safari; soglie di peso e avvio (AR-107) | architettura, Marco | 6, 12 |
-| AR-86 | proposta su M-02: invocazione di funzioni e nodi, segreti e connessioni nel formato | architettura | 1, 7, 8, 10 |
+| AR-86 | chiusa il 2026-11-23: AD-20; resto alla spec delle connessioni (AR-89) | architettura | 1, 7, 8, 10 |
 | AR-96 | primo avvio: credenziali, certificati, chi firma `aud = sdk` | architettura | 1, 3, 4 |
-| AR-102 | formato della configurazione | architettura | 1 |
-| AR-111 | driver e versione di SQLite | architettura | 1 |
+| AR-102 | chiusa il 2026-11-23: C-19 | architettura | 1 |
+| AR-111 | chiusa il 2026-11-23: sqlx 0.9.1, SQLite 3.54 | architettura | 1 |
 | AR-92 | chiusa il 2026-11-23: log dei task nel perimetro (FR-59) | Marco | 2, 3, 4, 5, 6, 8, 10, 13 |
-| AR-106 | licenze ammesse per le dipendenze | Marco | tutte |
+| AR-106 | chiusa il 2026-11-23: elenco nello Stack della spine | Marco | tutte |
 
 ### Epic 1: Primo workflow eseguito
 
@@ -998,7 +1002,7 @@ legge l'esito; un crash del motore a metà esecuzione non perde nulla.
 **FRs covered:** FR-1 (nucleo), FR-4 (nucleo), FR-6 (avvio da API e SDK), FR-9, FR-11 (limite per attività), FR-12, FR-26 (fondamenta), FR-36, FR-37 (Rust), FR-50, FR-52 (base), FR-53 (benchmark di base), FR-55, FR-56
 **NFR:** NFR-6, NFR-7, NFR-8 (TLS, credenziale di worker), NFR-14, NFR-15
 **Invarianti dal primo giorno:** AD-2 verità sul bus; AD-3, AD-7, AD-17 cifratura per tenant e archivio dei payload con due spazi; AD-5 filtro del tenant con test a due tenant; AD-6 contenuto dei tenant solo nei processi ausiliari; C-7, C-9, C-11, C-14, C-16…C-18.
-**Bloccata da:** S-1; AR-86 (Update della spine su M-02 prima della prima chiamata di funzione); AR-97, AR-98, AR-101, AR-103 (distribuzione), AR-104, AR-112; le parti di AR-108, AR-109, AR-110 che tocca.
+**Bloccata da:** S-1; AR-97, AR-98, AR-101, AR-103 (distribuzione), AR-104, AR-112; le parti di AR-108, AR-109, AR-110 che tocca.
 **Note:** la prima storia è lo scaffold greenfield, senza template di partenza (AR-1…AR-6): workspace Cargo e npm, `dashboard/`, gate, hook, `docker compose`. Prova di UJ-1 lato motore.
 
 ### Epic 2: DAG, fan-out e controllo delle esecuzioni
@@ -1128,7 +1132,7 @@ minuti con la guida rapida, e il benchmark pubblico dimostra gli obiettivi.
 
 | AR | Casa |
 | --- | --- |
-| AR-86 | Prima dello sprint 1 (proposta); Epic 1 (Update della spine prima della prima chiamata di funzione) |
+| AR-86 | chiusa (AD-20); la parte delle connessioni nell'Epic 8 (AR-89) |
 | AR-87 | Epic 9 |
 | AR-88 | Epic 2 |
 | AR-89 | Epic 8 |
@@ -1141,16 +1145,16 @@ minuti con la guida rapida, e il benchmark pubblico dimostra gli obiettivi.
 | AR-98 | Epic 1 |
 | AR-99, AR-100 | Epic 3 |
 | AR-101 | Epic 1 |
-| AR-102 | Prima dello sprint 1 |
+| AR-102 | chiusa (C-19) |
 | AR-103 | S-2 (riavvio ed endpoint di salute); Epic 1 (formato di distribuzione) |
 | AR-104 | Epic 1 (SDK Rust); Epic 5 e Epic 6 (npm, validatore nativo per Node) |
 | AR-105 | Epic 5 |
-| AR-106 | Prima dello sprint 1 (Marco) |
+| AR-106 | chiusa (Stack della spine) |
 | AR-107 | S-4 (Marco) |
 | AR-108 | Epic 1 (tipo del proprietario, percorsi RFC 6901, microsecondi, indirizzo dei payload, parole chiave di AD-10); Epic 9 (C-3); Epic 10 (impronta del nodo); Epic 11 (C-4) |
 | AR-109 | Epic 1 (canonicalizzazione, predefiniti dal motore, byte e 1 MB, autorizzazione per operazione); Epic 2 (`If-Match`); Epic 5 (`packages/sdk`); Epic 9 (`cron` in UTC) |
-| AR-110 | Prima dello sprint 1 (M-02); Epic 1 (`npm ci --ignore-scripts`, `cargo audit`, «localhost», ambito del tenant, controlli delle Rule, campi di correlazione, `/metrics`); Epic 8 (rinnovo delle chiavi dei tenant, consegne a database fermo) |
-| AR-111 | Prima dello sprint 1 |
+| AR-110 | Epic 1 (`npm ci --ignore-scripts`, `cargo audit`, «localhost», ambito del tenant, controlli delle Rule, campi di correlazione, `/metrics`); Epic 8 (rinnovo delle chiavi dei tenant, consegne a database fermo) |
+| AR-111 | chiusa (Stack della spine) |
 | AR-112 | Epic 1 |
 | AR-113 | Epic 1 (M-06, M-07 per Rust); Epic 5 (M-07 per TypeScript) |
 | AR-114 | Epic 1 (M-08); Epic 2 (M-09, compatibilità tra campi) |
@@ -3098,7 +3102,7 @@ così che un workflow non raggiunge mai la rete interna dell'installazione.
 
 **Dato** un documento con risorse esterne (`schema.resource`, `use.catalogs`, definizioni da un URL)
 **Quando** viene inviato
-**Allora** è rifiutato alla validazione senza aprire connessioni di rete, come fissato per M-02
+**Allora** è rifiutato alla validazione senza aprire connessioni di rete, come fissato da AD-20 (M-02)
 
 ## Epic 8: Segreti e connessioni
 
@@ -3166,7 +3170,7 @@ così che un workflow non parte mai senza le credenziali che servono.
 
 **Dato** una versione pubblicata
 **Quando** viene salvata
-**Allora** le connessioni di ogni task sono fissate in quella versione, nella forma decisa per M-02 e M-37, e controllate sui manifest
+**Allora** le connessioni di ogni task sono fissate in quella versione, nella forma decisa da AD-20 e dalla spec di M-37, e controllate sui manifest
 
 ### Story 8.3: Consegna dei segreti al momento dell'esecuzione
 
