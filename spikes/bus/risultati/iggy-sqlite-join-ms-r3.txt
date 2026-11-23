@@ -1,0 +1,34 @@
+[stato prima 17:10:22] load: 0.86 1.20 1.22
+[stato prima] io: some avg10=0.73 avg60=5.58 avg300=9.22 total=708822633
+[stato prima] cpu: some avg10=0.00 avg60=0.14 avg300=0.24 total=115880246
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 0.10
+[attesa] 15 s
+### iggy + sqlite: join 
+engine pid=787278 READY recovered_ms=655
+load tenants=ab rate=50/s kind=1 n=4 size=1024 work_ms=1500 warm=5s measured=30s
+offered=1750 accepted=1750 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=1501 p50=15.64ms p99=43.23ms p99.9=56.48ms max=58.24ms over100ms=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=1500 refused=0 done=7505 rejected=0 groups=262
+activities_per_s=250 accepted_per_s=50
+accept_engine n=1500 p50=15.10ms p99=42.62ms p99.9=55.90ms max=57.79ms over100ms=0
+append n=2906 p50=8.94ms p99=24.64ms p99.9=35.94ms max=41.89ms over100ms=0
+start_ready n=7505 p50=10.85ms p99=29.71ms p99.9=37.12ms max=42.17ms over100ms=0
+start_sent n=7505 p50=0.24ms p99=0.39ms p99.9=0.49ms max=0.90ms over100ms=0
+start_join n=1501 p50=11.07ms p99=29.74ms p99.9=37.12ms max=37.15ms over100ms=0
+start_ready_tenant_b n=3753 p50=10.81ms p99=29.54ms p99.9=36.64ms max=37.15ms over100ms=0
+archive_read n=4503 p50=0.18ms p99=0.40ms p99.9=1.92ms max=2.54ms over100ms=0
+proj_lag n=16521 p50=150.78ms p99=289.28ms p99.9=304.64ms max=313.34ms over100ms=11954
+sql_stmts=1834 sql_rows=18287 sql_per_activity=0.2444 rows_per_activity=2.437 wal_bytes_per_activity=0.0
+engine_cpu_s=4.65 cache_entries=71
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 77432 kB
+rss pid=787278 24468 kB
+rss pid=787351 12660 kB
+-- conteggio file archivio: 10338
+[stato dopo 17:11:06] load: 2.46 1.53 1.33
+[stato dopo] io: some avg10=45.81 avg60=23.24 avg300=13.19 total=725305725
+[stato dopo] cpu: some avg10=1.87 avg60=0.84 avg300=0.41 total=116707456
+[stato dopo] container non nostri non in esecuzione stabile: 5; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-1 0.15

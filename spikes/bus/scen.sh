@@ -4,7 +4,7 @@
 # Scenari: accept start1k thr10k thrmax size64k size1m join iso0 iso kill dbdown rss
 cd "$(dirname "$0")" || exit 1
 BUS=$1; DB=$2; SC=$3; shift 3
-BIN=/home/white_sheep/.cache/cargo-targets/topictoast-spike-bus/release/busspike
+BIN=${SPIKE_BIN:-/home/white_sheep/.cache/cargo-targets/topictoast-spike-bus/release/busspike}
 set -a; . ./.env; set +a
 mkdir -p out
 case $DB in

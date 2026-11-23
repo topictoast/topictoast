@@ -1,5 +1,7 @@
 # Spike S-1, fase 2: Iggy contro Valkey, risultati
 
+> **Aggiornamento 2026-11-23:** i ritardi di coda sono stati rimisurati su una macchina ferma (minisheep), v. `fase2b-risultati.md`. Il verdetto su coda e throughput di questo documento va letto insieme a quello: su minisheep la coda di Iggy resta fuori in accettazione, join e tenant lento, e il throughput di Valkey scende sotto le 10.000 att./s anche senza archivio.
+
 Data: 2026-11-23. Codice da buttare in `spikes/bus/` (crate `busspike`, fuori dai workspace e dal
 gate). Numeri grezzi di ogni corsa in `spikes/bus/risultati/<bus>-<db>-<scenario>-r<n>.txt`.
 

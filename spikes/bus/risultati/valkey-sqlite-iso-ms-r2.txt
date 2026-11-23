@@ -1,0 +1,41 @@
+[stato prima 17:25:30] load: 1.40 1.59 1.43
+[stato prima] io: some avg10=0.17 avg60=7.24 avg300=9.98 total=815126769
+[stato prima] cpu: some avg10=0.00 avg60=0.27 avg300=0.31 total=121686349
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 55 s
+### valkey + sqlite: iso 
+engine pid=854055 READY recovered_ms=62
+load tenants=b rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=30s
+offered=3499 accepted=3499 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=3000 p50=9.91ms p99=45.09ms p99.9=59.55ms max=65.34ms over100ms=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=14995 refused=0 done=35064 rejected=0 groups=242
+activities_per_s=1169 accepted_per_s=500
+accept_engine n=14995 p50=9.34ms p99=44.26ms p99.9=59.30ms max=68.16ms over100ms=0
+append n=4798 p50=5.14ms p99=21.49ms p99.9=35.55ms max=45.31ms over100ms=0
+start_ready n=35064 p50=6.44ms p99=19087.36ms p99.9=19136.51ms max=19185.66ms over100ms=5120
+start_sent n=35064 p50=0.22ms p99=0.42ms p99.9=0.61ms max=2.12ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=29944 p50=5.91ms p99=25.93ms p99.9=39.58ms max=47.17ms over100ms=0
+archive_read n=5120 p50=0.12ms p99=0.36ms p99.9=1.98ms max=2.43ms over100ms=0
+proj_lag n=92398 p50=167.29ms p99=327.17ms p99.9=354.30ms max=370.94ms over100ms=71558
+sql_stmts=1570 sql_rows=100766 sql_per_activity=0.0448 rows_per_activity=2.874 wal_bytes_per_activity=0.0
+engine_cpu_s=11.71 cache_entries=440
+-- tenant A (lento)
+load tenants=a rate=400/s kind=0 n=1 size=1024 work_ms=3000 warm=2s measured=40s
+offered=16800 accepted=16800 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=16000 p50=9.22ms p99=41.73ms p99.9=58.75ms max=68.61ms over100ms=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+-- valkey: total_forks:1 aof_last_rewrite_time_sec:0 aof_rewrites:1 
+-- RSS dopo la corsa (motore, worker, bus)
+rss valkey 23216 kB
+rss pid=854055 40916 kB
+rss pid=854125 13580 kB
+-- conteggio file archivio: 61945
+[stato dopo 17:26:21] load: 1.54 1.60 1.44
+[stato dopo] io: some avg10=5.06 avg60=5.70 avg300=9.09 total=817512534
+[stato dopo] cpu: some avg10=0.00 avg60=0.11 avg300=0.25 total=121873107
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.03

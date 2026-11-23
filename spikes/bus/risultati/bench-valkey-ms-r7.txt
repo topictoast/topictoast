@@ -1,0 +1,16 @@
+[stato prima 16:18:35] load: 1.14 1.26 0.94
+[stato prima] io: some avg10=0.67 avg60=10.65 avg300=12.69 total=349139700
+[stato prima] cpu: some avg10=0.03 avg60=0.64 avg300=0.62 total=98812664
+[stato prima] container non nostri non in esecuzione stabile: 6; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.04
+[attesa] 45 s
+== rep=7 bus=valkey
+bench-append bus=valkey size=1024 batch=1 conc=1: n=2108 p50=2.96ms p99=3.83ms p99.9=4.81ms max=11.08ms over100ms=0 msgs/s=351
+bench-append bus=valkey size=1024 batch=50 conc=1: n=695 p50=8.76ms p99=12.03ms p99.9=29.71ms max=29.71ms over100ms=0 msgs/s=5792
+bench-append bus=valkey size=1024 batch=100 conc=4: n=1172 p50=20.69ms p99=26.75ms p99.9=33.73ms max=33.79ms over100ms=0 msgs/s=19533
+total_forks:3
+[stato dopo 16:19:06] load: 1.30 1.28 0.96
+[stato dopo] io: some avg10=18.13 avg60=13.19 avg300=13.07 total=354510688
+[stato dopo] cpu: some avg10=0.00 avg60=0.38 avg300=0.55 total=98894273
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-2 0.06

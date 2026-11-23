@@ -1,0 +1,34 @@
+[stato prima 16:36:13] load: 1.38 1.20 1.14
+[stato prima] io: some avg10=0.84 avg60=5.51 avg300=10.35 total=479517155
+[stato prima] cpu: some avg10=0.00 avg60=0.07 avg300=0.21 total=105185707
+[stato prima] container non nostri non in esecuzione stabile: 6; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 0.03
+[attesa] 5 s
+### iggy + sqlite: accept 
+engine pid=638686 READY recovered_ms=387
+load tenants=a rate=200/s kind=0 n=1 size=1024 work_ms=0 warm=3s measured=30s
+offered=6600 accepted=6600 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=6000 p50=23.86ms p99=86.85ms p99.9=109.12ms max=128.90ms over100ms=12
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=6001 refused=0 done=6002 rejected=0 groups=122
+activities_per_s=200 accepted_per_s=200
+accept_engine n=6001 p50=23.26ms p99=86.14ms p99.9=108.35ms max=128.32ms over100ms=12
+append n=1889 p50=13.97ms p99=50.59ms p99.9=72.06ms max=90.56ms over100ms=0
+start_ready n=6002 p50=14.58ms p99=59.36ms p99.9=72.45ms max=91.07ms over100ms=0
+start_sent n=6002 p50=0.30ms p99=0.53ms p99.9=0.62ms max=0.64ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+archive_read n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+proj_lag n=17965 p50=181.12ms p99=373.76ms p99.9=406.01ms max=430.59ms over100ms=14838
+sql_stmts=854 sql_rows=24076 sql_per_activity=0.1423 rows_per_activity=4.011 wal_bytes_per_activity=0.0
+engine_cpu_s=4.58 cache_entries=200
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 79592 kB
+rss pid=638686 25776 kB
+rss pid=638756 12456 kB
+-- conteggio file archivio: 13183
+[stato dopo 16:36:54] load: 1.62 1.27 1.17
+[stato dopo] io: some avg10=46.63 avg60=23.66 avg300=14.31 total=496448977
+[stato dopo] cpu: some avg10=0.87 avg60=0.42 avg300=0.28 total=105700561
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.01

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Una ripetizione del bench del solo bus, bus alternati, ognuno su dati vuoti: ./bench-rep.sh <etichetta> [bus...]
 cd "$(dirname "$0")" || exit 1
-B=/home/white_sheep/.cache/cargo-targets/topictoast-spike-bus/release/busspike
+B=${SPIKE_BIN:-/home/white_sheep/.cache/cargo-targets/topictoast-spike-bus/release/busspike}
 L=$1; shift
 for bus in ${*:-iggy valkey}; do
   ./reset.sh iggy valkey

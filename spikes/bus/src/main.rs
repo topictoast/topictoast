@@ -35,12 +35,13 @@ pub fn now_us() -> u64 {
 /// p50/p99/max in ms, con il numero dei campioni.
 pub fn fmt(h: &Histogram<u64>) -> String {
     format!(
-        "n={} p50={:.2}ms p99={:.2}ms p99.9={:.2}ms max={:.2}ms",
+        "n={} p50={:.2}ms p99={:.2}ms p99.9={:.2}ms max={:.2}ms over100ms={}",
         h.len(),
         h.value_at_quantile(0.5) as f64 / 1e3,
         h.value_at_quantile(0.99) as f64 / 1e3,
         h.value_at_quantile(0.999) as f64 / 1e3,
-        h.max() as f64 / 1e3
+        h.max() as f64 / 1e3,
+        h.count_between(100_000, u64::MAX)
     )
 }
 

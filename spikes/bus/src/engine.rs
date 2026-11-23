@@ -566,7 +566,7 @@ impl pb::control_server::Control for Ctl {
         let mut m = self.sh.m.lock().unwrap();
         let secs = m.since.elapsed().as_secs_f64();
         let f = |h: &Histogram<u64>| {
-            format!("n={} p50={:.2}ms p99={:.2}ms p99.9={:.2}ms max={:.2}ms", h.len(), h.value_at_quantile(0.5) as f64 / 1e3, h.value_at_quantile(0.99) as f64 / 1e3, h.value_at_quantile(0.999) as f64 / 1e3, h.max() as f64 / 1e3)
+            format!("n={} p50={:.2}ms p99={:.2}ms p99.9={:.2}ms max={:.2}ms over100ms={}", h.len(), h.value_at_quantile(0.5) as f64 / 1e3, h.value_at_quantile(0.99) as f64 / 1e3, h.value_at_quantile(0.999) as f64 / 1e3, h.max() as f64 / 1e3, h.count_between(100_000, u64::MAX))
         };
         let stm = self.sh.db.stmts.load(Relaxed) - m.stmts0;
         let rows = self.sh.db.rows.load(Relaxed) - m.rows0;
