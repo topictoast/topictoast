@@ -489,6 +489,7 @@ dependencies = [
  "prost",
  "rcgen",
  "redis",
+ "rustls",
  "sha2",
  "sqlx",
  "tokio",

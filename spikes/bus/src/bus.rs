@@ -74,10 +74,20 @@ impl Bus {
                 let o = TopicCreateOptions {
                     partitions_count: Some(1),
                     message_expiry: Some(IggyExpiry::NeverExpire),
-                    durability: Durability::Persisted,
+                    // IGGY_DURABILITY=replicated solo come controllo di confronto
+                    durability: if std::env::var("IGGY_DURABILITY").as_deref() == Ok("replicated") {
+                        Durability::Replicated
+                    } else {
+                        Durability::Persisted
+                    },
                     ..TopicCreateOptions::default()
                 };
-                let _ = c.create_topic(&s, topic, &o).await;
+                c.create_topic(&s, topic, &o).await?;
+            }
+            // rilettura: la durabilità richiesta deve essere quella applicata
+            let t = c.get_topic(&s, &Identifier::named(topic)?).await?.ok_or("topic mancante")?;
+            if std::env::var("BUS_PRINT_TOPIC").is_ok() {
+                eprintln!("{t:?}");
             }
         }
         Ok(())

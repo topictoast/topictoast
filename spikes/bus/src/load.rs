@@ -1,0 +1,168 @@
+//! Generatore di carico a ritmo fisso (open-loop: la latenza parte dall'istante previsto, non da
+//! quello d'invio, per non nascondere le code), registro delle accettazioni e verifiche finali.
+
+use crate::engine::{TENANTS, topic_of};
+use crate::{arg, fmt, hist, now_us, pb, worker};
+use std::io::Write;
+use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+pub async fn stats(url: &str, dir: &str, reset: bool) -> String {
+    let mut c = pb::control_client::ControlClient::new(worker::channel(url, dir));
+    c.stats(pb::StatsReq { reset }).await.map(|r| r.into_inner().text).unwrap_or_else(|e| format!("stats non disponibili: {e}"))
+}
+
+pub async fn load(url: &str, dir: &str) {
+    let rate: f64 = arg("rate", "100").parse().unwrap();
+    let kind: u32 = arg("kind", "0").parse().unwrap();
+    let n: u32 = arg("n", "1").parse().unwrap();
+    let size: usize = arg("size", "1024").parse().unwrap();
+    let work_ms: u32 = arg("work_ms", "0").parse().unwrap();
+    let secs: f64 = arg("secs", "10").parse().unwrap();
+    let warm: f64 = arg("warm", "2").parse().unwrap();
+    let tenants = arg("tenants", "a");
+    let ledger_path = arg("ledger", "");
+    let do_stats = arg("stats", "1") == "1";
+    let max_out: usize = arg("max_out", "20000").parse().unwrap();
+    let chans: Vec<_> = (0..4).map(|_| pb::control_client::ControlClient::new(worker::channel(url, dir).clone()).max_encoding_message_size(64 << 20)).collect();
+    let h = Arc::new(Mutex::new(hist()));
+    let ledger = Arc::new(Mutex::new(Vec::<[u8; 16]>::new()));
+    let (offered, ok, refused, errs, overload) = (Arc::new(AtomicU64::new(0)), Arc::new(AtomicU64::new(0)), Arc::new(AtomicU64::new(0)), Arc::new(AtomicU64::new(0)), Arc::new(AtomicU64::new(0)));
+    let sem = Arc::new(tokio::sync::Semaphore::new(max_out));
+    let start = Instant::now();
+    let mut tick = tokio::time::interval(Duration::from_millis(1));
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Burst);
+    let mut acc = 0.0;
+    let mut i = 0usize;
+    let mut reset_done = false;
+    let mut tasks = tokio::task::JoinSet::new();
+    let mut input = vec![0u8; size];
+    // intervallo di misura = [warm, warm+secs]; l'ultimo istante di invio è warm+secs
+    while start.elapsed().as_secs_f64() < warm + secs {
+        tick.tick().await;
+        let el = start.elapsed().as_secs_f64();
+        if !reset_done && el >= warm {
+            reset_done = true;
+            if do_stats {
+                stats(url, dir, true).await;
+            }
+        }
+        acc += rate / 1000.0;
+        while acc >= 1.0 {
+            acc -= 1.0;
+            i += 1;
+            let tenant = match tenants.as_str() {
+                "a" => 0,
+                "b" => 1,
+                _ => i % 2,
+            };
+            input[..8].copy_from_slice(&(i as u64).to_le_bytes());
+            let req = pb::AcceptReq { tenant: TENANTS[tenant].to_vec(), kind, n, work_ms, out_size: size as u32, input: input.clone() };
+            let Ok(permit) = sem.clone().try_acquire_owned() else {
+                overload.fetch_add(1, Relaxed);
+                continue;
+            };
+            offered.fetch_add(1, Relaxed);
+            let intended = Instant::now();
+            let measured = reset_done;
+            let mut c = chans[i % chans.len()].clone();
+            let (h, ledger, ok, refused, errs) = (h.clone(), ledger.clone(), ok.clone(), refused.clone(), errs.clone());
+            tasks.spawn(async move {
+                match c.accept(req).await {
+                    Ok(r) => {
+                        if measured {
+                            h.lock().unwrap().record(intended.elapsed().as_micros() as u64 + 1).ok();
+                        }
+                        ok.fetch_add(1, Relaxed);
+                        ledger.lock().unwrap().push(r.into_inner().exec.try_into().unwrap());
+                    }
+                    Err(e) if e.message() == "E_PROJECTION_DOWN" => {
+                        refused.fetch_add(1, Relaxed);
+                    }
+                    Err(_) => {
+                        errs.fetch_add(1, Relaxed);
+                    }
+                }
+                drop(permit);
+            });
+        }
+        while tasks.try_join_next().is_some() {}
+    }
+    let st = if do_stats { stats(url, dir, false).await } else { String::new() };
+    while tasks.join_next().await.is_some() {}
+    println!("load tenants={tenants} rate={rate}/s kind={kind} n={n} size={size} work_ms={work_ms} warm={warm}s measured={secs}s");
+    println!("offered={} accepted={} refused_E_PROJECTION_DOWN={} errors={} overload_skipped={}", offered.load(Relaxed), ok.load(Relaxed), refused.load(Relaxed), errs.load(Relaxed), overload.load(Relaxed));
+    println!("accept_rtt_open_loop {}", fmt(&h.lock().unwrap()));
+    println!("-- statistiche del motore a fine finestra (prima dello svuotamento)\n{st}");
+    if !ledger_path.is_empty() {
+        let mut f = std::io::BufWriter::new(std::fs::File::create(&ledger_path).unwrap());
+        for id in ledger.lock().unwrap().iter() {
+            writeln!(f, "{}", crate::crypto::hex(id)).unwrap();
+        }
+    }
+}
+
+/// Verifica dopo il guasto: ogni accettata è conclusa una volta sola nella proiezione e sul bus.
+pub async fn verify(db_url: &str, bus_kind: &str, dir: &str) {
+    let ledger_path = arg("ledger", "");
+    let db = crate::db::Db::open(db_url).await.unwrap();
+    let accepted: Vec<String> = std::fs::read_to_string(&ledger_path).unwrap().lines().map(String::from).collect();
+    let done = db.done_ids().await.unwrap();
+    let done_hex: std::collections::HashSet<String> = done.iter().map(|d| crate::crypto::hex(d)).collect();
+    let missing = accepted.iter().filter(|a| !done_hex.contains(*a)).count();
+    let bad = db.count("SELECT count(*) FROM activity WHERE done_us IS NOT NULL AND done_events <> 1").await.unwrap();
+    let open = db.count("SELECT count(*) FROM activity a JOIN execution e ON e.id = a.exec_id WHERE e.done_us IS NOT NULL AND a.done_us IS NULL").await.unwrap();
+    let tot = db.count("SELECT count(*) FROM activity WHERE done_us IS NOT NULL").await.unwrap();
+    // bus: conta gli eventi Done per attività (richiede trim=0)
+    let keys = crate::crypto::Keys::load(&format!("{dir}/master.key"));
+    let bus = crate::bus::Bus::connect(bus_kind).await.unwrap();
+    let mut dup = 0u64;
+    let mut seen = std::collections::HashSet::new();
+    let mut dones = 0u64;
+    for t in &TENANTS {
+        let topic = topic_of(t);
+        let mut p = 0;
+        loop {
+            let r = bus.read(&topic, p, 1000).await.unwrap();
+            if r.is_empty() {
+                break;
+            }
+            for (pp, raw) in r {
+                if let crate::ev::Ev::Done { exec, step, .. } = crate::ev::Ev::decode(&keys.open(&format!("bus/{topic}"), &raw).2) {
+                    dones += 1;
+                    if !seen.insert((exec, step)) {
+                        dup += 1;
+                    }
+                }
+                p = pp + 1;
+            }
+        }
+    }
+    println!("verify: accettate={} concluse_nella_proiezione={} accettate_perse={missing} attivita_concluse={tot} done_events!=1:{bad} attivita_aperte_in_esecuzioni_concluse={open} eventi_Done_sul_bus={dones} duplicati_sul_bus={dup}", accepted.len(), done.len());
+    let ok = missing == 0 && bad == 0 && open == 0 && dup == 0;
+    println!("verify {}", if ok { "OK" } else { "FALLITA" });
+    if !ok {
+        std::process::exit(1);
+    }
+}
+
+/// Tiene un lock esclusivo sul file SQLite per `secs` secondi (emulazione di "database fermo").
+pub async fn lock_db(url: &str, secs: u64) {
+    use sqlx::Connection;
+    sqlx::any::install_default_drivers();
+    let mut c = sqlx::AnyConnection::connect(url).await.unwrap();
+    sqlx::query("BEGIN EXCLUSIVE").execute(&mut c).await.unwrap();
+    println!("lock esclusivo preso per {secs}s (now_us={})", now_us());
+    tokio::time::sleep(Duration::from_secs(secs)).await;
+    sqlx::query("ROLLBACK").execute(&mut c).await.unwrap();
+    println!("lock rilasciato (now_us={})", now_us());
+}
+
+/// Certificato autofirmato per localhost (C-14: generato, mai valori predefiniti).
+pub fn gen_cert(dir: &str) {
+    std::fs::create_dir_all(format!("{dir}/tls")).unwrap();
+    let c = rcgen::generate_simple_self_signed(vec!["localhost".to_string()]).unwrap();
+    std::fs::write(format!("{dir}/tls/cert.pem"), c.cert.pem()).unwrap();
+    std::fs::write(format!("{dir}/tls/key.pem"), c.signing_key.serialize_pem()).unwrap();
+}

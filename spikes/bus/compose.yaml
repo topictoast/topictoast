@@ -12,21 +12,22 @@ services:
       IGGY_ROOT_USERNAME: ${IGGY_ROOT_USERNAME:?genera .env}
       IGGY_ROOT_PASSWORD: ${IGGY_ROOT_PASSWORD:?genera .env}
       # una sola configurazione per tutte le misure
-      IGGY_SHARDING_CPU_ALLOCATION: ${IGGY_SHARDS:-2}
+      IGGY_SHARDING_CPU_ALLOCATION: ${IGGY_SHARDS:-1}
       IGGY_PARTITION_WAL_GROUP_COMMIT_DELAY_MICROS: ${IGGY_GC_DELAY:-500}
+      IGGY_MEMORY_POOL_SIZE: ${IGGY_POOL:-512MiB}
       IGGY_TCP_ADDRESS: 0.0.0.0:8090
       IGGY_HTTP_ENABLED: "false"
       IGGY_QUIC_ENABLED: "false"
       IGGY_WEBSOCKET_ENABLED: "false"
     ports: ["127.0.0.1:47001:8090"]
-    volumes: ["./data/iggy:/local_data"]
+    volumes: ["${SPIKE_DATA:-/home/white_sheep/.cache/ttspikebus-data}/iggy:/local_data"]
   valkey:
     image: valkey/valkey:9.1.4
     command: >
       valkey-server --appendonly yes --appendfsync ${VALKEY_FSYNC:-always} --save ""
       --requirepass ${VALKEY_PASSWORD:?genera .env} --dir /data
     ports: ["127.0.0.1:47002:6379"]
-    volumes: ["./data/valkey:/data"]
+    volumes: ["${SPIKE_DATA:-/home/white_sheep/.cache/ttspikebus-data}/valkey:/data"]
   postgres:
     image: postgres:18.7
     environment:
@@ -34,4 +35,4 @@ services:
       POSTGRES_DB: spike
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?genera .env}
     ports: ["127.0.0.1:47003:5432"]
-    volumes: ["./data/postgres:/var/lib/postgresql"]
+    volumes: ["${SPIKE_DATA:-/home/white_sheep/.cache/ttspikebus-data}/postgres:/var/lib/postgresql"]

@@ -24,6 +24,7 @@ rcgen = "=0.14.10"
 uuid = { version = "=1.29.1", features = ["v7"] }
 libc = "=0.2.191"
 bytes = "=1.12.1"
+rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std"] }
 
 [build-dependencies]
 tonic-prost-build = "=0.14.9"

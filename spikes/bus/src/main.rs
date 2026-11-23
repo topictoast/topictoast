@@ -1,5 +1,15 @@
 //! Spike S-1 fase 2: Iggy contro Valkey. Codice da buttare; un solo binario con sottocomandi.
 mod bus;
+mod crypto;
+mod db;
+mod engine;
+mod ev;
+mod load;
+mod worker;
+
+pub mod pb {
+    tonic::include_proto!("spike");
+}
 
 use bus::Bus;
 use bytes::Bytes;
@@ -9,11 +19,17 @@ use std::time::{Duration, Instant};
 /// Argomenti `chiave=valore` dopo il sottocomando.
 pub fn arg(k: &str, d: &str) -> String {
     let p = format!("{k}=");
-    std::env::args().find_map(|a| a.strip_prefix(&p).map(String::from)).unwrap_or(d.into())
+    // vince l'ultima occorrenza, così gli argomenti dopo i predefiniti dello script li sovrascrivono
+    std::env::args().rev().find_map(|a| a.strip_prefix(&p).map(String::from)).unwrap_or(d.into())
 }
 
 pub fn hist() -> Histogram<u64> {
     Histogram::new_with_bounds(1, 120_000_000, 3).unwrap()
+}
+
+/// Microsecondi dall'epoca Unix: stesso orologio tra i processi della stessa macchina.
+pub fn now_us() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros() as u64
 }
 
 /// p50/p99/max in ms, con il numero dei campioni.
@@ -30,19 +46,41 @@ pub fn fmt(h: &Histogram<u64>) -> String {
 
 #[tokio::main]
 async fn main() {
+    // due provider (ring con tonic, aws-lc con rcgen): si sceglie ring in modo esplicito
+    rustls::crypto::ring::default_provider().install_default().unwrap();
     let cmd = std::env::args().nth(1).unwrap_or_default();
+    let dir = arg("dir", "out");
+    let url = arg("engine", "https://localhost:47010");
     match cmd.as_str() {
         "fsync-floor" => fsync_floor(),
         "bench-append" => bench_append().await,
-        _ => eprintln!("sottocomandi: fsync-floor bench-append"),
+        "gen-cert" => load::gen_cert(&dir),
+        "engine" => {
+            engine::main(
+                &arg("bus", "valkey"),
+                &arg("db", "sqlite:out/spike.db?mode=rwc"),
+                &arg("listen", "127.0.0.1:47010"),
+                &dir,
+                arg("cap", "512").parse().unwrap(),
+                arg("proj_batch", "1000").parse().unwrap(),
+                arg("trim", "1") == "1",
+                arg("window_ms", "200").parse().unwrap(),
+            )
+            .await
+        }
+        "worker" => worker::run(&url, &dir, arg("sessions", "4").parse().unwrap()).await,
+        "load" => load::load(&url, &dir).await,
+        "stats" => println!("{}", load::stats(&url, &dir, arg("reset", "0") == "1").await),
+        "verify" => load::verify(&arg("db", ""), &arg("bus", "valkey"), &dir).await,
+        "lock-db" => load::lock_db(&arg("db", ""), arg("secs", "10").parse().unwrap()).await,
+        _ => eprintln!("sottocomandi: fsync-floor bench-append gen-cert engine worker load stats verify lock-db"),
     }
 }
 
 /// Soglia minima fisica: scrittura di 4 KB + fdatasync sul disco dei dati.
 fn fsync_floor() {
-    use std::io::Write;
     use std::os::unix::fs::FileExt;
-    let dir = arg("dir", "data");
+    let dir = arg("dir", "out");
     let f = std::fs::File::create(format!("{dir}/floor.tmp")).unwrap();
     let buf = vec![7u8; 4096];
     let mut h = hist();
@@ -52,7 +90,6 @@ fn fsync_floor() {
         f.sync_data().unwrap();
         h.record(t.elapsed().as_micros() as u64).unwrap();
     }
-    std::io::stdout().flush().unwrap();
     println!("fsync-floor {dir}: {}", fmt(&h));
     std::fs::remove_file(format!("{dir}/floor.tmp")).unwrap();
 }
@@ -102,9 +139,5 @@ async fn bench_append() {
         n += b;
     }
     bus.drop_topic(&topic).await.ok();
-    println!(
-        "bench-append bus={kind} size={size} batch={batch} conc={conc}: {} msgs/s={:.0}",
-        fmt(&h),
-        n as f64 / secs as f64
-    );
+    println!("bench-append bus={kind} size={size} batch={batch} conc={conc}: {} msgs/s={:.0}", fmt(&h), n as f64 / secs as f64);
 }

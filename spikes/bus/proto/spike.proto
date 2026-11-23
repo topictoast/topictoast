@@ -1,2 +1,44 @@
 syntax = "proto3";
 package spike;
+
+// Controllo: avvio di un'esecuzione (accettazione durevole) e statistiche della corsa.
+message AcceptReq {
+  bytes tenant = 1;   // identificativo interno, 16 byte
+  uint32 kind = 2;    // 0 catena, 1 fan-out con join
+  uint32 n = 3;       // passi della catena o rami del fan-out
+  uint32 work_ms = 4; // durata simulata di ogni attività
+  uint32 out_size = 5;
+  bytes input = 6;
+}
+message AcceptResp { bytes exec = 1; }
+message StatsReq { bool reset = 1; }
+message StatsResp { string text = 1; }
+service Control {
+  rpc Accept(AcceptReq) returns (AcceptResp);
+  rpc Stats(StatsReq) returns (StatsResp);
+}
+
+// Worker: il worker apre la sessione, il motore consegna le attività e riceve gli esiti (C-2).
+message Delivery {
+  bytes exec = 1;
+  uint32 step = 2;
+  bytes tenant = 3;
+  uint64 delivery_id = 4;
+  bytes input = 5;
+  uint32 work_ms = 6;
+  uint32 out_size = 7;
+  uint64 ready_us = 8;  // istante della decisione "pronta"
+  uint64 sent_us = 9;   // istante dopo la scrittura durevole, subito prima dell'invio
+}
+message FromWorker {
+  bytes exec = 1;
+  uint32 step = 2;
+  uint64 delivery_id = 3;
+  bytes output = 4;
+  uint64 lat_ready_us = 5; // ricezione nel worker meno ready_us
+  uint64 lat_sent_us = 6;  // ricezione nel worker meno sent_us
+  bool hello = 7;
+}
+service Worker {
+  rpc Session(stream FromWorker) returns (stream Delivery);
+}
