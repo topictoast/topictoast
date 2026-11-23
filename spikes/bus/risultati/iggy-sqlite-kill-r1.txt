@@ -1,0 +1,28 @@
+### iggy + sqlite: kill 
+engine pid=2002012 READY recovered_ms=68
+prima del kill: secs=9.2 accepted=2399 refused=0 done=22185 rejected=0 groups=53 activities_per_s=2416 accepted_per_s=261 
+engine pid=2002577 READY recovered_ms=34
+kill -9 -> motore di nuovo in ascolto: 1.205592947 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.314614865 s
+prima del kill: secs=5.3 accepted=1582 refused=0 done=15493 rejected=0 groups=36 activities_per_s=2926 accepted_per_s=299 
+engine pid=2002993 READY recovered_ms=40
+kill -9 -> motore di nuovo in ascolto: 1.205791760 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.420167017 s
+prima del kill: secs=6.4 accepted=1892 refused=0 done=18961 rejected=0 groups=44 activities_per_s=2961 accepted_per_s=295 
+engine pid=2003503 READY recovered_ms=46
+kill -9 -> motore di nuovo in ascolto: 1.205487008 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.420776113 s
+load tenants=a rate=300/s kind=0 n=10 size=1024 work_ms=100 warm=1s measured=28s
+offered=8700 accepted=7735 refused_E_PROJECTION_DOWN=0 errors=965 overload_skipped=0
+accept_rtt_open_loop n=7436 p50=12.70ms p99=116.22ms p99.9=142.34ms max=159.10ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+verify: accettate=7735 concluse_nella_proiezione=7340 accettate_perse=399 attivita_concluse=75055 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=76387 duplicati_sul_bus=0
+verify FALLITA
+verify: accettate=7735 concluse_nella_proiezione=7739 accettate_perse=0 attivita_concluse=77390 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=77390 duplicati_sul_bus=0
+verify OK
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 104720 kB
+rss pid=2003503 48760 kB
+rss pid=2002054 16716 kB
+-- conteggio file archivio: 85129

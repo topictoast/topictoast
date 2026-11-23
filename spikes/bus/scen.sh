@@ -28,6 +28,8 @@ SERV="$BUS"; [ $DB = pg ] && SERV="$SERV postgres"
 ./reset.sh $SERV
 if [ $DB = pg ]; then i=0; until docker compose -p ttspikebus exec -T postgres pg_isready -U spike >/dev/null 2>&1; do i=$((i+1)); [ $i -gt 60 ] && exit 1; sleep 1; done; sleep 2; fi
 rm -rf out/archive out/spike.db* out/master.key out/ledger.txt
+# archivio su un altro disco (variabile SPIKE_ARCHIVE): out/archive diventa un collegamento
+[ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
 echo "### $BUS + $DB: $SC $*"
 start_engine
@@ -55,9 +57,9 @@ case $SC in
     sleep 60
     ./rss.sh $EP $WP ;;
   kill)
-    $L rate=300 kind=0 n=10 size=1024 secs=40 warm=1 stats=0 ledger=out/ledger.txt > out/load.txt &
+    $L rate=300 kind=0 n=10 size=1024 work_ms=100 secs=28 warm=1 stats=0 ledger=out/ledger.txt > out/load.txt &
     LP=$!
-    for t in 10 7 8; do
+    for t in 8 5 6; do
       sleep $t
       echo "prima del kill: $("$BIN" stats dir=out | head -2 | tr '\n' ' ')"
       kill -9 $EP; wait $EP 2>/dev/null
@@ -74,12 +76,12 @@ case $SC in
     wait $LP; cat out/load.txt
     ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done ;;
   dbdown)
-    $L rate=300 kind=0 n=10 size=1024 secs=40 warm=1 stats=0 ledger=out/ledger.txt > out/load.txt &
+    $L rate=300 kind=0 n=10 size=1024 work_ms=100 secs=28 warm=1 stats=0 ledger=out/ledger.txt > out/load.txt &
     LP=$!
-    sleep 10
+    sleep 8
     if [ $DB = pg ]; then
       docker compose -p ttspikebus stop postgres >/dev/null 2>&1; echo "postgres fermato"
-      sleep 10
+      sleep 8
       docker compose -p ttspikebus start postgres >/dev/null 2>&1; echo "postgres riavviato"
     else
       "$BIN" lock-db db="$DBURL" secs=10 &
@@ -89,8 +91,9 @@ case $SC in
     for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && break; sleep 3; done ;;
   *) echo "scenario sconosciuto" ;;
 esac
+[ $BUS = valkey ] && { echo "-- valkey: $(docker compose -p ttspikebus exec -T valkey valkey-cli -a "$VALKEY_PASSWORD" info stats 2>/dev/null | grep -E "total_forks" | tr -d "\r") $(docker compose -p ttspikebus exec -T valkey valkey-cli -a "$VALKEY_PASSWORD" info persistence 2>/dev/null | grep -E "aof_rewrites:|aof_last_rewrite_time_sec" | tr -d "\r" | tr "\n" " ")"; }
 echo "-- RSS dopo la corsa (motore, worker, bus)"
 ./rss.sh $EP $WP
 echo "-- conteggio file archivio: $(find out/archive -type f 2>/dev/null | wc -l)"
 stop_all
-rm -rf out/archive
+rm -rf out/archive; [ -n "$SPIKE_ARCHIVE" ] && rm -rf "$SPIKE_ARCHIVE"

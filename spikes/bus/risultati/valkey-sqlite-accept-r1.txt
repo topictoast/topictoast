@@ -1,0 +1,23 @@
+### valkey + sqlite: accept 
+engine pid=1843362 READY recovered_ms=7
+load tenants=a rate=200/s kind=0 n=1 size=1024 work_ms=0 warm=3s measured=30s
+offered=6600 accepted=6600 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=6001 p50=0.80ms p99=5.71ms p99.9=21.57ms max=30.32ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=6001 refused=0 done=6001 rejected=0 groups=144
+activities_per_s=200 accepted_per_s=200
+accept_engine n=6001 p50=0.57ms p99=5.42ms p99.9=21.28ms max=30.09ms
+append n=11946 p50=0.55ms p99=4.14ms p99.9=8.07ms max=21.28ms
+start_ready n=6001 p50=0.63ms p99=5.21ms p99.9=15.79ms max=21.38ms
+start_sent n=6001 p50=0.05ms p99=0.11ms p99.9=0.15ms max=0.20ms
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms
+start_ready_tenant_b n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms
+archive_read n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms
+proj_lag n=17958 p50=110.59ms p99=219.13ms p99.9=251.26ms max=270.85ms
+sql_stmts=1008 sql_rows=24088 sql_per_activity=0.1680 rows_per_activity=4.014 wal_bytes_per_activity=0.0
+engine_cpu_s=2.52 cache_entries=70
+-- RSS dopo la corsa (motore, worker, bus)
+rss valkey 21668 kB
+rss pid=1843362 20584 kB
+rss pid=1843385 11780 kB
+-- conteggio file archivio: 13200

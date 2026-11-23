@@ -1,0 +1,21 @@
+### valkey + sqlite: dbdown 
+engine pid=2086296 READY recovered_ms=7
+lock esclusivo preso per 10s (now_us=1795441319646364)
+lock rilasciato (now_us=1795441329647538)
+load tenants=a rate=300/s kind=0 n=10 size=1024 work_ms=100 warm=1s measured=28s
+offered=8700 accepted=5834 refused_E_PROJECTION_DOWN=2866 errors=0 overload_skipped=0
+accept_rtt_open_loop n=5535 p50=0.94ms p99=2.79ms p99.9=5.10ms max=5.89ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+proiezione ferma su state-0000000000007000800000000000000a: error returned from database: (code: 5) database is locked
+proiezione ripresa su state-0000000000007000800000000000000a
+verify: accettate=5834 concluse_nella_proiezione=5449 accettate_perse=385 attivita_concluse=55866 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=57702 duplicati_sul_bus=0
+verify FALLITA
+verify: accettate=5834 concluse_nella_proiezione=5834 accettate_perse=0 attivita_concluse=58340 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=58340 duplicati_sul_bus=0
+verify OK
+-- valkey: total_forks:1 aof_last_rewrite_time_sec:0 aof_rewrites:1 
+-- RSS dopo la corsa (motore, worker, bus)
+rss valkey 111784 kB
+rss pid=2086296 41308 kB
+rss pid=2086319 13164 kB
+-- conteggio file archivio: 64174

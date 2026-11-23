@@ -1,0 +1,11 @@
+### valkey + sqlite: rss 
+engine pid=2019004 READY recovered_ms=6
+rss valkey 21276 kB
+rss pid=2019004 16324 kB
+rss pid=2019057 11540 kB
+-- valkey: total_forks:0 aof_last_rewrite_time_sec:-1 aof_rewrites:0 
+-- RSS dopo la corsa (motore, worker, bus)
+rss valkey 21292 kB
+rss pid=2019004 16324 kB
+rss pid=2019057 11540 kB
+-- conteggio file archivio: 0

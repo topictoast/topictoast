@@ -1,0 +1,30 @@
+### iggy + pg: iso 
+engine pid=2037790 READY recovered_ms=58
+load tenants=b rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=30s
+offered=3500 accepted=3500 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=3001 p50=7.07ms p99=24.88ms p99.9=36.86ms max=43.42ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=15001 refused=0 done=35123 rejected=0 groups=275
+activities_per_s=1171 accepted_per_s=500
+accept_engine n=15001 p50=6.70ms p99=24.35ms p99.9=37.28ms max=43.90ms
+append n=6329 p50=4.26ms p99=14.35ms p99.9=25.21ms max=34.91ms
+start_ready n=35123 p50=4.82ms p99=19021.82ms p99.9=19054.59ms max=19087.36ms
+start_sent n=35123 p50=0.09ms p99=0.20ms p99.9=0.55ms max=3.66ms
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms
+start_ready_tenant_b n=30003 p50=4.61ms p99=15.72ms p99.9=29.33ms max=35.20ms
+archive_read n=5120 p50=0.03ms p99=0.09ms p99.9=0.76ms max=5.31ms
+proj_lag n=92150 p50=127.17ms p99=297.73ms p99.9=367.10ms max=401.15ms
+sql_stmts=1785 sql_rows=100547 sql_per_activity=0.0508 rows_per_activity=2.863 wal_bytes_per_activity=1015.4
+engine_cpu_s=6.57 cache_entries=288
+-- tenant A (lento)
+load tenants=a rate=400/s kind=0 n=1 size=1024 work_ms=3000 warm=2s measured=40s
+offered=16800 accepted=16800 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=16000 p50=6.64ms p99=23.39ms p99.9=36.32ms max=44.16ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 82496 kB
+rss postgres 181396 kB
+rss pid=2037790 36484 kB
+rss pid=2037863 12808 kB
+-- conteggio file archivio: 61956

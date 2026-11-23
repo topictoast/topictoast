@@ -203,7 +203,7 @@ impl Engine {
     // ponytail: un errore del bus ferma il motore; il rifiuto con codice e la ripresa sono della fase 4.
     async fn append(&self, evs: &[(usize, Ev)]) {
         let t0 = Instant::now();
-        let mut set = tokio::task::JoinSet::new();
+        let mut set: tokio::task::JoinSet<crate::bus::Res<()>> = tokio::task::JoinSet::new();
         for ti in 0..2 {
             let topic = topic_of(&TENANTS[ti]);
             let msgs: Vec<Bytes> = evs.iter().filter(|(i, _)| *i == ti).map(|(_, e)| self.sh.seal_ev(&topic, e)).collect();
@@ -211,7 +211,20 @@ impl Engine {
                 continue;
             }
             let bus = self.sh.bus.clone();
-            set.spawn(async move { bus.append(&topic, &msgs).await });
+            set.spawn(async move {
+                // gruppi di al più 8 MB (Iggy rifiuta richieste oltre 64 MB), in ordine, tutti durevoli prima di tornare
+                let mut from = 0;
+                while from < msgs.len() {
+                    let (mut to, mut bytes) = (from, 0);
+                    while to < msgs.len() && (to == from || bytes + msgs[to].len() <= (8 << 20)) {
+                        bytes += msgs[to].len();
+                        to += 1;
+                    }
+                    bus.append(&topic, &msgs[from..to]).await?;
+                    from = to;
+                }
+                Ok(())
+            });
         }
         while let Some(r) = set.join_next().await {
             if let Err(e) = r.unwrap() {
@@ -236,7 +249,8 @@ impl Engine {
                 }
                 let Some((exec, step, ready_us)) = self.pending[ti].pop_front() else { continue };
                 let Some(e) = self.execs.get(&exec) else { continue };
-                let (tenant, work_ms, out_size) = (e.tenant, e.work_ms, e.out_size);
+                // fan-out: solo il ramo 0 è lento, così le uscite degli altri rami sono già proiettate quando serve il join
+                let (tenant, work_ms, out_size) = (e.tenant, if e.kind == 1 && step != 0 { 0 } else { e.work_ms }, e.out_size);
                 let refs = e.input_refs(step);
                 let input = if refs.len() == 1 {
                     self.sh.payload(&tenant, &refs[0]).await

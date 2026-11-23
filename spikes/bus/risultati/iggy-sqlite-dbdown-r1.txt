@@ -1,0 +1,20 @@
+### iggy + sqlite: dbdown 
+engine pid=2004687 READY recovered_ms=84
+lock esclusivo preso per 10s (now_us=1795440030937663)
+lock rilasciato (now_us=1795440040938310)
+load tenants=a rate=300/s kind=0 n=10 size=1024 work_ms=100 warm=1s measured=28s
+offered=8699 accepted=5847 refused_E_PROJECTION_DOWN=2852 errors=0 overload_skipped=0
+accept_rtt_open_loop n=5548 p50=8.13ms p99=105.86ms p99.9=129.66ms max=145.79ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+proiezione ferma su state-0000000000007000800000000000000a: error returned from database: (code: 5) database is locked
+proiezione ripresa su state-0000000000007000800000000000000a
+verify: accettate=5847 concluse_nella_proiezione=5440 accettate_perse=407 attivita_concluse=56230 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=57039 duplicati_sul_bus=0
+verify FALLITA
+verify: accettate=5847 concluse_nella_proiezione=5847 accettate_perse=0 attivita_concluse=58470 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=58470 duplicati_sul_bus=0
+verify OK
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 107584 kB
+rss pid=2004687 53556 kB
+rss pid=2004752 16120 kB
+-- conteggio file archivio: 64317

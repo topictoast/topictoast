@@ -53,6 +53,7 @@ async fn main() {
     let url = arg("engine", "https://localhost:47010");
     match cmd.as_str() {
         "fsync-floor" => fsync_floor(),
+        "bench-crypto" => bench_crypto(),
         "bench-append" => bench_append().await,
         "gen-cert" => load::gen_cert(&dir),
         "engine" => {
@@ -74,6 +75,31 @@ async fn main() {
         "verify" => load::verify(&arg("db", ""), &arg("bus", "valkey"), &dir).await,
         "lock-db" => load::lock_db(&arg("db", ""), arg("secs", "10").parse().unwrap()).await,
         _ => eprintln!("sottocomandi: fsync-floor bench-append gen-cert engine worker load stats verify lock-db"),
+    }
+}
+
+/// Costo di cifratura per oggetto (C-12): due HKDF + AES-256-GCM, più SHA-256 del payload.
+fn bench_crypto() {
+    let keys = crypto::Keys::load("out/bench.key");
+    let t = [1u8; 16];
+    for size in [1024usize, 65536, 1 << 20] {
+        let data = vec![9u8; size];
+        let n = if size >= 1 << 20 { 300 } else { 20000 };
+        let (mut hs, mut ho, mut hh) = (hist(), hist(), hist());
+        for i in 0..n {
+            let id = [(i & 255) as u8; 16];
+            let t0 = Instant::now();
+            let env = keys.seal(&t, "bench", &id, &data);
+            hs.record(t0.elapsed().as_nanos() as u64 / 100 + 1).unwrap();
+            let t0 = Instant::now();
+            let _ = keys.open("bench", &env);
+            ho.record(t0.elapsed().as_nanos() as u64 / 100 + 1).unwrap();
+            let t0 = Instant::now();
+            let _ = crypto::sha(&data);
+            hh.record(t0.elapsed().as_nanos() as u64 / 100 + 1).unwrap();
+        }
+        let f = |h: &Histogram<u64>| format!("p50={:.1}us p99={:.1}us", h.value_at_quantile(0.5) as f64 / 10.0, h.value_at_quantile(0.99) as f64 / 10.0);
+        println!("bench-crypto size={size} n={n}: seal {} | open {} | sha256 {}", f(&hs), f(&ho), f(&hh));
     }
 }
 
