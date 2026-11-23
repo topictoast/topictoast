@@ -114,8 +114,17 @@ pub async fn verify(db_url: &str, bus_kind: &str, dir: &str) {
     let bad = db.count("SELECT count(*) FROM activity WHERE done_us IS NOT NULL AND done_events <> 1").await.unwrap();
     let open = db.count("SELECT count(*) FROM activity a JOIN execution e ON e.id = a.exec_id WHERE e.done_us IS NOT NULL AND a.done_us IS NULL").await.unwrap();
     let tot = db.count("SELECT count(*) FROM activity WHERE done_us IS NOT NULL").await.unwrap();
-    // bus: conta gli eventi Done per attività (richiede trim=0)
+    // ogni payload di uscita proiettato si legge dal segmento e si decifra (nessun payload confermato perso)
     let keys = crate::crypto::Keys::load(&format!("{dir}/master.key"));
+    let (mut pay_ok, mut pay_bad) = (0u64, 0u64);
+    for (t, h, (seg, off, len)) in db.out_locs().await.unwrap() {
+        use std::os::unix::fs::FileExt;
+        let mut b = vec![0u8; len as usize];
+        let r = std::fs::File::open(format!("{dir}/archive/{}/{seg}.seg", crate::crypto::hex(&t))).and_then(|f| f.read_exact_at(&mut b, off));
+        let good = r.is_ok() && std::panic::catch_unwind(|| keys.open(&format!("arc/{}", crate::crypto::hex(&h)), &b)).is_ok();
+        if good { pay_ok += 1 } else { pay_bad += 1 }
+    }
+    // bus: conta gli eventi Done per attività (richiede trim=0)
     let bus = crate::bus::Bus::connect(bus_kind).await.unwrap();
     let mut dup = 0u64;
     let mut seen = std::collections::HashSet::new();
@@ -139,8 +148,8 @@ pub async fn verify(db_url: &str, bus_kind: &str, dir: &str) {
             }
         }
     }
-    println!("verify: accettate={} concluse_nella_proiezione={} accettate_perse={missing} attivita_concluse={tot} done_events!=1:{bad} attivita_aperte_in_esecuzioni_concluse={open} eventi_Done_sul_bus={dones} duplicati_sul_bus={dup}", accepted.len(), done.len());
-    let ok = missing == 0 && bad == 0 && open == 0 && dup == 0;
+    println!("verify: accettate={} concluse_nella_proiezione={} accettate_perse={missing} attivita_concluse={tot} done_events!=1:{bad} attivita_aperte_in_esecuzioni_concluse={open} eventi_Done_sul_bus={dones} duplicati_sul_bus={dup} payload_decifrati={pay_ok} payload_illeggibili={pay_bad}", accepted.len(), done.len());
+    let ok = missing == 0 && bad == 0 && open == 0 && dup == 0 && pay_bad == 0;
     println!("verify {}", if ok { "OK" } else { "FALLITA" });
     if !ok {
         std::process::exit(1);

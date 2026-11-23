@@ -17,8 +17,8 @@ i=0
 while :; do
   l=$(cut -d' ' -f1 /proc/loadavg); io=$(sed -n 's/^some avg10=\([0-9.]*\).*/\1/p' /proc/pressure/io)
   [ "$(awk -v l="$l" -v io="$io" 'BEGIN{print (l<1.5 && io<1.0)}')" = 1 ] && break
-  i=$((i+1)); [ $i -gt 120 ] && { echo "macchina non ferma dopo 10 minuti (load=$l io=$io)" >> "$OUT"; exit 3; }
+  i=$((i+1)); [ $i -gt 120 ] && { NONFERMA="macchina non ferma dopo 10 minuti (load=$l io=$io)"; break; }
   sleep 5
 done
-{ state prima; echo "[attesa] $((i*5)) s"; "$@"; state dopo; } > "$OUT" 2>&1
+{ state prima; [ -n "$NONFERMA" ] && echo "[macchina non ferma] $NONFERMA"; echo "[attesa] $((i*5)) s"; "$@"; state dopo; } > "$OUT" 2>&1
 grep -E "^(\[stato|###|offered|accept_rtt|accept_engine|start_ready |start_join|start_ready_tenant_b|activities_per_s|append|archive_read|bench-append|fsync-floor)" "$OUT"

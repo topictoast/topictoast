@@ -1,0 +1,46 @@
+[stato prima 20:59:51] load: 0.80 1.04 1.17
+[stato prima] io: some avg10=0.00 avg60=0.93 avg300=8.60 total=1624902142
+[stato prima] cpu: some avg10=0.00 avg60=0.01 avg300=0.19 total=178817178
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.04
+[attesa] 0 s
+### iggy + sqlite: kill 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1
+engine pid=1611411 READY recovered_ms=273
+prima del kill: secs=9.3 accepted=2397 refused=0 done=22158 rejected=0 groups=52 activities_per_s=2394 accepted_per_s=259 
+engine pid=1611792 READY recovered_ms=57
+./scen.sh: line 72: bc: command not found
+kill -9 -> motore di nuovo in ascolto:  s (1 s di attesa voluta inclusa)
+./scen.sh: line 76: bc: command not found
+kill -9 -> prima attività conclusa dopo la ripresa:  s
+prima del kill: secs=5.4 accepted=1609 refused=0 done=16134 rejected=0 groups=38 activities_per_s=2991 accepted_per_s=298 
+engine pid=1612388 READY recovered_ms=60
+./scen.sh: line 72: bc: command not found
+kill -9 -> motore di nuovo in ascolto:  s (1 s di attesa voluta inclusa)
+./scen.sh: line 76: bc: command not found
+kill -9 -> prima attività conclusa dopo la ripresa:  s
+prima del kill: secs=6.4 accepted=1910 refused=0 done=19108 rejected=0 groups=44 activities_per_s=2986 accepted_per_s=298 
+engine pid=1612735 READY recovered_ms=71
+./scen.sh: line 72: bc: command not found
+kill -9 -> motore di nuovo in ascolto:  s (1 s di attesa voluta inclusa)
+./scen.sh: line 76: bc: command not found
+kill -9 -> prima attività conclusa dopo la ripresa:  s
+load tenants=a rate=300/s kind=0 n=10 size=1024 work_ms=100 warm=1s measured=28s
+offered=8699 accepted=7727 refused_E_PROJECTION_DOWN=0 errors=972 overload_skipped=0
+accept_rtt_open_loop n=7428 p50=11.24ms p99=20.34ms p99.9=36.73ms max=44.03ms over100ms=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+verify: accettate=7727 concluse_nella_proiezione=7348 accettate_perse=386 attivita_concluse=75005 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=77171 duplicati_sul_bus=0 payload_decifrati=75005 payload_illeggibili=0
+verify FALLITA
+verify: accettate=7727 concluse_nella_proiezione=7734 accettate_perse=0 attivita_concluse=77340 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=77340 duplicati_sul_bus=0 payload_decifrati=77340 payload_illeggibili=0
+verify OK
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 106360 kB
+rss pid=1612735 37584 kB
+rss pid=1611462 13836 kB
+-- conteggio file archivio: 25
+[stato dopo 21:00:33] load: 1.50 1.18 1.21
+[stato dopo] io: some avg10=29.52 avg60=16.31 avg300=11.58 total=1637901377
+[stato dopo] cpu: some avg10=1.34 avg60=0.72 avg300=0.35 total=179611163
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-1 0.03

@@ -12,12 +12,14 @@ case $DB in
   pg) DBURL="postgres://spike:$POSTGRES_PASSWORD@127.0.0.1:47003/spike" ;;
 esac
 CAP=${CAP:-512}; TRIM=1; PB=${PB:-1000}
+# pinning a 4 CPU (2c): SPIKE_CPUS per motore e worker (taskset), SPIKE_CPUSET per i container, SPIKE_LOADCPUS per il carico
+TS_ENG=${SPIKE_CPUS:+taskset -c $SPIKE_CPUS}; TS_LOAD=${SPIKE_LOADCPUS:+taskset -c $SPIKE_LOADCPUS}
 EP=; WP=
 case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; esac
 
 start_engine() {
   : > out/engine.log
-  "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM proj_batch=$PB >> out/engine.log 2>&1 &
+  $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM proj_batch=$PB wconn=${WCONN:-1} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
@@ -31,12 +33,12 @@ rm -rf out/archive out/spike.db* out/master.key out/ledger.txt
 # archivio su un altro disco (variabile SPIKE_ARCHIVE): out/archive diventa un collegamento
 [ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
-echo "### $BUS + $DB: $SC $*"
+echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-1}"
 start_engine
-"$BIN" worker dir=out sessions=8 > out/worker.log 2>&1 &
+$TS_ENG "$BIN" worker dir=out sessions=8 > out/worker.log 2>&1 &
 WP=$!
 sleep 1
-L="$BIN load dir=out"
+L="$TS_LOAD $BIN load dir=out"
 
 case $SC in
   accept) $L rate=200 kind=0 n=1 size=1024 secs=30 warm=3 "$@" ;;

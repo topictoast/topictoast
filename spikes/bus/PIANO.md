@@ -141,11 +141,12 @@ condizioni del PRD.
 ### Macchina di riferimento
 
 Il PRD misura su 4 vCPU, 16 GB, SSD NVMe locale, Linux. Motore, worker, bus e database girano su 4
-thread hardware fissati (2 core P con i loro thread gemelli, stessa scelta sui due host, con
+thread hardware fissati (2 core P con i loro thread gemelli, con
 `taskset` e `cpuset` di compose); il generatore di carico, che sta al posto dei client, gira sugli
-altri. Desktop e minisheep, Iggy e Valkey alternati corsa per corsa.
+altri. Solo minisheep, per decisione di Marco del 2026-11-23: sul desktop, che Marco usa, nessuna
+corsa misurata (solo la compilazione). Iggy e Valkey alternati corsa per corsa.
 
-### Corse, per host e per bus
+### Corse, per bus (su minisheep)
 
 | Riga | Corse |
 | --- | --- |
@@ -158,13 +159,13 @@ altri. Desktop e minisheep, Iggy e Valkey alternati corsa per corsa.
 | `kill -9` a metà corsa con l'archivio a segmenti, SQLite (solo minisheep) | 2 |
 
 Prima di ogni corsa, la stessa soglia della 2b (carico medio a 1 minuto sotto 1,5, pressione I/O
-`some avg10` sotto 1 %). Sul desktop, se la soglia non si raggiunge entro 10 minuti di attesa, la
+`some avg10` sotto 1 %). Se la soglia non si raggiunge entro 10 minuti di attesa, la
 corsa parte comunque ed è segnata «macchina non ferma». Nessuna corsa si scarta dopo averla vista.
 
 ### Cosa conta come superato
 
 - **Righe del PRD:** avvio a 1.000 attività/s con p99 entro 25 ms in almeno 4 corse su 5 (SQLite) e
-  in 2 su 2 (Postgres), p50 entro 5 ms giudicato solo sul desktop (minisheep ha il pavimento del
+  in 2 su 2 (Postgres), p50 entro 5 ms riportato ma non giudicato (minisheep ha il pavimento del
   disco a 2,7 ms); 10.000 attività/s sostenute per 10 minuti in tutte le corse, con il p99 di avvio
   riportato; istruzioni SQL per attività entro 5; ripresa dopo `kill -9` con zero attività accettate
   perse.
@@ -175,10 +176,10 @@ corsa parte comunque ed è segnata «macchina non ferma». Nessuna corsa si scar
 
 ### Regola di decisione
 
-Vince il bus che supera tutte le righe su entrambi gli host. Se le superano entrambi, quello con il
-p99 di avvio più basso sul desktop; a parità, quello con meno parti da gestire. Se nessuno le supera,
+Vince il bus che supera tutte le righe su minisheep. Se le superano entrambi, quello con il
+p99 di avvio più basso su minisheep; a parità, quello con meno parti da gestire. Se nessuno le supera,
 si torna da Marco con i numeri.
 
 ### Uscita
 
-`spikes/bus/fase2c-risultati.md`, numeri grezzi in `spikes/bus/risultati/` con il suffisso `-c-<host>`.
+`spikes/bus/fase2c-risultati.md`, numeri grezzi in `spikes/bus/risultati/` con il suffisso `-c-ms`.

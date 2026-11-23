@@ -1,6 +1,6 @@
 #!/bin/sh
 # ./ms-chain.sh <scenario> <db> <rep da> <rep a> [chiave=valore]: alterna iggy e valkey corsa per corsa
-cd ~/ttspikebus && export SPIKE_BIN=$HOME/ttspikebus/bin/busspike SPIKE_DATA=$HOME/.cache/ttspikebus-data
+. ~/ttspikebus/env.sh
 S=$1; D=$2; A=$3; Z=$4; shift 4
 r=$A
 while [ $r -le $Z ]; do

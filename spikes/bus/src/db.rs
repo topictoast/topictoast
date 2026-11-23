@@ -7,7 +7,7 @@
 
 use crate::bus::Res;
 use crate::crypto::{Uid, hex};
-use crate::ev::{Ev, Exec, Hash};
+use crate::ev::{Ev, Exec, Hash, Loc};
 use sqlx::{AnyPool, Executor, Row, any::AnyPoolOptions};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
@@ -46,8 +46,8 @@ impl Db {
         let b = if pg { "BYTEA" } else { "BLOB" };
         for ddl in [
             "CREATE TABLE IF NOT EXISTS projection_pos(topic TEXT PRIMARY KEY, pos BIGINT NOT NULL)".to_string(),
-            format!("CREATE TABLE IF NOT EXISTS execution(id {b} PRIMARY KEY, tenant {b} NOT NULL, kind BIGINT NOT NULL, n BIGINT NOT NULL, work_ms BIGINT NOT NULL, out_size BIGINT NOT NULL, input_hash {b} NOT NULL, accepted_us BIGINT NOT NULL, done_us BIGINT)"),
-            format!("CREATE TABLE IF NOT EXISTS activity(exec_id {b} NOT NULL, step BIGINT NOT NULL, tenant {b} NOT NULL, is_last BIGINT NOT NULL, ready_us BIGINT, done_us BIGINT, out_hash {b}, done_events BIGINT NOT NULL DEFAULT 0, PRIMARY KEY(exec_id, step))"),
+            format!("CREATE TABLE IF NOT EXISTS execution(id {b} PRIMARY KEY, tenant {b} NOT NULL, kind BIGINT NOT NULL, n BIGINT NOT NULL, work_ms BIGINT NOT NULL, out_size BIGINT NOT NULL, input_hash {b} NOT NULL, input_seg BIGINT NOT NULL DEFAULT 0, input_off BIGINT NOT NULL DEFAULT 0, input_len BIGINT NOT NULL DEFAULT 0, accepted_us BIGINT NOT NULL, done_us BIGINT)"),
+            format!("CREATE TABLE IF NOT EXISTS activity(exec_id {b} NOT NULL, step BIGINT NOT NULL, tenant {b} NOT NULL, is_last BIGINT NOT NULL, ready_us BIGINT, done_us BIGINT, out_hash {b}, done_events BIGINT NOT NULL DEFAULT 0, out_seg BIGINT, out_off BIGINT, out_len BIGINT, PRIMARY KEY(exec_id, step))"),
             "CREATE INDEX IF NOT EXISTS execution_live ON execution(id) WHERE done_us IS NULL".to_string(),
         ] {
             db.pool.execute(sqlx::AssertSqlSafe(ddl)).await?;
@@ -67,10 +67,10 @@ impl Db {
     }
 
     /// Applica un gruppo di eventi del topic e la nuova posizione (la prossima da leggere), in una transazione.
-    pub async fn apply(&self, topic: &str, next_pos: u64, evs: &[Ev]) -> Res<()> {
+    pub async fn apply(&self, topic: &str, next_pos: u64, evs: &[Ev], locs: &HashMap<Hash, Loc>) -> Res<()> {
         let mut c = self.pool.acquire().await?;
         self.run(&mut c, "BEGIN").await?;
-        let r = self.apply_in_tx(&mut c, topic, next_pos, evs).await;
+        let r = self.apply_in_tx(&mut c, topic, next_pos, evs, locs).await;
         match r {
             Ok(()) => self.run(&mut c, "COMMIT").await,
             Err(e) => {
@@ -80,13 +80,13 @@ impl Db {
         }
     }
 
-    async fn apply_in_tx(&self, c: &mut sqlx::AnyConnection, topic: &str, next_pos: u64, evs: &[Ev]) -> Res<()> {
+    async fn apply_in_tx(&self, c: &mut sqlx::AnyConnection, topic: &str, next_pos: u64, evs: &[Ev], locs: &HashMap<Hash, Loc>) -> Res<()> {
         let (mut ex, mut rd, mut dn, mut fin) = (vec![], vec![], vec![], vec![]);
         let mut fin_ts = 0;
         for e in evs {
             match e {
                 Ev::Accepted { exec, tenant, kind, n, work_ms, out_size, ts, input_hash, .. } => ex.push(format!(
-                    "({},{},{},{},{},{},{},{},NULL)",
+                    "({},{},{},{},{},{},{},{},{},{},{},NULL)",
                     self.lit(exec),
                     self.lit(tenant),
                     kind,
@@ -94,13 +94,17 @@ impl Db {
                     work_ms,
                     out_size,
                     self.lit(input_hash),
+                    locs.get(input_hash).map_or(0, |l| l.0),
+                    locs.get(input_hash).map_or(0, |l| l.1),
+                    locs.get(input_hash).map_or(0, |l| l.2),
                     ts
                 )),
                 Ev::Ready { exec, tenant, step, last, ts } => {
-                    rd.push(format!("({},{},{},{},{},NULL,NULL,0)", self.lit(exec), step, self.lit(tenant), *last as u8, ts))
+                    rd.push(format!("({},{},{},{},{},NULL,NULL,0,NULL,NULL,NULL)", self.lit(exec), step, self.lit(tenant), *last as u8, ts))
                 }
                 Ev::Done { exec, tenant, step, last, ts, out_hash, .. } => {
-                    dn.push(format!("({},{},{},{},{},{},{},1)", self.lit(exec), step, self.lit(tenant), *last as u8, ts, ts, self.lit(out_hash)));
+                    let l = locs.get(out_hash).copied().unwrap_or_default();
+                    dn.push(format!("({},{},{},{},{},{},{},1,{},{},{})", self.lit(exec), step, self.lit(tenant), *last as u8, ts, ts, self.lit(out_hash), l.0, l.1, l.2));
                     if *last {
                         fin.push(self.lit(exec));
                         fin_ts = *ts;
@@ -109,13 +113,13 @@ impl Db {
             }
         }
         for ch in ex.chunks(CHUNK) {
-            self.run(c, &format!("INSERT INTO execution(id,tenant,kind,n,work_ms,out_size,input_hash,accepted_us,done_us) VALUES {} ON CONFLICT(id) DO NOTHING", ch.join(","))).await?;
+            self.run(c, &format!("INSERT INTO execution(id,tenant,kind,n,work_ms,out_size,input_hash,input_seg,input_off,input_len,accepted_us,done_us) VALUES {} ON CONFLICT(id) DO NOTHING", ch.join(","))).await?;
         }
         for ch in rd.chunks(CHUNK) {
-            self.run(c, &format!("INSERT INTO activity(exec_id,step,tenant,is_last,ready_us,done_us,out_hash,done_events) VALUES {} ON CONFLICT(exec_id,step) DO NOTHING", ch.join(","))).await?;
+            self.run(c, &format!("INSERT INTO activity(exec_id,step,tenant,is_last,ready_us,done_us,out_hash,done_events,out_seg,out_off,out_len) VALUES {} ON CONFLICT(exec_id,step) DO NOTHING", ch.join(","))).await?;
         }
         for ch in dn.chunks(CHUNK) {
-            self.run(c, &format!("INSERT INTO activity(exec_id,step,tenant,is_last,ready_us,done_us,out_hash,done_events) VALUES {} ON CONFLICT(exec_id,step) DO UPDATE SET done_us=excluded.done_us, out_hash=excluded.out_hash, done_events=activity.done_events+1", ch.join(","))).await?;
+            self.run(c, &format!("INSERT INTO activity(exec_id,step,tenant,is_last,ready_us,done_us,out_hash,done_events,out_seg,out_off,out_len) VALUES {} ON CONFLICT(exec_id,step) DO UPDATE SET done_us=excluded.done_us, out_hash=excluded.out_hash, out_seg=excluded.out_seg, out_off=excluded.out_off, out_len=excluded.out_len, done_events=activity.done_events+1", ch.join(","))).await?;
         }
         for ch in fin.chunks(CHUNK) {
             self.run(c, &format!("UPDATE execution SET done_us={} WHERE id IN ({})", fin_ts, ch.join(","))).await?;
@@ -132,16 +136,18 @@ impl Db {
     /// Esecuzioni vive (non concluse) con lo stato dei passi, come proiettato fino alla posizione applicata.
     pub async fn live(&self) -> Res<HashMap<Uid, Exec>> {
         let mut m = HashMap::new();
-        let r = sqlx::query("SELECT id, tenant, kind, n, work_ms, out_size, input_hash FROM execution WHERE done_us IS NULL")
+        let r = sqlx::query("SELECT id, tenant, kind, n, work_ms, out_size, input_hash, input_seg, input_off, input_len FROM execution WHERE done_us IS NULL")
             .fetch_all(&self.pool)
             .await?;
         for x in r {
             let id: Uid = x.get::<Vec<u8>, _>(0).try_into().unwrap();
             let tenant: Uid = x.get::<Vec<u8>, _>(1).try_into().unwrap();
             let h: Hash = x.get::<Vec<u8>, _>(6).try_into().unwrap();
-            m.insert(id, Exec::new(tenant, x.get::<i64, _>(2) as u8, x.get::<i64, _>(3) as u32, x.get::<i64, _>(4) as u32, x.get::<i64, _>(5) as u32, h));
+            let mut ex = Exec::new(tenant, x.get::<i64, _>(2) as u8, x.get::<i64, _>(3) as u32, x.get::<i64, _>(4) as u32, x.get::<i64, _>(5) as u32, h);
+            ex.locs.insert(h, (x.get::<i64, _>(7) as u64, x.get::<i64, _>(8) as u64, x.get::<i64, _>(9) as u32));
+            m.insert(id, ex);
         }
-        let r = sqlx::query("SELECT a.exec_id, a.step, a.out_hash FROM activity a JOIN execution e ON e.id = a.exec_id WHERE e.done_us IS NULL")
+        let r = sqlx::query("SELECT a.exec_id, a.step, a.out_hash, a.out_seg, a.out_off, a.out_len FROM activity a JOIN execution e ON e.id = a.exec_id WHERE e.done_us IS NULL")
             .fetch_all(&self.pool)
             .await?;
         for x in r {
@@ -150,9 +156,20 @@ impl Db {
             if let Some(e) = m.get_mut(&id) {
                 e.issued[step] = true;
                 e.done[step] = x.get::<Option<Vec<u8>>, _>(2).map(|h| h.try_into().unwrap());
+                if let (Some(h), Some(s), Some(o), Some(l)) = (e.done[step], x.get::<Option<i64>, _>(3), x.get::<Option<i64>, _>(4), x.get::<Option<i64>, _>(5)) {
+                    e.locs.insert(h, (s as u64, o as u64, l as u32));
+                }
             }
         }
         Ok(m)
+    }
+
+    /// Payload di uscita proiettati: (tenant, impronta, segmento, scostamento, lunghezza), per la verifica dopo il guasto.
+    pub async fn out_locs(&self) -> Res<Vec<(Uid, Hash, Loc)>> {
+        let r = sqlx::query("SELECT tenant, out_hash, out_seg, out_off, out_len FROM activity WHERE done_us IS NOT NULL").fetch_all(&self.pool).await?;
+        Ok(r.iter()
+            .map(|x| (x.get::<Vec<u8>, _>(0).try_into().unwrap(), x.get::<Vec<u8>, _>(1).try_into().unwrap(), (x.get::<i64, _>(2) as u64, x.get::<i64, _>(3) as u64, x.get::<i64, _>(4) as u32)))
+            .collect())
     }
 
     /// Byte di WAL scritti finora (solo Postgres; SQLite: 0, non misurato).

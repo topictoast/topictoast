@@ -7,7 +7,7 @@
 use crate::bus::Bus;
 use crate::crypto::{Keys, Uid, hex, sha};
 use crate::db::Db;
-use crate::ev::{Ev, Exec, Hash};
+use crate::ev::{Ev, Exec, Hash, Loc};
 use crate::pb;
 use crate::{hist, now_us};
 use bytes::Bytes;
@@ -87,7 +87,18 @@ impl M {
     }
 }
 
+/// Segmento aperto di un tenant (uno scrittore: il suo proiettore).
+pub struct Seg {
+    pub file: Option<std::fs::File>,
+    pub id: u64,
+    pub len: u64,
+    pub opened: Instant,
+}
+
 pub struct Shared {
+    pub segs: [Mutex<Seg>; 2],
+    /// Posizioni già scritte ma non ancora recepite dal ciclo del motore (che può essere in coda): evita di leggere una posizione che manca.
+    pub pending_locs: Mutex<HashMap<(Uid, Hash), Loc>>,
     pub keys: Keys,
     pub bus: Bus,
     /// Una connessione per scrittore (un tenant ciascuno), così le scritture dei tenant non si accodano sulla stessa connessione.
@@ -109,47 +120,71 @@ impl Shared {
         self.cache.lock().unwrap().insert((t, h), (b, ts));
     }
 
-    fn arc_path(&self, t: &Uid, h: &Hash) -> String {
-        format!("{}/archive/{}/{}/{}", self.dir, hex(t), hex(&h[..1]), hex(h))
+    fn seg_path(&self, t: &Uid, seg: u64) -> String {
+        format!("{}/archive/{}/{}.seg", self.dir, hex(t), seg)
     }
 
-    /// Scrive il payload cifrato per tenant solo se assente (stesso contenuto = stesso nome, AD-17).
-    fn archive_put(&self, t: &Uid, h: &Hash, b: &[u8]) {
+    /// Accoda un gruppo di payload (uno per impronta, ognuno sigillato da solo come in C-12) al segmento aperto del
+    /// tenant e fa un solo `fdatasync` del segmento. Il segmento si chiude per dimensione o dopo 1 s e non si riscrive mai.
+    /// Torna la posizione di ogni payload. Un crash lascia al più byte non referenziati in coda: le posizioni nel
+    /// database sono solo quelle già sincronizzate, quindi nessun payload confermato si perde.
+    // ponytail: un payload già presente in un segmento precedente si riscrive (nessuna deduplicazione tra gruppi).
+    fn archive_put_group(&self, ti: usize, items: &[(Uid, Hash, Bytes)]) -> HashMap<Hash, Loc> {
         use std::io::Write;
-        let p = self.arc_path(t, h);
-        let sealed = self.keys.seal(t, &format!("arc/{}", hex(h)), h[..16].try_into().unwrap(), b);
-        // creazione solo se assente (O_EXCL); un file esistente ma troncato da un crash si riscrive via tmp + rename
-        let open = || std::fs::OpenOptions::new().write(true).create_new(true).open(&p);
-        match open() {
-            Ok(mut f) => f.write_all(&sealed).unwrap(),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                std::fs::create_dir_all(std::path::Path::new(&p).parent().unwrap()).unwrap();
-                let _ = open().and_then(|mut f| f.write_all(&sealed));
+        let mut locs = HashMap::new();
+        let mut buf = Vec::new();
+        let mut rel = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for (t, h, b) in items {
+            if !seen.insert(*h) {
+                continue;
             }
-            Err(_) => {
-                if std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0) != sealed.len() as u64 {
-                    let tmp = format!("{p}.tmp{}", std::process::id());
-                    std::fs::write(&tmp, &sealed).unwrap();
-                    std::fs::rename(&tmp, &p).unwrap();
-                }
-            }
+            let sealed = self.keys.seal(t, &format!("arc/{}", hex(h)), h[..16].try_into().unwrap(), b);
+            rel.push((*h, buf.len() as u64, sealed.len() as u32));
+            buf.extend_from_slice(&sealed);
         }
+        let mut s = self.segs[ti].lock().unwrap();
+        if s.file.is_none() || s.len > (32 << 20) || s.opened.elapsed() > Duration::from_secs(1) {
+            let dir = format!("{}/archive/{}", self.dir, hex(&TENANTS[ti]));
+            std::fs::create_dir_all(&dir).unwrap();
+            s.id = now_us();
+            s.file = Some(std::fs::OpenOptions::new().append(true).create_new(true).open(self.seg_path(&TENANTS[ti], s.id)).unwrap());
+            s.len = 0;
+            s.opened = Instant::now();
+            // la voce di directory del nuovo segmento deve essere durevole prima di referenziarlo
+            std::fs::File::open(&dir).unwrap().sync_all().unwrap();
+        }
+        s.file.as_mut().unwrap().write_all(&buf).unwrap();
+        s.file.as_ref().unwrap().sync_data().unwrap();
+        for (h, off, len) in rel {
+            locs.insert(h, (s.id, s.len + off, len));
+        }
+        s.len += buf.len() as u64;
+        locs
     }
 
-    async fn archive_get(&self, t: &Uid, h: &Hash) -> Bytes {
+    async fn archive_get(&self, t: &Uid, h: &Hash, loc: Loc) -> Bytes {
+        use std::os::unix::fs::FileExt;
         let t0 = Instant::now();
-        let raw = tokio::fs::read(self.arc_path(t, h)).await.expect("payload assente nell'archivio");
+        let p = self.seg_path(t, loc.0);
+        let raw = tokio::task::spawn_blocking(move || {
+            let mut b = vec![0u8; loc.2 as usize];
+            std::fs::File::open(p).expect("segmento assente").read_exact_at(&mut b, loc.1).expect("lettura del segmento");
+            b
+        })
+        .await
+        .unwrap();
         let (_, _, plain) = self.keys.open(&format!("arc/{}", hex(h)), &raw);
         self.m.lock().unwrap().archive_read.record(t0.elapsed().as_micros() as u64 + 1).ok();
         Bytes::from(plain)
     }
 
-    /// Payload per hash: prima la cache di quelli non ancora proiettati, poi l'archivio.
-    async fn payload(&self, t: &Uid, h: &Hash) -> Bytes {
+    /// Payload per hash: prima la cache di quelli non ancora proiettati, poi l'archivio con la posizione nota.
+    async fn payload(&self, t: &Uid, h: &Hash, loc: Option<Loc>) -> Bytes {
         let hit = self.cache.lock().unwrap().get(&(*t, *h)).map(|x| x.0.clone());
         match hit {
             Some(b) => b,
-            None => self.archive_get(t, h).await,
+            None => self.archive_get(t, h, loc.expect("payload fuori cache senza posizione")).await,
         }
     }
 
@@ -165,6 +200,8 @@ impl Shared {
 // ---------------------------------------------------------------- messaggi del motore
 
 pub enum Msg {
+    /// Posizioni nei segmenti di payload appena archiviati: (esecuzione, impronta, posizione).
+    Located(usize, Vec<(Uid, Hash, Loc)>),
     Accept { tenant: usize, req: pb::AcceptReq, t0: Instant, reply: oneshot::Sender<Result<Uid, Status>> },
     Result { sess: u64, r: pb::FromWorker },
     Register { sess: u64, tx: mpsc::Sender<Result<pb::Delivery, Status>> },
@@ -186,12 +223,15 @@ struct Engine {
     tenant_inflight: [usize; 2],
     cap: usize,
     next_delivery: u64,
+    /// Istante comune a tutti gli eventi di una iterazione: con scritture in parallelo il bus può mostrare al proiettore
+    /// una parte della iterazione prima del resto; la cache si svuota solo per istanti strettamente più vecchi.
+    bts: u64,
 }
 
 impl Engine {
     /// Decide i passi pronti di un'esecuzione: li marca emessi e produce gli eventi `Ready`.
     fn decide(&mut self, exec: Uid, evs: &mut Vec<(usize, Ev)>, newly: &mut Vec<(usize, Uid, u32, u64)>) {
-        let ts = now_us();
+        let ts = self.bts;
         let e = self.execs.get_mut(&exec).unwrap();
         let ti = tenant_idx(&e.tenant).unwrap();
         for s in e.ready_unissued() {
@@ -206,13 +246,15 @@ impl Engine {
     async fn append(&self, evs: &[(usize, Ev)]) {
         let t0 = Instant::now();
         let mut set: tokio::task::JoinSet<crate::bus::Res<()>> = tokio::task::JoinSet::new();
-        for ti in 0..2 {
+        let n = self.sh.bus_w.len();
+        for (ti, ci) in (0..2).flat_map(|t| (0..n).map(move |c| (t, c))) {
             let topic = topic_of(&TENANTS[ti]);
-            let msgs: Vec<Bytes> = evs.iter().filter(|(i, _)| *i == ti).map(|(_, e)| self.sh.seal_ev(&topic, e)).collect();
+            // la connessione si sceglie dall'id dell'esecuzione: l'ordine degli eventi di un'esecuzione non cambia
+            let msgs: Vec<Bytes> = evs.iter().filter(|(i, e)| *i == ti && e.exec_hash() % n as u64 == ci as u64).map(|(_, e)| self.sh.seal_ev(&topic, e)).collect();
             if msgs.is_empty() {
                 continue;
             }
-            let bus = self.sh.bus_w[ti].clone();
+            let bus = self.sh.bus_w[ci].clone();
             set.spawn(async move {
                 // gruppi di al più 8 MB (Iggy rifiuta richieste oltre 64 MB), in ordine, tutti durevoli prima di tornare
                 let mut from = 0;
@@ -253,13 +295,13 @@ impl Engine {
                 let Some(e) = self.execs.get(&exec) else { continue };
                 // fan-out: solo il ramo 0 è lento, così le uscite degli altri rami sono già proiettate quando serve il join
                 let (tenant, work_ms, out_size) = (e.tenant, if e.kind == 1 && step != 0 { 0 } else { e.work_ms }, e.out_size);
-                let refs = e.input_refs(step);
+                let refs: Vec<(Hash, Option<Loc>)> = e.input_refs(step).into_iter().map(|h| (h, e.locs.get(&h).copied().or_else(|| self.sh.pending_locs.lock().unwrap().get(&(tenant, h)).copied()))).collect();
                 let input = if refs.len() == 1 {
-                    self.sh.payload(&tenant, &refs[0]).await
+                    self.sh.payload(&tenant, &refs[0].0, refs[0].1).await
                 } else {
                     let mut v = Vec::new();
-                    for h in &refs {
-                        v.extend_from_slice(&self.sh.payload(&tenant, h).await);
+                    for (h, l) in &refs {
+                        v.extend_from_slice(&self.sh.payload(&tenant, h, *l).await);
                     }
                     Bytes::from(v)
                 };
@@ -296,11 +338,20 @@ impl Engine {
             if rx.recv_many(&mut batch, MAXB).await == 0 {
                 return;
             }
+            self.bts = now_us();
             let mut evs: Vec<(usize, Ev)> = vec![];
             let mut newly = vec![];
             let mut replies = vec![];
             for msg in batch.drain(..) {
                 match msg {
+                    Msg::Located(ti, v) => {
+                        for (exec, h, loc) in v {
+                            self.sh.pending_locs.lock().unwrap().remove(&(TENANTS[ti], h));
+                            if let Some(e) = self.execs.get_mut(&exec) {
+                                e.locs.insert(h, loc);
+                            }
+                        }
+                    }
                     Msg::Register { sess, tx } => self.sessions.push((sess, tx)),
                     Msg::Unregister { sess } => {
                         self.sessions.retain(|s| s.0 != sess);
@@ -319,7 +370,7 @@ impl Engine {
                             let _ = reply.send(Err(Status::unavailable("E_PROJECTION_DOWN")));
                             continue;
                         }
-                        let ts = now_us();
+                        let ts = self.bts;
                         let exec = *uuid::Uuid::now_v7().as_bytes();
                         let input = Bytes::from(req.input);
                         let h = sha(&input);
@@ -347,7 +398,7 @@ impl Engine {
                         self.tenant_inflight[ti] -= 1;
                         let output = Bytes::from(r.output);
                         let h = sha(&output);
-                        let ts = now_us();
+                        let ts = self.bts;
                         e.done[r.step as usize] = Some(h);
                         let (tenant, last) = (e.tenant, r.step + 1 == e.steps());
                         let is_join = e.kind == 1 && r.step == e.n;
@@ -447,7 +498,7 @@ async fn recover(sh: &Arc<Shared>) -> (HashMap<Uid, Exec>, Vec<(usize, Uid, u32)
 
 // ---------------------------------------------------------------- proiettore
 
-async fn projector(sh: Arc<Shared>, ti: usize, start: u64) {
+async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>) {
     // connessione propria del proiettore: le letture non si mettono in coda dietro le scritture del motore
     let bus = Bus::connect(sh.bus.name()).await.unwrap();
     let topic = topic_of(&TENANTS[ti]);
@@ -475,37 +526,46 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64) {
         };
         let next = raw.last().unwrap().0 + 1;
         let evs: Vec<Ev> = raw.iter().map(|(_, b)| Ev::decode(&sh.keys.open(&format!("bus/{topic}"), b).2)).collect();
-        // payload nell'archivio e fsync del file system PRIMA della transazione (la posizione fa scartare il bus)
+        // payload nel segmento del tenant e un solo fdatasync PRIMA della transazione (la posizione fa scartare il bus)
         let sh2 = sh.clone();
         let evs2 = evs.clone();
         let noarc = std::env::var("DIAG_NOARCHIVE").is_ok();
-        tokio::task::spawn_blocking(move || {
+        let (locs, located) = tokio::task::spawn_blocking(move || {
             if noarc {
-                return;
+                return (HashMap::new(), vec![]);
             }
             let items: Vec<(Uid, Hash, Bytes)> = evs2
-                .into_iter()
+                .iter()
                 .filter_map(|e| match e {
-                    Ev::Accepted { tenant, input_hash, input, .. } => Some((tenant, input_hash, input)),
-                    Ev::Done { tenant, out_hash, output, .. } => Some((tenant, out_hash, output)),
+                    Ev::Accepted { tenant, input_hash, input, .. } => Some((*tenant, *input_hash, input.clone())),
+                    Ev::Done { tenant, out_hash, output, .. } => Some((*tenant, *out_hash, output.clone())),
                     _ => None,
                 })
                 .collect();
-            std::thread::scope(|s| {
-                for ch in items.chunks(items.len().div_ceil(4).max(1)) {
-                    let sh3 = &sh2;
-                    s.spawn(move || ch.iter().for_each(|(t, h, b)| sh3.archive_put(t, h, b)));
-                }
-            });
-            let f = std::fs::File::open(format!("{}/archive", sh2.dir)).unwrap();
-            use std::os::fd::AsRawFd;
-            unsafe { libc::syncfs(f.as_raw_fd()) };
+            let locs = sh2.archive_put_group(ti, &items);
+            // posizioni per il motore: solo per le esecuzioni ancora vive (le altre le scarta lui)
+            let located = evs2
+                .iter()
+                .filter_map(|e| match e {
+                    Ev::Accepted { exec, input_hash, .. } => Some((*exec, *input_hash, locs[input_hash])),
+                    Ev::Done { exec, out_hash, .. } => Some((*exec, *out_hash, locs[out_hash])),
+                    _ => None,
+                })
+                .collect();
+            (locs, located)
         })
         .await
         .unwrap();
+        {
+            let mut p = sh.pending_locs.lock().unwrap();
+            for (_, h, l) in &located {
+                p.insert((TENANTS[ti], *h), *l);
+            }
+        }
+        let _ = tx.send(Msg::Located(ti, located)).await;
         // transazione; con il database giù si ritenta per sempre, rifiutando lavoro nuovo (AD-2)
         loop {
-            match sh.db.apply(&topic, next, &evs).await {
+            match sh.db.apply(&topic, next, &evs, &locs).await {
                 Ok(()) => break,
                 Err(e) => {
                     if !failing {
@@ -633,7 +693,16 @@ impl pb::worker_server::Worker for Wrk {
 
 // ---------------------------------------------------------------- avvio
 
-pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: usize, proj_batch: u32, trim: bool, window_ms: u64) {
+/// `n` connessioni di scrittura al bus (parallelismo delle scritture; l'esecuzione sceglie con il suo id).
+async fn futures_n(kind: &str, n: usize) -> Vec<Bus> {
+    let mut v = Vec::new();
+    for _ in 0..n {
+        v.push(Bus::connect(kind).await.unwrap());
+    }
+    v
+}
+
+pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: usize, proj_batch: u32, trim: bool, window_ms: u64, wconn: usize) {
     let t_start = Instant::now();
     // AD-2: un solo motore; il lock si libera da solo se il processo muore (kill -9)
     let lock = std::fs::OpenOptions::new().create(true).truncate(true).write(true).open(format!("{dir}/engine.lock")).unwrap();
@@ -653,7 +722,9 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
     let db = Arc::new(Db::open(db_url).await.unwrap());
     let sh = Arc::new(Shared {
         keys,
-        bus_w: vec![Bus::connect(bus_kind).await.unwrap(), Bus::connect(bus_kind).await.unwrap()],
+        bus_w: futures_n(bus_kind, wconn).await,
+        pending_locs: Mutex::new(HashMap::new()),
+        segs: [0, 1].map(|_| Mutex::new(Seg { file: None, id: 0, len: 0, opened: Instant::now() })),
         bus,
         db,
         dir: dir.into(),
@@ -665,10 +736,11 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
         proj_batch,
         window_ms,
     });
+    let (tx, rx) = mpsc::channel(65536);
     let (execs, redeliver) = recover(&sh).await;
     let pos = sh.db.positions().await.unwrap();
     for ti in 0..2 {
-        tokio::spawn(projector(sh.clone(), ti, pos.get(&topic_of(&TENANTS[ti])).copied().unwrap_or(0)));
+        tokio::spawn(projector(sh.clone(), ti, pos.get(&topic_of(&TENANTS[ti])).copied().unwrap_or(0), tx.clone()));
     }
     // eviction della cache dei payload non ancora proiettati
     let sh2 = sh.clone();
@@ -677,11 +749,10 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
             tokio::time::sleep(Duration::from_millis(500)).await;
             let w = [sh2.applied_ts[0].load(Relaxed), sh2.applied_ts[1].load(Relaxed)];
             if std::env::var("DIAG_NOARCHIVE").is_err() {
-            sh2.cache.lock().unwrap().retain(|(t, _), (_, ts)| *ts > w[tenant_idx(t).unwrap()]);
+            sh2.cache.lock().unwrap().retain(|(t, _), (_, ts)| *ts >= w[tenant_idx(t).unwrap()]);
             }
         }
     });
-    let (tx, rx) = mpsc::channel(65536);
     let mut eng = Engine {
         sh: sh.clone(),
         execs,
@@ -692,6 +763,7 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
         tenant_inflight: [0, 0],
         cap,
         next_delivery: now_us(),
+        bts: now_us(),
     };
     // decisioni mancanti dopo la ripresa (Ready non scritti), poi riconsegna delle emesse e non concluse
     let ids: Vec<Uid> = eng.execs.keys().copied().collect();

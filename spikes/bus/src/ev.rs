@@ -7,6 +7,8 @@ use crate::crypto::Uid;
 use bytes::Bytes;
 
 pub type Hash = [u8; 32];
+/// Posizione di un payload sigillato nell'archivio: (segmento, scostamento, lunghezza).
+pub type Loc = (u64, u64, u32);
 
 #[derive(Clone, Debug)]
 pub enum Ev {
@@ -19,6 +21,12 @@ pub enum Ev {
 }
 
 impl Ev {
+    /// Parte dell'id (casuale in UUIDv7) per scegliere la connessione di scrittura.
+    pub fn exec_hash(&self) -> u64 {
+        let (Ev::Accepted { exec, .. } | Ev::Ready { exec, .. } | Ev::Done { exec, .. }) = self;
+        u64::from_le_bytes(exec[8..16].try_into().unwrap())
+    }
+
     pub fn ts(&self) -> u64 {
         match self {
             Ev::Accepted { ts, .. } | Ev::Ready { ts, .. } | Ev::Done { ts, .. } => *ts,
@@ -108,12 +116,14 @@ pub struct Exec {
     pub input_hash: Hash,
     pub issued: Vec<bool>,
     pub done: Vec<Option<Hash>>,
+    /// Posizioni nei segmenti dei payload già proiettati (si riempie da `Msg::Located` e dal database).
+    pub locs: std::collections::HashMap<Hash, Loc>,
 }
 
 impl Exec {
     pub fn new(tenant: Uid, kind: u8, n: u32, work_ms: u32, out_size: u32, input_hash: Hash) -> Exec {
         let steps = if kind == 0 { n } else { n + 1 } as usize;
-        Exec { tenant, kind, n, work_ms, out_size, input_hash, issued: vec![false; steps], done: vec![None; steps] }
+        Exec { tenant, kind, n, work_ms, out_size, input_hash, issued: vec![false; steps], done: vec![None; steps], locs: Default::default() }
     }
 
     pub fn steps(&self) -> u32 {

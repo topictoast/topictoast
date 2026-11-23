@@ -67,6 +67,7 @@ async fn main() {
                 arg("proj_batch", "1000").parse().unwrap(),
                 arg("trim", "1") == "1",
                 arg("window_ms", "200").parse().unwrap(),
+                arg("wconn", "1").parse().unwrap(),
             )
             .await
         }

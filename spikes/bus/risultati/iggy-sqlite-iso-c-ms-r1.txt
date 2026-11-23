@@ -1,0 +1,41 @@
+[stato prima 20:47:58] load: 1.45 1.55 1.25
+[stato prima] io: some avg10=0.05 avg60=2.47 avg300=10.25 total=1529757091
+[stato prima] cpu: some avg10=0.00 avg60=0.03 avg300=0.27 total=173834673
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 105 s
+### iggy + sqlite: iso 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1
+engine pid=1567502 READY recovered_ms=323
+load tenants=b rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=30s
+offered=3499 accepted=3499 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=3000 p50=24.99ms p99=37.60ms p99.9=53.53ms max=72.70ms over100ms=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=15008 refused=0 done=35132 rejected=0 groups=276
+activities_per_s=1171 accepted_per_s=500
+accept_engine n=15008 p50=24.50ms p99=37.44ms p99.9=56.09ms max=72.51ms over100ms=0
+append n=1833 p50=16.72ms p99=22.11ms p99.9=37.15ms max=54.21ms over100ms=0
+start_ready n=35132 p50=17.55ms p99=19202.05ms p99.9=19251.20ms max=19283.97ms over100ms=5120
+start_sent n=35132 p50=0.19ms p99=0.60ms p99.9=0.82ms max=1.47ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=30012 p50=17.28ms p99=22.50ms p99.9=25.18ms max=54.66ms over100ms=0
+archive_read n=5120 p50=0.03ms p99=0.16ms p99.9=0.25ms max=1.29ms over100ms=0
+proj_lag n=91955 p50=132.22ms p99=239.49ms p99.9=245.12ms max=273.41ms over100ms=59961
+sql_stmts=1792 sql_rows=100350 sql_per_activity=0.0510 rows_per_activity=2.856 wal_bytes_per_activity=0.0
+engine_cpu_s=4.00 cache_entries=365
+-- tenant A (lento)
+load tenants=a rate=400/s kind=0 n=1 size=1024 work_ms=3000 warm=2s measured=40s
+offered=16800 accepted=16800 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=16000 p50=23.79ms p99=37.70ms p99.9=55.87ms max=72.89ms over100ms=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 78740 kB
+rss pid=1567502 35564 kB
+rss pid=1567554 13080 kB
+-- conteggio file archivio: 72
+[stato dopo 20:48:47] load: 2.35 1.76 1.34
+[stato dopo] io: some avg10=49.73 avg60=25.26 avg300=15.07 total=1550871476
+[stato dopo] cpu: some avg10=1.96 avg60=0.99 avg300=0.48 total=174963037
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.17

@@ -1,0 +1,22 @@
+[stato prima 20:57:31] load: 1.01 1.26 1.25
+[stato prima] io: some avg10=0.73 avg60=8.62 avg300=13.77 total=1624252006
+[stato prima] cpu: some avg10=0.00 avg60=0.18 avg300=0.33 total=178444005
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-etruria-runner-front-3 0.02
+[attesa] 15 s
+### iggy + sqlite: rss 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1
+engine pid=1601694 READY recovered_ms=690
+rss iggy 73504 kB
+rss pid=1601694 19064 kB
+rss pid=1601750 12100 kB
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 73504 kB
+rss pid=1601694 19064 kB
+rss pid=1601750 12100 kB
+-- conteggio file archivio: 0
+[stato dopo 20:58:39] load: 0.60 1.09 1.20
+[stato dopo] io: some avg10=0.01 avg60=3.03 avg300=11.01 total=1624762565
+[stato dopo] cpu: some avg10=0.00 avg60=0.05 avg300=0.26 total=178643210
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-1 0.01

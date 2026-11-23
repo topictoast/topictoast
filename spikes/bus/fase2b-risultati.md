@@ -1,5 +1,7 @@
 # Spike S-1, fase 2b: i ritardi di coda su una macchina ferma (minisheep)
 
+> **Aggiornamento 2c (2026-11-23):** la misura finale a 4 CPU con i due correttivi (archivio a segmenti, scritture parallele) è in `fase2c-risultati.md`.
+
 Data: 2026-11-23. Segue il PIANO.md, sezione «Fase 2b» (corse e regola fissate prima di misurare).
 Stessi binari della fase 2 (ricompilati dalla stessa sorgente più il conteggio dei campioni sopra 100 ms),
 stesse immagini, stessi scenari di `scen.sh`. Numeri grezzi: `risultati/*-ms-r*.txt` (suffisso `-ms`).

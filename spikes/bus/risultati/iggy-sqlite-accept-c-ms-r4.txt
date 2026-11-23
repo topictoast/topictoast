@@ -1,0 +1,35 @@
+[stato prima 20:00:47] load: 0.73 1.01 1.01
+[stato prima] io: some avg10=0.92 avg60=7.54 avg300=11.11 total=1117719075
+[stato prima] cpu: some avg10=0.00 avg60=0.11 avg300=0.37 total=153088742
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 30 s
+### iggy + sqlite: accept 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1
+engine pid=1389656 READY recovered_ms=261
+load tenants=a rate=200/s kind=0 n=1 size=1024 work_ms=0 warm=3s measured=30s
+offered=6600 accepted=6600 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=6001 p50=12.17ms p99=19.02ms p99.9=23.89ms max=42.49ms over100ms=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=6000 refused=0 done=6000 rejected=0 groups=141
+activities_per_s=200 accepted_per_s=200
+accept_engine n=6000 p50=11.77ms p99=18.62ms p99.9=23.61ms max=42.27ms over100ms=0
+append n=3838 p50=8.08ms p99=11.94ms p99.9=14.43ms max=35.71ms over100ms=0
+start_ready n=6000 p50=8.28ms p99=12.05ms p99.9=14.07ms max=35.84ms over100ms=0
+start_sent n=6000 p50=0.11ms p99=0.25ms p99.9=0.34ms max=0.36ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+archive_read n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+proj_lag n=17942 p50=123.97ms p99=228.99ms p99.9=236.93ms max=238.34ms over100ms=10990
+sql_stmts=987 sql_rows=24065 sql_per_activity=0.1645 rows_per_activity=4.011 wal_bytes_per_activity=0.0
+engine_cpu_s=1.98 cache_entries=53
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 81044 kB
+rss pid=1389656 21968 kB
+rss pid=1389710 12104 kB
+-- conteggio file archivio: 32
+[stato dopo 20:01:28] load: 0.97 1.03 1.01
+[stato dopo] io: some avg10=56.00 avg60=27.21 avg300=15.53 total=1136402945
+[stato dopo] cpu: some avg10=1.91 avg60=0.86 avg300=0.53 total=153884309
+[stato dopo] container non nostri non in esecuzione stabile: 5; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
