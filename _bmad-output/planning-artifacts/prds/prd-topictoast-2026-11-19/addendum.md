@@ -137,3 +137,27 @@ Meccanismi e dettagli rinviati dalle tre revisioni dell'aggiornamento (`triage-u
 - Chiave di idempotenza dei lanci dal kit (FR-41): nome e API nel contratto del kit: architettura.
 - Credenziale dell'integratore firmata per il kit (FR-28): come il motore la distingue da quella
   con cui l'integratore usa l'SDK: architettura.
+
+## Dopo l'architettura (2026-11-23)
+
+Le scelte rimandate all'architettura nelle sezioni sopra sono decise dalla spine accettata
+(`docs/architecture/architecture-topictoast-2026-11-20/ARCHITECTURE-SPINE.md`) o riassegnate da
+lei (tabelle Deferred e Open Questions, spike S-1…S-4); in caso di dubbio vale la spine. Qui le
+decise:
+
+- Pipeline stream: SQL su DataFusion, con stato, finestre, watermark e checkpoint costruiti in
+  topictoast, un processo ausiliario per tenant (AD-13). Arroyo resta solo il modello, mai un
+  candidato.
+- Linguaggio degli schemi: sottoinsieme chiuso di JSON Schema 2020-12, scritto come `input.schema`
+  di OWS nel documento (AD-10, C-10).
+- Estensione DAG: task `dag` di prima classe con `dependsOn` (AD-8); regola di propagazione in
+  AD-9.
+- Bus: servizio separato (AD-1); Iggy o Valkey lo sceglie lo spike del bus. iroh resta uno dei
+  collegamenti dei worker da misurare nello stesso spike.
+- Log dei task (FR-59, decisione di Marco del 2026-11-23): righe mai nel database (NFR-4),
+  conservate nell'archivio dei payload (AD-17) e cifrate per tenant come gli altri dati dei tenant
+  (AD-7); trasporto delle righe dei worker nel protocollo dei worker, misurato nello spike del bus;
+  righe dei nodi raccolte dalla sandbox, mai nei log del motore (C-9). Il segnaposto dei segreti
+  (confermato da Marco il 2026-11-23) si applica prima che la riga entri nel bus o nell'archivio,
+  nell'SDK o nell'host della sandbox, perché i segreti non passano mai dal bus (C-12); lo spike del
+  bus sceglie il trasporto delle righe di conseguenza.

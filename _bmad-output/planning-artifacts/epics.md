@@ -37,7 +37,9 @@ Regole di lettura:
 - Gli id del PRD (`FR-n`, `NFR-n`, `UJ-n`, `SM-n`) restano quelli del PRD, mai rinumerati; `AR-n`
   (architettura), `UX-DR-n` (UX) e `BR-n` (brief) sono id di questo documento.
 - Il riferimento `prd.md:Lx-Ly` indica le righe del PRD da cui viene la voce; il PRD resta la fonte
-  in caso di dubbio.
+  in caso di dubbio. Righe e parafrasi si riferiscono al PRD del 2026-11-21: l'aggiornamento del 2026-11-23
+  (domande aperte, decisioni dell'architettura, FR-59) sposta le righe e cambia alcuni testi, e in
+  quel caso vale il PRD. FR-59 non ha riferimento di riga.
 - Dove il PRD dà per aperta una questione che l'architettura accettata ha già deciso, vale
   l'architettura: la voce porta la nota «→ deciso da …».
 - `[DA ALLINEARE]` segna una voce UX scritta prima dell'architettura (2026-11-20) che va riallineata
@@ -115,6 +117,15 @@ Regole di lettura:
   - Limite di dimensione di input e output di un'attività `[ASSUMPTION: 1 MB nella v1]` (storage per payload grandi dopo la v1).
   - Output oltre il limite: l'attività fallisce con errore che indica dimensione e limite.
   - Fan-out: il limite vale per ogni elemento; l'input aggregato del join ha tetto proprio, configurabile, con predefinito documentato (NFR-14); oltre il tetto il join fallisce con dimensione e limite.
+- **FR-59 — Log dei task** (PRD del 2026-11-23, §4.2; v1): per ogni tentativo di un task, gli eventi del motore e le righe scritte dal codice che lo esegue, funzione del worker o nodo personalizzato.
+  - Eventi del motore almeno: ricevuta (dal worker o dalla sandbox), in esecuzione, completata, fallita con il motivo (timeout compreso), ritentata con l'attesa, annullata; con il ruolo tenant senza identificativi dei worker.
+  - Righe dal worker tramite l'SDK (TypeScript e Rust) e dal nodo dalla sandbox: ora al millesimo, livello (info, avviso, errore; «ok» solo per gli eventi del motore), messaggio, tentativo; orologio e ordine nella spec.
+  - Mostrate nella vista delle esecuzioni del kit e nel dettaglio della dashboard entro 1 s da quando il codice scrive la riga, anche a tentativo in corso.
+  - Il tenant vede il log delle proprie esecuzioni, righe dei worker comprese; nessun tenant vede quello di un altro (test di NFR-8).
+  - Nessun carico in più sul database (NFR-4 vale con il log attivo); contano nello spazio del tenant (FR-30), restano quanto lo storico (FR-31) e spariscono con l'esecuzione o il tenant.
+  - Tetto di righe e byte per tentativo sulle righe del codice, mai sugli eventi del motore (NFR-14): le righe in più si scartano e il log dice quante.
+  - Valore esatto di un segreto consegnato sostituito da un segnaposto prima del bus e dell'archivio (NFR-8, C-12; confermato da Marco); valori trasformati non riconosciuti, detto nella documentazione.
+  - Mostrate come testo (NFR-7), mai nei log del motore (FR-52); scrivere fino al tetto non porta gli altri tenant oltre NFR-2 (corsa a carico misto di FR-53).
 #### 4.3 Worker
 - **FR-12 — Registrazione e consegna** (prd.md:L525-L539; v1): un worker si collega con l'SDK, registra le funzioni con il manifest (FR-55) e riceve le attività che le invocano.
   - Attività per funzione senza worker collegati: restano in coda con il motivo, entro il limite di attesa di FR-8, e partono quando un worker la registra.
@@ -322,7 +333,7 @@ Regole di lettura:
 - **FR-45 — Accesso** (prd.md:L1156-L1165; v1): l'operatore accede con una credenziale generata al primo avvio; nessuna password predefinita.
   - [dashboard] Senza credenziali valide non mostra alcun dato.
   - [dashboard] Alla scadenza della sessione torna alla pagina d'accesso senza mostrare dati.
-  - La pagina d'accesso dice dove è stata stampata la credenziale del primo avvio, senza mostrarla.
+  - La pagina d'accesso dice dove trovare la credenziale del primo avvio, senza mostrarla.
   - La credenziale del primo avvio non compare mai nei log (FR-52).
 - **FR-46 — Esecuzioni** (prd.md:L1167-L1180; v1): l'operatore vede le esecuzioni di tutti i tenant, con filtri per tenant, workflow e stato (compreso "in coda") e ordinamento per tempo in coda.
   - Tempo in coda = età del più vecchio tra task e attività in coda dell'esecuzione, anche per un'esecuzione già "in esecuzione"; senza task né attività in coda non ha tempo in coda.
@@ -341,7 +352,7 @@ Regole di lettura:
 
 #### 4.11 Installazione e funzionamento
 
-- **FR-50 — Installazione minima** (prd.md:L1214-L1238; v1; sandbox forte opzionale FR-54 richiede KVM): l'integratore installa due servizi, topictoast e il bus, più il database a scelta; topictoast avvia e ferma da sé i processi ausiliari (sandbox leggera e, se l'architettura li separa, processi per espressioni jq, query delle pipeline stream e `call http`).
+- **FR-50 — Installazione minima** (prd.md:L1214-L1238; v1; sandbox forte opzionale FR-54 richiede KVM): l'integratore installa due servizi, topictoast e il bus, più il database a scelta; topictoast avvia e ferma da sé i processi ausiliari (sandbox leggera e, separati dal motore, processi per espressioni jq, query delle pipeline stream e `call http`: AD-6).
   - Il numero di processi non è la differenza (§1.1): lo sono RAM e carico sul database.
   - Con SQLite incorporato, topictoast e il bus sono gli unici servizi da installare e avviare; ogni altro processo lo gestisce topictoast.
   - Un processo ausiliario inattivo oltre un tempo configurabile è fermato e riavviato a freddo alla prima richiesta; il tempo di riavvio è riportato nel benchmark (FR-53); NFR-2 e NFR-12 si misurano a regime.
@@ -425,7 +436,7 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
 
 #### Spike prima dello sprint 1
 - **AR-8** Ordine e regole: bus (3-4 giorni) → sandbox (2-3) → pipeline stream (~3) → kit nel browser (mezza giornata), ~2 settimane. Sprint 1 solo dopo tutti e quattro. Codice in `spikes/<nome>/` (fuori dal gate). Ogni spike chiude con ADR misurato in `docs/decisions/` + PR che aggiorna la spine (intento Update, AD-n stabili); ogni ADR controlla la licenza delle tecnologie contro NFR-11. (spine L409-416; CLAUDE.md)
-- **AR-9** S-1 Bus, scope: Apache Iggy (server-0.10.0, crate `iggy` 0.12.0) contro Valkey 9.1.4 come livello caldo con scarico (payload in archivio AD-17, nel DB solo stato tipizzato; Iggy 0.10 non legge i dati della 0.9). Collegamento worker, attività sempre sul log: (1) diretti sui topic, ack/retry/timeout dal motore; (2) dal motore su gRPC+TLS (tonic 0.14.9); (3) dal motore su QUIC p2p iroh 1.4.2 (solo con eccezione di sicurezza). Anche: modalità di scrittura durevole (M-18), upgrade senza perdite, spazio per tenant con id interno (M-24, T-66), costo cifratura per tenant (C-12), costo chiamata verso ausiliari, timer durevoli (retry con attesa attraverso crash iniettato, `wait`, C-3, battiti), trasporto log dei task se nel perimetro, benchmark base (M-49), redis 1.8.1. (spine L418-436)
+- **AR-9** S-1 Bus, scope: Apache Iggy (server-0.10.0, crate `iggy` 0.12.0) contro Valkey 9.1.4 come livello caldo con scarico (payload in archivio AD-17, nel DB solo stato tipizzato; Iggy 0.10 non legge i dati della 0.9). Collegamento worker, attività sempre sul log: (1) diretti sui topic, ack/retry/timeout dal motore; (2) dal motore su gRPC+TLS (tonic 0.14.9); (3) dal motore su QUIC p2p iroh 1.4.2 (solo con eccezione di sicurezza). Anche: modalità di scrittura durevole (M-18), upgrade senza perdite, spazio per tenant con id interno (M-24, T-66), costo cifratura per tenant (C-12), costo chiamata verso ausiliari, timer durevoli (retry con attesa attraverso crash iniettato, `wait`, C-3, battiti), trasporto delle righe di log dei worker (FR-59), benchmark base (M-49), redis 1.8.1. (spine L418-436)
 - **AR-10** S-1 misure per variante: latenza p50/p99 di un passo del DAG, throughput al ritmo di NFR-3, CPU del motore, payload 1 KB-1 MB, attività lenta; le corse NFR-2/NFR-3 includono `if`, mappatura jq e controllo input/output nell'ausiliario (FR-53). (spine L437-440)
 - **AR-11** S-1 criteri pass/fail (decidono i numeri): upstream da archivio con proiezione indietro fino a 1 s (E-4, AD-3) misurato contro NFR-2; scrittura durevole p50 ≤ 5 ms, p99 ≤ 25 ms; NFR-3 ≥ 10.000 attività/s; NFR-4 ≤ 5 istruzioni SQL per attività (SQLite e Postgres, righe e WAL contati) e SM-2; NFR-1 ≤ 80 MB con SQLite, bus e ausiliari attivi; NFR-6 zero perdite con guasto iniettato (DB fermo e disco pieno: lavoro nuovo rifiutato con codice, AD-2); NFR-15 ripresa entro 30 s; proiezione idempotente; FR-51 upgrade senza perdite; chiamata tra processi sul percorso caldo entro NFR-2; attività lenta non porta altri tenant oltre NFR-2 (FR-13); autenticazione bus obbligatoria anche da localhost, credenziali generate, nessun predefinito (FR-12, FR-50). (spine L441-452)
 - **AR-12** S-1 variante (1): criteri non numerici nell'ADR (segreti e decifratura per il worker diretto, mai sul bus, giro in più dentro NFR-2; chi applica concorrenza, quote, credenziali FR-12/FR-13/FR-30; compatibilità upgrade FR-51). Condizioni di sicurezza: nessuna chiave tenant né segreto ai worker; C-11 applicabile dal bus; eventi di stato scritti solo dal motore (AD-2). Se ne manca anche una, la variante 1 è esclusa qualunque siano i numeri (D-1). (spine L453-459)
@@ -521,6 +532,7 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
 - **AR-90** T-58 (canvas `@xyflow/react` 12.12.1 o 13.x dal 2026-11-30, `@dagrejs/dagre`, CodeMirror 6; elkjs escluso; tastiera/NVDA/telefono, max task NFR-14, CSP AD-19): Update spine o skill del kit prima della prima storia del kit. (OQ L803)
 - **AR-91** Editor: posizioni dei nodi nella versione (FR-5) e nell'export, a cosa si legano, unità; moduli dei costrutti generati dal dominio o a mano con test di parità: prima della prima storia dell'editor. (OQ L804)
 - **AR-92** Log dei task (tab Log UX): nota nel PRD che li porti nel perimetro, proprietario Marco, prima di S-1 (mai nel DB, NFR-4). (OQ L805)
+  → deciso da Marco (2026-11-23): nel perimetro come FR-59, con le righe di worker e nodi visibili anche al tenant.
 - **AR-93** Ambito della verità sul bus (quali risorse, altri controlli sullo stato recente, lettura di I/O di esecuzione viva, stato solo in memoria): S-1, costo dentro NFR-4. (OQ L806)
 - **AR-94** Proiettore sotto RLS Postgres (gruppi multi-tenant senza `BYPASSRLS`, lettura operatore FR-46, `FORCE ROW LEVEL SECURITY`, tenant per transazione): S-1, dentro NFR-4. (OQ L807)
 - **AR-95** Versione del formato di messaggi bus, payload, checkpoint, export riletti dopo upgrade (FR-51): S-1, con upgrade a esecuzioni in corso. (OQ L808)
@@ -548,7 +560,7 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
 - **AR-115** M-10 controllo input/output a ogni attività: benchmark S-1 e storia FR-55. M-19 due orologi per attività: spec FR-8. M-23 quote e storico integratore: spec quote (FR-30, FR-46). (Deferred)
 - **AR-116** M-29 interprete jq: Rust puro, compilabile `wasm32-wasip1`, elenco chiuso di funzioni (FR-17 vieta `$ENV`, `env`, `input_filename`, `import`, `include`), limiti di profondità: spec prima storia jq. M-30 filtro rete in uscita (un filtro per sandbox e `call http`, indirizzi dell'installazione esclusi, proxy env ignorati, resolver del motore, controllo di ogni indirizzo IPv4/IPv6/mappato a ogni connessione e redirect, microVM dallo stesso filtro): spec prima storia `call http` o sandbox (FR-16, FR-17). (Deferred)
 - **AR-117** M-44 pagina d'accesso dashboard e limite tentativi: spec accesso (FR-45). M-45/M-46/M-47/T-63 contratto pubblico del kit (credenziale scaduta, contrasto/marchio, idempotenza lanci, codici/dizionario, cambio tenant, personalizzazione, nomi neutri, `peerDependencies` React, componenti solo client): sezione contratti del kit prima della prima storia del kit; nomi neutri e temi di `packages/ui` prima della prima storia che lo crea. (Deferred)
-- **AR-118** Conteggio workflow che usano un segreto: spec segreti (FR-32). T-57 unità componenti (rem/em) e T-59 isolamento CSS/colori forzati: prima della prima storia di design system, kit o dashboard. T-65 prestazioni grafi grandi: quando si fissa il limite task (NFR-14). T-67 segreti nei log del codice tenant: spec consegna segreti e log (FR-33, FR-52). T-68 dashboard con canale interrotto: spec dashboard. (Deferred)
+- **AR-118** Conteggio workflow che usano un segreto: spec segreti (FR-32). T-57 unità componenti (rem/em) e T-59 isolamento CSS/colori forzati: prima della prima storia di design system, kit o dashboard. T-65 prestazioni grafi grandi: quando si fissa il limite task (NFR-14). T-67 segreti nei log del codice tenant: spec consegna segreti e log (FR-33, FR-52); lato di prodotto chiuso da FR-59 (segnaposto del valore esatto, confermato da Marco il 2026-11-23). T-68 dashboard con canale interrotto: spec dashboard. (Deferred)
 - **AR-119** Ricerca per valore tra elementi di fan-out (A-5 UX): spec storia fan-out. AMB-1, AMB-5, AMB-6, AMB-9: spec delle storie che le toccano. Versioni delle librerie non scelte (runtime async, server HTTP, driver SQL, JWT, gRPC/iroh, jq, generatori OpenAPI/TS, TypeScript, Vite): prima storia che le usa, regola delle due settimane (driver SQL prima di S-1). (Deferred)
 - **AR-120** Dopo la v1 (PRD §8.2): HA del centro, cluster del bus, backup/ripristino coerenti, rotazione della chiave di firma, OAuth. Funzione di analisi dello storico + export Parquet (prova cifratura per tenant, `parquet_encryption` in datafusion 55.2.0): quando il PRD la definisce. (Deferred)
 
@@ -556,7 +568,7 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
 | FR o capability | AD / C / S | Nota |
 | --- | --- | --- |
 | Definizione dei workflow: FR-1…FR-5, FR-56 | AD-4, AD-8, AD-9, AD-10, AD-11, C-5 | `crates/ows` (modello), `crates/domain` (validatore); motore (versioni) |
-| Esecuzione: FR-6…FR-11 | AD-2, AD-3, AD-9, AD-17, AD-18, C-2, C-3, C-4, S-1 | motore, bus, proiettore, archivio payload; S-1 per l'annullamento di FR-10 |
+| Esecuzione: FR-6…FR-11, FR-59 | AD-2, AD-3, AD-7, AD-9, AD-17, AD-18, C-2, C-3, C-4, C-9, S-1 | motore, bus, proiettore, archivio payload; S-1 per l'annullamento di FR-10 e il trasporto delle righe di log dei worker |
 | Worker: FR-12…FR-14, FR-55 | AD-1, AD-10, C-6, C-11, S-1 | motore, adattatore collegamento worker, SDK |
 | Nodi personalizzati e sandbox: FR-15…FR-17, FR-54 | AD-6, AD-16, C-5, S-2 | processi ausiliari, pool microVM |
 | Pipeline stream: FR-18…FR-25 | AD-6, AD-7, AD-13, AD-17, C-4, S-3 | ausiliario per tenant con DataFusion, bus, archivio payload |
@@ -580,8 +592,8 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
 
 #### Dove si chiudono le domande aperte del PRD (§11)
 
-Il PRD (2026-11-21) elenca ancora come aperte domande che l'architettura ha deciso o assegnato.
-Vale questa tabella.
+Dal 2026-11-23 il PRD riporta in §11 lo stato di ogni domanda, uguale a questa tabella, che resta
+come indice.
 
 | §11 | Stato dopo l'architettura | Dove si chiude |
 | --- | --- | --- |
@@ -591,12 +603,12 @@ Vale questa tabella.
 | n.4 checkpoint | chiusa | AD-17 |
 | n.5 progetto separato con i nodi pronti | fuori dalla v1 | nessuna storia |
 | n.6 salvataggio di segreti e connessioni | busta e chiavi decise (AD-7, C-12) | forma delle connessioni: spec della storia delle connessioni (M-37, AR-89) |
-| n.7 invocazione di funzioni e nodi nel formato | aperta (M-02) | proposta prima di S-1, Update della spine prima della prima storia che la tocca (AR-86, AR-110: vale la scadenza più stretta) |
-| n.8 propagazione nel DAG | chiusa | AD-9; join e fan-out dentro `dag`: Update della spine prima della prima storia `dag` (AR-88) |
+| n.7 invocazione di funzioni e nodi nel formato | chiusa in parte: schema di input in `input.schema` (AD-10); il resto aperto (M-02) | proposta prima di S-1, Update della spine prima della prima storia che la tocca (AR-86, AR-110: vale la scadenza più stretta) |
+| n.8 propagazione nel DAG | chiusa in parte: regola in AD-9; aperti join dei dati, `$context`, sintassi del fan-out e politica «il join riceve l'errore» | AD-9; join e fan-out dentro `dag`: Update della spine prima della prima storia `dag` (AR-88) |
 | n.9 riavvio a freddo degli ausiliari | aperta (M-28) | ADR di S-2 (AR-14) |
 | n.10 manifest senza worker o conteso | assegnata (M-08) | spec della storia di registrazione (AR-114) |
 | n.11 cambio di manifest o di schema | assegnata (M-09) | spec delle storie delle versioni (AR-114) |
-| n.12 input della pianificazione nel formato | aperta (M-04) | Update della spine prima della prima storia delle pianificazioni (AR-87) |
+| n.12 input della pianificazione nel formato | chiusa in parte: la pianificazione porta il proprio input (PRD); la forma nel documento aperta (M-04) | Update della spine prima della prima storia delle pianificazioni (AR-87) |
 | n.13 rifiuto registrato con il motivo | chiusa | PRD (FR-6, FR-24), C-3, C-4 |
 | n.14 scelta del segreto tra più candidati | assegnata (M-37) | spec della storia delle connessioni (AR-89) |
 | n.15 attività oltre il limite di attesa | assegnata (M-19) | spec della storia di FR-8 (AR-115) |
@@ -621,7 +633,7 @@ Vale questa tabella.
 - **UJ-2** (L158-L177; NFR-16): Giulia (analista SOC, tenant di Marco) compone nell'editor: elenco indicatori, DNS e Censys in parallelo, arricchimento, inserimento; collega credenziali Censys; usa nodo personalizzato TS caricato via CLI da un collega; lancia con 300 indicatori. Climax: DAG con 300 rami paralleli e join finale. Esito: salvato e rilanciabile, storico solo del suo tenant. Varianti: 1 indicatore = elenco di un elemento; da telefono (NFR-16). Limite: nodo in loop infinito, la sandbox lo ferma al timeout, task fallito con messaggio leggibile, altri tenant non influenzati.
 - **UJ-3** (L179-L190) `[ASSUMPTION: esempio dedotto, da confermare con caso reale di Marco]`: Giulia crea una pipeline stream: query che conta indicatori per ASN su finestre di 5 minuti, tiene righe con > 50 indicatori, destinazione "avvia il workflow di arricchimento per ogni riga". Climax: durante un'ondata emette una riga per l'ASN sospetto e il workflow parte da solo, una volta per ASN. Limite: riavvio durante una finestra, riparte dall'ultimo checkpoint senza perdere il conteggio. FR citati: nessuno.
 - **UJ-4** (L192-L206): Marco operatore apre la dashboard con la credenziale del primo avvio; vede worker con funzioni e attività, esecuzioni ferme in coda da più tempo, pipeline stream attive/rallentate/sospese con ritardo e causa, tenant vicini al limite. Climax: individua un worker che non risponde, attività già riassegnate. Limite: tenant oltre quota di attività concorrenti = al limite, nuove attività in coda, altri non rallentano. FR citati: nessuno.
-- **UJ-5** (L208-L221; FR-50, FR-45, NFR-13, §4.6): Luca (non conosce topictoast) segue la guida rapida su macchina pulita, avvia con config predefinita (FR-50), worker e workflow di esempio, entra in dashboard con la credenziale del primo avvio, nel tenant predefinito. Climax: vede l'esecuzione di esempio "completata". Esito: < 15 minuti (NFR-13). Limite: credenziale smarrita, la pagina d'accesso dice dove è stata stampata (FR-45).
+- **UJ-5** (L208-L221; FR-50, FR-45, NFR-13, §4.6): Luca (non conosce topictoast) segue la guida rapida su macchina pulita, avvia con config predefinita (FR-50), worker e workflow di esempio, entra in dashboard con la credenziale del primo avvio, nel tenant predefinito. Climax: vede l'esecuzione di esempio "completata". Esito: < 15 minuti (NFR-13). Limite: credenziale smarrita, la pagina d'accesso dice dove trovarla (FR-45).
 
 #### Perimetro v1
 
@@ -941,6 +953,14 @@ FR-57: Epic 9 - pianificazione del tenant via API e SDK
 FR-57: Epic 12 - pianificazioni nel kit
 FR-58: Epic 2 - eliminazione di un workflow nel motore
 FR-58: Epic 6 - area workflow ed elenco dei workflow
+FR-59: Epic 2 - eventi del motore letti via API (storia 2.11), righe del worker Rust con il tetto (storia 2.12)
+FR-59: Epic 3 - tab Log nel dettaglio della dashboard
+FR-59: Epic 4 - log nella conservazione e nell'eliminazione dei tenant
+FR-59: Epic 5 - righe dal worker TypeScript
+FR-59: Epic 6 - tab Log nel kit
+FR-59: Epic 8 - segreti sostituiti nelle righe di log
+FR-59: Epic 10 - righe dei nodi personalizzati
+FR-59: Epic 13 - log fino al tetto nella corsa a carico misto
 
 NFR: NFR-1…NFR-5 nel benchmark dell'Epic 13 (soglie verificate prima negli spike); NFR-6 ed NFR-15 dall'Epic 1, con i guasti iniettati dell'Epic 13; NFR-7 dall'Epic 1 (input) e nelle epiche con interfaccia (3, 6, 12); NFR-8 nei casi di ogni epica e nella suite completa dell'Epic 13; NFR-9 ed NFR-16 nelle epiche 3, 6, 12, con la prova NVDA e VoiceOver nell'Epic 13; NFR-10 ed NFR-12 nell'Epic 10; NFR-11 su ogni dipendenza; NFR-13 nell'Epic 13; NFR-14 nella spec di ogni storia.
 
@@ -958,7 +978,7 @@ Lo sprint 1 parte solo quando tutte le voci sono chiuse.
 
 | Voce | Cosa | Chi | Epiche da ricontrollare |
 | --- | --- | --- | --- |
-| S-1 Bus (AR-9…AR-13) | Iggy o Valkey; tre collegamenti dei worker; ripresa e aggiornamento; chiude AR-93, AR-94, AR-95 | architettura | 1, 2, 3, 11, 13 |
+| S-1 Bus (AR-9…AR-13) | Iggy o Valkey; tre collegamenti dei worker; ripresa e aggiornamento; trasporto delle righe di log dei worker (FR-59); chiude AR-93, AR-94, AR-95 | architettura | 1, 2, 3, 5, 6, 10, 11, 13 |
 | S-2 Sandbox (AR-14…AR-16) | livello leggero e microVM; riavvio a freddo; chi riavvia il motore (AR-103) | architettura | 1, 10, 13 |
 | S-3 Pipeline stream (AR-17…AR-19) | DataFusion con stato, finestre, watermark, checkpoint sul caso UJ-3 | architettura | 11 |
 | S-4 Kit nel browser (AR-20, AR-21) | validatore `wasm32-wasip1` su Chromium, Firefox, Safari; soglie di peso e avvio (AR-107) | architettura, Marco | 6, 12 |
@@ -966,7 +986,7 @@ Lo sprint 1 parte solo quando tutte le voci sono chiuse.
 | AR-96 | primo avvio: credenziali, certificati, chi firma `aud = sdk` | architettura | 1, 3, 4 |
 | AR-102 | formato della configurazione | architettura | 1 |
 | AR-111 | driver e versione di SQLite | architettura | 1 |
-| AR-92 | nota nel PRD che porta nel perimetro i log dei task (tab Log della UX) o li esclude | Marco | 3, 6 |
+| AR-92 | chiusa il 2026-11-23: log dei task nel perimetro (FR-59) | Marco | 2, 3, 4, 5, 6, 8, 10, 13 |
 | AR-106 | licenze ammesse per le dipendenze | Marco | tutte |
 
 ### Epic 1: Primo workflow eseguito
@@ -987,9 +1007,9 @@ L'integratore esegue workflow con task `dag` e dipendenze arbitrarie, un fan-out
 su centinaia di elementi, retry, timeout e annullamento; pubblica versioni nuove mentre le vecchie
 girano; un worker lento o muto non blocca gli altri.
 
-**FRs covered:** FR-1 (espressioni jq, `try` con retry), FR-2, FR-3, FR-4 (jq), FR-5 (motore), FR-7, FR-8, FR-10, FR-11 (tetto del join), FR-13, FR-14, FR-17 (limiti di jq), FR-58 (eliminazione nel motore)
+**FRs covered:** FR-1 (espressioni jq, `try` con retry), FR-2, FR-3, FR-4 (jq), FR-5 (motore), FR-7, FR-8, FR-10, FR-11 (tetto del join), FR-13, FR-14, FR-17 (limiti di jq), FR-58 (eliminazione nel motore), FR-59 (eventi del motore e righe del worker Rust)
 **NFR:** NFR-2 (non interferenza), NFR-14
-**Bloccata da:** AR-88 (Update della spine su join, fan-out e forma del retry dentro `dag`, prima della prima storia `dag`); M-29 interprete jq (AR-116); AR-109 (`If-Match`); M-09 e M-19 nelle spec (AR-114, AR-115).
+**Bloccata da:** AR-88 (Update della spine su join, fan-out e forma del retry dentro `dag`, prima della prima storia `dag`); M-29 interprete jq (AR-116); AR-109 (`If-Match`); M-09 e M-19 nelle spec (AR-114, AR-115).; trasporto delle righe di log dei worker deciso da S-1 (storia 2.12).
 **Note:** il cuore di UJ-2 senza interfaccia: 300 rami paralleli e un join.
 
 ### Epic 3: Dashboard dell'operatore
@@ -998,7 +1018,7 @@ L'operatore entra con la credenziale del primo avvio e vede le esecuzioni (filtr
 dettaglio dei task, annullamento) e i worker (funzioni, attività in corso, chi non risponde,
 cronologia), da desktop e da telefono.
 
-**FRs covered:** FR-45, FR-46, FR-48
+**FRs covered:** FR-45, FR-46, FR-48, FR-59 (tab Log)
 **NFR:** NFR-7, NFR-9, NFR-16
 **UX-DR:** token, shell della dashboard e componenti che queste pagine usano per prime; UJ-4 (worker ed esecuzioni) e UJ-5 (accesso).
 **Bloccata da:** AR-7 (Update di `bmad-ux` sulle 16 voci DA ALLINEARE); T-57 e T-59 (AR-118); divisione dei componenti tra `packages/ui` e `packages/react`, perché il dettaglio dell'esecuzione è condiviso con il kit (AD-16); AR-90 (T-58, canvas); AR-99 (eventi in tempo reale); AR-100 (chi serve la dashboard, sessione, CSRF); AR-117 (pagina d'accesso, nomi neutri di `packages/ui`); pagine disegnate prima in Penpot.
@@ -1011,7 +1031,7 @@ ospite con tenant e ruolo; i tenant usano i workflow dell'integratore nel propri
 tenant oltre quota non rallenta gli altri; lo storico scade e un tenant eliminato diventa
 illeggibile ovunque.
 
-**FRs covered:** FR-4 (funzioni rese disponibili ai tenant), FR-12 (credenziali dei worker), FR-26 (completo), FR-27 (motore), FR-28 (motore), FR-29 (senza connessioni), FR-30 (attività, esecuzioni, API, spazio, arretrato), FR-31, FR-38 (tenant e quote), FR-49
+**FRs covered:** FR-4 (funzioni rese disponibili ai tenant), FR-12 (credenziali dei worker), FR-26 (completo), FR-27 (motore), FR-28 (motore), FR-29 (senza connessioni), FR-30 (attività, esecuzioni, API, spazio, arretrato), FR-31, FR-38 (tenant e quote), FR-49, FR-59 (conservazione ed eliminazione)
 **NFR:** NFR-8 (test tra tenant e tra ruoli), NFR-14
 **Bloccata da:** M-23 nella spec (AR-115).
 **Note:** UJ-4, parte delle quote.
@@ -1021,7 +1041,7 @@ illeggibile ovunque.
 L'integratore scrive worker e workflow in TypeScript, definisce workflow come codice anche in Rust,
 amministra tutto dall'SDK TypeScript e usa la CLI.
 
-**FRs covered:** FR-35, FR-37 (TypeScript), FR-38 (parità dell'SDK TypeScript)
+**FRs covered:** FR-35, FR-37 (TypeScript), FR-38 (parità dell'SDK TypeScript), FR-59 (righe dal worker TypeScript)
 **Bloccata da:** AR-105 (livello BDD di SDK TS e CLI); AR-104 (distribuzione npm); AR-109 (dipendenze di `packages/sdk`); M-07 per TypeScript (AR-113).
 **Note:** completa UJ-1 lato worker (`dns_lookup`, `censys_search` in TypeScript).
 
@@ -1031,7 +1051,7 @@ Lo sviluppatore della piattaforma ospite incorpora l'area workflow; il tenant ve
 workflow, li lancia con un modulo generato dallo schema di input e segue le esecuzioni in tempo
 reale; colori, testi e lingua si adattano alla piattaforma ospite.
 
-**FRs covered:** FR-27 (kit), FR-28 (kit), FR-39, FR-41, FR-44, FR-58
+**FRs covered:** FR-27 (kit), FR-28 (kit), FR-39, FR-41, FR-44, FR-58, FR-59 (tab Log)
 **NFR:** NFR-7, NFR-9, NFR-16
 **Bloccata da:** S-4; skill del kit (AD-15); contratto pubblico del kit (AR-117); AR-104 (npm e validatore nativo).
 **Note:** chiude UJ-1 (incorporare i componenti React).
@@ -1050,7 +1070,7 @@ Integratore e tenant usano tutto il sottoinsieme OWS della v1: `switch`, `fork`,
 Il tenant salva segreti legati a una connessione; l'attività li riceve solo alla consegna; non
 compaiono mai in log, storico o errori; l'integratore ruota la chiave senza fermare nulla.
 
-**FRs covered:** FR-4 (connessioni e segreti all'invio), FR-29 (connessioni risolte all'avvio), FR-32, FR-33, FR-34, FR-38 (segreti)
+**FRs covered:** FR-4 (connessioni e segreti all'invio), FR-29 (connessioni risolte all'avvio), FR-32, FR-33, FR-34, FR-38 (segreti), FR-59 (segreti nelle righe)
 **NFR:** NFR-8 (prova sentinella), NFR-14
 **Bloccata da:** M-37 nella spec (AR-89); rinnovo delle chiavi dei tenant e consegne a database fermo (AR-110).
 
@@ -1069,7 +1089,7 @@ Il tenant carica dalla CLI o dall'SDK un nodo compilato TypeScript o Rust e lo u
 la sandbox leggera, o la microVM dove c'è KVM, lo isola, lo limita e lo ferma senza toccare gli
 altri tenant.
 
-**FRs covered:** FR-1 (invocazione di nodi), FR-15, FR-16 (sandbox), FR-17 (limiti dei nodi), FR-30 (quote della sandbox), FR-31 (nodi e sandbox nella prova sentinella), FR-50 (processi ausiliari fermati e riavviati), FR-54, FR-55 (manifest dei nodi)
+**FRs covered:** FR-1 (invocazione di nodi), FR-15, FR-16 (sandbox), FR-17 (limiti dei nodi), FR-30 (quote della sandbox), FR-31 (nodi e sandbox nella prova sentinella), FR-50 (processi ausiliari fermati e riavviati), FR-54, FR-55 (manifest dei nodi), FR-59 (righe dei nodi)
 **NFR:** NFR-8 (codice ostile), NFR-10, NFR-12
 **Bloccata da:** S-2; impronta `sha256:` del nodo (AR-108).
 **Note:** il limite di UJ-2: un nodo in loop fermato al timeout.
@@ -1100,7 +1120,7 @@ stream dal kit, anche da telefono.
 L'integratore aggiorna topictoast senza perdite, una persona nuova arriva al primo workflow in 15
 minuti con la guida rapida, e il benchmark pubblico dimostra gli obiettivi.
 
-**FRs covered:** FR-51, FR-52 (metriche complete), FR-53
+**FRs covered:** FR-51, FR-52 (metriche complete), FR-53, FR-59 (log nella corsa a carico misto)
 **NFR:** NFR-1…NFR-5 (benchmark), NFR-6 (guasti iniettati), NFR-8 (suite completa), NFR-9 (prova con NVDA e VoiceOver), NFR-11, NFR-13
 **Note:** SM-2…SM-5 prima del primo rilascio pubblico; il benchmark di base nasce nella storia 1.11, sulle misure di S-1, e qui diventa pubblico e completo. L'adattatore facoltativo RustFS dell'archivio dei payload (AD-17) chiude l'epica.
 
@@ -1114,7 +1134,7 @@ minuti con la guida rapida, e il benchmark pubblico dimostra gli obiettivi.
 | AR-89 | Epic 8 |
 | AR-90 | Epic 3 |
 | AR-91 | Epic 12 |
-| AR-92 | Prima dello sprint 1 (Marco) |
+| AR-92 | chiusa (FR-59): Epic 2, 3, 4, 5, 6, 8, 10, 13 |
 | AR-93, AR-94, AR-95 | S-1 |
 | AR-96 | Prima dello sprint 1 |
 | AR-97 | Epic 1, che decide per tutti i JSON dei tenant elencati |
@@ -1141,8 +1161,8 @@ minuti con la guida rapida, e il benchmark pubblico dimostra gli obiettivi.
 | AR-119 | Epic 3 (ricerca tra gli elementi del fan-out, A-5); spec delle storie (AMB-1, AMB-5, AMB-6, AMB-9); versioni delle librerie alla prima storia che le usa |
 | AR-120 | dopo la v1 |
 
-Le voci UX legate alla tab Log (log dei task) restano condizionate alla nota di AR-92: entrano nelle
-epiche 3 e 6 solo se il PRD porta i log nel perimetro.
+Le voci UX legate alla tab Log (log dei task) entrano nelle epiche 3 e 6: il PRD le porta nel
+perimetro con FR-59 (2026-11-23).
 
 ## Epic 1: Primo workflow eseguito
 
@@ -1886,6 +1906,78 @@ Il controllo «chi usa questo workflow» è un punto unico del dominio: le epich
 **Quando** arriva al motore
 **Allora** il workflow risulta eliminato una sola volta e la seconda richiesta riceve la risposta di un workflow inesistente
 
+### Story 2.11: Log del tentativo: eventi del motore letti via API
+
+Come integratore,
+voglio leggere via API il log di ogni tentativo con gli eventi del motore,
+così che vedo cosa è successo a un task senza ricostruirlo dallo storico.
+
+**Rispetta:** AD-2, AD-5; C-9
+**Requisiti:** FR-59 (eventi del motore, lettura via API, isolamento), NFR-4, NFR-8; AR-92
+**Prova per l'utente:** con la funzione di esempio che fallisce le prime due volte, leggere via API il log di ogni tentativo: i primi due con il fallimento e «ritentata» con l'attesa, il terzo con «completata»; annullando un'esecuzione lenta, il log del tentativo in corso finisce con «annullata».
+**Docs utente:** leggere il log di un task.
+
+Quale orologio dà l'ora di righe ed eventi e come si ordinano lo fissa la spec della storia. Le righe scritte dal codice arrivano con le storie 2.12 (worker Rust), 5.1 (worker TypeScript) e 10.2 (nodi); il tempo reale con le storie 3.5 (dashboard) e 6.5 (kit).
+
+**Acceptance Criteria:**
+
+**Dato** un task ritentato
+**Quando** si legge via API il log dei suoi tentativi
+**Allora** ogni tentativo fallito ha «ricevuta», «in esecuzione» e «fallita» con il motivo, seguiti da «ritentata» con l'attesa
+**E** l'ultimo tentativo finisce con «completata»
+
+**Dato** un tentativo fallito per timeout
+**Quando** si legge il suo log
+**Allora** l'evento «fallita» porta il timeout come motivo
+
+**Dato** un'esecuzione annullata con un tentativo in corso
+**Quando** si legge il log di quel tentativo
+**Allora** l'ultimo evento è «annullata»
+
+**Dato** il log dei tentativi
+**Quando** il benchmark di base conta le istruzioni SQL
+**Allora** le istruzioni SQL per attività restano entro NFR-4 con il log attivo; dove vivono gli eventi del motore lo decide S-1
+
+**Dato** il test a due tenant (AD-5)
+**Quando** copre la lettura del log
+**Allora** un tenant non legge mai il log di un tentativo dell'altro
+
+### Story 2.12: Righe di log dal worker Rust
+
+Come integratore,
+voglio che le mie funzioni Rust scrivano righe nel log del tentativo,
+così che capisco perché un task è fallito senza cercare nei log dei miei processi.
+
+**Rispetta:** AD-3 (righe fuori dal database), AD-5, AD-7 (cifrate per tenant), AD-17 (archivio dei payload); C-2, C-9, C-11
+**Requisiti:** FR-59 (righe del worker Rust, tetto), NFR-2, NFR-4, NFR-7, NFR-8, NFR-14; trasporto delle righe deciso da S-1
+**Prova per l'utente:** con la funzione di esempio che scrive una riga e fallisce le prime due volte, leggere via API il log di ogni tentativo: ognuno ha la riga della funzione accanto agli eventi del motore.
+**Docs utente:** scrivere righe di log dal worker Rust.
+
+**Acceptance Criteria:**
+
+**Dato** un'attività consegnata a un worker Rust
+**Quando** la funzione scrive righe con l'SDK
+**Allora** ogni riga è salvata con ora al millesimo, livello (info, avviso, errore), messaggio e tentativo
+**E** il log del tentativo la mostra insieme agli eventi del motore (storia 2.11)
+
+**Dato** le righe di un tentativo
+**Quando** vengono salvate
+**Allora** non passano dal database e stanno, cifrate per tenant, nell'archivio dei payload
+**E** il test a due tenant dell'archivio dei payload (AD-5, AD-17) prova che un tenant non legge mai le righe dell'altro
+
+**Dato** un tentativo non più corrente, o una sessione diversa da quella che ha ricevuto il tentativo
+**Quando** arriva una riga per quel tentativo
+**Allora** è rifiutata e il rifiuto è registrato (C-2)
+
+**Dato** un tentativo che supera il tetto di righe o di byte (NFR-14)
+**Quando** la funzione continua a scrivere
+**Allora** le righe in più sono scartate e il log dice quante; gli eventi del motore non contano nel tetto
+**E** un worker che scrive fino al tetto non porta le altre esecuzioni oltre NFR-2 e lascia le istruzioni SQL per attività entro NFR-4, misurato con il benchmark di base (storia 1.11)
+
+**Dato** una riga che contiene un payload di script o caratteri di controllo
+**Quando** il motore la conserva e la restituisce
+**Allora** resta testo invariato, e il motore non la scrive mai nei propri log (C-9)
+
 ## Epic 3: Dashboard dell'operatore
 
 L'operatore entra con la credenziale del primo avvio e vede le esecuzioni (filtri, tempo in coda,
@@ -2041,7 +2133,7 @@ voglio aprire un'esecuzione e seguirne i task in tempo reale, con tentativi, inp
 così che capisco dove si è fermata e posso annullarla.
 
 **Rispetta:** AD-12, AD-16, AD-18; C-7, C-8
-**Requisiti:** FR-46 (dettaglio e annullamento), NFR-7, NFR-9, NFR-16; UX-DR-12, UX-DR-16, UX-DR-23, UX-DR-27, UX-DR-28, UX-DR-29, UX-DR-30, UX-DR-31, UX-DR-41, UX-DR-49 (canale interrotto), UX-DR-69, UX-DR-92; AR-99 (eventi e battito), AR-100 (CSRF), AR-118 (T-68); log dei task solo se AR-92 li porta nel perimetro (UX-DR-33, UX-DR-70)
+**Requisiti:** FR-46 (dettaglio e annullamento), NFR-7, NFR-9, NFR-16; UX-DR-12, UX-DR-16, UX-DR-23, UX-DR-27, UX-DR-28, UX-DR-29, UX-DR-30, UX-DR-31, UX-DR-41, UX-DR-49 (canale interrotto), UX-DR-69, UX-DR-92; AR-99 (eventi e battito), AR-100 (CSRF), AR-118 (T-68); FR-59 (tab Log), UX-DR-33, UX-DR-70
 **Prova per l'utente:** avviare l'esempio con la funzione `sleep` e aprirlo nella dashboard: gli stati dei task cambiano entro 1 secondo; aprire un task mostra tentativi, input e output; «Annulla esecuzione» con conferma lo annulla.
 **Docs utente:** dettaglio di un'esecuzione; annullare dalla dashboard.
 
@@ -2056,6 +2148,12 @@ così che capisco dove si è fermata e posso annullarla.
 **Quando** si apre il pannello
 **Allora** mostra una `attempt-card` per tentativo, input e output come `code-block` in sola lettura, e gli identificativi dei worker
 **E** non mostra mai il valore di un segreto
+
+**Dato** un task selezionato
+**Quando** l'operatore apre la tab «Log»
+**Allora** vede il log del tentativo con `log-line` (orario al millesimo, livello, messaggio): eventi del motore e righe del worker
+**E** una riga nuova compare entro 1 secondo da quando il codice la scrive, anche a tentativo in corso
+**E** l'area del log ha `role="log"`, segue le righe nuove e «Pausa aggiornamenti» la ferma
 
 **Dato** il canale degli eventi interrotto o il motore in ripresa
 **Quando** l'operatore guarda il dettaglio
@@ -2282,7 +2380,7 @@ voglio assegnare a ogni tenant quote su attività concorrenti, esecuzioni al min
 così che un tenant che esagera non rallenta gli altri e non perde lavoro accettato.
 
 **Rispetta:** AD-2, AD-5; C-7
-**Requisiti:** FR-30 (attività, esecuzioni, API, spazio, arretrato), FR-38 (quote), FR-3 (parallelismo del fan-out limitato dalla quota), NFR-2, NFR-14; AR-93 (dove si controlla lo stato più recente), AR-115 (M-23)
+**Requisiti:** FR-30 (attività, esecuzioni, API, spazio, arretrato), FR-38 (quote), FR-59 (log nello spazio occupato), FR-3 (parallelismo del fan-out limitato dalla quota), NFR-2, NFR-14; AR-93 (dove si controlla lo stato più recente), AR-115 (M-23)
 **Prova per l'utente:** dare ad «acme» 2 attività concorrenti e avviare 50 esecuzioni: le attività di «acme» restano in coda con il motivo «quota», mentre quelle di «globex» partono entro gli obiettivi di NFR-2.
 **Docs utente:** quote per tenant.
 
@@ -2301,6 +2399,7 @@ così che un tenant che esagera non rallenta gli altri e non perde lavoro accett
 **Quando** arriva una nuova richiesta
 **Allora** riceve un errore di quota prima di essere accettata
 **E** il lavoro già accettato non va perso
+**E** le righe dei log dei task contano nello spazio occupato dal tenant (FR-59)
 
 **Dato** un tenant oltre la quota di esecuzioni al minuto o di richieste API al secondo
 **Quando** continua a chiamare
@@ -2358,7 +2457,7 @@ voglio una durata di conservazione dello storico per ogni tenant,
 così che input e output vecchi spariscono da soli.
 
 **Rispetta:** AD-3, AD-5, AD-17
-**Requisiti:** FR-31 (conservazione), NFR-14; AR-101 (pulizia dell'archivio dei payload insieme al database)
+**Requisiti:** FR-31 (conservazione), FR-59 (log nella conservazione), NFR-14; AR-101 (pulizia dell'archivio dei payload insieme al database)
 **Prova per l'utente:** impostare per «acme» una conservazione di 1 minuto e avviare un'esecuzione: dopo la scadenza l'esecuzione non si trova più, e i suoi payload non sono più nell'archivio.
 **Docs utente:** conservazione dello storico.
 
@@ -2370,7 +2469,7 @@ così che input e output vecchi spariscono da soli.
 
 **Dato** un'esecuzione più vecchia della durata
 **Quando** passa la pulizia
-**Allora** l'esecuzione è eliminata con i suoi input e output, sia dal database sia dall'archivio dei payload
+**Allora** l'esecuzione è eliminata con i suoi input e output e i log dei task (FR-59), sia dal database sia dall'archivio dei payload
 **E** con lei spariscono i nomi visualizzati che conteneva
 
 **Dato** una chiave di idempotenza usata da un'esecuzione ancora conservata
@@ -2384,7 +2483,7 @@ voglio eliminare un tenant e avere la garanzia che i suoi dati diventino illeggi
 così che rispetto gli obblighi verso un cliente che se ne va.
 
 **Rispetta:** AD-5, AD-7; C-13
-**Requisiti:** FR-31 (eliminazione), FR-27 (nome visualizzato cancellato), NFR-8; AR-96 (riuso del nome esterno)
+**Requisiti:** FR-31 (eliminazione), FR-59 (log del tenant eliminato), FR-27 (nome visualizzato cancellato), NFR-8; AR-96 (riuso del nome esterno)
 **Prova per l'utente:** avviare per «acme» un'esecuzione con un valore sentinella, eliminare «acme» e, passato il tempo massimo documentato, cercare il valore nelle directory dati di topictoast e del bus: non si trova.
 **Docs utente:** eliminare un tenant (ordine, tempo massimo, residui documentati di Postgres).
 
@@ -2396,7 +2495,7 @@ così che rispetto gli obblighi verso un cliente che se ne va.
 
 **Dato** il tempo massimo di eliminazione documentato (NFR-14)
 **Quando** è passato
-**Allora** la ricerca di un valore sentinella del tenant nel database (file compresi), nel bus e nell'archivio dei payload non trova nulla
+**Allora** la ricerca di un valore sentinella del tenant nel database (file compresi), nel bus e nell'archivio dei payload, log dei task compresi, non trova nulla
 **E** con SQLite valgono `secure_delete` e il checkpoint del WAL con `TRUNCATE`; con Postgres il residuo dopo `VACUUM` è documentato
 
 **Dato** la rilettura del bus dopo un riavvio
@@ -2460,7 +2559,7 @@ voglio scrivere in TypeScript un worker che registra funzioni tipizzate,
 così che porto su topictoast le funzioni che oggi ho in TypeScript.
 
 **Rispetta:** AD-12 (tipi TypeScript generati dallo schema OpenAPI), AD-15, AD-16; C-6, C-11, C-14
-**Requisiti:** FR-37 (TypeScript), FR-55, NFR-8; AR-104, AR-105, AR-109, AR-113 (M-07 per TypeScript)
+**Requisiti:** FR-37 (TypeScript), FR-55, FR-59 (righe dal worker TypeScript), NFR-8; AR-104, AR-105, AR-109, AR-113 (M-07 per TypeScript)
 **Prova per l'utente:** avviare il worker TypeScript di esempio con `dns_lookup` e `censys_search` (UJ-1); un'esecuzione del workflow di esempio arriva a completata usando le due funzioni.
 **Docs utente:** scrivere un worker in TypeScript.
 
@@ -2483,6 +2582,10 @@ così che porto su topictoast le funzioni che oggi ho in TypeScript.
 **Dato** un worker con concorrenza dichiarata
 **Quando** riceve attività
 **Allora** valgono le stesse regole di concorrenza, battiti e riconsegna del worker Rust (FR-13, FR-14)
+
+**Dato** una funzione TypeScript in esecuzione
+**Quando** scrive righe con `packages/sdk`
+**Allora** finiscono nel log del tentativo come quelle del worker Rust (storia 2.12), con lo stesso formato e lo stesso tetto
 
 ### Story 5.2: Workflow come codice in TypeScript e Rust
 
@@ -2718,7 +2821,7 @@ voglio seguire nel kit un'esecuzione in tempo reale, con tentativi, input, outpu
 così che vedo il mio workflow prendere vita e capisco subito cosa è fallito.
 
 **Rispetta:** AD-15, AD-16, AD-18; C-7, C-8
-**Requisiti:** FR-41 (vista delle esecuzioni), NFR-7, NFR-9, NFR-16; UX-DR-50, UX-DR-59, UX-DR-69, UX-DR-74, UX-DR-86, UX-DR-108 (climax di UJ-2); log dei task solo se AR-92 li porta nel perimetro
+**Requisiti:** FR-41 (vista delle esecuzioni), NFR-7, NFR-9, NFR-16; UX-DR-50, UX-DR-59, UX-DR-69, UX-DR-74, UX-DR-86, UX-DR-108 (climax di UJ-2); FR-59 (tab Log, righe dei worker comprese), UX-DR-33, UX-DR-70
 **Prova per l'utente:** lanciare il workflow d'esempio con un fan-out di 300 indicatori, pubblicato dall'SDK, e seguirlo nel kit: i conteggi del fan-out salgono entro 1 secondo da ogni cambio; un elemento fallito mostra tentativi ed errore; con il ruolo tenant non compaiono identificativi dei worker.
 **Docs utente:** seguire un'esecuzione nel kit.
 
@@ -2736,6 +2839,11 @@ così che vedo il mio workflow prendere vita e capisco subito cosa è fallito.
 **Dato** il ruolo tenant
 **Quando** guarda un'attività
 **Allora** non vede gli identificativi dei worker
+
+**Dato** un task selezionato
+**Quando** il tenant apre la tab «Log»
+**Allora** vede gli eventi del motore e le righe del worker, come testo (NFR-7), e una riga nuova compare entro 1 secondo da quando il codice la scrive
+**E** gli eventi non mostrano identificativi dei worker, e il tenant non vede mai il log di un tentativo di un altro tenant
 
 **Dato** il motore in ripresa dopo un crash o il canale degli eventi interrotto
 **Quando** il tenant guarda la vista
@@ -3067,7 +3175,7 @@ voglio che worker e sandbox ricevano i segreti solo insieme all'attività che li
 così che un segreto non resta mai in giro e non finisce in log o storico.
 
 **Rispetta:** AD-2 (segreti mai sul bus), AD-6, AD-7; C-9, C-12
-**Requisiti:** FR-33, NFR-6, NFR-8; AR-110 (consegne con segreti a database fermo), AR-118 (T-67, segreti nei log del codice del tenant)
+**Requisiti:** FR-33, FR-59 (segreti nelle righe di log), NFR-6, NFR-8; AR-110 (consegne con segreti a database fermo), AR-118 (T-67, segreti nei log del codice del tenant)
 **Prova per l'utente:** eseguire il workflow di «acme» con il segreto sentinella; il worker di esempio lo riceve; cercando il valore sentinella in log, storico, output, database, bus e archivio dei payload non si trova.
 **Docs utente:** come i worker ricevono i segreti.
 
@@ -3080,6 +3188,11 @@ così che un segreto non resta mai in giro e non finisce in log o storico.
 **Dato** un'esecuzione completata con un segreto sentinella
 **Quando** si cercano i valori in log, storico, output, errori, database, bus e archivio dei payload
 **Allora** non si trovano
+
+**Dato** una funzione che scrive in una riga di log il valore esatto di un segreto consegnato al tentativo
+**Quando** la riga viene salvata o mostrata
+**Allora** al posto del valore c'è un segnaposto, e la ricerca del valore sentinella non lo trova nemmeno nei log dei task
+**E** la documentazione avverte che un valore trasformato, per esempio codificato, non viene riconosciuto
 
 **Dato** un manifest registrato dopo la pubblicazione che chiede una connessione in più
 **Quando** l'attività sta per essere consegnata
@@ -3322,7 +3435,7 @@ voglio che i miei workflow chiamino i miei nodi personalizzati,
 così che uso la mia logica dentro un workflow con la garanzia che resti isolata.
 
 **Rispetta:** AD-5, AD-6, AD-7; C-2
-**Requisiti:** FR-1 (invocazione di nodi), FR-16 (isolamento della sandbox), FR-29 (nodo del tenant con lo stesso nome), NFR-8, NFR-10, NFR-12
+**Requisiti:** FR-1 (invocazione di nodi), FR-16 (isolamento della sandbox), FR-59 (righe dei nodi), FR-29 (nodo del tenant con lo stesso nome), NFR-8, NFR-10, NFR-12
 **Prova per l'utente:** pubblicare con «acme» un workflow che chiama il nodo di esempio e avviarlo: l'attività gira nella sandbox leggera e l'esecuzione arriva a completata; il nodo ostile di prova che legge file e rete fallisce senza ottenere nulla.
 **Docs utente:** usare un nodo personalizzato in un workflow; cosa vede un nodo.
 
@@ -3347,6 +3460,11 @@ così che uso la mia logica dentro un workflow con la garanzia che resti isolata
 **Dato** un workflow dell'integratore eseguito per un tenant che ha un nodo con lo stesso nome di uno usato dal workflow
 **Quando** gira
 **Allora** esegue il nodo previsto dal workflow dell'integratore, mai quello del tenant
+
+**Dato** un nodo che scrive righe
+**Quando** gira nella sandbox
+**Allora** le righe finiscono nel log del tentativo con lo stesso formato e lo stesso tetto di quelle dei worker (storia 2.12), con il segnaposto al posto dei segreti consegnati (storia 8.3), e mai nei log del motore
+**E** compaiono nella tab «Log» della dashboard e del kit (storie 3.5 e 6.5)
 
 **Dato** il benchmark di base
 **Quando** misura la sandbox leggera
@@ -4004,7 +4122,7 @@ così che verifico da solo i numeri promessi.
 
 **Dato** la corsa a carico misto
 **Quando** gira
-**Allora** misura la latenza di NFR-2 mentre una pipeline stream gira al ritmo dichiarato, un tenant è oltre quota e un tenant avvia a ripetizione con gli schemi più complessi consentiti
+**Allora** misura la latenza di NFR-2 mentre una pipeline stream gira al ritmo dichiarato, un tenant è oltre quota, un tenant avvia a ripetizione con gli schemi più complessi consentiti e un'attività scrive righe di log fino al tetto (FR-59)
 **E** le corse di NFR-2 e NFR-3 comprendono il controllo di input e output sugli schemi dei manifest
 
 **Dato** il rapporto

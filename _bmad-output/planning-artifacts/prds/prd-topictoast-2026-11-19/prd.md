@@ -2,7 +2,7 @@
 title: topictoast — PRD
 status: final
 created: 2026-11-19
-updated: 2026-11-21
+updated: 2026-11-23
 ---
 
 # PRD: topictoast
@@ -218,7 +218,7 @@ Il brief del 2026-11-18 resta com'è. Questo PRD se ne discosta in nove punti:
   - **Esito:** in meno di 15 minuti ha topictoast in esecuzione con un worker e un workflow di
     esempio completato (NFR-13).
   - **Caso limite:** non ha sottomano la credenziale del primo avvio; la pagina d'accesso della
-    dashboard dice dove è stata stampata (FR-45).
+    dashboard dice dove trovarla (FR-45).
 
 ## 3. Glossario
 
@@ -249,6 +249,8 @@ I termini seguenti si usano esattamente così in tutto il PRD e nei documenti ch
   prestazione.
 - **Fan-out** — creazione, durante l'esecuzione, di un'attività per ogni elemento di un elenco la
   cui lunghezza si conosce solo allora. **Join** — il punto in cui si attendono tutte.
+- **Log del task** — per ogni tentativo, gli eventi del motore e le righe scritte dal codice che
+  lo esegue, cioè dalla funzione del worker o dal nodo personalizzato (FR-59).
 - **Worker** — processo dell'integratore, sempre attivo, che registra funzioni e riceve attività.
 - **Funzione** — codice registrato da un worker con un nome, invocabile da un task.
 - **Manifest** — la descrizione di una funzione o di un nodo personalizzato (FR-55): nome,
@@ -294,8 +296,8 @@ I termini seguenti si usano esattamente così in tutto il PRD e nei documenti ch
   quando è accettata e nessun suo task è ancora partito (un `wait` in corso conta come
   partito). "Ritentata" è un tentativo fallito seguito da un altro. Il timeout è un motivo, non
   uno stato. "Scaduta" vale solo per un'esecuzione; in un'esecuzione annullata o scaduta i task non
-  partiti diventano "annullato". Un task saltato dice perché. La regola di propagazione di
-  fallimenti e salti resta una domanda aperta (§11).
+  partiti diventano "annullato". Un task saltato dice perché. Una dipendenza fallita o
+  saltata fa saltare il task e i suoi discendenti (FR-2).
   - Esecuzione: in coda, in esecuzione, completata, fallita, annullata, scaduta.
   - Task: in attesa, in coda, in esecuzione, ritentato, completato, fallito, saltato, annullato.
   - Attività: in coda, ricevuta, in esecuzione, ritentata, completata, fallita, annullata.
@@ -311,8 +313,10 @@ I termini seguenti si usano esattamente così in tutto il PRD e nei documenti ch
 
 **Descrizione:** un workflow è un documento OWS 1.1. topictoast ne accetta un sottoinsieme nella v1
 e aggiunge l'estensione DAG per due cose che OWS non esprime: dipendenze arbitrarie tra task (la
-forma a "N") e fan-out su elenchi di lunghezza variabile, con join. La forma dell'estensione
-(dentro `metadata` o con chiavi nuove) la decide l'architettura. I workflow arrivano dall'SDK,
+forma a "N") e fan-out su elenchi di lunghezza variabile, con join. L'estensione è un task
+`dag`, in cui ogni task dichiara da quali task dipende (AD-8): un documento senza `dag` resta OWS
+valido, uno con `dag` i validatori ufficiali di OWS lo rifiutano, e §7
+non promette che giri su altri runtime. I workflow arrivano dall'SDK,
 come codice o come documento, e dall'editor. Realizza UJ-1, UJ-2.
 
 #### FR-1: Sottoinsieme OWS della v1
@@ -333,8 +337,9 @@ espressioni jq, `schedule` del documento cron o a intervallo (FR-6).
 **Fuori perimetro:** `call` gRPC, OpenAPI, AsyncAPI e A2A; `run` di container, script e shell;
 `emit` e `listen`; conformità completa al CTK di OWS.
 
-**Note:** come un task invoca una funzione o un nodo personalizzato, e come dichiara i segreti
-dentro il formato OWS, lo fissa l'architettura (§11).
+**Note:** come un task invoca una funzione o un nodo personalizzato, e come dichiara segreti e
+connessioni dentro il formato OWS, lo fissa un aggiornamento dell'architettura, con la proposta prima
+dello spike del bus (§11 n. 7).
 
 #### FR-2: Dipendenze arbitrarie tra task
 
@@ -346,9 +351,14 @@ workflow. Realizza UJ-2.
 - Task senza dipendenze reciproche partono in parallelo.
 - Un ciclo nelle dipendenze viene rifiutato all'invio, con i task coinvolti nel messaggio. Il
   divieto vale per le dipendenze dichiarate con l'estensione DAG; `for` e `then` mantengono la
-  semantica di OWS.
-- Un task la cui dipendenza è fallita o è stata saltata non resta in attesa: raggiunge uno stato
-  terminale secondo una regola documentata (§11).
+  semantica di OWS, e `then` non si usa dentro il `dag` (punto seguente).
+- Dentro il `dag` le condizioni si scrivono con l'`if` del task; `then`, `exit`, `end` e `switch`
+  restano in un `do` annidato, che nel `dag` conta come un solo task (AD-8).
+- Un task la cui dipendenza è fallita (dopo i retry) o è stata saltata non resta in attesa: viene
+  saltato con il motivo, e con lui i suoi discendenti. I rami indipendenti arrivano in fondo.
+  L'esecuzione è fallita se almeno un task è fallito. Nella v1 nessun task può dichiarare
+  un'eccezione a questa regola (AD-9), salvo quanto fisserà FR-3 per un elemento di fan-out
+  fallito.
 
 #### FR-3: Fan-out dinamico con join
 
@@ -365,7 +375,10 @@ i risultati. Realizza UJ-2.
 - Il parallelismo massimo di un fan-out si può limitare nel workflow; senza limite vale la quota
   del tenant (FR-30).
 - Se un elemento fallisce dopo i retry, il comportamento segue la politica dichiarata: fallisce
-  tutto il fan-out oppure il join riceve l'errore al posto del risultato.
+  tutto il fan-out oppure il join riceve l'errore al posto del risultato. Come la seconda politica
+  si accorda con la regola di FR-2 (l'elemento fallito conta come dipendenza fallita? rende fallita
+  l'esecuzione?) lo fissa l'aggiornamento dell'architettura prima della prima storia del `dag`,
+  con Marco se cambia la regola di FR-2.
 
 #### FR-4: Validazione all'invio
 
@@ -418,8 +431,8 @@ campi obbligatori), dall'editor, dall'SDK o nel documento. Realizza UJ-2.
 - Un valore singolo per un campo elenco vale come elenco di un elemento (FR-3).
 - Un workflow senza schema accetta qualunque input JSON.
 
-**Note:** lo schema usa il linguaggio di FR-55; come si scrive dentro il documento OWS lo fissa
-l'architettura (§11).
+**Note:** lo schema usa il linguaggio di FR-55 e nel documento si scrive come `input.schema` di
+OWS (AD-10).
 
 ### 4.2 Esecuzione
 
@@ -515,6 +528,40 @@ L'output di un task è disponibile come input dei task che ne dipendono.
   configurabile, con valore predefinito documentato (NFR-14). Oltre il tetto il join fallisce con
   dimensione e limite.
 
+#### FR-59: Log dei task
+
+Chi segue un'esecuzione vede, per ogni tentativo di un task, il suo log: gli eventi del motore e
+le righe scritte dal codice che lo esegue, cioè dalla funzione del worker o dal nodo
+personalizzato. Realizza UJ-2, UJ-4.
+
+**Conseguenze:**
+- Gli eventi del motore coprono almeno: ricevuta (dal worker o dalla sandbox), in esecuzione,
+  completata, fallita con il motivo (timeout compreso), ritentata con l'attesa prima del tentativo
+  successivo, annullata.
+- Il worker scrive righe tramite l'SDK, in TypeScript e in Rust (FR-37); il nodo personalizzato le
+  scrive dalla sandbox. Ogni riga ha l'ora al millesimo, un livello (info, avviso, errore) e il
+  messaggio, ed è legata al tentativo che l'ha scritta; gli eventi del motore possono avere anche
+  il livello «ok». Quale orologio dà l'ora e come si ordinano righe ed eventi lo fissa la spec
+  della storia.
+- Le righe compaiono nella vista delle esecuzioni (FR-41) e nel dettaglio della dashboard (FR-46)
+  entro 1 secondo da quando il codice le scrive, anche mentre il tentativo è in corso.
+- Il tenant vede il log dei tentativi delle proprie esecuzioni, righe dei worker comprese:
+  l'integratore risponde di ciò che scrivono i suoi worker. Con il ruolo tenant gli eventi del log
+  non mostrano identificativi dei worker (FR-41). Nessun tenant vede il log di un altro (caso nel
+  test di NFR-8).
+- Il log non aggiunge carico al database: NFR-4 vale con il log attivo. Le righe contano nello
+  spazio occupato del tenant (FR-30), restano quanto lo storico (FR-31) e spariscono con
+  l'esecuzione o con il tenant.
+- Ogni tentativo ha un tetto di righe e di byte per le righe scritte dal codice, mai per gli eventi
+  del motore (NFR-14); oltre il tetto le righe in più si scartano e il log dice quante.
+- Il valore esatto di un segreto consegnato al tentativo (FR-33) è sostituito da un segnaposto
+  prima che la riga sia salvata o mostrata (NFR-8). La documentazione per l'integratore avverte
+  che un valore trasformato, per esempio codificato, non viene riconosciuto.
+- Le righe sono contenuto del tenant o dell'integratore: si mostrano come testo (NFR-7) e non
+  entrano nei log del motore (FR-52).
+- Un'attività che scrive righe fino al tetto non porta le attività degli altri tenant oltre
+  l'obiettivo di NFR-2; il caso entra nella corsa a carico misto di FR-53.
+
 ### 4.3 Worker
 
 **Descrizione:** i worker sono processi dell'integratore, sempre attivi, che si comportano come
@@ -566,9 +613,11 @@ manifest, con gli stessi campi. Realizza UJ-1, UJ-2.
 
 **Conseguenze:**
 - Un manifest non valido viene rifiutato con l'errore del validatore.
-- Gli schemi del manifest e lo schema di input di un workflow (FR-56) usano un linguaggio chiuso
-  e documentato (campi, tipi, campi obbligatori, elenchi, oggetti annidati), con una sola regola
-  di compatibilità comune a motore, nucleo JS ed editor (§11).
+- Gli schemi del manifest e lo schema di input di un workflow (FR-56) usano un sottoinsieme
+  chiuso e documentato di JSON Schema 2020-12 (campi, tipi, campi obbligatori, elenchi, oggetti
+  annidati, valori ammessi, predefiniti, descrizioni, minimi e massimi, lunghezze); ogni altra
+  parola chiave è rifiutata con un errore chiaro (AD-10). La regola di compatibilità tra campi è
+  una sola, comune a motore, nucleo JS ed editor, e la fissano le spec delle storie delle versioni.
   - Non rimandano a nulla fuori dal manifest o dal documento: uno schema con un riferimento
     esterno viene rifiutato alla validazione senza aprire connessioni di rete.
   - Manifest e schemi ostili (riferimento esterno, oltre i limiti di NFR-14) entrano nel test di
@@ -672,8 +721,9 @@ Dove l'host offre KVM, l'integratore può attivare la sandbox forte per tutti i 
 di un tenant. Funziona sul modello di Arroyo: tiene uno stato, aggrega su finestre di tempo
 dell'evento, gestisce gli eventi in ritardo con i watermark e salva lo stato con checkpoint
 periodici. Le pipeline stream le scrivono l'integratore e i tenant, dall'editor o tramite SDK;
-ogni tenant vede e consuma solo le proprie risorse. Come costruirle (riuso di Arroyo, DataFusion
-con stato costruito in topictoast, altro) lo decide l'architettura con uno spike. Realizza UJ-3.
+ogni tenant vede e consuma solo le proprie risorse. Motore SQL e costruzione dello
+stato li fissa l'architettura (DataFusion, AD-13), e lo spike delle pipeline stream li verifica
+prima dello sprint 1. Realizza UJ-3.
 
 #### FR-18: Stream e ingresso degli eventi
 
@@ -898,7 +948,7 @@ singolo tenant.
 L'integratore assegna a ogni tenant quote su attività concorrenti, esecuzioni al minuto, risorse
 della sandbox (compresa la sua parte del pool della sandbox forte), risorse delle pipeline stream,
 eventi scritti al secondo, richieste API al secondo e spazio occupato (stream, storico, code, nodi
-caricati).
+caricati, log dei task).
 
 **Conseguenze:**
 - Un tenant oltre quota vede le sue nuove attività in coda; le attività degli altri tenant
@@ -917,11 +967,12 @@ Lo storico delle esecuzioni di ogni tenant ha una durata di conservazione config
 `[ASSUMPTION: 30 giorni come valore predefinito]`
 
 **Conseguenze:**
-- Le esecuzioni più vecchie della durata vengono eliminate con i loro input e output.
+- Le esecuzioni più vecchie della durata vengono eliminate con i loro input, output e log dei
+  task (FR-59).
 - Eliminare un tenant ferma prima le sue esecuzioni, pipeline stream e pianificazioni, poi rende
   i suoi dati illeggibili in ogni supporto (database, bus, checkpoint, nodi caricati, sandbox
-  riservate) entro un tempo massimo documentato. Passato quel tempo, una ricerca di un valore
-  sentinella del tenant nelle directory dati di topictoast e del bus non trova nulla; un
+  riservate) entro un tempo massimo documentato (NFR-14). Passato quel tempo, una ricerca di un
+  valore sentinella del tenant nelle directory dati di topictoast e del bus non trova nulla; un
   identificativo di tenant eliminato non viene riusato.
 
 ### 4.7 Cassaforte dei segreti
@@ -954,7 +1005,8 @@ all'attività.
 **Conseguenze:**
 - Un'attività riceve solo i segreti dichiarati dal suo task e appartenenti al proprietario
   dell'esecuzione (FR-26).
-- I segreti non compaiono nei log, nello storico, negli output né negli errori di topictoast.
+- I segreti non compaiono nei log del motore, nello storico, negli output né negli errori di
+  topictoast; nei log dei task il valore esatto è sostituito da un segnaposto (FR-59).
 - Le connessioni di ogni task sono fissate nella versione pubblicata del workflow (FR-5) e
   controllate sui manifest alla pubblicazione; il segreto che le soddisfa si sceglie come dicono
   FR-29 e FR-40. Un manifest registrato dopo non aggiunge connessioni né segreti a quella
@@ -1069,7 +1121,7 @@ i segreti. Realizza UJ-2.
 #### FR-41: Vista delle esecuzioni
 
 Il tenant può seguire un'esecuzione in tempo reale: stato di ogni task, attività del fan-out,
-tentativi, input, output ed errori.
+tentativi, input, output, errori e log (FR-59).
 
 **Conseguenze:**
 - Un cambio di stato appare nella vista entro 1 secondo.
@@ -1161,8 +1213,9 @@ password predefinita.
 **Conseguenze:**
 - Senza credenziali valide la dashboard non mostra alcun dato.
 - Alla scadenza della sessione la dashboard torna alla pagina d'accesso senza mostrare dati.
-- La pagina d'accesso dice dove è stata stampata la credenziale del primo avvio, senza mostrarla.
-- La credenziale del primo avvio non compare mai nei log (FR-52).
+- La pagina d'accesso dice dove trovare la credenziale del primo avvio, senza mostrarla.
+- La credenziale del primo avvio non compare mai su stdout né nei log (C-14, FR-52); dove viene
+  scritta e come si mostra la prima volta lo fissa l'architettura prima dello sprint 1.
 
 #### FR-46: Esecuzioni
 
@@ -1194,7 +1247,7 @@ ogni worker con le fasi: ricevuta, in esecuzione, completata, fallita, ritentata
 - La dashboard segnala il disco pieno e il rifiuto di lavoro nuovo (NFR-6) con un avviso che lo
   distingue dalla ripresa dopo un crash del motore (NFR-15).
 - Un worker che registra una funzione già registrata con connessioni diverse è segnalato
-  all'operatore (FR-33).
+  all'operatore; quale manifest vale lo fissa la spec della storia di registrazione (§11 n. 10).
 
 #### FR-49: Quote
 
@@ -1206,25 +1259,27 @@ L'operatore vede per ogni tenant l'uso delle quote e i tenant vicini al limite e
 ### 4.11 Installazione e funzionamento
 
 **Descrizione:** topictoast si installa con pochi componenti e si configura con valori predefiniti
-che funzionano. Il vincolo tecnico indicato da Marco (addendum del brief, §8), da confermare in
-architettura, è topictoast più il bus Iggy, con SQLite incorporato o Postgres. RustFS entra nella
-v1 solo come archivio facoltativo dello storico dei payload e dei checkpoint (architettura, AD-17);
-lo storage per payload grandi e file arriva dopo la v1. Realizza UJ-1, UJ-5.
+che funzionano. Come fissato dall'architettura (AD-1), i componenti sono topictoast e il bus, un
+servizio separato, con SQLite incorporato o Postgres; quale bus (Iggy, indicato da Marco
+nell'addendum del brief, o Valkey) lo sceglie lo spike del bus prima dello sprint 1. RustFS entra
+nella v1 solo come archivio facoltativo dello storico dei payload e dei checkpoint (architettura,
+AD-17); lo storage per payload grandi e file arriva dopo la v1. Realizza UJ-1, UJ-5.
 
 #### FR-50: Installazione minima
 
 Nella v1 l'integratore installa due servizi, topictoast e il bus, più il database a scelta.
-topictoast avvia e ferma da sé i processi ausiliari di cui ha bisogno (la sandbox leggera e, se
-l'architettura li separa, i processi che eseguono espressioni jq, query delle pipeline stream e
-`call http`). Il numero di processi non è la differenza (§1.1): lo sono RAM e carico sul database.
+topictoast avvia e ferma da sé i processi ausiliari di cui ha bisogno (la sandbox leggera e,
+separati dal motore, i processi che eseguono espressioni jq, query delle pipeline stream e
+`call http`: AD-6; quali e come raggrupparli lo fissa lo spike della sandbox). Il numero di
+processi non è la differenza (§1.1): lo sono RAM e carico sul database.
 
 **Conseguenze:**
 - Con SQLite incorporato, topictoast e il bus sono gli unici servizi da installare e avviare; ogni
   altro processo lo avvia e lo ferma topictoast.
 - Un processo ausiliario inattivo oltre un tempo configurabile viene fermato e riavviato a freddo
   alla prima richiesta. Il tempo di riavvio è riportato nel benchmark (FR-53); NFR-2 e NFR-12 si
-  misurano a regime `[ASSUMPTION: idea di Marco da studiare in architettura, con NFR-1 che conta
-  tutti i processi attivi; obiettivo del riavvio a freddo in §11]`.
+  misurano a regime `[ASSUMPTION: idea di Marco, con NFR-1 che conta tutti i processi attivi; lo
+  spike della sandbox la verifica e fissa anche l'obiettivo del riavvio a freddo (§11 n. 9)]`.
 - Con la configurazione predefinita, un workflow di esempio gira senza modificare nulla.
 - Il tenant predefinito esiste dal primo avvio (§4.6). Con la credenziale dell'integratore, un
   workflow pubblicato dall'SDK senza indicare un tenant va al tenant predefinito; con quella di
@@ -1268,8 +1323,9 @@ macchina di riferimento con un solo comando.
 - Il benchmark riporta attività, esecuzioni ed eventi accettati e poi persi dopo un guasto
   iniettato durante i test di NFR-3 e NFR-5 (obiettivo: zero, NFR-6).
 - Il benchmark include una corsa a carico misto: la latenza di NFR-2 misurata mentre una pipeline
-  stream gira a un ritmo dichiarato, un tenant è oltre quota e un tenant avvia a ripetizione con
-  gli schemi più complessi consentiti (FR-55).
+  stream gira a un ritmo dichiarato, un tenant è oltre quota, un tenant avvia a ripetizione con
+  gli schemi più complessi consentiti (FR-55) e un'attività scrive righe di log fino al tetto
+  (FR-59).
 - Il benchmark dichiara forma del carico, dimensione dei payload, insieme di dati e modalità di
   scrittura, e riporta senza obiettivo la RAM sotto carico, la RAM per pipeline stream attiva e il
   tempo di riavvio a freddo dei processi ausiliari (FR-50).
@@ -1290,8 +1346,8 @@ senza obiettivo.
 | NFR-2 | Latenza di avvio delle attività | p50 ≤ 5 ms, p99 ≤ 25 ms | dal momento in cui l'attività è pronta (dipendenze soddisfatte) a quando il worker la riceve; worker sulla stessa macchina, carico di 1.000 attività/s |
 | NFR-3 | Throughput | ≥ 10.000 attività/s | attività vuote (la funzione risponde subito), worker sulla stessa macchina, sostenuto per 10 minuti; il p99 di avvio delle attività è riportato anche a questo ritmo |
 | NFR-4 | Carico sul database | ≤ 5 istruzioni SQL per attività | media sull'intero ciclo di vita dell'attività durante il test di NFR-3; il confronto con Hatchet, sullo stesso carico, è in SM-2 |
-| NFR-5 | Pipeline stream | `[ASSUMPTION: ≥ 100.000 eventi/s per una pipeline con filtro e conteggio su finestra fissa; da confermare dopo lo spike]` | eventi scritti tramite l'API o l'SDK di FR-18 e consumati dalla pipeline stream, sostenuto per 10 minuti |
-| NFR-12 | Sandbox | `[ASSUMPTION: avvio p50 ≤ 10 ms e memoria ≤ 64 MB per istanza della sandbox leggera; ≤ 10 ms per la sandbox forte quando il pool ha una sandbox libera; da confermare dopo lo spike]` | dal momento in cui l'attività è pronta a quando il nodo personalizzato inizia a eseguire; memoria per istanza durante un nodo vuoto |
+| NFR-5 | Pipeline stream | `[ASSUMPTION: ≥ 100.000 eventi/s per una pipeline con filtro e conteggio su finestra fissa; da confermare dopo lo spike delle pipeline stream]` | eventi scritti tramite l'API o l'SDK di FR-18 e consumati dalla pipeline stream, sostenuto per 10 minuti |
+| NFR-12 | Sandbox | `[ASSUMPTION: avvio p50 ≤ 10 ms e memoria ≤ 64 MB per istanza della sandbox leggera; ≤ 10 ms per la sandbox forte quando il pool ha una sandbox libera; da confermare dopo lo spike della sandbox]` | dal momento in cui l'attività è pronta a quando il nodo personalizzato inizia a eseguire; memoria per istanza durante un nodo vuoto |
 | NFR-13 | Tempo al primo workflow | `[ASSUMPTION: ≤ 15 minuti]` | da download o clone a un workflow di esempio completato, seguendo la guida rapida, su una macchina pulita, per una persona che non conosce topictoast (UJ-5) |
 
 Riferimenti dei concorrenti in `research-footprint.md`: sono benchmark dei vendor, su hardware
@@ -1311,13 +1367,14 @@ worker dedicato e Restate p50 15 ms (vendor); Hatchet 2.000 run/s con un databas
 - **NFR-7. Confini stretti.** Ogni input esterno (API, SDK, documenti, manifest, query SQL, codice
   dei nodi personalizzati) è validato; un input non valido produce un errore di validazione, mai un
   crash del motore. Il contenuto fornito dai tenant (nomi, descrizioni, errori, input, output,
-  righe emesse, campi e metadati dei manifest, nomi e descrizioni dei campi degli schemi, nomi
-  visualizzati) è mostrato sempre come testo, mai interpretato come HTML o script, nella dashboard
-  e nei componenti React. Un test salva un payload di script in ogni campo testuale di un tenant,
-  apre ogni pagina della dashboard e ogni componente, con entrambi i ruoli del kit, e verifica che
-  nessuno script venga eseguito.
+  righe emesse, righe dei log dei task (FR-59), campi e metadati dei manifest, nomi e descrizioni
+  dei campi degli schemi, nomi visualizzati) è mostrato sempre come testo, mai interpretato come
+  HTML o script, nella dashboard e nei componenti React. Un test salva un payload di script in ogni
+  campo testuale di un tenant, apre ogni pagina della dashboard e ogni componente, con entrambi i
+  ruoli del kit, e verifica che nessuno script venga eseguito.
 - **NFR-8. Sicurezza.** Isolamento tra tenant (FR-26), sandbox contro codice ostile (FR-16,
-  FR-17), segreti cifrati e mai nei log (FR-33, FR-34). Ogni connessione di rete che porta segreti,
+  FR-17), segreti cifrati e mai nei log del motore (FR-33, FR-34),
+  sostituiti da un segnaposto nei log dei task (FR-59). Ogni connessione di rete che porta segreti,
   credenziali o dati dei tenant (tra worker e motore, tra motore e bus, tra motore e database
   quando è un servizio di rete, dal browser, dall'SDK e dalla CLI verso il motore) è cifrata e
   autentica il server; una connessione in chiaro è accettata solo da localhost. Con la
@@ -1348,7 +1405,8 @@ worker dedicato e Restate p50 15 ms (vendor); Hatchet 2.000 run/s con un databas
     tempo dell'evento, chiusura delle finestre di uno stream inattivo, intervallo dei checkpoint,
     conservazione degli stream, recupero delle scadenze perse di una pianificazione, quote di un
     nuovo tenant, soglia di "vicino al limite" (FR-49), funzioni e destinazioni di rete
-    disponibili ai tenant, inattività prima di fermare un processo ausiliario.
+    disponibili ai tenant, inattività prima di fermare un processo ausiliario, tetto del log per
+    tentativo (FR-59).
   - Ogni tempo e ogni limite che un tenant può dichiarare ha un massimo fissato
     dall'installazione, e nessuna combinazione di valori predefiniti e dichiarati lascia
     un'esecuzione, un'attività o una finestra ferma senza fine.
@@ -1357,7 +1415,8 @@ worker dedicato e Restate p50 15 ms (vendor); Hatchet 2.000 run/s con un databas
     dimensione della risposta di una `call http`, dimensione, profondità e numero di campi di
     manifest e schemi) hanno un limite con valore predefinito documentato: superarlo è un errore
     di validazione o fa fallire il task con limite e valore, senza creare attività e senza
-    fermare il motore.
+    fermare il motore. Fa eccezione il log di un tentativo: le righe oltre il tetto si scartano e
+    si contano (FR-59).
   - Un workflow senza campi facoltativi gira con i valori predefiniti documentati e termina; una
     pipeline stream senza campi facoltativi gira con i valori predefiniti documentati e chiude le
     sue finestre.
@@ -1417,6 +1476,8 @@ topictoast è un prodotto per sviluppatori: le sue superfici pubbliche sono cont
   workflow, pianificazioni, vista delle esecuzioni, segreti, editor delle pipeline stream), che si
   usano anche da telefono (NFR-16).
 - Dashboard dell'operatore, anche da telefono (NFR-16).
+- Log dei task: eventi del motore e righe scritte da worker e nodi personalizzati, per ogni
+  tentativo (FR-59).
 - Installazione con due servizi più il database (SQLite o Postgres), guida rapida per il primo
   workflow.
 - Benchmark pubblico riproducibile.
@@ -1489,14 +1550,16 @@ topictoast è un prodotto per sviluppatori: le sue superfici pubbliche sono cont
    pool) e verifica che TypeScript e Rust compilati girino nella sandbox leggera. I candidati sono
    nell'addendum del brief.
 2. **Stato delle pipeline stream.** Finestre, watermark e checkpoint non sono pronti nelle librerie
-   di base e vanno costruiti o riusati da un progetto più grande. Secondo spike prima dello
-   sprint 1. Con le pipeline stream scritte dai tenant si aggiungono isolamento e quote per
-   pipeline stream.
-3. **Il bus è un log, non una coda.** Ack, retry, timeout e ritardi vanno costruiti in topictoast;
-   un'attività lenta può bloccare una partizione (FR-13, FR-30); il bus è pre-1.0 e cambia formato
-   su disco tra le versioni, e FR-51 chiede che l'aggiornamento non perda attività.
-4. **Forma dell'estensione OWS.** Dentro `metadata` il documento resta OWS valido; con chiavi nuove
-   no. Decide l'architettura.
+   di base: l'architettura li fa costruire a topictoast sopra DataFusion (AD-13) e lo spike delle
+   pipeline stream lo verifica prima dello sprint 1. Con le pipeline stream scritte dai tenant si
+   aggiungono isolamento e quote per pipeline stream.
+3. **Il bus candidato Iggy è un log, non una coda.** Ack, retry, timeout e ritardi vanno costruiti
+   in topictoast; un'attività lenta può bloccare una partizione (FR-13, FR-30); Iggy è pre-1.0 e
+   cambia formato su disco tra le versioni, e FR-51 chiede che l'aggiornamento non perda attività.
+   Lo spike del bus sceglie tra Iggy e Valkey e misura questi punti per entrambi.
+4. **Forma dell'estensione OWS.** Chiusa dall'architettura: un task `dag` di prima classe (AD-8).
+   I validatori ufficiali di OWS rifiutano un documento con `dag`; §7 non promette che giri su
+   altri runtime OWS.
 5. **Ampiezza della v1.** Motore, DAG, sandbox, pipeline stream, separazione tra tenant,
    cassaforte, kit frontend, dashboard e due SDK sono molto lavoro per un primo rilascio; due dei
    pezzi hanno bisogno di uno spike. Decisione: nessun taglio. Se uno spike fallisce si cerca
@@ -1509,46 +1572,66 @@ topictoast è un prodotto per sviluppatori: le sue superfici pubbliche sono cont
 
 ## 11. Domande aperte
 
+Stato al 2026-11-23, dopo l'architettura accettata e le epiche. I numeri non cambiano:
+architettura, epiche e storie li citano.
+
 1. Caso reale di pipeline stream di Marco (stream, query, cosa succede dopo), per confermare UJ-3.
+   **Aperta:** Marco, prima o durante lo spike delle pipeline stream; fino al caso reale lo spike
+   usa UJ-3 come assunzione.
 2. Obiettivo numerico delle pipeline stream (NFR-5) e memoria di stato attesa per pipeline
-   stream: dopo lo spike.
-3. Confermare NFR-12 (avvio e memoria della sandbox) dopo lo spike.
-4. Dove salvare i checkpoint delle pipeline stream nella v1: chiusa dall'architettura. Stanno
-   nell'archivio dei payload, su disco o su RustFS facoltativo (AD-17).
-5. Nome e confini del possibile progetto separato con i nodi pronti.
-6. Connessioni per tenant: il lato di prodotto è chiuso (il segreto dichiara la connessione che
-   soddisfa, FR-32, FR-55); come si salvano segreti e connessioni: architettura.
-7. Come un task OWS invoca funzioni e nodi personalizzati, come dichiara i segreti e come un
-   workflow dichiara lo schema di input (FR-56), dentro il formato: architettura.
+   stream. **Aperta:** la chiude l'ADR dello spike delle pipeline stream.
+3. Conferma di NFR-12 (avvio e memoria della sandbox). **Aperta:** la chiude l'ADR dello spike
+   della sandbox.
+4. Dove salvare i checkpoint delle pipeline stream nella v1. **Chiusa:** nell'archivio dei
+   payload, su disco o su RustFS facoltativo (AD-17).
+5. Nome e confini del possibile progetto separato con i nodi pronti. **Fuori dalla v1:** nessuna
+   storia la tocca.
+6. Come si salvano segreti e connessioni; il lato di prodotto è chiuso (il segreto dichiara la
+   connessione che soddisfa, FR-32, FR-55). **Chiusa in parte:** cifratura a busta e chiavi per
+   tenant decise (AD-7); la forma delle connessioni la fissa la spec della storia delle
+   connessioni.
+7. Come un task OWS invoca funzioni e nodi personalizzati, come dichiara segreti e connessioni e
+   come un workflow dichiara lo schema di input (FR-56), dentro il formato. **Chiusa in parte:**
+   lo schema di input è `input.schema` di OWS (AD-10); il resto lo fissa un aggiornamento
+   dell'architettura, con la proposta prima dello spike del bus.
 8. Regola di propagazione di fallimenti e salti tra dipendenze DAG, e incrocio con `then` e
-   `switch`: da chiudere in architettura prima delle storie.
-9. Obiettivo per il riavvio a freddo di un processo ausiliario (FR-50): dopo lo spike.
+   `switch`. **Chiusa in parte:** la regola è in FR-2 (AD-9); `then`, `exit`, `end` e `switch`
+   stanno in un `do` annidato dentro il `dag`, che conta come un solo task (AD-8). Restano aperti,
+   fino all'aggiornamento dell'architettura prima della prima storia del `dag`: join dei dati,
+   `$context` concorrente, sintassi del fan-out e incrocio della politica «il join riceve
+   l'errore» di FR-3 con la regola (con Marco, se la regola cambia).
+9. Obiettivo per il riavvio a freddo di un processo ausiliario (FR-50). **Aperta:** la chiude
+   l'ADR dello spike della sandbox.
 10. Quale manifest vale quando nessun worker della funzione è collegato (la palette dell'editor lo
     mostra comunque) o quando due worker registrano la stessa funzione con manifest diversi
-    (FR-12, FR-55): architettura.
+    (FR-12, FR-55). **Assegnata:** lo decide la registrazione nel motore, nella spec della storia
+    di registrazione.
 11. Cosa succede ai workflow già salvati, alle esecuzioni in corso e alle attività in coda quando
     cambia il manifest di una funzione o di un nodo personalizzato, o lo schema di input di un
-    workflow chiamato come sotto-workflow (FR-55, FR-56): architettura.
-12. Input di un'esecuzione pianificata: chiusa, la pianificazione porta il proprio input (FR-6,
-    FR-57); dove lo porta, dentro il formato, la pianificazione del documento (FR-1):
-    architettura.
-13. Riga di una pipeline stream che non rispetta lo schema di input del workflow di destinazione:
-    chiusa, il rifiuto è registrato con il motivo (FR-6, FR-24).
+    workflow chiamato come sotto-workflow (FR-55, FR-56). **Assegnata:** spec delle storie delle
+    versioni.
+12. Input di un'esecuzione pianificata: la pianificazione porta il proprio input (FR-6, FR-57).
+    **Chiusa in parte:** dove lo porta la pianificazione del documento (FR-1) lo fissa un
+    aggiornamento dell'architettura prima della prima storia delle pianificazioni.
+13. Riga di una pipeline stream che non rispetta lo schema di input del workflow di destinazione.
+    **Chiusa:** il rifiuto è registrato con il motivo (FR-6, FR-24).
 14. Quale segreto usa un workflow dell'integratore quando più segreti del tenant soddisfano la
-    stessa connessione (FR-29, FR-32): spec della storia.
+    stessa connessione (FR-29, FR-32). **Assegnata:** spec della storia delle connessioni; la
+    revisione di sicurezza chiede che la scelta non sia mai implicita.
 15. Stato di un'attività rimasta in coda oltre il limite di attesa, insieme al valore del limite
-    (FR-8): spec della storia.
-16. Linguaggio degli schemi di manifest e input (FR-55, FR-56): tipi (intero e decimale), valori
-    predefiniti, campi in più, `null` e campo assente, regola di compatibilità tra campi:
-    architettura.
+    (FR-8). **Assegnata:** spec della storia di FR-8.
+16. Linguaggio degli schemi di manifest e input (FR-55, FR-56): tipi, valori predefiniti, campi in
+    più, `null` e campo assente. **Chiusa:** sottoinsieme chiuso di JSON Schema 2020-12 (AD-10,
+    C-10, FR-55). La regola di compatibilità tra campi la fissano le spec delle storie delle
+    versioni.
 17. Se una scadenza rifiutata si ritenta, se dopo più rifiuti la pianificazione si sospende da
     sola con la causa, e dove l'operatore e il proprietario che non usa il kit (l'integratore,
-    per la pianificazione del documento) vedono le scadenze rifiutate (FR-6, FR-46): spec della
-    storia.
+    per la pianificazione del documento) vedono le scadenze rifiutate (FR-6, FR-46).
+    **Assegnata:** spec della storia delle pianificazioni.
 18. Chi sospende e riprende la pianificazione scritta nel documento di un workflow condiviso, e
-    da dove (SDK, dashboard): spec della storia.
+    da dove (SDK, dashboard). **Assegnata:** spec della storia delle pianificazioni.
 19. Quote e storico delle esecuzioni che appartengono all'integratore: quale quota le limita
-    (FR-30) e dove le vede l'operatore (FR-46): architettura e spec della storia.
+    (FR-30) e dove le vede l'operatore (FR-46). **Assegnata:** spec della storia delle quote.
 
 Altri punti rinviati dalla revisione (T-30…T-36 e circa 90 rilievi medi e bassi, con il
 responsabile di ciascun gruppo) sono in `triage.md`, nella stessa cartella di questo PRD.
@@ -1567,9 +1650,9 @@ responsabile di ciascun gruppo) sono in `triage.md`, nella stessa cartella di qu
 - FR-23 — Modifica della query = nuova versione con stato vuoto.
 - FR-31 — Conservazione dello storico 30 giorni come predefinito.
 - FR-50 — Processi ausiliari fermati quando inattivi e riavviati a freddo; NFR-1 conta tutti i
-  processi attivi.
-- NFR-5 — 100.000 eventi/s per pipeline stream.
-- NFR-12 — Sandbox: avvio ≤ 10 ms, ≤ 64 MB per istanza leggera.
+  processi attivi (spike della sandbox).
+- NFR-5 — 100.000 eventi/s per pipeline stream (spike delle pipeline stream).
+- NFR-12 — Sandbox: avvio ≤ 10 ms, ≤ 64 MB per istanza leggera (spike della sandbox).
 - NFR-13 — Tempo al primo workflow ≤ 15 minuti.
 - NFR-10 — Linux x86_64 e arm64.
 - §8.2 — SDK Python e Go per worker e workflow dopo la v1.

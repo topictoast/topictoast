@@ -8,10 +8,11 @@ Workflow orchestrator (in the style of Hatchet and Argo Workflows) with first-cl
 
 ## Current state
 
-**Product phase.** Brief, PRD and UX are final (2026-11-20) in `_bmad-output/planning-artifacts/`
+**Product phase.** Brief, PRD and UX are final (2026-11-20; PRD realigned with the architecture and
+the task logs, FR-59, on 2026-11-23) in `_bmad-output/planning-artifacts/`
 (`briefs/`, `prds/`, `ux-designs/`). Architecture spine (accepted, merged 2026-11-21):
 `docs/architecture/architecture-topictoast-2026-11-20/ARCHITECTURE-SPINE.md`, ADRs in
-`docs/decisions/`. Epics and stories (approved by the user on 2026-11-23): 13 epics, 89 stories in
+`docs/decisions/`. Epics and stories (approved by the user on 2026-11-23): 13 epics, 91 stories in
 `_bmad-output/planning-artifacts/epics.md`, numbered in implementation order; each epic lists the
 decisions that block it, closed in the sprint before it starts. Next bmad step:
 `bmad-sprint-planning`, after the spikes below. Before the first design-system story, align the UX
@@ -21,7 +22,8 @@ spines (`DESIGN.md`, `EXPERIENCE.md`) with `packages/ui` and T-57 through a `bma
 the spine (`bmad-architecture` Update intent, AD ids stable):
 
 1. Bus: Iggy or the Valkey hot tier; the three worker links (direct on the bus topics, through the
-   engine over gRPC + TLS, through the engine over iroh); recovery, upgrade without loss. Full
+   engine over gRPC + TLS, through the engine over iroh); recovery, upgrade without loss; transport
+   of the workers' task-log lines (FR-59). Full
    criteria in the spine, S-1.
 2. Sandbox: light level and microVM.
 3. Stream pipelines on DataFusion. The case is the PRD's UJ-3 example, an assumption until a real
