@@ -27,6 +27,7 @@ E-1…E-9 il 2026-11-21 (memlog, voci 62 e 63), e la PR della spine li porta su 
 | [2026-11-23-sql-driver.md](2026-11-23-sql-driver.md) | Driver SQL: sqlx per SQLite e Postgres, 0.9.1 con l'eccezione di sicurezza | AD-5 (adattatore unico), Stack | accettata |
 | [2026-11-23-configuration-format.md](2026-11-23-configuration-format.md) | Formato della configurazione: TOML facoltativo e variabili d'ambiente, nessuna ricarica a caldo | C-19 | accettata |
 | [2026-11-23-dependency-licenses.md](2026-11-23-dependency-licenses.md) | Licenze ammesse per le dipendenze: permissive e MPL-2.0 non modificata | Stack | accettata |
+| [2026-11-23-function-invocation.md](2026-11-23-function-invocation.md) | Funzioni e nodi chiamati dal catalogo predefinito di OWS, nodi con il prefisso `node.` | AD-20 | accettata |
 | [2026-11-23-task-logs.md](2026-11-23-task-logs.md) | Log dei task: pezzi per tentativo nell'archivio dei payload, segnaposto dei segreti all'origine e nel motore | AD-17 (esteso) | accettata |
 
 Gli spike S-1…S-4 chiudono ciascuno con un ADR misurato (`bus`, `sandbox`, `stream-pipelines`,
