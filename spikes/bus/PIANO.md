@@ -8,7 +8,8 @@ Fonte dei criteri: spine, sezione «S-1 — Bus». Approccio a fasi deciso da Ma
 | 1 | Verifica a tavolino della variante (1), worker diretti sul bus | chiusa: la variante esce (`fase1-worker-diretti.md`) |
 | 2 | Iggy contro Valkey, con un motore minimo e il collegamento gRPC | chiusa senza vincitore sul desktop (`fase2-risultati.md`) |
 | 2b | Ritardi di coda di Iggy e Valkey rimisurati su una macchina ferma (minisheep) | chiusa senza vincitore (`fase2b-risultati.md`) |
-| 2c | Correttivi comuni ai due bus (archivio a segmenti, scritture in parallelo), misura finale a 4 CPU su desktop e minisheep | in corso |
+| 2c | Correttivi comuni ai due bus (archivio a segmenti, scritture in parallelo), misura finale a 4 CPU su minisheep | chiusa senza vincitore (`fase2c-risultati.md`) |
+| 2d | Ultimo giro sulle 10.000 attività/s: scritture parallele del motore corrette, perdita di Iggy nei 10 minuti | in corso |
 | 3 | gRPC contro iroh, solo sul bus vincitore | dopo la fase 2 |
 | 4 | Ripresa, guasti, aggiornamento senza perdite, log dei task, timer durevoli, ADR e Update della spine | dopo la fase 3 |
 
@@ -183,3 +184,62 @@ si torna da Marco con i numeri.
 ### Uscita
 
 `spikes/bus/fase2c-risultati.md`, numeri grezzi in `spikes/bus/risultati/` con il suffisso `-c-ms`.
+
+## Fase 2d: ultimo giro sulle 10.000 attività/s
+
+Decisione di Marco del 2026-11-24 (memlog dell'architettura, voci 92 e 93). Nella 2c nessuno dei due
+bus regge 10.000 attività/s per 10 minuti (Iggy 8.205-8.966, Valkey 1.240-1.252), e Valkey fallisce
+anche il tenant lento. Per Valkey il tetto è il motore dello spike: scrive sul bus da una connessione
+sola (circa 5.000 eventi/s), e sulla stessa macchina il bench del solo bus passa da 5.750 a 19.667
+messaggi/s con 4 connessioni (2b, `bench-valkey-ms-r2`). Il correttivo delle scritture parallele non
+è entrato nella misura della 2c, perché nel motore dello spike N > 1 peggiora entrambi i bus: è un
+difetto del nostro codice. È l'ultimo giro di misura: se nessuno passa, la scelta torna a Marco sui
+numeri, senza altre fasi.
+
+### Cosa si corregge, nel codice comune ai due bus
+
+- **Scritture parallele del motore:** si trova la causa del peggioramento con N > 1 e la si corregge
+  nel codice comune. L'ordine degli eventi di un'esecuzione resta quello di oggi (stessa connessione
+  per lo stesso id). Verifica a 4 CPU su minisheep, `thrmax` da 30 s, 3 corse per ogni N tra 1, 2, 4
+  e 8, per bus, con i file grezzi conservati. Ogni bus usa la N con la mediana più alta (a parità, la
+  più piccola), fissata prima delle corse misurate.
+- **Dove Iggy perde nei 10 minuti:** la corsa da 10 minuti scrive una riga al minuto (attività/s,
+  p50 della scrittura sul bus, ritardo del proiettore, pressione I/O). Una corsa di diagnosi da 10
+  minuti con Iggy, fuori dal verdetto, indica la causa. Se sta nel codice comune (proiettore, SQLite,
+  archivio), si corregge per tutti e due. Se sta nel bus o nel disco, si riporta con i numeri; al
+  massimo una modifica di configurazione del bus, se la diagnosi la indica, scritta nel report prima
+  delle corse misurate.
+- **Tempo:** al massimo 3 ore tra diagnosi e codice; poi si misura con quello che c'è e lo si dice.
+
+### Corse misurate, per bus (minisheep, stessi 4 CPU della 2c)
+
+| Riga | Corse |
+| --- | --- |
+| 10.000 attività/s per 10 minuti, pipeline completa, SQLite / Postgres | 2 / 1 |
+| Tenant lento (`iso`), SQLite | 3 |
+| Controllo: accettazione, avvio a 1.000 attività/s, join, RAM a riposo, SQLite | 1 ciascuna |
+| `kill -9` a metà corsa, SQLite | 1 |
+
+Soglia prima di ogni corsa come nella 2c; prima delle corse da 10 minuti anche pressione I/O `some
+avg60` sotto 2 %. Se la soglia non si raggiunge entro 15 minuti, la corsa parte ed è segnata «macchina
+non ferma». Iggy e Valkey alternati corsa per corsa; nessuna corsa si scarta dopo averla vista.
+
+### Cosa conta come superato
+
+- Soglie della 2c. Le righe da 10 minuti e del tenant lento si giudicano sulle corse della 2d.
+- Le altre righe tengono il risultato della 2c, tranne quando la corsa di controllo della riga ha il
+  p99 oltre 25 ms: allora la riga si rifà con le corse della 2c sul codice nuovo, e vale il nuovo
+  risultato.
+- `kill -9`: zero attività accettate perse sia nella 2c sia nella 2d.
+
+### Regola di decisione
+
+Vince il bus che supera tutte le righe su minisheep. Se le superano entrambi, quello con il p99 di
+avvio a 1.000 attività/s più basso su minisheep; a parità, quello con meno parti da gestire. Se nessuno
+le supera, si torna da Marco con i numeri per la scelta.
+
+### Uscita
+
+`spikes/bus/fase2d-risultati.md`, numeri grezzi in `spikes/bus/risultati/` con il suffisso `-d-ms`. In
+`fase2c-risultati.md` una nota in testa che rimanda alla 2d e la correzione della §2: il bench del
+solo bus con 4 connessioni era su minisheep, non sul desktop.
