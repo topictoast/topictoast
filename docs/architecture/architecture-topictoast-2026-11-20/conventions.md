@@ -49,7 +49,8 @@ Una sola approvazione per tutto il blocco. Ogni voce indica il meccanismo del PR
   stdout, una riga per evento. Mai segreti, token, chiavi o cookie. Mai nemmeno nomi visualizzati
   né input e output delle attività (FR-52); fuori da localhost `/metrics` segue C-14. Lo stderr
   degli ausiliari non entra nei log così com'è: il motore registra solo il codice C-7 e gli
-  identificativi.
+  identificativi. Le righe dei log dei task (FR-59) non sono log del motore: non vanno mai su
+  stdout né in `/metrics`, stanno nell'archivio dei payload (AD-17).
 - **C-10 Dettagli degli schemi (M-05).** Gli oggetti sono chiusi per impostazione predefinita:
   un campo in più viene rifiutato, salvo `additionalProperties: true`. `integer` è distinto da
   `number`: `3` non è `3.0`. `null` è diverso da un campo assente ed è ammesso solo se il tipo lo
@@ -62,7 +63,9 @@ Una sola approvazione per tutto il blocco. Ogni voce indica il meccanismo del PR
 - **C-12 Cassaforte (M-36, M-38).** Cifratura a busta: chiave principale dell'installazione →
   una chiave per tenant, cifrata dalla principale → segreti cifrati con AES-256-GCM. Ogni oggetto
   cifrato porta una busta versionata con l'id della chiave; per ogni oggetto o segmento si deriva
-  dalla chiave del tenant, con HKDF, la chiave che lo cifra in AES-256-GCM. Così non si raggiunge
+  dalla chiave del tenant, con HKDF, la chiave che lo cifra in AES-256-GCM; l'`info` di HKDF
+  contiene l'indirizzo completo dell'oggetto o del pezzo (per i log dei task anche il numero del
+  pezzo, AD-17), così due oggetti non condividono mai chiave e nonce. Così non si raggiunge
   il limite dei nonce di AES-GCM, e la chiave del tenant ruota tramite l'id. Il formato è uno
   solo, nel dominio, e lo usano motore, proiettore, processo delle pipeline stream e archivio dei
   payload; S-1 ne misura il costo. I segreti si risolvono alla consegna e non vengono mai scritti nei messaggi del bus. La chiave principale
