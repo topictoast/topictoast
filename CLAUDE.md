@@ -250,6 +250,9 @@ The hooks run them on their own (see Git). No CI workflow until production.
   `df -h /home`.
 - Local dev: a single `docker compose`, without profiles and without restart policies. It starts
   the bus, Postgres and RustFS together; the engine picks its adapters from its configuration.
+- Dependency licenses: only those listed in the spine's Stack section (permissive licenses,
+  unmodified MPL-2.0, and CC-BY-4.0 or PSF-2.0 only in dev dependencies); any other license needs
+  an ADR first.
 - Dependencies pinned to an exact version, published at least two weeks earlier; a new one only if
   the platform and the libraries already present are not enough. Exception: a version that fixes a
   published vulnerability (RustSec, GHSA or CVE advisory), including in a transitive dependency of

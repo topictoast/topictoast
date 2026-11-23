@@ -110,3 +110,28 @@ Una sola approvazione per tutto il blocco. Ogni voce indica il meccanismo del PR
   `position` delle risposte e nell'header `Last-Event-ID`.
 - **C-17 Liste.** Paginazione a cursore con `cursor` e `limit`; filtri come parametri di query.
 - **C-18 Idempotenza.** La chiave di idempotenza (FR-6) viaggia nell'header `Idempotency-Key`.
+
+## Configurazione
+
+- **C-19 Formato della configurazione (superficie pubblica, PRD §6).** Un file TOML facoltativo,
+  indicato da `TOPICTOAST_CONFIG`; senza file valgono i predefiniti e l'esempio gira senza
+  modifiche (FR-50). Chiavi in snake_case inglese, raggruppate in sezioni (nomi esatti nelle spec
+  delle storie, secondo `docs/glossary.md`).
+  - **Variabili:** ogni chiave si può dare come `TOPICTOAST_<SEZIONE>__<CHIAVE>` in maiuscolo, con
+    il doppio trattino basso tra sezione e chiave; la variabile vince sul file. Sono configurazione
+    solo queste: le altre `TOPICTOAST_*`, senza doppio trattino basso, sono dei client (CLI, SDK,
+    worker) e il motore le ignora.
+  - **Validazione all'avvio:** chiavi sconosciute, nel file o tra le variabili di configurazione, e
+    valori fuori tipo sono rifiutati; i predefiniti si applicano dopo la validazione (C-10) e ogni
+    valore sta entro il massimo dell'installazione (NFR-14). Con una configurazione non valida il
+    motore non parte: scrive una riga C-7 su stdout (C-9) con il percorso della chiave e la regola,
+    mai il valore né il messaggio del parser così com'è, ed esce con un codice diverso da zero.
+  - **Segreti:** le chiavi segrete sono un elenco chiuso, marcato nel tipo della configurazione:
+    chiave principale, URL e password del database, credenziali del bus, credenziali di RustFS,
+    chiavi private TLS. Nel file compaiono solo come `<chiave>_file`, il percorso di un file;
+    il valore arriva da quel file o da una variabile. Un valore segreto scritto nel file fa
+    rifiutare l'avvio.
+  - **Processi ausiliari:** il motore passa a ogni ausiliario (AD-6) solo le chiavi che servono al
+    suo ruolo, mai un segreto.
+  - **Cambi:** nessuna ricarica a caldo; ogni cambio richiede un riavvio, entro NFR-15. Rinominare
+    o togliere una chiave è una rottura di contratto.
