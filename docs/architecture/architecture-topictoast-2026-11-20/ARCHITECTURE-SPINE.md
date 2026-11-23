@@ -7,10 +7,10 @@ paradigm: 'hexagonal (porte e adattatori, costituzione III); log del bus come fo
 scope: 'topictoast v1 intero: motore, bus, persistenza, worker e SDK, sandbox dei nodi, pipeline stream, kit frontend, dashboard'
 status: final
 created: '2026-11-20'
-updated: '2026-11-21'
+updated: '2026-11-23'
 binds:
   - 'FR-1…FR-5, FR-56 (definizione dei workflow)'
-  - 'FR-6…FR-11 (esecuzione)'
+  - 'FR-6…FR-11, FR-59 (esecuzione, log dei task)'
   - 'FR-12…FR-14, FR-55 (worker)'
   - 'FR-15…FR-17, FR-54 (nodi personalizzati e sandbox)'
   - 'FR-18…FR-25 (pipeline stream)'
@@ -341,6 +341,7 @@ flowchart TB
   bench --> sdk
   pvalidator -->|"build napi-rs"| napi
   pcore -->|"import pigro"| pvalidator
+  psdk -->|"segnaposto dei log"| pvalidator
   preact --> pcore
   preact --> pui
   dash --> pui
@@ -357,13 +358,36 @@ flowchart TB
 
 ### AD-17 — Archivio dei payload su disco o RustFS, storico per l'analisi in Parquet [ADOPTED]
 
-- **Binds:** FR-11, FR-22, FR-27, FR-31, FR-50, PRD §11 n.4; proiettore, motore (uscite a monte), processo delle pipeline stream, adattatori.
+- **Binds:** FR-11, FR-22, FR-27, FR-31, FR-50, FR-59, PRD §11 n.4; proiettore, motore (uscite a monte), processo delle pipeline stream, adattatori.
 - **Prevents:** archivi diversi per payload, checkpoint e storico; un secondo motore SQL per l'analisi; un terzo servizio obbligatorio.
 - **Rule:** payload dei task (AD-3), checkpoint delle pipeline stream ed esportazioni dello storico
   passano da una sola porta, l'archivio dei payload. La porta ha fin dalla prima storia due spazi
   sotto l'identificativo interno del tenant (AD-5): uno immutabile indirizzato dall'impronta, dove
   il proiettore scrive ogni payload quando lo applica (AD-3), e uno con nome sovrascrivibile
-  (checkpoint, esportazioni). Adattatore predefinito: file su disco locale. Adattatore
+  (checkpoint, esportazioni, log dei task). Log dei task (FR-59):
+  - Le righe viaggiano come i risultati del tentativo: stesso collegamento, stessa cifratura per
+    tenant (C-13), stesso controllo di sessione (C-2). Una riga di un tentativo concluso o non più
+    corrente è rifiutata.
+  - Un solo scrittore per tentativo, proiettore o motore secondo il trasporto scelto in S-1. Dà a
+    ogni riga un numero progressivo nel tentativo, applica il tetto di FR-59 e salva le righe a
+    pezzi nello spazio con nome, con nome fisso tenant/esecuzione/tentativo/numero del pezzo. Il
+    pezzo si crea solo se assente: riscriverlo con lo stesso contenuto, come nella riapplicazione
+    del proiettore (AD-2), non cambia nulla, e un pezzo non si sovrascrive mai. Un pezzo finale
+    chiude il log del tentativo.
+  - La lettura ordina per numero, mai per l'ordine dell'archivio. Il tempo reale (AD-18) manda una
+    riga quando il suo pezzo è scritto, con il suo numero; il client riprende chiedendo all'API le
+    righe dopo l'ultimo numero visto, senza buchi né doppioni. Lo scrittore chiude un pezzo entro
+    un intervallo che tiene l'1 s di FR-59, misurato in S-1.
+  - I pezzi seguono conservazione ed eliminazione dell'esecuzione e del tenant (FR-31, C-13) e
+    contano nello spazio del tenant (FR-30).
+  - Il segnaposto dei segreti è una sola funzione pura del dominio, usata da SDK Rust, host della
+    sandbox e motore; l'SDK TypeScript la prende da `packages/validator` (AD-11). L'origine la
+    applica prima di inviare la riga; il motore la riapplica dove la riga passa da lui, anche ai
+    messaggi d'errore dei tentativi. Non riconosce valori codificati o spezzati. Forma del
+    segnaposto e cosa registra il motore quando trova un segreto sfuggito: spec della consegna dei
+    segreti e dei log.
+
+  Adattatore predefinito: file su disco locale. Adattatore
   facoltativo: RustFS (S3). I servizi obbligatori restano due (FR-50). Quando il PRD definisce la funzione di analisi dello storico, e non
   prima, lo storico chiuso si esporta in Parquet nell'archivio, cifrato per tenant con la busta di
   C-12 e C-13 (AD-7), e si interroga con DataFusion (AD-13); nessuna esportazione in chiaro, nemmeno provvisoria. I Parquet seguono la conservazione e le cancellazioni di FR-31 e FR-27. DuckDB non
@@ -431,9 +455,11 @@ NFR-11.
   processi ausiliari (AD-6). Timer durevoli sul log (attesa tra i tentativi, `wait`, scadenze di
   C-3, battiti), ricostruiti in ripresa, con un caso
   misurato: retry con attesa attraverso un crash iniettato. Trasporto delle righe di log dei
-  task, se entrano nel perimetro (Open Questions). Benchmark di base (M-49). Candidati,
-  verificati 2026-11-21: Valkey 9.1.4 e iroh 1.4.2 (solo con l'eccezione di sicurezza), tonic
-  0.14.9, redis 1.8.1.
+  worker (FR-59), con il segnaposto dei segreti consegnati applicato prima del bus e
+  dell'archivio (C-12): chi è l'unico scrittore dei pezzi (AD-17), intervallo di chiusura di un
+  pezzo entro l'1 s di FR-59, creazione solo se assente su disco e su RustFS. Benchmark di base
+  (M-49). Candidati, verificati 2026-11-21: Valkey 9.1.4 e iroh 1.4.2 (solo con l'eccezione di
+  sicurezza), tonic 0.14.9, redis 1.8.1.
 - **Misure per variante di collegamento:** latenza p50 e p99 di un passo del DAG, throughput al
   ritmo di NFR-3, CPU del motore, payload da 1 KB a 1 MB, comportamento con un'attività lenta. Le
   corse di NFR-2 e NFR-3 comprendono `if`, mappatura jq e controllo di input e output
@@ -447,13 +473,17 @@ NFR-11.
   pieno compresi, lavoro nuovo rifiutato con codice come vuole AD-2); NFR-15 (ripresa entro 30 s
   con rilettura del bus); proiezione idempotente (AD-2); FR-51 (aggiornamento senza perdite);
   chiamata tra processi sul percorso caldo entro NFR-2; un'attività lenta non porta altri tenant
-  oltre NFR-2 (FR-13); bus con autenticazione obbligatoria anche da localhost, credenziali
+  oltre NFR-2 (FR-13); un worker che scrive righe di log fino al tetto non porta le altre
+  esecuzioni oltre NFR-2 e lascia NFR-4 invariato (FR-59); bus con autenticazione obbligatoria
+  anche da localhost, credenziali
   generate all'installazione, nessun valore predefinito del candidato accettato (FR-12, FR-50).
   Decidono i numeri.
 - **Criteri non numerici della variante (1)**, riportati nell'ADR accanto ai numeri: come arrivano
   a un worker diretto i segreti (mai sul bus, C-12) e la decifratura con la chiave del tenant,
   con il giro in più misurato dentro NFR-2; chi applica concorrenza, quote e credenziali dei
-  worker (FR-12, FR-13, FR-30); compatibilità tra aggiornamenti del bus (FR-51, PRD §6).
+  worker (FR-12, FR-13, FR-30); compatibilità tra aggiornamenti del bus (FR-51, PRD §6); come le
+  righe di log di un worker diretto seguono la strada e la cifratura dei suoi risultati (C-13)
+  senza portare un segreto sul bus né saltare il ricontrollo del motore (FR-59, C-12).
   Condizioni di sicurezza: nessuna chiave dei tenant né segreto ai worker; C-11 applicabile dal
   bus; eventi di stato scritti solo dal motore (regola di AD-2). Se ne manca una, la variante è
   esclusa qualunque siano i numeri (D-1, decisione di Marco).
@@ -750,7 +780,7 @@ docs/
 | Capability / Area | Lives in | Governed by |
 | --- | --- | --- |
 | Definizione dei workflow: FR-1…FR-5, FR-56 | `crates/ows` (modello), `crates/domain` (validatore); motore (versioni) | AD-4, AD-8, AD-9, AD-10, AD-11, C-5 |
-| Esecuzione: FR-6…FR-11 | motore, bus, proiettore, archivio dei payload | AD-2, AD-3, AD-9, AD-17, AD-18, C-2, C-3, C-4, S-1 (annullamento di FR-10) |
+| Esecuzione: FR-6…FR-11, FR-59 | motore, bus, proiettore, archivio dei payload, SDK, host della sandbox | AD-2, AD-3, AD-9, AD-17, AD-18, C-2, C-3, C-4, C-9, C-12, S-1 (annullamento di FR-10, trasporto delle righe di log) |
 | Worker: FR-12…FR-14, FR-55 | motore, adattatore del collegamento dei worker, SDK | AD-1, AD-10, C-6, C-11, S-1 |
 | Nodi personalizzati e sandbox: FR-15…FR-17, FR-54 | processi ausiliari, pool microVM | AD-6, AD-16, C-5, S-2 |
 | Pipeline stream: FR-18…FR-25 | processo ausiliario per tenant con DataFusion, bus, archivio dei payload | AD-6, AD-7, AD-13, AD-17, C-4, S-3 |
@@ -784,7 +814,8 @@ docs/
 | T-57 unità dei componenti (rem o em) | riguarda solo i componenti condivisi (`packages/ui`) | prima della prima storia del design system, del kit o della dashboard |
 | T-59 isolamento CSS e colori forzati | riguarda solo i componenti condivisi (`packages/ui`) | prima della prima storia del design system, del kit o della dashboard |
 | T-65 prestazioni con grafi grandi | dipende dal limite sul numero di task | quando si fissa quel limite (NFR-14) |
-| T-67 segreti nelle righe di log del codice dei tenant | dipende dalla consegna dei segreti (AD-7) | spec della consegna dei segreti e dei log (FR-33, FR-52) |
+| T-67 segreti nelle righe di log: lato di prodotto chiuso da FR-59 (segnaposto del valore esatto, applicato all'origine e ricontrollato dal motore, C-12) | restano dettagli: forma del segnaposto, segreti molto corti, un valore spezzato su più righe | spec della consegna dei segreti e dei log (FR-33, FR-59) |
+| Ordine tra eventi del motore e righe del codice nel log di un tentativo, e orologio che dà l'ora delle righe (FR-59) | lettura e tempo reale sono già legati al numero di riga (AD-17) | spec delle storie dei log dei task (FR-59) |
 | T-68 dashboard con canale in tempo reale interrotto | il canale è fissato (C-8, AD-18) | spec della dashboard |
 | Ricerca per valore tra gli elementi di un fan-out (A-5 della UX, oltre gli FR) | i payload stanno fuori dal database (AD-3): serve una scelta di prodotto | spec della storia del fan-out |
 | AMB-1, AMB-5, AMB-6, AMB-9 (ambiguità del PRD) | comportamento di prodotto, non struttura | spec delle storie che le toccano |
@@ -802,7 +833,6 @@ docs/
 | M-37: risoluzione e forma delle connessioni (sotto-workflow dell'integratore chiamato da un tenant, nomi di piattaforma, due connessioni della stessa piattaforma); C-12 e C-13 non lo coprono | spec (PRD §11 n.14) | spec della storia delle connessioni (FR-29, FR-33) |
 | T-58: librerie di canvas, layout del DAG ed editor di codice. Candidate `@xyflow/react` (fissabile 12.12.1; valutare la 13.x, fissabile dal 2026-11-30), `@dagrejs/dagre`, CodeMirror 6; elkjs escluso per scelta (copyleft). Criteri: quelli di T-58 del triage, tastiera e lettori di schermo come vuole la UX (provati con NVDA e un telefono), direzione da sinistra a destra e dall'alto in basso, prestazioni con il massimo di task di NFR-14, CSP dell'ospite (AD-19), gate della skill sugli stili in linea | architettura | Update della spine o skill del kit, prima della prima storia del kit |
 | Editor: le posizioni dei nodi fanno parte della versione (FR-5) e dell'export? A cosa si legano (percorso dei nomi dei task) e in che unità? I moduli dei costrutti (`call http`, `wait`, `switch`, fan-out…) si generano da una descrizione dei campi esportata dal dominio nel linguaggio di AD-10, o si scrivono a mano con un test di parità contro il validatore? | architettura | prima della prima storia dell'editor |
-| Log dei task (tab Log della UX, oltre gli FR): prima una nota nel PRD che li porti nel perimetro. Vincoli già fissati: mai nel database (NFR-4), trasporto nel protocollo dei worker misurato in S-1, conservazione nell'archivio dei payload | Marco | nota nel PRD, prima di S-1 |
 | Ambito della verità sul bus: quali risorse, oltre alle esecuzioni, passano dal bus (workflow, tenant, quote, pianificazioni, credenziali dei worker); dove si fanno, oltre a idempotenza, C-3, C-4 e `If-Match` (AD-18), gli altri controlli sullo stato più recente (quote di FR-30, concorrenza di FR-13, credenziali revocate di C-11, segreto presente all'avvio di FR-33, riferimenti all'eliminazione di FR-58, una pianificazione per workflow di FR-57); da dove l'API legge input e output di un'esecuzione viva (bus o archivio dei payload); quale stato operativo vive solo in memoria nel motore (vitalità dei worker, uso delle quote, metriche delle pipeline stream) e quale si proietta (fasi delle attività, motivi di attesa, ultimo uso dei segreti) | architettura | S-1, con il costo dentro NFR-4 |
 | Proiettore sotto RLS con Postgres: come scrive gruppi con righe di più tenant senza `BYPASSRLS`, quale politica di lettura ha l'operatore (FR-46), quante istruzioni costa per gruppo. Da provare con `FORCE ROW LEVEL SECURITY` su ogni tabella dei tenant (il proprietario delle tabelle altrimenti salta l'RLS) e il tenant impostato solo per la transazione | architettura | S-1, misurato dentro NFR-4 |
 | Versione del formato di messaggi del bus, payload, checkpoint ed export, che il motore nuovo deve rileggere dopo un aggiornamento (FR-51, PRD §6) | architettura | S-1, con un aggiornamento a esecuzioni in corso |
