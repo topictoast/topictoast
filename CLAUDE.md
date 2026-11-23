@@ -9,12 +9,13 @@ Workflow orchestrator (in the style of Hatchet and Argo Workflows) with first-cl
 ## Current state
 
 **Product phase.** Brief, PRD and UX are final (2026-11-20) in `_bmad-output/planning-artifacts/`
-(`briefs/`, `prds/`, `ux-designs/`). Architecture spine (approved by the user on 2026-11-21,
-accepted when its PR is merged):
+(`briefs/`, `prds/`, `ux-designs/`). Architecture spine (accepted, merged 2026-11-21):
 `docs/architecture/architecture-topictoast-2026-11-20/ARCHITECTURE-SPINE.md`, ADRs in
-`docs/decisions/`. No product code before the architecture is accepted (constitution I). Next bmad
-step: `bmad-create-epics-and-stories`. Before the first design-system story, align the UX spines
-(`DESIGN.md`, `EXPERIENCE.md`) with `packages/ui` and T-57 through a `bmad-ux` Update.
+`docs/decisions/`. Epics and stories (approved by the user on 2026-11-23): 13 epics, 89 stories in
+`_bmad-output/planning-artifacts/epics.md`, numbered in implementation order; each epic lists the
+decisions that block it, closed in the sprint before it starts. Next bmad step:
+`bmad-sprint-planning`, after the spikes below. Before the first design-system story, align the UX
+spines (`DESIGN.md`, `EXPERIENCE.md`) with `packages/ui` and T-57 through a `bmad-ux` Update.
 
 **Spikes before sprint 1**, in this order; each one closes with a measured ADR and a PR that updates
 the spine (`bmad-architecture` Update intent, AD ids stable):
