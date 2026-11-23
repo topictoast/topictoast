@@ -7,7 +7,8 @@ Fonte dei criteri: spine, sezione «S-1 — Bus». Approccio a fasi deciso da Ma
 | --- | --- | --- |
 | 1 | Verifica a tavolino della variante (1), worker diretti sul bus | chiusa: la variante esce (`fase1-worker-diretti.md`) |
 | 2 | Iggy contro Valkey, con un motore minimo e il collegamento gRPC | chiusa senza vincitore sul desktop (`fase2-risultati.md`) |
-| 2b | Ritardi di coda di Iggy e Valkey rimisurati su una macchina ferma (minisheep) | in corso |
+| 2b | Ritardi di coda di Iggy e Valkey rimisurati su una macchina ferma (minisheep) | chiusa senza vincitore (`fase2b-risultati.md`) |
+| 2c | Correttivi comuni ai due bus (archivio a segmenti, scritture in parallelo), misura finale a 4 CPU su desktop e minisheep | in corso |
 | 3 | gRPC contro iroh, solo sul bus vincitore | dopo la fase 2 |
 | 4 | Ripresa, guasti, aggiornamento senza perdite, log dei task, timer durevoli, ADR e Update della spine | dopo la fase 3 |
 
@@ -115,3 +116,69 @@ proprietà del bus e si torna da Marco con la scelta tra Valkey con un archivio 
 ### Uscita
 
 `spikes/bus/fase2b-risultati.md`, numeri grezzi in `spikes/bus/risultati/` con il suffisso `-ms`.
+
+## Fase 2c: correttivi comuni e misura finale a 4 CPU
+
+Decisione di Marco del 2026-11-23 (memlog dell'architettura, voci 89 e 90). La fase 2b ha mostrato
+due limiti nel codice dello spike, non nei bus: l'archivio a un file per payload frena entrambi, e il
+motore scrive sul bus da una sola connessione (Valkey, nel bench del solo bus, passa da 5.700 a 19.500
+messaggi/s con 4 connessioni). Si correggono per entrambi i bus, poi si misura una volta sola, alle
+condizioni del PRD.
+
+### Correttivi, uguali per i due bus
+
+- **Archivio a segmenti accodati:** un segmento aperto per tenant, i payload accodati, un solo
+  `fdatasync` del segmento per gruppo al posto di un file per payload e `syncfs`; il segmento si
+  chiude per dimensione o per tempo (entro 1 s) e non si riscrive mai. Ogni payload resta cifrato da
+  solo (C-12: busta versionata, chiave derivata per oggetto), con l'impronta e la posizione (segmento,
+  scostamento, lunghezza) nella stessa riga del database che già porta l'impronta (AD-3), senza
+  istruzioni SQL in più. Dopo un `kill -9` un segmento troncato si legge fino all'ultimo payload
+  completo, e nessun payload già confermato si perde. Solo su disco: RustFS resta fuori dalla 2c.
+- **Scritture sul bus in parallelo:** il motore scrive da N connessioni (N fissato prima di misurare,
+  uguale per i due bus); ogni esecuzione usa sempre la stessa connessione, scelta dall'id
+  dell'esecuzione, così l'ordine degli eventi di un'esecuzione resta quello di oggi.
+
+### Macchina di riferimento
+
+Il PRD misura su 4 vCPU, 16 GB, SSD NVMe locale, Linux. Motore, worker, bus e database girano su 4
+thread hardware fissati (2 core P con i loro thread gemelli, stessa scelta sui due host, con
+`taskset` e `cpuset` di compose); il generatore di carico, che sta al posto dei client, gira sugli
+altri. Desktop e minisheep, Iggy e Valkey alternati corsa per corsa.
+
+### Corse, per host e per bus
+
+| Riga | Corse |
+| --- | --- |
+| Accettazione durevole, SQLite / Postgres | 5 / 2 |
+| Avvio a 1.000 attività/s, SQLite / Postgres | 5 / 2 |
+| Join con ramo lento, SQLite | 3 |
+| Tenant lento (`iso0` e `iso`), SQLite | 3 |
+| 10.000 attività/s per 10 minuti, pipeline completa, SQLite / Postgres | 2 / 1 |
+| RAM a riposo, SQLite | 1 |
+| `kill -9` a metà corsa con l'archivio a segmenti, SQLite (solo minisheep) | 2 |
+
+Prima di ogni corsa, la stessa soglia della 2b (carico medio a 1 minuto sotto 1,5, pressione I/O
+`some avg10` sotto 1 %). Sul desktop, se la soglia non si raggiunge entro 10 minuti di attesa, la
+corsa parte comunque ed è segnata «macchina non ferma». Nessuna corsa si scarta dopo averla vista.
+
+### Cosa conta come superato
+
+- **Righe del PRD:** avvio a 1.000 attività/s con p99 entro 25 ms in almeno 4 corse su 5 (SQLite) e
+  in 2 su 2 (Postgres), p50 entro 5 ms giudicato solo sul desktop (minisheep ha il pavimento del
+  disco a 2,7 ms); 10.000 attività/s sostenute per 10 minuti in tutte le corse, con il p99 di avvio
+  riportato; istruzioni SQL per attività entro 5; ripresa dopo `kill -9` con zero attività accettate
+  perse.
+- **Righe dei criteri di S-1 della spine:** accettazione durevole con p99 entro 25 ms (stessa soglia
+  delle righe da 5 e da 2 corse); join e tenant lento con p99 entro 25 ms in almeno 2 corse su 3.
+- **RAM:** riportata; per Iggy vale la deroga di Marco (91 MB).
+- Il report tiene separate le righe del PRD e quelle dei criteri della spine.
+
+### Regola di decisione
+
+Vince il bus che supera tutte le righe su entrambi gli host. Se le superano entrambi, quello con il
+p99 di avvio più basso sul desktop; a parità, quello con meno parti da gestire. Se nessuno le supera,
+si torna da Marco con i numeri.
+
+### Uscita
+
+`spikes/bus/fase2c-risultati.md`, numeri grezzi in `spikes/bus/risultati/` con il suffisso `-c-<host>`.
