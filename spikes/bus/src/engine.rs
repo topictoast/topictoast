@@ -90,6 +90,8 @@ impl M {
 pub struct Shared {
     pub keys: Keys,
     pub bus: Bus,
+    /// Una connessione per scrittore (un tenant ciascuno), così le scritture dei tenant non si accodano sulla stessa connessione.
+    pub bus_w: Vec<Bus>,
     pub db: Arc<Db>,
     pub dir: String,
     pub failing: AtomicU32,
@@ -210,7 +212,7 @@ impl Engine {
             if msgs.is_empty() {
                 continue;
             }
-            let bus = self.sh.bus.clone();
+            let bus = self.sh.bus_w[ti].clone();
             set.spawn(async move {
                 // gruppi di al più 8 MB (Iggy rifiuta richieste oltre 64 MB), in ordine, tutti durevoli prima di tornare
                 let mut from = 0;
@@ -446,12 +448,14 @@ async fn recover(sh: &Arc<Shared>) -> (HashMap<Uid, Exec>, Vec<(usize, Uid, u32)
 // ---------------------------------------------------------------- proiettore
 
 async fn projector(sh: Arc<Shared>, ti: usize, start: u64) {
+    // connessione propria del proiettore: le letture non si mettono in coda dietro le scritture del motore
+    let bus = Bus::connect(sh.bus.name()).await.unwrap();
     let topic = topic_of(&TENANTS[ti]);
     let mut pos = start;
     let mut last_trim = Instant::now();
     let mut failing = false;
     loop {
-        let raw = match sh.bus.read(&topic, pos, sh.proj_batch).await {
+        let raw = match bus.read(&topic, pos, sh.proj_batch).await {
             Ok(r) => r,
             Err(e) => {
                 eprintln!("lettura del bus fallita: {e}");
@@ -465,7 +469,7 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64) {
         }
         let raw = if (raw.len() as u32) < sh.proj_batch / 2 && sh.window_ms > 0 {
             tokio::time::sleep(Duration::from_millis(sh.window_ms)).await;
-            sh.bus.read(&topic, pos, sh.proj_batch).await.unwrap_or(raw)
+            bus.read(&topic, pos, sh.proj_batch).await.unwrap_or(raw)
         } else {
             raw
         };
@@ -530,7 +534,7 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64) {
         pos = next;
         if sh.trim && last_trim.elapsed() > Duration::from_millis(500) {
             last_trim = Instant::now();
-            let _ = sh.bus.trim(&topic, pos).await;
+            let _ = bus.trim(&topic, pos).await;
         }
     }
 }
@@ -649,6 +653,7 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
     let db = Arc::new(Db::open(db_url).await.unwrap());
     let sh = Arc::new(Shared {
         keys,
+        bus_w: vec![Bus::connect(bus_kind).await.unwrap(), Bus::connect(bus_kind).await.unwrap()],
         bus,
         db,
         dir: dir.into(),

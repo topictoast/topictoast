@@ -10,17 +10,27 @@ gate). Numeri grezzi di ogni corsa in `spikes/bus/risultati/<bus>-<db>-<scenario
    questa fase si ferma qui. Sotto, la lettura dei numeri per aiutare la scelta.
 2. **Valkey** (AOF `appendfsync always`): accettazione durevole p50 0,57 ms e p99 ≤ 5,4 ms; avvio di
    un'attività a 1.000/s p50 0,56 ms e p99 ≤ 2,1 ms (SQLite) e ≤ 4,8 ms (Postgres); RAM a riposo
-   37,6 MB con il motore. Fallisce **solo** quello che dipende dall'archivio dei payload: 7.600-8.600
+   37,6 MB con il motore. Tra gli obiettivi del piano fallisce **solo** quello che dipende dall'archivio dei payload (più i payload da 1 MB, che non sono un obiettivo numerico): 7.600-8.600
    attività/s sostenute (contro 10.000) quando l'archivio (un file cifrato per payload più `syncfs`
    per gruppo) sta sullo stesso disco del bus. Con l'archivio spento (diagnostica) sostiene 10.000
    attività/s per 60 s con avvio p50 1,3 ms e p99 7,4 ms (SQLite) o 10,7 ms (Postgres).
-3. **Iggy** (`server-0.10.0`, topic `persisted`): accettazione durevole p50 3,6-4,7 ms ma p99 17-72 ms
-   (fallisce in 2 corse su 3 con SQLite, e con Postgres); avvio a 1.000/s p99 22-32 ms con SQLite;
+3. **Iggy** (`server-0.10.0`, topic `persisted`): accettazione durevole p50 3,6-5,9 ms ma p99 17-76 ms
+   (sopra 25 ms in 7 corse con archivio su 8, SQLite e Postgres); avvio a 1.000/s p99 20-32 ms con SQLite
+   (sopra 25 ms in 3 corse su 5);
    sostiene 10.000 attività/s ma con avvio p99 51-185 ms; RAM a riposo 91,3 MB con il motore (fallisce
-   gli 80 MB di NFR-1 anche con 1 shard e pool da 512 MiB); stalli sporadici di circa 1 s sul log.
-   Non è la forma dell'archivio a far fallire Iggy: con l'archivio spento l'avvio resta a p99 68 ms.
+   gli 80 MB di NFR-1 con 1 shard, con 2 shard e anche con il pool di memoria spento: il bus da solo sta
+   a 72 MB); stalli sporadici di circa 1 s sul log. Non è la forma dell'archivio a far fallire Iggy:
+   con l'archivio spento l'avvio resta a p99 68 ms.
+   **Cautela sulla coda di Iggy:** la macchina è un desktop in uso (browser, editor, carico medio 4-5,
+   pressione I/O 2-6 %), non è quiescente. La coda di Iggy cambia molto da una corsa all'altra con la
+   stessa configurazione (stesso bench del solo bus: p99 da 5 a 55 ms in momenti diversi), mentre
+   Valkey, alternato corsa per corsa con Iggy, è rimasto a p99 1-5 ms. Ho provato a escludere gli effetti
+   del mio carico (connessioni separate per scrittori e proiettori, 1 e 2 shard, `pin_cores` spento,
+   pool spento): la coda di Iggy resta (accettazione p99 60-76 ms in 3 corse con questi cambi). Quindi
+   «Iggy fallisce la coda su questa macchina, mentre Valkey no» è provato; «la coda è una proprietà del
+   bus e non dell'ambiente» no: da rifare su un host quiescente prima della scelta definitiva.
 4. **Lettura mia, da confermare con Marco:** la differenza tra i due è di natura. Iggy fallisce su
-   latenza di coda e RAM, cioè su proprietà del bus. Valkey fallisce su una scelta dell'archivio
+   RAM (proprietà del bus, provata) e su latenza di coda (provata su questa macchina, da riconfermare). Valkey fallisce su una scelta dell'archivio
    (un file per payload, `syncfs` per gruppo), che AD-17 non impone e che si può cambiare
    (segmenti accodati invece di file singoli, o disco separato dal bus). **Raccomandazione:
    proseguire con Valkey, a condizione di rimisurare NFR-3 con un archivio a segmenti prima della
@@ -57,14 +67,22 @@ ISC, Zlib, BSD, CDLA-Permissive-2.0, BSL-1.0, CC0, 0BSD, o doppie licenze con un
 
 - **Iggy:** topic creati con `durability = Persisted` (barriera di memorizzazione stabile prima della
   risposta), 1 partizione per tenant, `message_expiry` mai. Una sola configurazione per tutte le
-  misure: 1 shard (`IGGY_SHARDING_CPU_ALLOCATION=1`), pool di memoria 512 MiB (il minimo ammesso),
-  `wal_group_commit_delay_micros = 500`, solo TCP, HTTP/QUIC/WebSocket spenti, autenticazione con
-  utente root a credenziali generate (`gen-env.sh`, mai `--with-default-root-credentials`).
-  Verifica che la durabilità sia reale: lo stesso bench con `Replicated` torna in 0,04 ms (p50),
-  contro 2,6 ms con `Persisted`. Le variabili d'ambiente sono state applicate (visibili nel log di
-  avvio). La scelta della configurazione viene da un bench del solo bus (§6): 4 shard e 2 shard non
-  cambiavano le latenze in modo distinguibile dal rumore, ma costano più RAM; il ritardo di
-  group commit di 500 µs è stato scelto perché in un primo giro dava le code più corte, ma i giri successivi non lo hanno confermato in modo netto.
+  misure del motore (§5.3, §5.4): 1 shard (`IGGY_SHARDING_CPU_ALLOCATION=1`), pool di memoria 512
+  MiB (il minimo ammesso), `wal_group_commit_delay_micros = 500`, `pin_cores` acceso, solo TCP,
+  HTTP/QUIC/WebSocket spenti, autenticazione con utente root a credenziali generate (`gen-env.sh`,
+  mai `--with-default-root-credentials`). **Eccezioni dichiarate:** il bench del solo bus del §6
+  (prime due ripetizioni) e il controllo `Replicated` sono stati fatti a 2 shard e pool 4 GiB; le
+  varianti di controllo del §1 (2 shard, `pin_cores` spento, pool spento) sono corse singole
+  etichettate nei file (`6sh2`, `6nopin`, `2pooloff`). La configurazione a 1 shard e 512 MiB è stata
+  scelta per stare più vicino a NFR-1 dopo un primo giro di bench rumoroso; il confronto successivo
+  non mostra un vantaggio per nessuna configurazione (2 shard e 4 GiB: p99 55 ms in un giro e 6-10 ms
+  in un altro), e la RAM non scende sotto 72 MB in nessuna (1 shard 512 MiB: 72,4 MB; 1 shard con pool
+  spento: 72,4 MB; 2 shard e 4 GiB: 88,6 MB). Verifica che la durabilità sia reale: lo stesso
+  bench con `Replicated` torna in 0,04 ms (p50), contro 2,6 ms con `Persisted`. Le variabili
+  d'ambiente sono state applicate (visibili nel log di avvio). Le prime corse Iggy del motore
+  (r1-r3 di `accept` e `start1k`, `thr10k`, ecc.) usavano una sola connessione `IggyClient` per
+  scritture dei due tenant e letture dei proiettori; dalle corse `*own` ogni scrittore e ogni
+  proiettore ha la propria connessione. La coda non è cambiata.
 - **Valkey:** `appendonly yes`, `appendfsync always`, `save ""`, `requirepass` generata, AOF con
   riscrittura automatica ai valori predefiniti (64 MB, +100%): le riscritture restano nel p99. Gli
   stream si tagliano con `XTRIM MINID` dopo ogni gruppo applicato dal proiettore (al più ogni 500
@@ -136,13 +154,13 @@ scrittura né `syncfs` dei payload: isola bus, motore e database).
 | Accettazione durevole (motore) | p50 ≤ 5 ms, p99 ≤ 25 ms | p50 0,57 / 0,57 / 0,57 ms; p99 5,42 / 1,77 / 5,29 ms (RTT cliente p99 5,7 / 2,0 / 5,5) | P |
 | Avvio a 1.000 att./s | p50 ≤ 5, p99 ≤ 25 ms | p50 0,57 / 0,56 / 0,56; p99 2,14 / 1,78 / 2,04 ms | P |
 | Lettura uscite dall'archivio (join) | dentro NFR-2 | `archive_read` p50 0,03 ms, p99 0,11 ms (n 4.500, cache del sistema calda); avvio del join p50 0,73, p99 1,36 ms; ritardo di proiezione p99 circa 0,2 s | P |
-| Attività/s sostenute (60 s) | ≥ 10.000 | pieno: 8.268 / 8.574 / 8.099 (AOF min 4 GB); massimo 6.076. Senza archivio: 10.000 (massimo 11.794) | **F** pieno; P senza archivio |
+| Attività/s sostenute (60 s) | ≥ 10.000 | pieno: 8.268 / 8.574 / 8.099 (AOF min 4 GB); massimo (`thrmax`, saturo) 6.076. Senza archivio: 10.000 al ritmo offerto di 10.000, massimo (`thrmax`) 11.794 | **F** pieno; P senza archivio |
 | Avvio a 10.000 att./s | p99 ≤ 25 ms | pieno: p50 11,7 / 19,6 ms, p99 2.710 / 2.302 ms (coda, non regge). Senza archivio: p50 1,27, p99 7,40 ms | F pieno; P senza archivio |
 | Istruzioni SQL per attività | ≤ 5 | 0,016 a 10.000/s (circa 8.000-9.400 istruzioni per 500.000-600.000 attività); 0,17 a 200/s; 0,8-1,0 a 1 MB; righe per attività 2,2 | P |
 | RAM a riposo (motore + bus + SQLite), 60 s | ≤ 80 MB | Valkey 21,3 MB + motore 16,3 MB = 37,6 MB | P |
-| `kill -9` a metà corsa | ripresa ≤ 30 s, 0 perse | 2 corse × 3 kill: motore di nuovo in ascolto 0,2 s dopo l'avvio (21-32 ms di ripresa, dopo 1 s di attesa voluta tra kill e riavvio), prima attività conclusa dopo ≤ 0,32 s dal riavvio; accettate 7.730, concluse 7.749 (19 con la risposta persa nel kill), perse 0, `Done` duplicati sul bus 0, attività con esiti ≠ 1: 0; in volo al primo kill circa 1.700 attività | P |
+| `kill -9` a metà corsa | ripresa ≤ 30 s, 0 perse | corsa r2, 3 kill (la r1 usava parametri vecchi, v. §9): motore di nuovo in ascolto 0,2 s dopo l'avvio (21-32 ms di ripresa, dopo 1 s di attesa voluta tra kill e riavvio), prima attività conclusa dopo ≤ 0,32 s dal riavvio; accettate 7.730, concluse 7.749 (19 con la risposta persa nel kill), perse 0, `Done` duplicati sul bus 0, attività con esiti ≠ 1: 0; in volo al primo kill circa 1.700 attività | P |
 | Database fermo | rifiuto con codice, 0 perdite | SQLite bloccato per 10 s con lock esclusivo (emulazione): 2.866 richieste rifiutate con `E_PROJECTION_DOWN`, 0 altri errori; accettate 5.834, tutte concluse dopo lo sblocco | P |
-| Attività lenta di un tenant | B entro NFR-2 | B: p50 0,69, p99 24,8 ms (senza A: 0,56 / 1,11 ms) | P (al limite) |
+| Attività lenta di un tenant | B entro NFR-2 | B: p50 0,69 / 0,69 / 0,68 ms; p99 24,8 / 10,9 / 16,0 ms (3 corse; senza A: 0,56 / 1,11 ms) | P (r1 al limite) |
 | Payload 64 KB | informativo | avvio p50 0,89, p99 8,97 ms a 500 att./s | P |
 | Payload 1 MB | informativo | sostenute 71-80 att./s su 100 offerte; avvio p50 128-323 ms, p99 1,1-2,7 s; RSS motore fino a 2,8 GB (cache) | F |
 
@@ -171,10 +189,10 @@ la caduta non viene dalle riscritture.
 
 | Misura | Obiettivo | Valore | Esito |
 | --- | --- | --- | --- |
-| Accettazione durevole (motore) | p50 ≤ 5, p99 ≤ 25 ms | p50 4,68 / 4,37 / 3,58 ms; p99 72,1 / 54,7 / 16,9 ms | **F** (2 corse su 3 sopra 25 ms) |
-| Avvio a 1.000 att./s | p50 ≤ 5, p99 ≤ 25 ms | p50 2,43 / 2,35 / 2,59 ms; p99 30,7 / 22,3 / 31,7 ms | **F** (2 su 3) |
+| Accettazione durevole (motore) | p50 ≤ 5, p99 ≤ 25 ms | p50 4,68 / 4,37 / 3,58 ms; p99 72,1 / 54,7 / 16,9 ms. Con connessioni separate (`4own`, `5own`): p50 4,67 / 5,91 ms, p99 65,4 / 73,2 ms | **F** (4 corse su 5 con p99 sopra 25 ms; una con p50 sopra 5) |
+| Avvio a 1.000 att./s | p50 ≤ 5, p99 ≤ 25 ms | p50 2,43 / 2,35 / 2,59 ms; p99 30,7 / 22,3 / 31,7 ms. Con connessioni separate: p50 2,26 / 2,35, p99 19,9 / 30,5 ms | **F** (3 corse su 5 sopra 25 ms) |
 | Lettura uscite dall'archivio (join) | dentro NFR-2 | `archive_read` p50 0,03, p99 0,13 ms; ma avvio del join p50 12,97, p99 87,7 ms (dominato dalla scrittura durevole) | F |
-| Attività/s sostenute (60 s) | ≥ 10.000 | pieno 9.992 (massimo 11.036); senza archivio 9.995 (massimo 15.480) | P (al limite del ritmo offerto) |
+| Attività/s sostenute (60 s) | ≥ 10.000 | pieno 9.992 (ritmo offerto 10.000, quindi non dimostra «≥»; prova: massimo 11.036 con la corsa saturata `thrmax`); senza archivio 9.995 (massimo 15.480) | P (massimo ≥ 11.000) |
 | Avvio a 10.000 att./s | p99 ≤ 25 ms | pieno: p50 6,41, p99 51,1 ms; senza archivio: p50 8,60, p99 68,4 ms | **F** |
 | Istruzioni SQL per attività | ≤ 5 | 0,016 a 10.000/s; 0,16 a 200/s; 1,1 a 1 MB | P |
 | RAM a riposo (motore + bus + SQLite), 60 s | ≤ 80 MB | Iggy 72,4 MB + motore 18,9 MB = 91,3 MB (1 shard, pool 512 MiB); con 2 shard e pool 4 GiB il solo bus è 88,6 MB | **F** |
@@ -191,7 +209,7 @@ la caduta non viene dalle riscritture.
 | Accettazione durevole | p50 ≤ 5, p99 ≤ 25 ms | p50 4,19, p99 55,7 ms (1 corsa) | F |
 | Avvio a 1.000 att./s | p50 ≤ 5, p99 ≤ 25 ms | p50 2,18, p99 8,90 ms (1 corsa; con SQLite, 2 corse su 3 fuori) | P su 1 corsa, instabile |
 | Lettura uscite dall'archivio (join) | dentro NFR-2 | `archive_read` p50 0,03, p99 0,11 ms; avvio del join p50 4,46, p99 72,9 ms | F |
-| Attività/s sostenute (60 s) | ≥ 10.000 | pieno 9.987; senza archivio 9.694 (97 %) | P (pieno), F (senza archivio, 1 corsa) |
+| Attività/s sostenute (60 s) | ≥ 10.000 | pieno 9.987 (ritmo offerto 10.000; massimo non misurato con Postgres, con SQLite 11.036); senza archivio 9.694 (97 %) | P (pieno), F (senza archivio, 1 corsa) |
 | Avvio a 10.000 att./s | p99 ≤ 25 ms | pieno p50 18,5, p99 184,6 ms; senza archivio p50 13,9, p99 884 ms (stallo da circa 1 s) | **F** |
 | Istruzioni SQL per attività | ≤ 5 | 0,016, righe 2,2, circa 800 byte di WAL per attività | P |
 | `kill -9` a metà corsa | ripresa ≤ 30 s, 0 perse | 3 kill: ripresa 32-37 ms, prima attività conclusa ≤ 0,42 s; accettate 7.759, concluse 7.762, perse 0, duplicati 0 | P |
@@ -270,10 +288,14 @@ Il ritmo, i campioni e il riscaldamento di ogni scenario sono nelle righe di `sc
 
 - **10 minuti sostenuti** (NFR-3): ogni corsa dura 60 s di finestra, per il limite di 180 s sui comandi.
   Con Valkey le corse da 20 s sembravano passare (9.894/s) e quelle da 60 s no: 10 minuti sono più duri.
-- **Postgres in NFR-1** (RAM): la misura è definita con SQLite.
+- **Postgres in NFR-1** (RAM): la misura è definita con SQLite. Il motore partiva con il database
+  vuoto: l'«insieme di dati dichiarato» di NFR-1 (tenant, workflow, storico) non è stato caricato,
+  quindi la RAM del motore è un minimo.
 - **Postgres: righe e WAL** misurati; **SQLite: WAL non contato**.
-- **Tre ripetizioni** solo per accettazione e avvio a 1.000/s con SQLite. Gli altri valori sono 1 corsa
-  (Valkey + SQLite `thr10k`: 4 corse con varianti). Le variazioni tra corse uguali sono grandi per Iggy.
+- **Ripetizioni:** accettazione e avvio a 1.000/s con SQLite: 3 corse iniziali (più 2 per Iggy con
+  connessioni separate, e 1 per Valkey); isolamento Valkey + SQLite: 3 corse. Tutti gli altri valori
+  sono 1 corsa (Valkey + SQLite `thr10k`: 4 corse con varianti). Le variazioni tra corse uguali sono
+  grandi per Iggy: dove c'è una sola corsa, il suo esito non è affidabile.
 - **Disco freddo**: le letture dall'archivio escono dalla cache del sistema.
 - **Archivio a segmenti** (la variante che sblocca Valkey): non provata.
 - **Una sola partizione per tenant e una sola connessione Iggy**; con più partizioni per tenant
@@ -307,6 +329,17 @@ Il ritmo, i campioni e il riscaldamento di ogni scenario sono nelle righe di `sc
 - **Il motore e il proiettore stanno nello stesso processo**; il worker è un processo separato con
   TLS, come da piano. La RAM di NFR-1 somma motore (con SQLite incorporato) e bus; il worker è escluso.
 - **Corse da 60 s e non da 10 minuti** per NFR-3.
+- **Una corsa è stata spostata in background dal sistema** dopo 180 s di comando in primo piano
+  (lo sweep del bench di Iggy con diverse configurazioni, del primo giro); i comandi successivi sono
+  rimasti sotto i 175 s. Il sistema ha comunque notificato il completamento.
+- **File superati in `risultati/`** (restano per tracciabilità, non vanno letti come risultati):
+  `*-join-r1` (rami uguali, nessuna lettura dall'archivio: la corsa buona è `join-r2`);
+  `iggy-sqlite-size1m-r1` (prima del tetto di 8 MB per richiesta; r2 è il motore uscito per
+  «Invalid size bytes» con una richiesta oltre 64 MB: difetto del mio motore, corretto in r3);
+  `valkey-sqlite-size1m-r1/r2` (prima del tetto; r3 è la corsa col tetto);
+  `valkey-sqlite-kill-r1`, `valkey-sqlite-dbdown-r1` (parametri di prima: 40 s e `work_ms=0`; le
+  corse cui mi riferisco sono r2); tutte le `*noarc`, `*r3tuned`, `*r4arcdisk`, `*6sh2`, `*6nopin`,
+  `*2pooloff` sono varianti di diagnostica. Le corse `*own` sono quelle con connessioni separate.
 - **Il tetto di 512 attività per tenant e la consegna a turno** non sono nel piano: servono alla prova
   di isolamento (FR-13).
 - **Il join legge dall'archivio solo se il ramo lento ritarda** (ramo 0 da 1,5 s): con rami uguali le
@@ -324,20 +357,24 @@ decidere:
 
 | Obiettivo | Valkey | Iggy |
 | --- | --- | --- |
-| Accettazione p99 ≤ 25 ms | P | F (r1, r2) |
-| Avvio a 1.000/s p99 ≤ 25 ms | P | F (r1, r3 con SQLite) |
+| Accettazione p99 ≤ 25 ms | P (sempre) | F (7 corse su 8) |
+| Avvio a 1.000/s p99 ≤ 25 ms | P (sempre) | F (3 su 5 con SQLite; 1 corsa con Postgres passa) |
 | ≥ 10.000 att./s, pipeline completa | F (7,6-8,6k) | P (9,99k) ma p99 di avvio 51-185 ms |
-| ≥ 10.000 att./s, senza archivio | P (p99 7-11 ms) | P in rate, p99 68-884 ms |
+| ≥ 10.000 att./s, senza archivio | P (p99 7-11 ms) | P con SQLite (9.995 al ritmo offerto, p99 68 ms), F con Postgres (9.694, p99 884 ms) |
 | SQL ≤ 5 per attività | P | P |
 | RAM ≤ 80 MB (con SQLite) | P (37,6 MB) | F (91,3 MB) |
 | Ripresa dopo `kill -9`, 0 perse | P | P |
 | Database fermo | P | P |
-| Attività lenta di un tenant | P | F con SQLite, P su 1 corsa con Postgres |
+| Attività lenta di un tenant | P (3 corse con SQLite, 1 con Postgres) | F con SQLite (1 corsa, già fuori senza A), P su 1 corsa con Postgres |
 
-**Mia lettura:** Valkey è il bus che sta dentro gli obiettivi di latenza e di RAM; Iggy no. Il punto
+**Mia lettura:** su questa macchina Valkey sta dentro gli obiettivi di latenza e di RAM; Iggy no
+(la RAM è un fallimento fermo; la coda di latenza è un fallimento provato su questa macchina ma da
+riconfermare su un host quiescente, v. §1). Il punto
 aperto di Valkey è NFR-3 con l'archivio a file singoli sullo stesso disco: è una scelta dell'archivio,
 non del bus, e con l'archivio spento Valkey sostiene i 10.000/s in modo pulito. Propongo a Marco di
 **scegliere Valkey a condizione** che prima della fase 3 si provi l'archivio a segmenti accodati (un
 file per tenant e per gruppo, indice nel database o ricostruibile) e si rimisuri NFR-3 per 10 minuti
-sullo stesso disco. Con Iggy la stessa condizione non basterebbe: restano la RAM (91 MB), le code
-(p99 17-72 ms in accettazione) e gli stalli da circa 1 s.
+sullo stesso disco. Con Iggy la stessa condizione non basterebbe: resta la RAM (91 MB con motore e SQLite, 72 MB il
+solo bus, in nessuna configurazione provata sotto 72 MB), e restano le code (accettazione p99 17-76
+ms in 8 corse con archivio, 7 delle quali sopra 25 ms, più una senza archivio a 1.039 ms; da
+riconfermare su un host quiescente) e gli stalli da circa 1 s.
