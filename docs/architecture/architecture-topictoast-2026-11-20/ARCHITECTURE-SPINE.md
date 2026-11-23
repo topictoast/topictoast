@@ -584,7 +584,7 @@ NFR-11.
 ## Consistency Conventions
 
 Approvate in blocco il 2026-11-21, estensioni comprese; C-16, C-17 e C-18 vengono dal secondo
-blocco di `review-decisions.md` (E-6). Testo completo in `conventions.md`.
+blocco di `review-decisions.md` (E-6); C-19 è del 2026-11-23. Testo completo in `conventions.md`.
 
 | Concern | Convention |
 | --- | --- |
@@ -607,6 +607,7 @@ blocco di `review-decisions.md` (E-6). Testo completo in `conventions.md`.
 | Forma dell'API | C-16: campi JSON in camelCase; percorsi `/v1/…`; ogni risorsa identificata da un UUIDv7 (C-1); posizione del bus come token opaco (C-8, AD-18) nel campo `position` delle risposte e nell'header `Last-Event-ID`. |
 | Liste dell'API | C-17: paginazione a cursore con `cursor` e `limit`; filtri come parametri di query. |
 | Idempotenza dell'API | C-18: la chiave di idempotenza (FR-6) viaggia nell'header `Idempotency-Key`. |
+| Configurazione | C-19: un file TOML facoltativo (`TOPICTOAST_CONFIG`); sono configurazione solo le variabili `TOPICTOAST_<SEZIONE>__<CHIAVE>`, che vincono sul file, e le altre `TOPICTOAST_*` sono dei client; chiavi snake_case in inglese; chiavi sconosciute rifiutate, predefiniti dopo la validazione (C-10) ed entro i massimi (NFR-14); chiavi segrete in un elenco chiuso, nel file solo come `<chiave>_file`; configurazione non valida = il motore non parte (C-7); agli ausiliari solo le chiavi del loro ruolo, mai segreti (AD-6); nessuna ricarica a caldo. |
 
 ## Stack
 
@@ -623,6 +624,8 @@ blocco di `review-decisions.md` (E-6). Testo completo in `conventions.md`.
 | emnapi, @emnapi/core, @emnapi/runtime (pre-release, dipendenza della build wasm di napi-rs, S-4) | 2.0.0-beta.3 |
 | rustls | 0.23.46 |
 | cucumber | 0.23.0 |
+| sqlx (driver SQL per SQLite e Postgres, feature `sqlite` con SQLite incluso, mai `sqlite-unbundled`; eccezione di sicurezza, RUSTSEC-2026-0459) | 0.9.1 |
+| SQLite (incluso tramite libsqlite3-sys 0.39.1, fissato nel lockfile) | 3.54 |
 | testcontainers | 0.28.0 |
 | wiremock | 0.6.5 |
 | Apache Iggy server (candidato, decide S-1) | server-0.10.0 |
@@ -654,6 +657,17 @@ senza validazione, fermo dal 2025-12-12); resta un riferimento per `crates/ows`,
 nel NOTICE se se ne copia codice (Apache-2.0). Da non usare: jtd, denormalized,
 sled, fred (fermi); elkjs (copyleft, EPL-2.0 OR GPL-3.0-or-later, escluso per scelta); ts-rs (i tipi TS
 vengono solo da OpenAPI, AD-12).
+
+Licenze delle dipendenze, Rust e npm, motore e kit: ammesse MIT, Apache-2.0 (anche WITH
+LLVM-exception), BSD-2-Clause, BSD-3-Clause, ISC, Zlib, 0BSD, Unicode-3.0, CDLA-Permissive-2.0,
+BSL-1.0, CC0-1.0, bzip2-1.0.6, BlueOak-1.0.0, e MPL-2.0 per pacchetti non modificati; CC-BY-4.0 e
+PSF-2.0 solo nelle dipendenze di sviluppo, che non finiscono nel motore né nel kit distribuiti.
+Escluse EPL, LGPL, GPL, AGPL, SSPL, BUSL e i pacchetti senza licenza. Espressioni SPDX: con `OR`
+basta una licenza ammessa, con `AND` servono tutte, con `WITH` solo un'eccezione elencata qui.
+Perimetro: i lockfile Cargo e npm di `crates/`, `packages/` e `dashboard/`; `spikes/` è fuori.
+Un'eccezione vale per un pacchetto e una versione, richiede un ADR e sta nella configurazione dello
+strumento. Licenze e avvisi di sicurezza si controllano in automatico nel pre-push; lo strumento lo
+fissa la prima storia che aggiunge una dipendenza.
 
 ## Structural Seed
 
@@ -743,8 +757,8 @@ Involucro operativo:
   perdite è un criterio di S-1; ogni cambio della spec OWS è una migrazione (AD-4).
 - **Backup e ripristino coerenti di database e bus:** fuori dalla v1, limite documentato (NFR-6).
 - **Osservabilità e trasporto:** C-9, C-14.
-- **Formato di distribuzione, formato di configurazione, supervisione del riavvio:** domande
-  aperte (Open Questions).
+- **Formato di distribuzione, supervisione del riavvio:** domande aperte (Open Questions).
+  Configurazione: C-19.
 
 ### Albero dei sorgenti
 
@@ -792,7 +806,7 @@ docs/
 | Installazione e funzionamento: FR-50…FR-53 | motore, `crates/bench` | AD-1, AD-2, AD-16, AD-19, C-9, C-14 |
 | Requisiti trasversali: NFR-1…NFR-16, SM-2 | benchmark (FR-53), spike | AD-1, AD-2, AD-6, S-1…S-4 |
 | Contenuto mostrato come testo, accessibilità, schermi: NFR-7, NFR-9, NFR-16 | `packages/ui`, `packages/react`, `dashboard/` | AD-6 (input del motore), AD-15, skill `dashboard-react`, skill del kit |
-| Licenza: NFR-11 | ogni dipendenza | ADR degli spike, Open Questions (licenze) |
+| Licenza: NFR-11 | ogni dipendenza | Stack (licenze ammesse), ADR degli spike |
 
 ## Deferred
 
@@ -819,7 +833,8 @@ docs/
 | T-68 dashboard con canale in tempo reale interrotto | il canale è fissato (C-8, AD-18) | spec della dashboard |
 | Ricerca per valore tra gli elementi di un fan-out (A-5 della UX, oltre gli FR) | i payload stanno fuori dal database (AD-3): serve una scelta di prodotto | spec della storia del fan-out |
 | AMB-1, AMB-5, AMB-6, AMB-9 (ambiguità del PRD) | comportamento di prodotto, non struttura | spec delle storie che le toccano |
-| Versioni delle librerie non ancora scelte (runtime async, server HTTP, driver SQL, JWT, client gRPC o iroh, interprete jq, generatore OpenAPI dai tipi Rust, generatore dei tipi TS da OpenAPI, TypeScript, Vite) | nessun codice di prodotto prima dello sprint 1 | fissate dalla prima storia che le usa, con la regola delle due settimane; il driver SQL (e con lui la versione di SQLite) prima di S-1, come dice la riga delle Open Questions |
+| Versioni delle librerie non ancora scelte (runtime async, server HTTP, JWT, client gRPC o iroh, interprete jq, generatore OpenAPI dai tipi Rust, generatore dei tipi TS da OpenAPI, TypeScript, Vite) | nessun codice di prodotto prima dello sprint 1 | fissate dalla prima storia che le usa, con la regola delle due settimane |
+| Migrazioni dello schema e linea del dialetto nell'adattatore unico (generico sul database di sqlx, `Any` o SQL per dialetto) | il driver è fissato (sqlx) e AD-5 fissa un solo adattatore; vincoli: la credenziale che applica le migrazioni è del proprietario dello schema, distinta dall'utente dell'applicazione (costituzione V), una cartella di migrazioni per dialetto e un test di parità dello schema tra SQLite e Postgres; `AssertSqlSafe` di sqlx solo dentro l'adattatore e filtro del tenant sempre come parametro legato | spec della prima storia che crea lo schema (Epic 1), ripresa da quella di Postgres |
 | HA del centro e cluster del bus, backup e ripristino coerenti, rotazione della chiave di firma, OAuth (dove vive il rinnovo dei token rispetto ad AD-6 e alla costituzione IV si decide con OAuth) | fuori dalla v1 (PRD §8.2) | dopo la v1 |
 | Funzione di analisi dello storico ed esportazione in Parquet (AD-17), con la prova della cifratura per tenant dei Parquet (datafusion 55.2.0 ha `parquet_encryption`) | AD-17 fissa formato, motore e cifratura; nel PRD non c'è la funzione; scelta di Marco (memlog) | quando il PRD la definisce |
 
@@ -842,14 +857,11 @@ docs/
 | Granularità degli eventi delle esecuzioni (stato dei task e conteggi dei fan-out raggruppati per iscrizione, dettagli degli elementi solo su richiesta) e battito del server per distinguere «nessuna novità» da «canale fermo» | architettura | prima della prima storia del tempo reale (FR-41) |
 | Chi serve i file della dashboard (proposta: il motore, sulla stessa origine dell'API), sessione dell'operatore (trasporto, scadenza, ruolo integratore) e protezione CSRF delle mutazioni, che la skill `dashboard-react` rimanda all'architettura | architettura | prima della storia d'accesso della dashboard (FR-45, M-44) |
 | Salvataggio e pulizia dell'archivio dei payload insieme al database (AD-3, AD-17) | architettura | prima della storia che scrive il primo file |
-| Formato di configurazione (superficie pubblica, PRD §6): formato del file, nomi delle chiavi, prefisso e precedenza delle variabili d'ambiente, validazione all'avvio con i predefiniti applicati dopo (C-10), massimi di NFR-14, cosa si ricarica senza riavvio | architettura | prima di S-1 |
 | Formato di distribuzione e chi riavvia il motore dopo un crash (NFR-15), con un endpoint di salute e di prontezza per chi riavvia e per la fase operativa. Criterio: nessun componente da installare oltre topictoast, il bus e il database scelto | architettura | chi riavvia ed endpoint: ADR di S-2 con M-28; distribuzione: spec della prima storia di installazione (FR-50, NFR-13) |
 | Distribuzione delle librerie client (npm, crates.io) e piattaforme del validatore nativo per Node (macOS e Windows degli sviluppatori; NFR-10 copre solo il server). Proposta: nativo per le piattaforme dichiarate, wasm come ripiego in Node | architettura | prima della prima storia dell'SDK o del kit |
 | Livello BDD di SDK TS e CLI (proposta: un worker di prova in TS al livello di contratto, la CLI guidata da scenari cucumber-rs) | architettura | prima della prima storia dell'SDK TS o della CLI |
-| Licenze ammesse per le dipendenze del nucleo e del kit (Apache-2.0); oggi è escluso solo elkjs, caso per caso | Marco | prima di fissare la prima dipendenza dello sprint 1 |
 | Soglie di peso e di avvio del kit (né PRD né UX ne fissano) | Marco | ADR di S-4 |
 | Da valutare, rilievi dei revisori rimasti fuori da E-1…E-9 di `review-decisions.md`, identità e chiavi: tipo del dominio per il proprietario (integratore o tenant) e caso integratore contro tenant nel test di AD-5 (avversaria R15; l'identità è in AD-5); «versione» nella chiave di C-3 (avversaria R16); spazio e forma canonica della chiave di C-4, errore `idempotency.conflict` (avversaria R17); percorso del task con l'escape di RFC 6901 e istanza con gli indici, prima della prima storia di validazione (avversaria R18); precisione dei tempi al microsecondo (avversaria R24); impronta del nodo `sha256:` sui byte caricati (avversaria R33); indirizzo dei payload come HMAC o impronta del cifrato (rubrica, AD-3); elenco esatto delle parole chiave per minimi, massimi e lunghezze di AD-10 (rubrica) | architettura | prima della prima storia che li tocca |
 | Da valutare, rilievi dei revisori rimasti fuori da E-1…E-9 di `review-decisions.md`, API e client: `If-Match` obbligatorio con 428 e `If-None-Match: *` (avversaria R25); canonicalizzazione esposta ai client, nessuna versione per un documento canonicamente uguale (avversaria R22); predefiniti applicati solo dal motore (avversaria R23); payload come byte invariati, impronta e limite di 1 MB sui byte ricevuti (avversaria R28); `cron` in UTC e prossima scadenza calcolata solo dal dominio (avversaria R29, rubrica); da cosa dipende `packages/sdk` (rubrica; i tipi dell'API stanno in `crates/protocol`, AD-15); autorizzazione per operazione in una tabella con un test per operazione (rubrica) | architettura | prima della prima storia che li tocca |
 | Da valutare, rilievi dei revisori rimasti fuori da E-1…E-9 di `review-decisions.md`, sicurezza e processo: rinnovo delle chiavi dei tenant alla rotazione della principale e dati associati (AAD) (sicurezza M4; il formato con l'id della chiave è in C-12); eccezione solo con provenienza verificata, `npm ci --ignore-scripts`, `cargo audit` nel pre-push (sicurezza M13); nei log e nelle etichette solo identificativi opachi, `/metrics` fuori da localhost con credenziale dell'operatore (sicurezza M8); «localhost» = socket Unix o loopback su un ascolto loopback, deciso dall'indirizzo del socket e mai dalle intestazioni, con il costo del TLS tra i container di sviluppo e test (sicurezza M12); tipo di ambito del tenant per ogni metodo del repository, che serva anche a proiettore, ripresa e pianificatore (sicurezza B2); consegne con segreti a database fermo in attesa senza consumare tentativi (rubrica); M-02 chiusa prima di S-1, con un solo proprietario della forma delle connessioni (rubrica); controllo citato (test, gate o lint) per le Rule di AD-1, AD-3, AD-4, AD-8, AD-9, AD-10, AD-12, AD-15, AD-17, AD-19 (rubrica); campi di correlazione fissi nelle righe di log (rubrica) | architettura | prima della prima storia che li tocca; la proposta su M-02 prima di S-1 |
-| SQLite, database predefinito, non ha una riga nello Stack: la sua versione la porta il driver SQL, oggi non fissato. Driver e versione di SQLite si fissano con la regola delle due settimane | architettura | prima di S-1, che usa già SQLite |
 | Dove vivono nello schema OpenAPI il catalogo dei codici di C-7 e il tipo del contesto di validazione di AD-11, che stanno nel dominio, visto che `crates/protocol` non dipende da nessun crate del workspace | architettura | prima della prima storia dell'API |
