@@ -1,6 +1,6 @@
 # Spike S-1, fase 4: risultati
 
-Segue PIANO.md, sezione «Fase 4». Qui ci sono i **blocchi A** (Iggy sotto carico, conservazione, aggiornamento) e **B** (guasti e ripresa); i blocchi C-E non sono fatti.
+Segue PIANO.md, sezione «Fase 4». Qui ci sono i **blocchi A** (Iggy sotto carico, conservazione, aggiornamento), **B** (guasti e ripresa) e **C** (percorso dei dati di Iggy, aggiornamento rifatto, timer durevoli); i blocchi D-E non sono fatti.
 Base: Iggy `server-0.10.0` (immagine `apache/iggy:0.10.0`), collegamento dei worker gRPC con TLS, motore della 2d (4 gruppi in volo, 1.024 messaggi, soglia 64), SQLite, minisheep con gli stessi 4 CPU delle fasi 2c-3
 (motore e Iggy su `1-4`, carico su `8-11`). Numeri grezzi in `risultati/*-4-ms-*`; ogni file porta il pavimento di `fdatasync` prima e dopo la corsa (300 scritture da 4 KB, come nella fase 3).
 Ogni causa citata è segnata **misurata** (con il file grezzo) o **ipotesi**.
@@ -542,3 +542,232 @@ Su minisheep, in `~/ttspikebus` (`env.sh`, `.env` da `./gen-env.sh`, binario `bi
 | B4.1 fattibilità del disco pieno di Iggy | `./ms-run.sh risultati/iggy-cap-probe-4-ms-r1.txt ./cap-probe.sh` |
 | B5 stalli a 10.000/s | `GATE60=1 ./brun.sh risultati/iggy-sqlite-stall10k-4-ms-r1.txt ./with-sampler.sh risultati/iggy-sqlite-stall10k-4-ms-r1.io ./scen.sh iggy sqlite thr10k secs=600` |
 | Prova del client `iggy` su un crash | `./kill-probe.sh` (desktop o minisheep) |
+
+
+
+## Blocco C
+
+Percorso dei dati di Iggy, aggiornamento rifatto col motore del blocco B, timer durevoli. Minisheep, stessi 4 CPU (motore e Iggy su `1-4`, carico su `8-11`), `ms-run.sh` con pavimento di `fdatasync` prima e dopo (ogni file grezzo lo porta, con la riga `binario sha256`). File grezzi `risultati/iggy-sqlite-<riga>-4-ms-r<n>.txt`.
+Tre binari, ognuno per una serie intera (nessuna sostituzione a metà serie):
+
+| Binario (sha256, primi 16) | Righe |
+| --- | --- |
+| `a5fff0281600e9e7` (+ `bccc3a31ff3bd020` costruito con `--features old`) | C1 e C2: il codice del blocco B (commit `7f156ba`), ricostruito dal sorgente |
+| `175e97d37560d594` (+ `0f974d28fd20d3d5`, `--features old`) | C3: retry, scadenza, 100.000 timer, aggiornamento con i timer |
+| `2d387cd9c10037ab` | C3: battiti (riga mia, non del piano) e due corse di controllo («b2») di retry e scadenza |
+
+La differenza tra gli ultimi due è il solo codice dei battiti (spento di predefinito, `lease_ms=0`): le due corse «b2» mostrano che le righe retry e scadenza non cambiano.
+
+### Sintesi
+
+1. **Percorso dei dati: il montaggio ora è `/app/local_data` (predefinito del compose).** La prima coppia (strato prima, montaggio dopo) differisce di oltre il 20 % nelle righe a 1.000 att./s (accettazione p50 34,3 contro 14,9 ms, `start_ready` p50 14,1 contro 8,2 ms), ma una seconda coppia **in ordine inverso** capovolge il segno: in tutte e quattro le coppie la **prima** corsa è la lenta, qualunque sia il percorso. A 10.000/s le due corse stanno entro il 15 % e consegnano 9.993 e 9.996 att./s, zero accettate perse. Il percorso non è la causa; le righe a 1.000/s delle fasi precedenti portano però una variabilità tra corse fino a 2× (v. C1), da rileggere con questo limite.
+2. **Aggiornamento rifatto col motore del blocco B: pausa 2.622 / 2.773 / 2.664 ms, accettate perse 0, attività eseguite due volte 0.** Le attività in volo ora finiscono e consegnano l'esito al motore nuovo (`late_ok` 2.966 / 3.034 / 2.993 = quelle in volo allo svuotamento), invece di rifarsi (nel blocco A 3.079 / 3.072 / 3.071 rifatte). Le 97 / 60 / 95 pronte ma non ancora consegnate aspettano la scadenza e girano per la prima volta 5 s dopo (non sono doppie).
+3. **Retry con attesa attraverso un crash: superato in 3 corse su 3.** Ogni ritentativo parte una volta sola (299 / 300 / 299 su altrettanti), nessuno prima della scadenza, quelli già scaduti a fine ripresa partono 73-92 ms dopo `READY` (soglia 1 s), gli altri 19-23 ms (p50) dopo la scadenza.
+4. **Scadenza del tentativo attraverso un crash: superato in 3 corse su 3.** 100 / 100 / 99 tentativi persi (worker 1 ucciso) tornano disponibili alla scadenza originale: inizio del rifacimento 20-23 ms (p50), 33-37 ms (p99) dopo la scadenza, nessuno prima né doppio. Nel blocco B la scadenza ripartiva da zero alla ripresa.
+5. **100.000 timer in sospeso: ripresa entro 1,0-1,2 s** (soglia 30 s), RSS del motore 100 MB prima del crash e 193-220 MB dopo la ripresa. Tutti e 100.000 scattano una volta sola (scarto p50 9,8-10,1 ms, p99 19,9-20,0 ms), nessuno prima della scadenza, zero perse.
+6. **Aggiornamento con 100.000 timer e attività in volo: pausa 9.499 / 6.744 / 7.305 ms** (soglia 30 s). Nessun timer perso né doppio; i 3.028-3.102 tentativi in volo finiscono e consegnano (`late_ok`), `expired` 0.
+7. **Battiti (aggiunti da me, non nelle righe del piano):** con `lease_ms=1500` attività da 5 s non scadono finché il worker batte, anche attraverso il crash del motore; un worker morto si scopre 1,5 s dopo l'ultimo battito, non 7 s. 99 rifatte su 99, nessuna doppia.
+
+Criterio generale: **nessun timer perso né doppio in nessuna corsa** (verifica «accettate perse 0» in tutte, `done_events != 1` a 0, nessun tentativo iniziato due volte con lo stesso numero). Nessuna riga ha superato il tempo né ha chiesto di fermarsi per Iggy.
+
+### Cosa è cambiato nel motore (codice dello spike, per le prove)
+
+- **Evento `Timer`** (tag 4 sul bus): (esecuzione, passo, tipo, tentativo, scadenza in µs, istante). Tipi: 0 scadenza del tentativo in corso, 1 attesa prima di ritentare, 2 passo `wait`. **Al più un timer per attività**: la riga più recente vince (`INSERT … ON CONFLICT DO UPDATE` nel proiettore, con una sola riga per attività in ogni istruzione), l'esito `Done` del passo la cancella (`DELETE … WHERE (exec_id, step) IN (…)`). Tabella tipata `timer(exec_id, step, kind, attempt, due_us)`.
+- **Scrivere prima, poi agire (AD-2).** La consegna di un tentativo scrive l'evento `Timer` di scadenza sul bus; la consegna al worker parte e il timer si arma in memoria solo a gruppo durevole (`Group::sends`, `Group::arm`). Un tentativo il cui timer è durevole ma la cui consegna non è partita (crash in mezzo) si ritrova alla ripresa «in volo» e scade, poi si rifà.
+- **Ripresa.** Timer = righe del database più coda del bus dalla posizione applicata (un `Timer` sostituisce, un `Done` toglie). Ogni attività emessa e non conclusa si classifica con il suo timer: scadenza = in volo presso un worker (esito valido con qualunque consegna, scadenza originale); ritentativo o `wait` = scatta alla sua scadenza (se è già passata, alla prima passata di 20 ms dopo la ripresa); **nessun timer = mai consegnata, si consegna subito** (nel blocco B restava «in volo» per `work_ms` + margine dalla ripresa). Una scadenza di tentativo già passata o entro `grace_ms` (2 s) dalla ripresa si sposta a `grace_ms` dopo la ripresa, solo in memoria: un worker che ha finito durante la pausa deve poter ricollegarsi e consegnare l'esito prima che il tentativo si rifaccia (senza questa finestra la scadenza assoluta rifaceva attività già finite).
+- **Passata dei timer ogni 20 ms** (prima 100 ms, solo per le scadenze), al più 4.096 timer per passata; i `wait` scaduti diventano un messaggio interno `WaitDone` che conclude il passo (uscita vuota).
+- **Carichi nuovi:** `kind` 2 (catena di `wait`, `work_ms` = durata), `kind` 3 (il primo tentativo di ogni passo fallisce, attesa `retry_ms`). Nuovi campi: `retry_ms` (accettazione, evento, tabella `execution`), tentativo e indicatore di fallimento nella consegna, `failed` nell'esito, `attempt` nel registro dei worker.
+- **Battiti** (`lease_ms`, spento di predefinito): il worker manda un battito ogni `lease_ms/3` per tentativo; il motore lo traduce in un nuovo `Timer` di scadenza (`lease_ms` dall'ultimo battito), cioè un evento sul bus per battito.
+- **Riversamento dell'aggiornamento** (`rewrite_live`): riscrive anche i timer come eventi `Timer` con la scadenza originale; i due topic si scrivono in parallelo su due connessioni, a richieste da 1.024 (con 100.000 esecuzioni vive la scrittura in serie da 256 sarebbe dominata dalla durata di ogni richiesta; non provata in serie).
+- **Gruppi di consegna e timer non contano per il limite `k`** dei gruppi di raccolta (altrimenti rallenterebbero l'ingresso).
+
+### C1. Percorso dei dati di Iggy
+
+Prima: `IGGY_MNT` valeva `/local_data`, ma Iggy scrive in `/app/local_data` (visto nel blocco B): i dati stavano nello strato del container. Ora il predefinito è `/app/local_data` (`compose.yaml`); `IGGY_MNT=/local_data` riproduce il caso vecchio. Verificato su minisheep: i file di Iggy compaiono in `~/.cache/ttspikebus-data/iggy` (root, 6 voci: `logs`, `metadata`, `runtime`, `state`, `storage-format`, `streams`), lo stesso filesystem di `/home` (`/dev/mapper/root`, come lo strato di overlay2).
+
+Coppie strato contro montaggio, binario `a5fff0281600e9e7`, motore del blocco B. Piano: una coppia; ne ho fatte due su `accept` e `start1k` (la seconda con l'ordine invertito, perché la prima differiva di oltre il 20 %) e una su `thr10k` (10 minuti, `trim=1`, registro delle accettate, `GATE60=1`, come B5):
+
+| Riga | Corsa (ordine) | Pavimento p50 prima > dopo (ms) | Accettazione p50 / p99 (ms) | `start_ready` p50 / p99 (ms) | Append p50 (ms) | att./s |
+| --- | --- | --- | --- | --- | --- | --- |
+| accept, coppia 1 | **strato (1ª)** | 7,84 > 7,74 | 34,30 / 387,58 | 22,64 / 312,06 | 21,41 | 200 |
+| accept, coppia 1 | montaggio (2ª) | 2,76 > 4,61 | 14,90 / 29,12 | 8,85 / 17,52 | 8,27 | 200 |
+| accept, coppia 2 | **montaggio (1ª)** | 4,99 > 4,29 | 22,11 / 63,45 | 14,12 / 37,79 | 13,78 | 200 |
+| accept, coppia 2 | strato (2ª) | 4,53 > 2,52 | 12,74 / 31,23 | 8,34 / 18,35 | 8,07 | 200 |
+| start1k, coppia 1 | **strato (1ª)** | 7,70 > 7,55 | 20,96 / 37,82 | 14,06 / 23,89 | 13,66 | 998 |
+| start1k, coppia 1 | montaggio (2ª) | 7,37 > 2,65 | 12,06 / 29,15 | 8,15 / 16,94 | 7,74 | 1.002 |
+| start1k, coppia 2 | **montaggio (1ª)** | 2,88 > 5,00 | 20,56 / 36,48 | 13,97 / 21,12 | 13,61 | 1.000 |
+| start1k, coppia 2 | strato (2ª) | 8,36 > 4,58 | 12,83 / 30,56 | 8,40 / 18,38 | 7,88 | 1.000 |
+| thr10k | **strato (1ª)** | 2,75 > 4,43 | 90,88 / 254,72 | 79,17 / 212,09 | 72,70 | 9.993 |
+| thr10k | montaggio (2ª) | 3,96 > 4,51 | 76,99 / 226,30 | 67,84 / 182,27 | 65,86 | 9.996 |
+
+File: `iggy-sqlite-path-{layer,mount}-{accept,start1k}-4-ms-r{1,2}.txt`, `iggy-sqlite-path-{layer,mount}-thr10k-4-ms-r1.txt`.
+
+**Lettura, da dire chiaramente.**
+
+- **Nella prima coppia le righe a 1.000 att./s differiscono di oltre il 20 %** (montaggio meglio dello strato: accettazione p50 −57 %, p99 −92 %; `start1k` accettazione p50 −42 %, `start_ready` p50 −42 %, p99 −29 %). A 10.000/s la differenza è −15 % (accettazione p50), −14 % (`start_ready` p50 e p99), con lo stesso ritmo.
+- **Ma la differenza non è del percorso:** nella seconda coppia, a ordine invertito, la corsa lenta è quella del montaggio e la veloce quella dello strato (**misurata**, stessi file). In tutte e quattro le coppie a 1.000/s e nella coppia a 10.000/s la **prima** corsa è la più lenta: latenza p50 1,6-2,3 volte quella della seconda a 1.000/s, 1,17-1,18 volte a 10.000/s. Le corse lente hanno l'append p50 a 13,6-21,4 ms, le veloci a 7,7-8,3 ms, a parità di percorso. Il pavimento di `fdatasync` non spiega l'ordine (es. `start1k` coppia 1: 7,7 e 7,4 ms prima delle due corse, la lenta e la veloce). **La causa dell'effetto d'ordine è ipotesi, non isolata** (stato del disco dopo la corsa precedente, o prima corsa dopo una pausa).
+- **Zero accettate perse, nessuno stallo nei 10 minuti, in entrambe le corse a 10.000/s** (verifica «accettate 605.000 / 605.001, perse 0», nessun errore del client, intervallo più lungo senza accettazioni 519 e 533 ms, ritardo di proiezione p99 sempre sotto 520 ms per minuto, tutti i minuti sopra 9.800 att./s tranne il minuto 1 di avvio: 8.970 e 8.989). Nel blocco B le tre corse da 10 minuti segnavano tutte un episodio sotto soglia, qui nessuna: lo strato (che era la configurazione del blocco B) non ne ha avuti. L'incidenza degli stalli varia nel tempo senza che il percorso c'entri (ipotesi: stato del disco).
+- **Effetto sulle fasi precedenti:** il percorso non introduce un errore sistematico (il segno cambia con l'ordine), quindi i numeri delle fasi 2-4 non si ribaltano per questo. **Vanno però riletti** quelli a 1.000 att./s presi con una corsa per braccio: la variabilità tra corse arriva a 2× (append p50 8 contro 14 contro 21 ms), più di ogni differenza del 20 % che un confronto di quelle fasi poteva dichiarare. Le righe a 10.000/s sono stabili entro il 15 % in questa coppia.
+- Da qui in poi si usa il montaggio.
+
+### C2. Aggiornamento rifatto col motore del blocco B
+
+Procedura del blocco A (`up-run.sh`, Iggy 0.9.0 → 0.10.0, due build del motore, `--features old`), con i binari ricostruiti dal sorgente del blocco B. 3 corse da 334 esecuzioni/s di **tre passi da 3 s** (1.002 att./s, circa 3.000 vive), 70 s, aggiornamento a 20 s, due tenant, `trim=0`. `iggy-sqlite-upgrade-rerun-4-ms-r{1,2,3}.txt`. La directory dati di Iggy è ora davvero il montaggio svuotato da `reset.sh` (nel blocco A era il container nuovo).
+
+| Misura | Blocco A r1 | r2 | r3 | Rifatto r1 | r2 | r3 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,85 > 4,55 | 4,61 > 4,51 | 4,53 > 4,97 | 4,50 > 4,35 | 5,07 > 4,70 | 5,93 > 2,74 |
+| Accettate / offerte | 22.057 / 24.048 | 23.118 / 24.048 | 23.182 / 24.048 | 23.199 / 24.048 | 23.140 / 24.048 | 23.159 / 24.048 |
+| **Accettate perse** | 0 | 0 | 0 | **0** | **0** | **0** |
+| Esecuzioni vive riversate | 3.079 | 3.072 | 3.071 | 3.063 | 3.094 | 3.088 |
+| In volo allo svuotamento (`DRAINED`, motore vecchio) | — | — | — | 2.966 | 3.034 | 2.993 |
+| **Attività eseguite due volte** (registro dei worker, a corsa finita) | 3.079 | 3.072 | 3.071 | **0** | **0** | **0** |
+| Esiti dei tentativi in volo consegnati al motore nuovo (`late_ok`) | — | — | — | 2.966 | 3.034 | 2.993 |
+| Tentativi scaduti e consegnati dopo la scadenza (`expired`) | — | — | — | 97 | 60 | 95 |
+| Svuotamento / nuovo Iggy / riversamento / motore nuovo fino a `READY` (ms) | 463 / 1.941 / 864 / 3.585 | 616 / 1.145 / 512 / 1.030 | 514 / 1.149 / 495 / 924 | 616 / 1.079 / 541 / 928 | 513 / 1.129 / 577 / 1.131 | 565 / 1.171 / 531 / 927 |
+| **Pausa: segnale → `READY`** (ms) | 5.989 | 2.791 | 2.587 | **2.622** | **2.773** | **2.664** |
+| Segnale → prima attività conclusa (ms) | 9.170 | 5.857 | 5.742 | 2.794 | 2.967 | 2.845 |
+| Il più lungo intervallo senza accettazioni riuscite (client, ms) | 5.928 | 2.738 | 2.554 | 2.511 | 2.686 | 2.633 |
+
+I valori del blocco A sono quelli della serie a tre passi di A3.3. Corsa in più, `iggy-sqlite-upgrade-rerun-4-ms-r0-conteggio-anticipato.txt` (la prima della serie, tenuta): pausa 4.401 ms, intervallo senza accettazioni 4.365 ms, 0 attività eseguite due volte, accettate perse 0; il conteggio delle attività doppie era nel punto sbagliato dello script (a corsa non ancora finita) e l'ho spostato dopo la verifica, quindi per r0 manca il contatore `late_ok`.
+
+- **Le attività in volo finiscono e consegnano al motore nuovo invece di rifarsi** (**misurata**: `late_ok` = tentativi in volo allo svuotamento, tutte e tre le corse; 0 attività eseguite due volte contro circa 3.070 del blocco A). Il motore vecchio non consegna più dopo `SIGUSR1` ma i worker tengono l'esito finché non è confermato (blocco B), e il motore nuovo accetta l'esito di una consegna precedente. Per questo la prima attività conclusa arriva 172-194 ms dopo `READY` (nel blocco A 3,1 s dopo).
+- **`expired` 97 / 60 / 95** = esecuzioni vive meno attività in volo (3.063 − 2.966, 3.094 − 3.034, 3.088 − 2.993, **misurata**): sono passi pronti con l'evento `Ready` già scritto ma non ancora consegnati allo svuotamento. Il motore del blocco B li tratta come «in volo» (consegna 0) e li consegna solo alla scadenza di `work_ms` + 2 s dalla ripresa: girano per la prima volta circa 5 s dopo `READY` (5 s dal codice, **non misurato**). Non sono attività doppie (nessun tentativo iniziato due volte). I timer durevoli del punto C3 tolgono questo ritardo (v. 100.000 timer: «da consegnare subito»).
+- **La pausa non cambia** rispetto al blocco A (2,6-2,8 s contro 2,6-2,8 s nelle due corse veloci di A; la lenta di A, 6,0 s, non si è ripetuta, ma la prima corsa di oggi, r0, è stata lenta anch'essa: 4,4 s, con il motore nuovo che ha impiegato 2,96 s a partire). Resta dominata da nuovo Iggy (1,1 s) e dall'avvio del motore (0,9-1,1 s); **la causa del primo avvio lento è ancora ipotesi** (creazione dei topic sul server nuovo dopo una pausa del disco): in entrambe le serie la prima corsa è la lenta (blocco A r1 6,0 s, oggi r0 4,4 s).
+
+### C3. Timer durevoli
+
+Tutte le righe: SQLite, due tenant, `kill -9` del motore e riavvio con lo stesso script del blocco B (`start_engine`); le righe retry e scadenza scrivono sul registro del motore una riga per ogni timer programmato e scattato (`TIMER_LOG`, `TSET` e `TFIRE`); l'inizio di ogni tentativo viene dal registro dei worker (`worklog`, con il numero del tentativo). Lo scarto di scatto è l'istante di inizio nel worker meno la scadenza (`tstat.sh`), quindi comprende la scrittura durevole del timer di scadenza nuovo (circa 15-20 ms) e la consegna.
+
+#### C3.1 Retry con attesa attraverso un crash (`iggy-sqlite-timer-retry-4-ms-r{1,2,3}.txt`)
+
+`kind` 3, `n=1`, 100 esecuzioni/s per 3 s (tutti i primi tentativi falliscono dopo 100 ms), attesa **5 s**. A 4,5 s `kill -9` del motore, quando ogni fallimento è già durevole e nessun ritentativo è scaduto (prima scadenza a 5,1 s); il motore resta giù **2 s** (scelta mia: così parte dei timer è già scaduta alla fine della ripresa e parte no, e si provano tutti e due i casi), poi riparte.
+
+| Misura | r1 | r2 | r3 |
+| --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,87 > 2,90 | 1,91 > 2,72 | 2,74 > 2,92 |
+| Esecuzioni accettate, timer di ritentativo scritti | 299, 299 | 300, 300 | 299, 299 |
+| Ripresa: attività in attesa di un timer / da consegnare subito | 299 / 0 | 300 / 0 | 299 / 0 |
+| kill → `READY` (ms, di cui 2.000 voluti) | 2.146 | 2.175 | 2.166 |
+| **Tentativo 1 iniziato: totale / più di una volta / prima della scadenza** | 299 / **0** / **0** | 300 / **0** / **0** | 299 / **0** / **0** |
+| Tentativo 0 eseguito più di una volta | 0 | 0 | 0 |
+| Già scaduti a `READY` (n): inizio − `READY` p50 / p99 / max (ms) | 152: 92,0 / 92,3 / 92,3 | 154: 72,8 / 73,0 / 73,0 | 152: 77,9 / 78,2 / 78,2 |
+| Non scaduti a `READY` (n): inizio − scadenza p50 / p99 / max (ms) | 147: 19,5 / 55,3 / 71,9 | 146: 22,9 / 44,0 / 62,0 | 147: 23,2 / 61,1 / 72,7 |
+| Accettate perse, verifica | 0, OK | 0, OK | 0, OK |
+
+Criterio **superato**: ogni ritentativo parte una volta sola, mai prima della scadenza, e al più 92 ms dopo la fine della ripresa (soglia 1 s). Il tempo dopo `READY` per i timer già scaduti è quasi tutto l'attesa dei worker, che si ricollegano dopo 200 ms dal collegamento perso (attesa fissa del worker; **ipotesi** per la ripartizione, non isolata). Il ritardo «presa in carico meno scadenza» del solo motore ha p99 1,47 s: per i timer scaduti durante la pausa comprende i 2 s di pausa voluta, non è un ritardo di scatto. Corsa di controllo con il binario `2d387cd9c10037ab` (`…-retry-b2-4-ms-r1.txt`): 299 su 299 una volta, 0 prima, 85,5 ms dopo `READY` per i 153 già scaduti, 22,7 / 66,1 ms per gli altri 146.
+
+#### C3.2 Scadenza del tentativo attraverso un crash (`iggy-sqlite-timer-deadline-4-ms-r{1,2,3}.txt`)
+
+Mancava nel blocco B. Due worker (4 sessioni ciascuno), esecuzioni da un passo di **3 s** (scadenza = consegna + 3 s + 2 s), 100/s per 3 s. A 2 s si uccide il worker 1 (i suoi tentativi in corso, circa 100, non torneranno mai), a 2,5 s `kill -9` del motore e riavvio subito. Le scadenze cadono tra 5 e 7 s, quindi dopo la ripresa (a 2,6 s) e oltre la finestra di `grace_ms` (2 s).
+
+| Misura | r1 | r2 | r3 |
+| --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,83 > 2,83 | 2,62 > 2,62 | 2,83 > 2,56 |
+| kill del motore → `READY` (ms) | 78 | 87 | 77 |
+| Ripresa: in volo con scadenza ripristinata / da consegnare subito | 250 / 1 | 250 / 1 | 250 / 1 |
+| Scadenze scattate (`expired`) / tentativo 1 iniziati / iniziati più di una volta / prima della scadenza | 100 / 100 / **0** / **0** | 100 / 100 / **0** / **0** | 99 / 99 / **0** / **0** |
+| Tentativi del worker 2 consegnati al motore nuovo (`late_ok`) | 150 | 150 | 151 |
+| Tentativo 1: inizio − scadenza p50 / p99 / max (ms) | 23,1 / 37,4 / 37,8 | 21,3 / 34,8 / 34,8 | 20,3 / 32,6 / 36,4 |
+| Presa in carico − scadenza, solo motore, p50 / p99 (ms) | 9,6 / 19,9 | 11,1 / 18,9 | 10,2 / 20,0 |
+| Tentativo 0 eseguito più di una volta | 0 | 0 | 0 |
+| Accettate perse | 0, OK | 0, OK | 0, OK |
+
+Criterio **superato**: la scadenza scatta dopo il crash, alla scadenza originale (nel blocco B sarebbe ripartita da `work_ms` + 2 s dalla ripresa, cioè dopo circa 5,6 s), una volta sola. In r2 e nella corsa di controllo «b2» un tentativo 1 non ha un timer di scadenza 0 nel registro del motore (`senza timer noto 1`; nelle due corse `deadline-grace` r1 sono 2): **ipotesi, non verificata**, è il caso «timer durevole, consegna non partita» (il motore muore tra la scrittura del timer e l'invio): alla ripresa risulta in volo, scade e si consegna come tentativo 1 senza che il tentativo 0 sia partito. Coerente con i conteggi, non provato. Corsa di controllo `…-deadline-b2-4-ms-r1.txt`: 101 su 101 una volta, inizio − scadenza 21,1 / 36,0 ms (p50 / p99).
+
+**Corse in più, finestra di `grace_ms`** (`iggy-sqlite-timer-deadline-grace-4-ms-r{1,2}.txt`, le prime due che ho fatto, con attività da 1 s: le scadenze, 4-5 s, cadevano dentro i 2 s dopo la ripresa): le scadenze si spostano a `grace_ms` dopo `READY` (solo in memoria), quindi il rifacimento parte 109 / 113 ms (p50) e 557 / 607 ms (p99) dopo la scadenza originale, 51 e 50 su 51 e 50 una volta sola, nessuna doppia, accettate perse 0. È il prezzo voluto della finestra (v. sopra), non un ritardo del motore: la presa in carico del motore resta a 1,3 / 2,0 ms p50.
+
+#### C3.3 100.000 timer in sospeso (`iggy-sqlite-timer-100k-4-ms-r{1,2,3}.txt`)
+
+`kind` 2: un passo `wait` da **150 s** per esecuzione, 5.000 esecuzioni/s per 20 s (100.005 / 100.000 / 100.000 accettate), `size=64`. A 35 s dall'inizio (tutte accettate e proiettate, nessun timer ancora scaduto) `kill -9` del motore e riavvio subito; poi si aspetta che tutti scattino (150-170 s dopo l'accettazione) e si verifica. `trim=0`, quindi la verifica scandisce tutto il bus.
+
+| Misura | r1 | r2 | r3 |
+| --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,81 > 2,89 | 2,83 > 2,78 | 2,91 > 2,76 |
+| Timer in sospeso prima del crash / dopo `READY` | 100.005 / 100.005 | 100.000 / 100.000 | 100.000 / 100.000 |
+| **kill → `READY`** (ms) | **1.025** | **1.035** | **1.219** |
+| RSS del motore prima del crash / dopo `READY` / a fine corsa (kB) | 100.552 / 197.528 / 202.676 | 101.904 / 192.964 / 197.656 | 100.280 / 219.984 / 225.288 |
+| Timer scattati, di cui prima della scadenza | 100.005, **0** | 100.000, **0** | 100.000, **0** |
+| Scarto di scatto (esito − scadenza, istanti delle decisioni) p50 / p99 / max (ms) | 9,9 / 20,0 / 20,9 | 10,1 / 19,9 / 20,9 | 9,8 / 20,0 / 20,8 |
+| Presa in carico − scadenza, solo motore, p50 / p99 (ms) | 9,89 / 19,89 | 10,01 / 19,84 | 9,73 / 19,95 |
+| Accettate perse / `done_events != 1` / eventi `Done` sul bus / duplicati sul bus | 0 / 0 / 100.005 / 0 | 0 / 0 / 100.000 / 0 | 0 / 0 / 100.000 / 0 |
+
+Criterio **superato**: ripresa in 1,0-1,2 s (soglia 30 s), nessun timer perso né doppio. Lo scarto è lo scarto della passata da 20 ms (uniforme tra 0 e 20 ms), non c'è coda neanche con 100.000 scadenze in 20 s (5.000/s). L'esito è l'istante della decisione (`ts` dell'evento `Done`, prima della scrittura durevole): non comprende i circa 15-20 ms di scrittura. RSS: **il raddoppio dopo la ripresa (100 → 193-220 MB) è ipotesi**: il picco del caricamento dal database di 100.000 esecuzioni, attività e timer non restituito al sistema; non isolato (il motore resta a 198-225 MB anche a fine corsa). `kill -9` con 100.000 timer e nessun evento da rileggere dal bus: la ripresa qui è quasi tutta lettura del database; il percorso con la rilettura del bus è coperto dalle righe scadenza e battiti (10-56 eventi riletti), non a questa scala.
+
+#### C3.4 Aggiornamento con i timer (`iggy-sqlite-timer-upgrade-4-ms-r{1,2,3}.txt`)
+
+Procedura di C2 (tre passi da 3 s, 334 esecuzioni/s) preceduta da **100.000 esecuzioni `wait` da 150 s** (`PRE100K=1`, 5.000/s per 20 s), tutte in sospeso durante l'aggiornamento, e **attività in volo** (circa 3.000). Motore vecchio e nuovo con il codice dei timer (`--features old` per il vecchio). Dopo il carico si aspetta che i timer scattino (80 s) e si verifica due volte (le 100.000 attese e le esecuzioni del carico).
+
+| Misura | r1 | r2 | r3 |
+| --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,77 > 2,77 | 2,27 > 2,75 | 2,59 > 2,73 |
+| Timer in sospeso nel motore vecchio / riscritti sul bus nuovo | 100.005 + 3.098 / 103.103 | 100.005 + 3.028 / 103.033 | 100.005 + 3.102 / 103.107 |
+| Esecuzioni vive riversate | 103.158 | 103.173 | 103.162 |
+| Ripresa: in volo / in attesa di un timer / da consegnare subito | 3.098 / 100.005 / 55 | 3.028 / 100.005 / 140 | 3.102 / 100.005 / 55 |
+| Svuotamento / nuovo Iggy / motore nuovo fino a `READY` (ms) | 1.286 / 1.155 / 7.058 | 558 / 1.158 / 5.027 | 821 / 1.144 / 5.340 |
+| di cui riversamento (database e archivio → bus nuovo, ms) | 3.898 | 3.868 | 3.983 |
+| **Pausa: segnale → `READY`** (ms) | **9.499** | **6.744** | **7.305** |
+| Il più lungo intervallo senza accettazioni riuscite (client, ms) | 9.479 | 6.606 | 7.175 |
+| Accettate / offerte (carico a 3 passi); errori di connessione | 20.866 / 24.048; 2.766 | 21.806 / 24.048; 2.067 | 21.635 / 24.048; 2.148 |
+| Timer scattati / scarto (esito − scadenza) p50 / p99 (ms) | 100.005 / 10,2 / 20,1 | 100.005 / 10,3 / 20,2 | 100.005 / 10,1 / 20,1 |
+| `late_ok` / `expired` / tentativi iniziati due volte | 3.098 / 0 / 0 | 3.028 / 0 / 0 | 3.102 / 0 / 0 |
+| Accettate perse (entrambe le verifiche) / `done_events != 1` / duplicati sul bus | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| RSS del motore nuovo dopo `READY` / a fine corsa (kB) | 233.320 / 238.688 | 251.824 / 259.880 | 268.664 / 269.528 |
+
+Criterio **superato**: pausa 6,7-9,5 s (soglia 30 s di Marco), nessun timer perso né doppio, nessuna attività rifatta. Con 100.000 timer la pausa cresce di 4-7 s rispetto a C2 (2,6-2,8 s): il riversamento dura 3,9 s (ipotesi sulla durata: 100.000 `Accepted` con payload letti dall'archivio uno alla volta e riscritti, ~310.000 eventi; non separato dal costo di scrittura) e il resto dell'avvio del motore nuovo 1,2-3,2 s (lettura di 100.000 righe per tabella dal database, non separata dal resto). Gli «da consegnare subito» (55 / 140 / 55) sono passi pronti non consegnati allo svuotamento: ora si consegnano subito (in C2 aspettavano 5 s). Gli errori di connessione dei client (2.067-2.766) sono richieste rifiutate durante la pausa (motore non raggiungibile), non accettate: nessuna delle accettate è persa.
+
+#### C3.5 Battiti (`iggy-sqlite-timer-heartbeat-4-ms-r{1,2,3}.txt`, binario `2d387cd9c10037ab`)
+
+Riga non prevista dal piano ma chiesta dal compito («battiti del worker»): con `lease_ms=1500` e `grace_ms=500` la scadenza di ogni tentativo è 1,5 s dall'ultimo battito, che il worker manda ogni 500 ms (ogni battito è un evento `Timer` sul bus). Attività da **5 s**, più lunghe del contratto (senza battiti scadrebbero tutte); 100/s per 2 s; due worker; a 3 s si uccide il worker 1, a 3,5 s `kill -9` del motore e riavvio subito.
+
+| Misura | r1 | r2 | r3 |
+| --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,76 > 2,78 | 2,75 > 2,90 | 2,83 > 1,96 |
+| Esecuzioni, in volo alla ripresa | 199, 199 | 199, 199 | 199, 199 |
+| Battiti scritti (prima del crash / a fine corsa) | 785 / 1.306 | 783 / 1.309 | 784 / 1.310 |
+| Scadute (`expired`) / consegnate dopo il crash dal worker 2 (`late_ok`) | 99 / 100 | 99 / 100 | 99 / 100 |
+| Tentativo 1 iniziati / più di una volta / prima della scadenza | 99 / **0** / **0** | 99 / **0** / **0** | 99 / **0** / **0** |
+| Tentativo 1: inizio − scadenza dell'ultimo battito p50 / p99 (ms) | 21,0 / 99,0 | 22,5 / 105,4 | 24,9 / 90,3 |
+| Accettate perse | 0, OK | 0, OK | 0, OK |
+
+Esito: i 100 tentativi del worker 2, vivi e battenti, **non scadono** né attraverso il crash del motore; i 99 del worker 1, morto, scadono 1,5 s dopo l'ultimo battito e si rifanno una volta. Il p99 di circa 100 ms è **ipotesi**: sono le scadenze dentro la finestra di `grace_ms` (500 ms) dopo la ripresa, spostate in avanti. Costo dei battiti: un evento sul bus per battito per tentativo (due al secondo per tentativo in volo); con 50.000 tentativi in volo sarebbero 100.000 eventi al secondo, **non misurato** e probabilmente da non fare così (v. «Non coperto»).
+
+### Deviazioni dal piano (blocco C)
+
+- **Coppie del percorso dei dati:** il piano chiedeva una coppia; ne ho fatte due per `accept` e `start1k` (la seconda a ordine invertito) e una per `thr10k`, perché la prima differiva di oltre il 20 %. Ordine delle corse: strato prima e montaggio dopo nelle coppie 1, il contrario nelle coppie 2.
+- **Binari ricostruiti dal sorgente:** per C1 e C2 non ho usato il binario del blocco B (`d51b36de…`) ma uno ricostruito dallo stesso codice (`a5fff028…`, hash diverso per i percorsi nel debug); quello «vecchio» del blocco A (`eb9c8838…`) era costruito dal codice del blocco A, quindi ho ricostruito anche `busspike-old` dal codice del blocco B (`bccc3a31…`). Le righe C3 usano `175e97d3…` e `0f974d28…`; battiti e controlli «b2» `2d387cd9…`. **Il codice committato è quello dell'ultimo binario più la formattazione di `cargo fmt`**: le righe retry, scadenza, 100.000 timer e aggiornamento con i timer sono misurate sul binario precedente (senza il codice dei battiti, che con `lease_ms=0` non cambia il percorso); le due corse «b2» sono il controllo.
+- **Aggiornamento rifatto, conteggio doppio:** lo script contava le attività eseguite due volte a carico finito ma non a corsa finita; la prima corsa (r0) ha quel difetto e l'ho tenuta come corsa in più; le tre del confronto sono r1-r3 con il conteggio dopo la verifica. Per l'aggiornamento con i timer il conteggio e i contatori del motore nuovo sono nello script dall'inizio.
+- **Script cambiati tra una corsa e l'altra, non il binario della serie:** `scen.sh`: la copia del registro del motore prima del crash è passata da prima a dopo il kill (le tre corse retry usano la prima; tutti i timer erano già scritti prima del kill, nessun effetto), il parametro `DWORK` (prima era 1 s fisso: le due corse `deadline-grace` sono con 1 s e le tre `deadline` con 3 s), la scena `theart`. `up-run.sh`: parametri `TRATE`, `TSECS` per le 100.000 attese. `brun.sh`: `BRUN_ITERS` (attesa in primo piano di 2,5 minuti: lo strumento sposta in secondo piano un comando che dura oltre 3 minuti; una volta è successo con due corse di fila e ho aspettato la sua fine senza lanciarne altre).
+- **Corse in più tenute:** `deadline-grace` r1-r2 (finestra di `grace_ms`, prima forma della riga scadenza), `…-r0-conteggio-anticipato`, le due «b2», i battiti. La prima prova dei battiti è stata sovrascritta: la scena non era ancora sul sorgente caricato su minisheep («scenario sconosciuto»), nessun dato.
+- **Numero dei timer:** 100.005 / 100.000 / 100.000 (il generatore offre per tempo, non per numero).
+- **Riga retry con 2 s di pausa e non 0:** scelta mia, per provare insieme i timer scaduti e non scaduti alla fine della ripresa; non ho una variante a riavvio immediato.
+- **Finestra di `grace_ms` dopo la ripresa** (`due.max(READY + grace_ms)`, solo in memoria) non era nel piano: è il rimedio a una corsa mia (scadenza assoluta che rifaceva attività già finite durante la pausa), vista nelle prove sul desktop e nella riga `deadline-grace`; il ritardo di scatto di una scadenza dentro la finestra arriva a `grace_ms` (2 s con le attività del piano).
+- **Definizioni dello scarto di scatto:** per retry, scadenza e battiti è l'inizio del tentativo nel worker meno la scadenza (comprende scrittura durevole e consegna); per i `wait` è l'istante dell'evento `Done` meno la scadenza (decisione, prima della scrittura durevole); la «presa in carico» è l'istante in cui il motore prende il timer meno la scadenza.
+- **Postgres:** nessuna corsa del blocco C (tutte SQLite). Il codice del proiettore per i timer (riga unica per attività in ogni `INSERT … ON CONFLICT`, `DELETE … WHERE (exec_id, step) IN (…)`) non è stato provato su Postgres.
+- **Prove sul desktop non misurate né conservate:** le prove funzionali di retry, scadenza, 100.000 (ridotte a 40.000), aggiornamento con timer ridotti e battiti, per mettere a punto gli script; il desktop usa un percorso dati proprio (`~/.cache/ttspikebus-data-4c`) e docker `ttspikebus`, fermato a ogni giro.
+- **Tempo:** circa un giorno di lavoro tra codice (eventi, tabella, ripresa, riversamento, battiti), prove sul desktop e corse; nessuna causa in Iggy, nessuna riga ha chiesto di fermarsi.
+
+### Non coperto
+
+- **Costo dei timer sul percorso caldo.** Ogni consegna ora scrive un evento `Timer` sul bus prima dell'invio e il proiettore fa un'istruzione `INSERT … ON CONFLICT` per gruppo più un `DELETE` per ogni gruppo con esiti: né la portata a 1.000 e 10.000 att./s né le istruzioni SQL per attività (NFR-4) sono rimisurate con i timer attivi (la riga dei 10.000/s del blocco B e C1 sono senza timer). Da fare prima dell'ADR.
+- **Battiti a scala:** un evento per battito per tentativo; a decine di migliaia di tentativi in volo il traffico sul bus diventerebbe dominante. Una scelta (battiti solo sul log del tentativo, o aggregati per worker) non è stata provata.
+- **Postgres** per il codice dei timer; **crash a metà riversamento** (già non provato nel blocco A) e con i timer; **spegnimento dell'host**.
+- **Più crash insieme** (motore e worker nella stessa finestra) oltre al caso della riga scadenza; **crash tra scrittura del timer e invio** come caso provocato (sospettato in 3 delle 6 corse con scadenza, v. C3.2).
+- **Orologio:** il motore confronta le scadenze con l'orologio del suo processo; un salto dell'orologio tra due incarnazioni (ora dell'host cambiata durante il riavvio) non è provato.
+- **Scadenze a scala oltre 100.000** o con picchi di oltre 4.096 per passata di 20 ms (200.000/s): non provati.
+- Tutte le righe a due tenant sulla stessa partizione per tenant; la scansione dei timer non è per tenant.
+
+### Comandi per rifare (blocco C)
+
+Su minisheep, in `~/ttspikebus` (`env.sh`, `.env` da `./gen-env.sh`, binari `bin/busspike` e `bin/busspike-old`; i due binari «vecchi» con `cargo build --release --features old`). Una corsa alla volta, in primo piano con `BRUN_ITERS=30 ./brun.sh <file> <comando>` e `./brun.sh wait` se serve.
+
+| Misura | Comando |
+| --- | --- |
+| C1 percorso dei dati (strato / montaggio) | `IGGY_MNT=/local_data ./brun.sh risultati/iggy-sqlite-path-layer-accept-4-ms-r1.txt ./scen.sh iggy sqlite accept` (montaggio: senza `IGGY_MNT`); `start1k` allo stesso modo; `GATE60=1 ./brun.sh risultati/iggy-sqlite-path-mount-thr10k-4-ms-r1.txt ./with-sampler.sh risultati/iggy-sqlite-path-mount-thr10k-4-ms-r1.io ./scen.sh iggy sqlite thr10k secs=600` |
+| C2 aggiornamento rifatto (binari del blocco B) | `CAP=4096 ./brun.sh risultati/iggy-sqlite-upgrade-rerun-4-ms-r1.txt ./up-run.sh n=3 rate=334` |
+| C3.1 retry attraverso un crash | `./brun.sh risultati/iggy-sqlite-timer-retry-4-ms-r1.txt ./scen.sh iggy sqlite tretry` (`PAUSE=0` per il riavvio immediato) |
+| C3.2 scadenza attraverso un crash | `./brun.sh risultati/iggy-sqlite-timer-deadline-4-ms-r1.txt ./scen.sh iggy sqlite tdead` (`DWORK=1000` per la finestra di `grace_ms`) |
+| C3.3 100.000 timer | `./brun.sh risultati/iggy-sqlite-timer-100k-4-ms-r1.txt ./scen.sh iggy sqlite t100k` |
+| C3.4 aggiornamento con i timer | `PRE100K=1 CAP=4096 ./brun.sh risultati/iggy-sqlite-timer-upgrade-4-ms-r1.txt ./up-run.sh n=3 rate=334` |
+| C3.5 battiti | `./brun.sh risultati/iggy-sqlite-timer-heartbeat-4-ms-r1.txt ./scen.sh iggy sqlite theart` (`LEASE`, `GRACE`, `HWORK`) |
+| Scarto di scatto da registri | `./tstat.sh <retry\|deadline> out/engine-pre.log out/engine.log out/work.log <READY us>` |

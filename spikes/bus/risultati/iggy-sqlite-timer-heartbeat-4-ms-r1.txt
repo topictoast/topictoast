@@ -1,0 +1,50 @@
+[stato prima 23:30:14] load: 0.85 1.32 1.39
+[stato prima] io: some avg10=0.96 avg60=4.82 avg300=10.33 total=12759018328
+[stato prima] cpu: some avg10=0.00 avg60=0.37 avg300=1.03 total=1408498047
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] binario sha256: 2d387cd9c10037ab
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.76ms p99=4.14ms p99.9=5.06ms max=5.06ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 0 s
+### iggy + sqlite: theart 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2884683 READY recovered_ms=386 now_us=1795559421773755 gen=1
+T0 kill del worker 1=1795559426802902
+prima del kill del motore: secs=5.6 accepted=199 refused=0 done=0 rejected=0 groups=31 expired=0 late_ok=0 timer_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 timers_pending=199 heartbeats=785 
+engine pid=2884971 READY recovered_ms=74 now_us=1795559427396905 gen=1
+kill del motore -> READY: 80 ms; READY_us=1795559427396905
+ripresa: 199 esecuzioni vive, 10 eventi riletti dal bus, 199 attività emesse e non concluse, 199 timer
+ripresa: 199 attività emesse e non concluse: 199 in volo (scadenza ripristinata), 0 in attesa di un timer, 0 da consegnare subito
+load tenants=ab rate=100/s kind=0 n=1 size=1024 work_ms=5000 warm=0s measured=2s
+offered=199 accepted=199 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+errors_by_type {}
+accept_rtt_open_loop n=199 p50=21.15ms p99=94.33ms p99.9=98.62ms max=98.62ms over100ms=0
+accept_max_gap_ms=0 from_us=0 to_us=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.02 cpu_per_1000_att engine=0.000 worker=16.000
+verify: accettate=199 concluse_nella_proiezione=0 accettate_perse=199 attivita_concluse=0 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=0 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=199 concluse_nella_proiezione=79 accettate_perse=120 attivita_concluse=79 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=88 duplicati_sul_bus=0 payload_decifrati=79 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=199 concluse_nella_proiezione=199 accettate_perse=0 attivita_concluse=199 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=199 duplicati_sul_bus=0 payload_decifrati=199 payload_illeggibili=0 light=false
+verify OK
+motore dopo la corsa: secs=6.3 accepted=0 refused=0 done=199 rejected=0 groups=56 expired=99 late_ok=100 timer_fire_delay n=99 p50=5.59ms p99=17.58ms p99.9=17.58ms max=17.58ms over100ms=0 timers_pending=0 heartbeats=1306 
+tentativi iniziati: 298, tentativo 0 distinti: 199, tentativo 0 eseguiti più di una volta: 0, tentativo 1 iniziati: 99
+tentativi 1 iniziati: 99 (con timer noto 99, senza 0); iniziati più di una volta: 0; iniziati prima della scadenza: 0
+inizio nel worker - scadenza, ms (tutti): p50 21.0 p99 99.0 max 99.1
+scaduti dopo READY: 99; inizio nel worker - scadenza, ms: p50 21.0 p99 99.0 max 99.1
+timer programmati (righe TSET di questo tipo e tentativo): 1399
+TFIRE: 99 timer scattati, presa in carico - scadenza ms: p50 5.6 p99 17.3 max 17.6
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 98468 kB
+rss pid=2884971 26476 kB
+rss pid=2884790 16268 kB
+-- conteggio file archivio: 20
+[stato dopo 23:30:33] load: 1.11 1.35 1.39
+[stato dopo] io: some avg10=29.47 avg60=10.60 avg300=11.25 total=12764096427
+[stato dopo] cpu: some avg10=1.47 avg60=0.61 avg300=1.04 total=1408827701
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] binario sha256: 2d387cd9c10037ab
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.78ms p99=4.07ms p99.9=4.86ms max=4.86ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-1 0.14

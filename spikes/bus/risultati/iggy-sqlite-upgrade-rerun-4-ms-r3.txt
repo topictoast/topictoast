@@ -1,0 +1,63 @@
+[stato prima 22:56:10] load: 1.45 1.72 2.21
+[stato prima] io: some avg10=0.69 avg60=15.58 avg300=21.81 total=12573825098
+[stato prima] cpu: some avg10=0.01 avg60=0.91 avg300=1.23 total=1386478525
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] binario sha256: a5fff0281600e9e7
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=5.93ms p99=9.36ms p99.9=12.81ms max=12.81ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.01
+[attesa] 30 s
+iggy: apache/iggy:0.9.0 Up 3 seconds
+### aggiornamento Iggy 0.9.0 -> 0.10.0: carico n=3 rate=334
+motore vecchio pid=2750950 READY recovered_ms=432 now_us=1795557379621219 gen=1
+prima: secs=21.1 accepted=6650 refused=0 done=13849 rejected=0 groups=168 expired=0 late_ok=0 activities_per_s=656 accepted_per_s=315 
+T0 segnale=1795557400717139  T1 motore vecchio uscito=1795557401282072 (rc=0)
+DRAIN_START 1795557400717545
+DRAINED 1795557401245791 accepted=6679 in_flight_deliveries=2993
+iggy: apache/iggy:0.10.0 Up Less than a second
+T2 nuovo Iggy avviato=1795557402453370
+timer subito dopo READY: ; RSS: rss iggy 75680 kB rss pid=2752617 52788 kB 
+T3 motore nuovo READY (script)=1795557403380717 tentativi di avvio=1
+RIVERSAMENTO gen=2: 3088 esecuzioni vive, 6164 Ready, 3076 Done riscritti in 531 ms, posizioni [("state-0000000000007000800000000000000a", 6166), ("state-0000000000007000800000000000000b", 6162)]
+ripresa: 3088 esecuzioni vive, 0 eventi riletti dal bus, 3088 attività da riconsegnare
+ripresa: 3088 attività in volo in attesa dell'esito o della scadenza
+READY recovered_ms=913 now_us=1795557403369370 gen=2
+T4 prima attività conclusa dopo la ripresa=1795557403561671
+pausa: svuotamento 565 ms; nuovo Iggy 1171 ms; motore nuovo fino a READY 927 ms; prima attività conclusa 181 ms dopo READY; totale segnale -> READY 2664 ms, segnale -> prima conclusa 2845 ms
+load tenants=ab rate=334/s kind=0 n=3 size=1024 work_ms=3000 warm=2s measured=70s
+offered=24048 accepted=23159 refused_E_PROJECTION_DOWN=176 errors=713 overload_skipped=0
+errors_by_type {"Unavailable:E_UPGRADE_DRAIN": 176, "Unavailable:tcp connect error": 709, "Unknown:transport error": 4}
+accept_rtt_open_loop n=22491 p50=14.44ms p99=112.89ms p99.9=127.87ms max=134.78ms over100ms=893
+accept_max_gap_ms=2633 from_us=1795557400768608 to_us=1795557403401163
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=2.24 cpu_per_1000_att engine=0.000 worker=2244.000
+-- tempi del generatore di carico: segnale T0=1795557400717139 READY T3=1795557403380717
+verify: accettate=23159 concluse_nella_proiezione=20132 accettate_perse=3027 attivita_concluse=63416 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=53333 duplicati_sul_bus=0 payload_decifrati=63416 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=23159 concluse_nella_proiezione=21346 accettate_perse=1813 attivita_concluse=66859 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=56650 duplicati_sul_bus=0 payload_decifrati=66859 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=23159 concluse_nella_proiezione=22621 accettate_perse=538 attivita_concluse=68939 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=58434 duplicati_sul_bus=0 payload_decifrati=68939 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=23159 concluse_nella_proiezione=23159 accettate_perse=0 attivita_concluse=69477 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=58704 duplicati_sul_bus=0 payload_decifrati=69477 payload_illeggibili=0 light=false
+verify OK
+tentativi iniziati: 69477, attività distinte: 69477, eseguite più di una volta: 0, tentativi con numero 1 o più: 0
+contatori del motore nuovo: secs=62.2 accepted=16480 refused=0 done=55628 rejected=0 groups=554 expired=95 late_ok=2993
+-- bus nuovo: bus-info state-0000000000007000800000000000000a: testa=68488 primo_offset_leggibile=Some(0) segmenti=1 messaggi=68488 byte=53039168 soglia_consumatore=None bus-info state-0000000000007000800000000000000b: testa=68488 primo_offset_leggibile=Some(0) segmenti=1 messaggi=68488 byte=53039936 soglia_consumatore=None 
+-- posizioni: state-0000000000007000800000000000000b|68488|2 state-0000000000007000800000000000000a|68488|2 
+-- log del motore vecchio (eventi): 2 righe; nuovo:
+RIVERSAMENTO gen=2: 3088 esecuzioni vive, 6164 Ready, 3076 Done riscritti in 531 ms, posizioni [("state-0000000000007000800000000000000a", 6166), ("state-0000000000007000800000000000000b", 6162)]
+ripresa: 3088 esecuzioni vive, 0 eventi riletti dal bus, 3088 attività da riconsegnare
+ripresa: 3088 attività in volo in attesa dell'esito o della scadenza
+-- RSS dopo la corsa (motore, worker)
+rss iggy 109612 kB
+rss pid=2752617 61484 kB
+rss pid=2750998 27224 kB
+rifiuto 1 (bus nuovo generazione 3, database alla 2, senza upgrade=1): rc=5 E_BUS_GENERATION: posizioni del database di generazione 2, bus di generazione 3 (upgrade=false): il motore non parte
+rifiuto 2 (bus vuoto di generazione 1 con upgrade=1, database alla 2: generazione più vecchia): rc=5 E_BUS_GENERATION: posizioni del database di generazione 2, bus di generazione 1 (upgrade=true): il motore non parte
+[stato dopo 22:57:56] load: 1.93 1.84 2.20
+[stato dopo] io: some avg10=13.86 avg60=28.72 avg300=24.67 total=12607087399
+[stato dopo] cpu: some avg10=0.82 avg60=1.84 avg300=1.47 total=1389047732
+[stato dopo] container non nostri non in esecuzione stabile: 6; in esecuzione: 12
+[stato dopo] binario sha256: a5fff0281600e9e7
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.74ms p99=4.99ms p99.9=33.76ms max=33.76ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.03
