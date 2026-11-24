@@ -11,7 +11,8 @@ state() {
   echo "[stato $1] io: $(head -1 /proc/pressure/io)"
   echo "[stato $1] cpu: $(head -1 /proc/pressure/cpu)"
   echo "[stato $1] container non nostri non in esecuzione stabile: $(docker ps -a --format '{{.Names}} {{.Status}}' | grep -v '^ttspikebus' | grep -v ' Up ' | wc -l); in esecuzione: $(docker ps --format '{{.Names}}' | grep -v '^ttspikebus' | wc -l)"
-  [ -n "$SPIKE_BIN" ] && echo "[stato $1] binario sha256: $(sha256sum "$SPIKE_BIN" | cut -c1-16)"
+  echo "[stato $1] braccio: ${ARM:-non dichiarato}"
+  [ -n "$SPIKE_BIN" ] && echo "[stato $1] binario sha256:$(sha256sum "$SPIKE_BIN" | cut -c1-16)"
   [ -n "$SPIKE_BIN" ] && echo "[stato $1] pavimento fdatasync: $("$SPIKE_BIN" fsync-floor dir="$HOME/.cache" n=300)"
   # CPU dei container dei runner: oltre il 20 % di un core = job attivo
   echo "[stato $1] cpu runner max: $(docker stats --no-stream --format '{{.Name}} {{.CPUPerc}}' 2>/dev/null | grep -v '^ttspikebus' | tr -d '%' | sort -k2 -n -r | head -1)"
