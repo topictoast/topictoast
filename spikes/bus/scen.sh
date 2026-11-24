@@ -18,7 +18,10 @@ EP=; WP=
 # N scelto dalla verifica della fase 2d (mediana più alta di thrmax): Valkey 4, Iggy 1
 WDEF=1; [ "$BUS" = valkey ] && WDEF=4
 WL=; ENGPFX=
-case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db) TRIM=0; WL="worklog=out/work.log" ;; esac
+case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db|tretry|tdead|theart) TRIM=0; WL="worklog=out/work.log" ;; t100k) TRIM=0 ;; esac
+# blocco C: nelle corse con pochi timer il motore scrive una riga per ogni timer programmato (TSET) e scattato (TFIRE)
+case $SC in tretry|tdead|theart) export TIMER_LOG=1 ;; esac
+case $SC in theart) LEASE=${LEASE:-1500}; GRACE=${GRACE:-500} ;; esac
 us() { echo $(( $(date +%s%N) / 1000 )); }
 # millisecondi tra due istanti in microsecondi
 ms() { echo $(( ($2 - $1) / 1000 )); }
@@ -47,7 +50,7 @@ NSE() { nsenter -U --preserve-credentials -m -t $EP "$@"; }
 
 start_engine() {
   : > out/engine.log
-  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} >> out/engine.log 2>&1 &
+  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
@@ -211,6 +214,100 @@ case $SC in
     echo "tentativi iniziati: $(wc -l < out/work.log), attività distinte: $(cut -d' ' -f1,2 out/work.log | sort -u | wc -l), eseguite più di una volta: $(cut -d' ' -f1,2 out/work.log | sort | uniq -d | wc -l)"
     # tempo dal kill al secondo inizio di ogni attività eseguita due volte (minimo, mediana, massimo, in ms)
     sort -k4 -n out/work.log | awk -v t0=$T0 '{k=$1" "$2; if (k in s) {d[++n]=($4-t0)/1000}; s[k]=1} END{asort(d); if (n) printf "riesecuzioni: %d; kill -> nuovo inizio: min %.0f, mediana %.0f, max %.0f ms\n", n, d[1], d[int((n+1)/2)], d[n]; else print "riesecuzioni: 0"}' ;;
+  tretry)
+    # Blocco C, retry con attesa attraverso un crash. kind 3: il primo tentativo di ogni attività fallisce, attesa di
+    # ${RETRY_MS:-5000} ms, secondo tentativo. 100 esecuzioni/s per 3 s; a ${KILL_AT:-4.5} s kill -9 del motore (tutti i
+    # fallimenti sono già durevoli, nessun ritentativo è ancora scaduto), il motore resta giù ${PAUSE:-2} s, poi riparte.
+    $L rate=${ERATE:-100} kind=3 n=1 size=1024 work_ms=100 retry_ms=${RETRY_MS:-5000} secs=3 warm=0 stats=0 tenants=ab ledger=out/ledger.txt > out/load.txt &
+    LP=$!
+    sleep ${KILL_AT:-4.5}
+    echo "prima del kill: $("$BIN" stats dir=out | grep -E '^secs|timers_pending' | tr '\n' ' ')"
+    T0=$(us); kill -9 $EP; wait $EP 2>/dev/null
+    cp out/engine.log out/engine-pre.log
+    sleep ${PAUSE:-2}
+    start_engine
+    RU=$(sed -n 's/^READY .*now_us=\([0-9]*\).*/\1/p' out/engine.log)
+    echo "kill -> READY: $(ms $T0 $RU) ms (giù per ${PAUSE:-2} s voluti); READY_us=$RU"
+    grep -E "ripresa" out/engine.log
+    wait $LP; cat out/load.txt
+    ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done
+    echo "motore dopo la corsa: $("$BIN" stats dir=out | grep -E '^secs|timer_fire_delay' | tr '\n' ' ')"
+    echo "tentativi iniziati: $(wc -l < out/work.log), tentativo 0 distinti: $(awk '$5==0{print $1,$2}' out/work.log | sort -u | wc -l), tentativo 0 eseguiti più di una volta: $(awk '$5==0{print $1,$2}' out/work.log | sort | uniq -d | wc -l)"
+    ./tstat.sh retry out/engine-pre.log out/engine.log out/work.log $RU ;;
+  tdead)
+    # Blocco C, scadenza del tentativo attraverso un crash. Due worker; esecuzioni da un passo di ${DWORK:-3000} ms (scadenza = consegna
+    # + durata + 2 s di margine), 100/s per 3 s. A 2 s si uccide il worker 1 (i suoi tentativi in corso non torneranno mai), a
+    # 2,5 s kill -9 del motore e riavvio subito: le scadenze (5-7 s con 3 s di lavoro) cadono dopo la ripresa e oltre la sua finestra di attesa dei worker (grace_ms). Nel blocco B ripartivano da zero.
+    $TS_ENG "$BIN" worker dir=out link=grpc sessions=${WSESS:-4} $WL > out/worker2.log 2>&1 &
+    W2=$!
+    sleep 1
+    $L rate=${ERATE:-100} kind=0 n=1 size=1024 work_ms=${DWORK:-3000} secs=3 warm=0 stats=0 tenants=ab ledger=out/ledger.txt > out/load.txt &
+    LP=$!
+    sleep 2
+    T0=$(us); kill -9 $WP; wait $WP 2>/dev/null; WP=$W2; echo "T0 kill del worker 1=$T0"
+    sleep 0.5
+    echo "prima del kill del motore: $("$BIN" stats dir=out | grep -E '^secs|timers_pending' | tr '\n' ' ')"
+    T1=$(us); kill -9 $EP; wait $EP 2>/dev/null
+    cp out/engine.log out/engine-pre.log
+    start_engine
+    RU=$(sed -n 's/^READY .*now_us=\([0-9]*\).*/\1/p' out/engine.log)
+    echo "kill del motore -> READY: $(ms $T1 $RU) ms; READY_us=$RU"
+    grep -E "ripresa" out/engine.log
+    wait $LP; cat out/load.txt
+    ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done
+    echo "motore dopo la corsa: $("$BIN" stats dir=out | grep -E '^secs|timer_fire_delay' | tr '\n' ' ')"
+    echo "tentativi iniziati: $(wc -l < out/work.log), tentativo 0 distinti: $(awk '$5==0{print $1,$2}' out/work.log | sort -u | wc -l), tentativo 0 eseguiti più di una volta: $(awk '$5==0{print $1,$2}' out/work.log | sort | uniq -d | wc -l), tentativo 1 iniziati: $(awk '$5==1' out/work.log | wc -l)"
+    ./tstat.sh deadline out/engine-pre.log out/engine.log out/work.log $RU ;;
+  theart)
+    # Blocco C, battiti del worker. Il motore parte con lease_ms=${LEASE:-1500} (la scadenza di ogni tentativo è 1,5 s dall'ultimo
+    # battito, che il worker manda ogni lease_ms/3) e grace_ms=${GRACE:-500} (finestra di attesa dei worker alla ripresa).
+    # Attività da ${HWORK:-5000} ms, più lunghe del contratto: senza battiti scadrebbero tutte. Due worker; a 3 s si uccide il
+    # worker 1 (i suoi tentativi smettono di battere), a 3,5 s kill -9 del motore e riavvio subito. Attesi: i tentativi del worker 2
+    # non scadono (battono, anche attraverso il crash); quelli del worker 1 scadono 1,5 s dopo il loro ultimo battito e si rifanno.
+    $TS_ENG "$BIN" worker dir=out link=grpc sessions=${WSESS:-4} $WL > out/worker2.log 2>&1 &
+    W2=$!
+    sleep 1
+    $L rate=${ERATE:-100} kind=0 n=1 size=1024 work_ms=${HWORK:-5000} secs=2 warm=0 stats=0 tenants=ab ledger=out/ledger.txt > out/load.txt &
+    LP=$!
+    sleep 3
+    T0=$(us); kill -9 $WP; wait $WP 2>/dev/null; WP=$W2; echo "T0 kill del worker 1=$T0"
+    sleep 0.5
+    echo "prima del kill del motore: $("$BIN" stats dir=out | grep -E '^secs|timers_pending' | tr '\n' ' ')"
+    T1=$(us); kill -9 $EP; wait $EP 2>/dev/null
+    cp out/engine.log out/engine-pre.log
+    start_engine
+    RU=$(sed -n 's/^READY .*now_us=\([0-9]*\).*/\1/p' out/engine.log)
+    echo "kill del motore -> READY: $(ms $T1 $RU) ms; READY_us=$RU"
+    grep -E "ripresa" out/engine.log
+    wait $LP; cat out/load.txt
+    ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done
+    echo "motore dopo la corsa: $("$BIN" stats dir=out | grep -E '^secs|timer_fire_delay' | tr '\n' ' ')"
+    echo "tentativi iniziati: $(wc -l < out/work.log), tentativo 0 distinti: $(awk '$5==0{print $1,$2}' out/work.log | sort -u | wc -l), tentativo 0 eseguiti più di una volta: $(awk '$5==0{print $1,$2}' out/work.log | sort | uniq -d | wc -l), tentativo 1 iniziati: $(awk '$5==1' out/work.log | wc -l)"
+    # inizio del tentativo 1 meno la scadenza dell'ultimo battito noto (TSET più recente del tentativo 0)
+    ./tstat.sh deadline out/engine-pre.log out/engine.log out/work.log $RU ;;
+  t100k)
+    # Blocco C, 100.000 timer in sospeso. kind 2: un passo `wait` di ${TWAIT:-150000} ms per esecuzione, 5.000 esecuzioni/s per 20 s.
+    # A ${KILL_AT:-35} s kill -9 con i timer ancora tutti in sospeso, riavvio subito: tempo fino a READY e RSS. Poi si aspetta che
+    # tutti scattino (ognuno conclude il suo passo): nessuno perso, nessuno doppio, scarto di scatto p50/p99.
+    $L rate=${TRATE:-5000} kind=2 n=1 size=64 work_ms=${TWAIT:-150000} secs=20 warm=0 stats=0 tenants=ab ledger=out/ledger.txt > out/load.txt &
+    LP=$!
+    wait $LP; cat out/load.txt
+    sleep $(( ${KILL_AT:-35} - 20 ))
+    echo "prima del kill: $("$BIN" stats dir=out | grep -E '^secs|timers_pending' | tr '\n' ' ')"
+    ./rss.sh $EP $WP
+    T0=$(us); kill -9 $EP; wait $EP 2>/dev/null
+    start_engine
+    RU=$(sed -n 's/^READY .*now_us=\([0-9]*\).*/\1/p' out/engine.log)
+    echo "kill -> READY: $(ms $T0 $RU) ms ($(grep -E '^READY' out/engine.log))"
+    grep -E "ripresa" out/engine.log
+    echo "motore subito dopo READY: $("$BIN" stats dir=out | grep -E '^secs|timers_pending' | tr '\n' ' ')"
+    ./rss.sh $EP $WP
+    # attesa dello scatto di tutti: i timer partono tra 150 s e 170 s dopo l'accettazione
+    i=0; until "$BIN" stats dir=out | grep -q "timers_pending=0"; do i=$((i+1)); [ $i -gt 120 ] && break; sleep 5; done
+    echo "timer in sospeso dopo l'attesa: $("$BIN" stats dir=out | grep -E 'timers_pending' | tr '\n' ' ') (dopo $((i*5)) s)"
+    ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done
+    echo "motore dopo la corsa: $("$BIN" stats dir=out | grep -E '^secs|timer_fire_delay' | tr '\n' ' ')"
+    ./rss.sh $EP $WP ;;
   dfull-iggy|dfull-db)
     # Blocco B, caso 4: disco pieno. 333 esecuzioni/s da 3 passi; zavorra che lascia ${CAPFREE} MB, attesa del rifiuto,
     # 8 s di osservazione, zavorra tolta, ripresa. iggy: tmpfs di docker (zavorra con docker exec); db: tmpfs nel namespace

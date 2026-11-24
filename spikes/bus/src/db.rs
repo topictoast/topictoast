@@ -56,8 +56,9 @@ impl Db {
         let b = if pg { "BYTEA" } else { "BLOB" };
         for ddl in [
             "CREATE TABLE IF NOT EXISTS projection_pos(topic TEXT PRIMARY KEY, pos BIGINT NOT NULL, gen BIGINT NOT NULL DEFAULT 1)".to_string(),
-            format!("CREATE TABLE IF NOT EXISTS execution(id {b} PRIMARY KEY, tenant {b} NOT NULL, kind BIGINT NOT NULL, n BIGINT NOT NULL, work_ms BIGINT NOT NULL, out_size BIGINT NOT NULL, input_hash {b} NOT NULL, input_seg BIGINT NOT NULL DEFAULT 0, input_off BIGINT NOT NULL DEFAULT 0, input_len BIGINT NOT NULL DEFAULT 0, accepted_us BIGINT NOT NULL, done_us BIGINT)"),
+            format!("CREATE TABLE IF NOT EXISTS execution(id {b} PRIMARY KEY, tenant {b} NOT NULL, kind BIGINT NOT NULL, n BIGINT NOT NULL, work_ms BIGINT NOT NULL, out_size BIGINT NOT NULL, retry_ms BIGINT NOT NULL DEFAULT 0, input_hash {b} NOT NULL, input_seg BIGINT NOT NULL DEFAULT 0, input_off BIGINT NOT NULL DEFAULT 0, input_len BIGINT NOT NULL DEFAULT 0, accepted_us BIGINT NOT NULL, done_us BIGINT)"),
             format!("CREATE TABLE IF NOT EXISTS activity(exec_id {b} NOT NULL, step BIGINT NOT NULL, tenant {b} NOT NULL, is_last BIGINT NOT NULL, ready_us BIGINT, done_us BIGINT, out_hash {b}, done_events BIGINT NOT NULL DEFAULT 0, out_seg BIGINT, out_off BIGINT, out_len BIGINT, PRIMARY KEY(exec_id, step))"),
+            format!("CREATE TABLE IF NOT EXISTS timer(exec_id {b} NOT NULL, step BIGINT NOT NULL, kind BIGINT NOT NULL, attempt BIGINT NOT NULL, due_us BIGINT NOT NULL, PRIMARY KEY(exec_id, step))"),
             "CREATE INDEX IF NOT EXISTS execution_live ON execution(id) WHERE done_us IS NULL".to_string(),
         ] {
             db.pool.execute(sqlx::AssertSqlSafe(ddl)).await?;
@@ -109,6 +110,10 @@ impl Db {
         locs: &HashMap<Hash, Loc>,
     ) -> Res<()> {
         let (mut ex, mut rd, mut dn, mut fin) = (vec![], vec![], vec![], vec![]);
+        // timer (blocco C): l ultimo di ogni passo nel gruppo vince (Postgres rifiuta due upsert della stessa riga in un
+        // solo INSERT); gli esiti cancellano il timer del loro passo
+        let mut tm: HashMap<(Uid, u32), String> = HashMap::new();
+        let mut dl = vec![];
         let mut fin_ts = 0;
         for e in evs {
             match e {
@@ -119,17 +124,19 @@ impl Db {
                     n,
                     work_ms,
                     out_size,
+                    retry_ms,
                     ts,
                     input_hash,
                     ..
                 } => ex.push(format!(
-                    "({},{},{},{},{},{},{},{},{},{},{},NULL)",
+                    "({},{},{},{},{},{},{},{},{},{},{},{},NULL)",
                     self.lit(exec),
                     self.lit(tenant),
                     kind,
                     n,
                     work_ms,
                     out_size,
+                    retry_ms,
                     self.lit(input_hash),
                     locs.get(input_hash).map_or(0, |l| l.0),
                     locs.get(input_hash).map_or(0, |l| l.1),
@@ -160,6 +167,7 @@ impl Db {
                     ..
                 } => {
                     let l = locs.get(out_hash).copied().unwrap_or_default();
+                    dl.push(format!("({},{})", self.lit(exec), step));
                     dn.push(format!(
                         "({},{},{},{},{},{},{},1,{},{},{})",
                         self.lit(exec),
@@ -178,16 +186,51 @@ impl Db {
                         fin_ts = *ts;
                     }
                 }
+                Ev::Timer {
+                    exec,
+                    tenant: _,
+                    step,
+                    kind,
+                    attempt,
+                    due_us,
+                    ..
+                } => {
+                    tm.insert(
+                        (*exec, *step),
+                        format!(
+                            "({},{},{},{},{})",
+                            self.lit(exec),
+                            step,
+                            kind,
+                            attempt,
+                            due_us
+                        ),
+                    );
+                }
             }
         }
         for ch in ex.chunks(CHUNK) {
-            self.run(c, &format!("INSERT INTO execution(id,tenant,kind,n,work_ms,out_size,input_hash,input_seg,input_off,input_len,accepted_us,done_us) VALUES {} ON CONFLICT(id) DO NOTHING", ch.join(","))).await?;
+            self.run(c, &format!("INSERT INTO execution(id,tenant,kind,n,work_ms,out_size,retry_ms,input_hash,input_seg,input_off,input_len,accepted_us,done_us) VALUES {} ON CONFLICT(id) DO NOTHING", ch.join(","))).await?;
         }
         for ch in rd.chunks(CHUNK) {
             self.run(c, &format!("INSERT INTO activity(exec_id,step,tenant,is_last,ready_us,done_us,out_hash,done_events,out_seg,out_off,out_len) VALUES {} ON CONFLICT(exec_id,step) DO NOTHING", ch.join(","))).await?;
         }
         for ch in dn.chunks(CHUNK) {
             self.run(c, &format!("INSERT INTO activity(exec_id,step,tenant,is_last,ready_us,done_us,out_hash,done_events,out_seg,out_off,out_len) VALUES {} ON CONFLICT(exec_id,step) DO UPDATE SET done_us=excluded.done_us, out_hash=excluded.out_hash, out_seg=excluded.out_seg, out_off=excluded.out_off, out_len=excluded.out_len, done_events=activity.done_events+1", ch.join(","))).await?;
+        }
+        let tm: Vec<String> = tm.into_values().collect();
+        for ch in tm.chunks(CHUNK) {
+            self.run(c, &format!("INSERT INTO timer(exec_id,step,kind,attempt,due_us) VALUES {} ON CONFLICT(exec_id,step) DO UPDATE SET kind=excluded.kind, attempt=excluded.attempt, due_us=excluded.due_us", ch.join(","))).await?;
+        }
+        for ch in dl.chunks(CHUNK) {
+            self.run(
+                c,
+                &format!(
+                    "DELETE FROM timer WHERE (exec_id, step) IN ({})",
+                    ch.join(",")
+                ),
+            )
+            .await?;
         }
         for ch in fin.chunks(CHUNK) {
             self.run(
@@ -234,7 +277,7 @@ impl Db {
     /// Esecuzioni vive (non concluse) con lo stato dei passi, come proiettato fino alla posizione applicata.
     pub async fn live(&self) -> Res<HashMap<Uid, Exec>> {
         let mut m = HashMap::new();
-        let r = sqlx::query("SELECT id, tenant, kind, n, work_ms, out_size, input_hash, input_seg, input_off, input_len FROM execution WHERE done_us IS NULL")
+        let r = sqlx::query("SELECT id, tenant, kind, n, work_ms, out_size, input_hash, input_seg, input_off, input_len, retry_ms FROM execution WHERE done_us IS NULL")
             .fetch_all(&self.pool)
             .await?;
         for x in r {
@@ -247,6 +290,7 @@ impl Db {
                 x.get::<i64, _>(3) as u32,
                 x.get::<i64, _>(4) as u32,
                 x.get::<i64, _>(5) as u32,
+                x.get::<i64, _>(10) as u32,
                 h,
             );
             ex.locs.insert(
@@ -281,6 +325,28 @@ impl Db {
             }
         }
         Ok(m)
+    }
+
+    /// Timer in sospeso delle esecuzioni vive: (esecuzione, passo) -> (tipo, tentativo, scadenza in microsecondi).
+    pub async fn timers(&self) -> Res<HashMap<(Uid, u32), (u8, u32, u64)>> {
+        let r = sqlx::query("SELECT t.exec_id, t.step, t.kind, t.attempt, t.due_us FROM timer t JOIN execution e ON e.id = t.exec_id WHERE e.done_us IS NULL")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(r.iter()
+            .map(|x| {
+                (
+                    (
+                        x.get::<Vec<u8>, _>(0).try_into().unwrap(),
+                        x.get::<i64, _>(1) as u32,
+                    ),
+                    (
+                        x.get::<i64, _>(2) as u8,
+                        x.get::<i64, _>(3) as u32,
+                        x.get::<i64, _>(4) as u64,
+                    ),
+                )
+            })
+            .collect())
     }
 
     /// Payload di uscita proiettati: (tenant, impronta, segmento, scostamento, lunghezza), per la verifica dopo il guasto.
@@ -318,6 +384,15 @@ impl Db {
             .fetch_one(&self.pool)
             .await?
             .get::<i64, _>(0))
+    }
+
+    /// Scarto di scatto dei passi `wait` conclusi: istante dell'esito meno scadenza (accettazione + attesa), in microsecondi.
+    /// Negativo = scattato prima della scadenza. L'istante dell'esito è quello della decisione, prima della scrittura durevole.
+    pub async fn wait_delays(&self) -> Res<Vec<i64>> {
+        let r = sqlx::query("SELECT a.done_us - e.accepted_us - e.work_ms * 1000 FROM activity a JOIN execution e ON e.id = a.exec_id WHERE e.kind = 2 AND a.done_us IS NOT NULL")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(r.iter().map(|x| x.get::<i64, _>(0)).collect())
     }
 
     /// Identificativi delle esecuzioni concluse.

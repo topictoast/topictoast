@@ -32,7 +32,7 @@ stop_all() { [ -n "$WP" ] && kill $WP 2>/dev/null; [ -n "$EP" ] && kill $EP 2>/d
 
 IGGY_IMAGE=0.9.0 ./reset.sh iggy
 docker compose -p ttspikebus ps --format "iggy: {{.Image}} {{.Status}}"
-rm -rf out/archive out/spike.db* out/master.key out/ledger.txt out/old.log out/new.log
+rm -rf out/archive out/spike.db* out/master.key out/ledger.txt out/ledger-w.txt out/old.log out/new.log out/work.log
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
 [ -f out/worker.cred ] || "$BIN" gen-cred dir=out
 echo "### aggiornamento Iggy 0.9.0 -> 0.10.0: carico $*"
@@ -41,9 +41,14 @@ start_engine "$OLD" out/old.log busgen=1
 wait_ready out/old.log $EP || { stop_all; exit 1; }
 OLDPID=$EP
 echo "motore vecchio pid=$OLDPID $(grep READY out/old.log)"
-$TS_ENG "$BIN" worker dir=out link=grpc sessions=4 > out/worker.log 2>&1 &
+$TS_ENG "$BIN" worker dir=out link=grpc sessions=4 worklog=out/work.log > out/worker.log 2>&1 &
 WP=$!
 sleep 1
+# blocco C, PRE100K=1: prima 100.000 esecuzioni `wait` (kind 2) con timer di ${TWAIT:-150000} ms, tutti in sospeso durante l'aggiornamento
+if [ -n "$PRE100K" ]; then
+  $TS_LOAD "$BIN" load dir=out rate=${TRATE:-5000} kind=2 n=1 size=64 work_ms=${TWAIT:-150000} tenants=ab secs=${TSECS:-20} warm=0 stats=0 ledger=out/ledger-w.txt > out/load-w.txt
+  echo "-- timer di attesa: $(grep -E '^offered' out/load-w.txt); in sospeso nel motore vecchio: $("$BIN" stats dir=out | grep -E timers_pending | tr '\n' ' ')"
+fi
 $TS_LOAD "$BIN" load dir=out rate=1000 kind=0 n=1 size=1024 work_ms=3000 tenants=ab secs=$SECS warm=2 stats=0 ledger=out/ledger.txt "$@" > out/load.txt &
 LP=$!
 sleep $PRE
@@ -72,6 +77,7 @@ while :; do
   sleep 0.5
 done
 T3=$(us)
+echo "timer subito dopo READY: $("$BIN" stats dir=out | grep -E timers_pending | tr '\n' ' '); RSS: $(./rss.sh $EP | tr '\n' ' ')"
 echo "T3 motore nuovo READY (script)=$T3 tentativi di avvio=$((tries+1))"; grep -E "READY|RIVERSAMENTO|ripresa|bus nuovo" out/new.log
 i=0; until "$BIN" stats dir=out | grep -q "done=[1-9]"; do i=$((i+1)); [ $i -gt 600 ] && break; sleep 0.05; done
 T4=$(us)
@@ -80,7 +86,16 @@ awk -v t0=$T0 -v t1=$T1 -v t2=$T2 -v t3=$T3 -v t4=$T4 'BEGIN{printf "pausa: svuo
 
 wait $LP; cat out/load.txt
 echo "-- tempi del generatore di carico: segnale T0=$T0 READY T3=$T3"
+# PRE100K: si aspetta che tutti i timer scattino (partono 150-170 s dopo l'accettazione), poi la verifica dei loro esiti
+if [ -n "$PRE100K" ]; then
+  i=0; until "$BIN" stats dir=out | grep -q "timers_pending=0"; do i=$((i+1)); [ $i -gt 120 ] && break; sleep 5; done
+  echo "timer in sospeso dopo l'attesa: $("$BIN" stats dir=out | grep -E timers_pending | tr '\n' ' ') (dopo $((i*5)) s dalla fine del carico)"
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=iggy dir=out ledger=out/ledger-w.txt && break; sleep 3; done
+fi
 ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=iggy dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done
+# attività eseguite due volte e contatori del motore nuovo (blocco C), a corsa finita: registro dei worker, una riga per tentativo
+echo "tentativi iniziati: $(wc -l < out/work.log), attività distinte: $(cut -d' ' -f1,2 out/work.log | sort -u | wc -l), eseguite più di una volta: $(cut -d' ' -f1,2 out/work.log | sort | uniq -d | wc -l), tentativi con numero 1 o più: $(awk '$5>=1' out/work.log | wc -l)"
+echo "contatori del motore nuovo: $("$BIN" stats dir=out | head -1)"
 echo "-- bus nuovo: $("$BIN" bus-info | tr '\n' ' ')"
 echo "-- posizioni: $(sqlite3 out/spike.db 'select topic,pos,gen from projection_pos' 2>/dev/null | tr '\n' ' ')"
 echo "-- log del motore vecchio (eventi): $(grep -cE 'DRAIN' out/old.log) righe; nuovo:"; grep -E "ripresa|RIVERSAMENTO|E_" out/new.log

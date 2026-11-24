@@ -4,11 +4,12 @@ package spike;
 // Controllo: avvio di un'esecuzione (accettazione durevole) e statistiche della corsa.
 message AcceptReq {
   bytes tenant = 1;   // identificativo interno, 16 byte
-  uint32 kind = 2;    // 0 catena, 1 fan-out con join
+  uint32 kind = 2;    // 0 catena, 1 fan-out con join, 2 catena di attese (timer, work_ms = durata), 3 catena con primo tentativo fallito
   uint32 n = 3;       // passi della catena o rami del fan-out
   uint32 work_ms = 4; // durata simulata di ogni attività
   uint32 out_size = 5;
   bytes input = 6;
+  uint32 retry_ms = 7; // kind 3: attesa tra il tentativo fallito e il successivo
 }
 message AcceptResp { bytes exec = 1; }
 message StatsReq { bool reset = 1; }
@@ -30,6 +31,9 @@ message Delivery {
   uint64 ready_us = 8;  // istante della decisione "pronta"
   uint64 sent_us = 9;   // istante dopo la scrittura durevole, subito prima dell'invio
   uint64 ack = 10;      // se diverso da 0 non è una consegna: conferma durevole dell esito con questo delivery_id
+  uint32 attempt = 11;  // numero del tentativo (0 il primo)
+  bool fail = 12;       // il worker deve far fallire questo tentativo (kind 3, primo tentativo)
+  uint32 lease_ms = 13; // se diverso da 0: il worker manda un battito ogni lease_ms/3 e la scadenza è lease_ms dall ultimo battito
 }
 message FromWorker {
   bytes exec = 1;
@@ -40,6 +44,8 @@ message FromWorker {
   uint64 lat_sent_us = 6;  // ricezione nel worker meno sent_us
   bool hello = 7;
   bytes credential = 8; // credenziale del worker (C-11), solo nel saluto: controllata a ogni collegamento
+  bool failed = 9;      // il tentativo è fallito: il motore programma l attesa e ritenta
+  bool heartbeat = 10;  // battito: il tentativo è ancora in corso, il motore sposta in avanti la sua scadenza (timer durevole)
 }
 service Worker {
   rpc Session(stream FromWorker) returns (stream Delivery);

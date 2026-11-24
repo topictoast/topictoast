@@ -20,9 +20,23 @@ pub enum Ev {
         n: u32,
         work_ms: u32,
         out_size: u32,
+        /// Solo `kind` 3: attesa tra il tentativo fallito e il successivo.
+        retry_ms: u32,
         ts: u64,
         input_hash: Hash,
         input: Bytes,
+    },
+    /// Timer durevole (blocco C): al più uno per attività, la riga più recente vince. `kind`: 0 scadenza del tentativo
+    /// (`attempt` è in corso presso un worker), 1 attesa prima di ritentare (`attempt` è il prossimo), 2 attesa del
+    /// passo `wait`. Lo cancella l'esito `Done` del passo; un nuovo timer dello stesso passo lo sostituisce.
+    Timer {
+        exec: Uid,
+        tenant: Uid,
+        step: u32,
+        kind: u8,
+        attempt: u32,
+        due_us: u64,
+        ts: u64,
     },
     /// Decisione del motore: l'attività è pronta; l'input è l'insieme di payload dedotto dallo stato.
     Ready {
@@ -47,13 +61,19 @@ pub enum Ev {
 impl Ev {
     /// Parte dell'id (casuale in UUIDv7) per scegliere la connessione di scrittura.
     pub fn exec_hash(&self) -> u64 {
-        let (Ev::Accepted { exec, .. } | Ev::Ready { exec, .. } | Ev::Done { exec, .. }) = self;
+        let (Ev::Accepted { exec, .. }
+        | Ev::Ready { exec, .. }
+        | Ev::Done { exec, .. }
+        | Ev::Timer { exec, .. }) = self;
         u64::from_le_bytes(exec[8..16].try_into().unwrap())
     }
 
     pub fn ts(&self) -> u64 {
         match self {
-            Ev::Accepted { ts, .. } | Ev::Ready { ts, .. } | Ev::Done { ts, .. } => *ts,
+            Ev::Accepted { ts, .. }
+            | Ev::Ready { ts, .. }
+            | Ev::Done { ts, .. }
+            | Ev::Timer { ts, .. } => *ts,
         }
     }
 
@@ -69,6 +89,7 @@ impl Ev {
                 n,
                 work_ms,
                 out_size,
+                retry_ms,
                 ts,
                 input_hash,
                 input,
@@ -80,9 +101,28 @@ impl Ev {
                 u32w(&mut v, *n);
                 u32w(&mut v, *work_ms);
                 u32w(&mut v, *out_size);
+                u32w(&mut v, *retry_ms);
                 u64w(&mut v, *ts);
                 v.extend_from_slice(input_hash);
                 v.extend_from_slice(input);
+            }
+            Ev::Timer {
+                exec,
+                tenant,
+                step,
+                kind,
+                attempt,
+                due_us,
+                ts,
+            } => {
+                v.push(4);
+                v.extend_from_slice(exec);
+                v.extend_from_slice(tenant);
+                u32w(&mut v, *step);
+                v.push(*kind);
+                u32w(&mut v, *attempt);
+                u64w(&mut v, *due_us);
+                u64w(&mut v, *ts);
             }
             Ev::Ready {
                 exec,
@@ -133,9 +173,19 @@ impl Ev {
                 n: u32r(34),
                 work_ms: u32r(38),
                 out_size: u32r(42),
-                ts: u64r(46),
-                input_hash: b[54..86].try_into().unwrap(),
-                input: Bytes::copy_from_slice(&b[86..]),
+                retry_ms: u32r(46),
+                ts: u64r(50),
+                input_hash: b[58..90].try_into().unwrap(),
+                input: Bytes::copy_from_slice(&b[90..]),
+            },
+            4 => Ev::Timer {
+                exec,
+                tenant,
+                step: u32r(33),
+                kind: b[37],
+                attempt: u32r(38),
+                due_us: u64r(42),
+                ts: u64r(50),
             },
             2 => Ev::Ready {
                 exec,
@@ -167,6 +217,8 @@ pub struct Exec {
     pub n: u32,
     pub work_ms: u32,
     pub out_size: u32,
+    /// Solo `kind` 3: attesa tra il tentativo fallito e il successivo.
+    pub retry_ms: u32,
     pub input_hash: Hash,
     pub issued: Vec<bool>,
     pub done: Vec<Option<Hash>>,
@@ -181,15 +233,17 @@ impl Exec {
         n: u32,
         work_ms: u32,
         out_size: u32,
+        retry_ms: u32,
         input_hash: Hash,
     ) -> Exec {
-        let steps = if kind == 0 { n } else { n + 1 } as usize;
+        let steps = if kind != 1 { n } else { n + 1 } as usize;
         Exec {
             tenant,
             kind,
             n,
             work_ms,
             out_size,
+            retry_ms,
             input_hash,
             issued: vec![false; steps],
             done: vec![None; steps],
@@ -210,7 +264,7 @@ impl Exec {
         (0..self.steps())
             .filter(|&i| {
                 let i = i as usize;
-                let deps = if self.kind == 0 {
+                let deps = if self.kind != 1 {
                     i == 0 || self.done[i - 1].is_some()
                 } else if i < self.n as usize {
                     true
@@ -225,7 +279,7 @@ impl Exec {
     /// Hash dei payload che compongono l'input del passo, nell'ordine.
     pub fn input_refs(&self, step: u32) -> Vec<Hash> {
         let s = step as usize;
-        if self.kind == 0 {
+        if self.kind != 1 {
             vec![if s == 0 {
                 self.input_hash
             } else {

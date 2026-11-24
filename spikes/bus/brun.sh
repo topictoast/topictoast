@@ -16,7 +16,8 @@ else
 fi
 i=0
 while kill -0 "$PID" 2>/dev/null; do
-  i=$((i+1)); [ $i -gt 108 ] && { echo "ANCORA IN CORSA pid=$PID"; exit 0; }
+  # BRUN_ITERS: passi da 5 s di attesa in primo piano (predefinito 108 = 9 minuti; blocco C: 30 = 2,5 minuti, sotto il limite di 3 minuti dello strumento)
+  i=$((i+1)); [ $i -gt ${BRUN_ITERS:-108} ] && { echo "ANCORA IN CORSA pid=$PID"; exit 0; }
   sleep 5
 done
 echo "FINITA"; cat out/brun.last | cut -c1-300

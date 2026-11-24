@@ -111,6 +111,7 @@ async fn main() {
                 arg("upgrade", "0") == "1",
                 arg("grace_ms", "2000").parse().unwrap(),
                 arg("append_ms", "5000").parse().unwrap(),
+                arg("lease_ms", "0").parse().unwrap(),
             )
             .await
         }

@@ -13,7 +13,7 @@ use crate::{hist, now_us};
 use bytes::Bytes;
 use hdrhistogram::Histogram;
 use sha2::Digest;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -57,6 +57,8 @@ pub struct M {
     pub start_b: Histogram<u64>,
     pub archive_read: Histogram<u64>,
     pub proj_lag: Histogram<u64>,
+    /// Ritardo di scatto dei timer (blocco C): istante in cui il motore li prende in carico meno la loro scadenza.
+    pub timer_delay: Histogram<u64>,
     pub accepted: u64,
     pub refused: u64,
     pub done: u64,
@@ -99,6 +101,7 @@ impl M {
             start_b: hist(),
             archive_read: hist(),
             proj_lag: hist(),
+            timer_delay: hist(),
             accepted: 0,
             refused: 0,
             done: 0,
@@ -156,6 +159,14 @@ pub struct Shared {
     pub grace_ms: u64,
     /// Tempo massimo di una append sul bus prima di sospettare che sia giù.
     pub append_timeout_ms: u64,
+    /// Timer in sospeso in memoria (per le statistiche).
+    pub timers_pending: AtomicU64,
+    /// Scrive una riga per ogni timer programmato e scattato (variabile `TIMER_LOG`, solo per le corse con pochi timer).
+    pub timer_log: bool,
+    /// Contratto di battito (0 = spento): con un valore, la scadenza di ogni tentativo è `lease_ms` dall'ultimo battito del worker.
+    pub lease_ms: u64,
+    /// Battiti accettati (ognuno è un evento `Timer` sul bus).
+    pub heartbeats: AtomicU64,
 }
 
 impl Shared {
@@ -268,9 +279,10 @@ impl Shared {
 
     fn seal_ev(&self, topic: &str, e: &Ev) -> Bytes {
         let t = match e {
-            Ev::Accepted { tenant, .. } | Ev::Ready { tenant, .. } | Ev::Done { tenant, .. } => {
-                tenant
-            }
+            Ev::Accepted { tenant, .. }
+            | Ev::Ready { tenant, .. }
+            | Ev::Done { tenant, .. }
+            | Ev::Timer { tenant, .. } => tenant,
         };
         let id = *uuid::Uuid::now_v7().as_bytes();
         Bytes::from(self.keys.seal(t, &format!("bus/{topic}"), &id, &e.encode()))
@@ -299,14 +311,19 @@ pub enum Msg {
     Unregister {
         sess: u64,
     },
+    /// Interno (blocco C): il timer di un passo `wait` è scaduto, il passo si conclude. Non arriva mai dal canale esterno.
+    WaitDone {
+        exec: Uid,
+        step: u32,
+    },
 }
 
 struct Infl {
     /// 0 = consegna di un'incarnazione precedente del motore (ripresa): vale l'esito con qualunque `delivery_id`.
     delivery_id: u64,
-    /// Scadenza del tentativo (blocco B): senza esito entro questo istante l'attività torna in coda. È l'unico
-    /// modo in cui un tentativo perso (worker morto, sessione persa) torna disponibile; in memoria, i timer durevoli sono del blocco C.
-    deadline: Instant,
+    /// Numero del tentativo in corso. La scadenza non è qui: è un timer durevole (blocco C), in `Engine::timers`; è l'unico
+    /// modo in cui un tentativo perso (worker morto, sessione persa) torna disponibile.
+    attempt: u32,
 }
 
 struct Engine {
@@ -315,8 +332,21 @@ struct Engine {
     sessions: Vec<(u64, mpsc::Sender<Result<pb::Delivery, Status>>)>,
     rr: usize,
     inflight: HashMap<(Uid, u32), Infl>,
-    pending: [VecDeque<(Uid, u32, u64)>; 2],
+    /// Attività da consegnare: (esecuzione, passo, istante di «pronta», numero del tentativo).
+    pending: [VecDeque<(Uid, u32, u64, u32)>; 2],
     tenant_inflight: [usize; 2],
+    /// Timer durevoli (blocco C) in memoria: l'indice per scadenza e il valore per attività (tipo, tentativo, scadenza).
+    /// Si ricostruiscono dal database e dal bus alla ripresa; un timer entra qui solo quando il suo evento è durevole.
+    timers: BTreeSet<(u64, Uid, u32)>,
+    tmap: HashMap<(Uid, u32), (u8, u32, u64)>,
+    /// Timer da armare e consegne da inviare quando il gruppo che li scrive è durevole (AD-2: prima il timer, poi l'effetto).
+    arm: Vec<(Uid, u32, u8, u32, u64)>,
+    sends: Vec<(mpsc::Sender<Result<pb::Delivery, Status>>, pb::Delivery)>,
+    /// Gruppi di eventi in volo sul bus.
+    groups: HashMap<u64, Group>,
+    gid: u64,
+    /// Gruppi in volo nati da messaggi in ingresso (quelli di consegne e timer non contano per il limite `k`).
+    intake_n: usize,
     cap: usize,
     next_delivery: u64,
     /// Istante comune a tutti gli eventi di una iterazione: con scritture in parallelo il bus può mostrare al proiettore
@@ -355,8 +385,103 @@ impl Engine {
                     ts,
                 },
             ));
-            newly.push((ti, exec, s, ts));
+            if e.kind == 2 {
+                // passo `wait`: nessun worker, solo un timer (scritto con la decisione, armato a gruppo durevole)
+                let due = ts + e.work_ms as u64 * 1000;
+                evs.push((
+                    ti,
+                    Ev::Timer {
+                        exec,
+                        tenant: e.tenant,
+                        step: s,
+                        kind: 2,
+                        attempt: 0,
+                        due_us: due,
+                        ts,
+                    },
+                ));
+                self.arm.push((exec, s, 2, 0, due));
+            } else {
+                newly.push((ti, exec, s, ts));
+            }
         }
+    }
+
+    /// Programma (o sostituisce) il timer di un passo: al più uno per attività.
+    fn set_timer(&mut self, exec: Uid, step: u32, kind: u8, attempt: u32, due: u64) {
+        if let Some((_, _, old)) = self.tmap.insert((exec, step), (kind, attempt, due)) {
+            self.timers.remove(&(old, exec, step));
+        }
+        self.timers.insert((due, exec, step));
+        self.sh
+            .timers_pending
+            .store(self.tmap.len() as u64, Relaxed);
+    }
+
+    fn cancel_timer(&mut self, exec: Uid, step: u32) {
+        if let Some((_, _, old)) = self.tmap.remove(&(exec, step)) {
+            self.timers.remove(&(old, exec, step));
+            self.sh
+                .timers_pending
+                .store(self.tmap.len() as u64, Relaxed);
+        }
+    }
+
+    /// Prende in carico i timer scaduti (al più 4.096 per passata, per non fermare il ciclo): una scadenza di tentativo
+    /// rimette l'attività in coda con il tentativo successivo, un'attesa di ritentativo la mette in coda con lo stesso
+    /// tentativo, un passo `wait` conclude il passo (messaggio interno `WaitDone`, che il ciclo elabora). Nulla di durevole
+    /// si scrive qui: l'effetto durevole è la consegna (timer di scadenza nuovo) o l'esito `Done`; se il motore muore prima, il
+    /// timer è ancora nel database e riscatta alla ripresa.
+    async fn fire_due(&mut self) -> Vec<Msg> {
+        let now = now_us();
+        let mut waits = vec![];
+        let mut queued = false;
+        let mut n = 0;
+        while let Some(&(due, exec, step)) = self.timers.first() {
+            if due > now || n >= 4096 {
+                break;
+            }
+            self.timers.pop_first();
+            let Some((kind, attempt, _)) = self.tmap.remove(&(exec, step)) else {
+                continue;
+            };
+            n += 1;
+            {
+                let mut m = self.sh.m.lock().unwrap();
+                m.timer_delay.record(now.saturating_sub(due).max(1)).ok();
+            }
+            if self.sh.timer_log {
+                eprintln!("TFIRE {kind} {} {step} {attempt} {due} {now}", hex(&exec));
+            }
+            match kind {
+                0 => {
+                    // scadenza del tentativo: vale solo se è ancora quello in volo
+                    if self.inflight.get(&(exec, step)).map(|f| f.attempt) == Some(attempt) {
+                        self.inflight.remove(&(exec, step));
+                        let ti = tenant_idx(&self.execs[&exec].tenant).unwrap();
+                        self.tenant_inflight[ti] -= 1;
+                        self.pending[ti].push_front((exec, step, now, attempt + 1));
+                        self.sh.m.lock().unwrap().expired += 1;
+                        queued = true;
+                    }
+                }
+                1 => {
+                    if let Some(e) = self.execs.get(&exec) {
+                        let ti = tenant_idx(&e.tenant).unwrap();
+                        self.pending[ti].push_back((exec, step, now, attempt));
+                        queued = true;
+                    }
+                }
+                _ => waits.push(Msg::WaitDone { exec, step }),
+            }
+        }
+        self.sh
+            .timers_pending
+            .store(self.tmap.len() as u64, Relaxed);
+        if queued {
+            self.dispatch().await;
+        }
+        waits
     }
 
     /// Consegna le attività pronte ai worker, a turno tra i tenant, rispettando il tetto per tenant.
@@ -365,6 +490,7 @@ impl Engine {
         if self.sessions.is_empty() || self.sh.draining.load(Relaxed) {
             return;
         }
+        let mut evs: Vec<(usize, Ev)> = vec![];
         let mut progress = true;
         while progress {
             progress = false;
@@ -372,12 +498,17 @@ impl Engine {
                 if self.tenant_inflight[ti] >= self.cap {
                     continue;
                 }
-                let Some((exec, step, ready_us)) = self.pending[ti].pop_front() else {
+                let Some((exec, step, ready_us, attempt)) = self.pending[ti].pop_front() else {
                     continue;
                 };
                 let Some(e) = self.execs.get(&exec) else {
                     continue;
                 };
+                // già concluso o già in volo (una ripresa e una scadenza possono accodare lo stesso passo): niente doppia consegna
+                if e.done[step as usize].is_some() || self.inflight.contains_key(&(exec, step)) {
+                    continue;
+                }
+                let kind = e.kind;
                 // fan-out: solo il ramo 0 è lento, così le uscite degli altri rami sono già proiettate quando serve il join
                 let (tenant, work_ms, out_size) = (
                     e.tenant,
@@ -426,26 +557,52 @@ impl Engine {
                     work_ms,
                     out_size,
                     ready_us,
-                    sent_us: now_us(),
+                    sent_us: 0,
                     ack: 0,
+                    attempt,
+                    // kind 3: il primo tentativo di ogni passo fallisce
+                    fail: kind == 3 && attempt == 0,
+                    lease_ms: self.sh.lease_ms as u32,
                 };
-                if tx.try_send(Ok(d)).is_err() {
-                    // sessione piena o chiusa: il passo resta in coda, la sessione chiusa si toglie con Unregister
-                    self.pending[ti].push_front((exec, step, ready_us));
-                    continue;
-                }
-                let deadline =
-                    Instant::now() + Duration::from_millis(work_ms as u64 + self.sh.grace_ms);
+                // AD-2, scadenza durevole: il timer del tentativo si scrive sul bus PRIMA della consegna. La consegna parte
+                // (`Group::sends`) e il timer si arma (`Group::arm`) quando il gruppo è durevole; l'attività è già «in volo»
+                // da ora, così non si consegna due volte. Se la sessione è chiusa al momento dell'invio il tentativo
+                // scade e si rifà (prima si rimetteva subito in coda).
+                let now = now_us();
+                let lease = self.sh.lease_ms;
+                let due = now
+                    + if lease > 0 {
+                        lease
+                    } else {
+                        work_ms as u64 + self.sh.grace_ms
+                    } * 1000;
+                evs.push((
+                    ti,
+                    Ev::Timer {
+                        exec,
+                        tenant,
+                        step,
+                        kind: 0,
+                        attempt,
+                        due_us: due,
+                        ts: now,
+                    },
+                ));
+                self.arm.push((exec, step, 0, attempt, due));
+                self.sends.push((tx, d));
                 self.inflight.insert(
                     (exec, step),
                     Infl {
                         delivery_id: self.next_delivery,
-                        deadline,
+                        attempt,
                     },
                 );
                 self.tenant_inflight[ti] += 1;
                 progress = true;
             }
+        }
+        if !evs.is_empty() {
+            self.launch(evs, vec![], vec![], vec![], false);
         }
     }
 
@@ -512,7 +669,15 @@ impl Engine {
                     self.sh.put_cache(t, h, input.clone(), ts);
                     self.execs.insert(
                         exec,
-                        Exec::new(t, req.kind as u8, req.n, req.work_ms, req.out_size, h),
+                        Exec::new(
+                            t,
+                            req.kind as u8,
+                            req.n,
+                            req.work_ms,
+                            req.out_size,
+                            req.retry_ms,
+                            h,
+                        ),
                     );
                     evs.push((
                         tenant,
@@ -523,6 +688,7 @@ impl Engine {
                             n: req.n,
                             work_ms: req.work_ms,
                             out_size: req.out_size,
+                            retry_ms: req.retry_ms,
                             ts,
                             input_hash: h,
                             input,
@@ -534,6 +700,33 @@ impl Engine {
                 Msg::Result { sess, r } => {
                     let exec: Uid = r.exec.as_slice().try_into().unwrap();
                     let key = (exec, r.step);
+                    if r.heartbeat {
+                        // Battito (blocco C): il tentativo è vivo, la sua scadenza si sposta in avanti con un nuovo evento `Timer`
+                        // (stessa riga del passo, vince l'ultimo). Un battito di un tentativo che non è più quello in volo si ignora.
+                        if let Some(f) = self.inflight.get(&key)
+                            && (f.delivery_id == r.delivery_id || f.delivery_id == 0)
+                            && let Some(e) = self.execs.get(&exec)
+                        {
+                            let (tenant, attempt) = (e.tenant, f.attempt);
+                            let ti = tenant_idx(&tenant).unwrap();
+                            let due = self.bts + self.sh.lease_ms * 1000;
+                            evs.push((
+                                ti,
+                                Ev::Timer {
+                                    exec,
+                                    tenant,
+                                    step: r.step,
+                                    kind: 0,
+                                    attempt,
+                                    due_us: due,
+                                    ts: self.bts,
+                                },
+                            ));
+                            self.arm.push((exec, r.step, 0, attempt, due));
+                            self.sh.heartbeats.fetch_add(1, Relaxed);
+                        }
+                        continue;
+                    }
                     // C-2: vale solo il primo esito del tentativo corrente, dalla sessione a cui è stato consegnato
                     // Blocco B: l'esito vale da qualunque sessione (il worker può essersi ricollegato) se porta la
                     // consegna corrente, o se la consegna è di prima della ripresa (`delivery_id` 0 in `inflight`).
@@ -551,17 +744,36 @@ impl Engine {
                         }
                     }
                     acks.push((sess, r.delivery_id));
-                    self.inflight.remove(&key);
+                    let attempt = self.inflight.remove(&key).map_or(0, |f| f.attempt);
                     let e = self.execs.get_mut(&exec).unwrap();
                     let ti = tenant_idx(&e.tenant).unwrap();
                     self.tenant_inflight[ti] -= 1;
-                    let output = Bytes::from(r.output);
-                    let h = sha(&output);
-                    let ts = self.bts;
-                    e.done[r.step as usize] = Some(h);
-                    let (tenant, last) = (e.tenant, r.step + 1 == e.steps());
+                    // l'esito (riuscito o fallito) chiude il tentativo: la sua scadenza non serve più
+                    self.cancel_timer(exec, r.step);
+                    if r.failed {
+                        // Blocco C: tentativo fallito, attesa durevole prima del successivo. Il timer di ritentativo si scrive
+                        // nello stesso gruppo che conferma l'esito al worker; sostituisce quello di scadenza nel database.
+                        let e = &self.execs[&exec];
+                        let (tenant, retry_ms) = (e.tenant, e.retry_ms);
+                        let ts = self.bts;
+                        let due = ts + retry_ms as u64 * 1000;
+                        evs.push((
+                            ti,
+                            Ev::Timer {
+                                exec,
+                                tenant,
+                                step: r.step,
+                                kind: 1,
+                                attempt: attempt + 1,
+                                due_us: due,
+                                ts,
+                            },
+                        ));
+                        self.arm.push((exec, r.step, 1, attempt + 1, due));
+                        continue;
+                    }
+                    let e = &self.execs[&exec];
                     let is_join = e.kind == 1 && r.step == e.n;
-                    self.sh.put_cache(tenant, h, output.clone(), ts);
                     {
                         let mut m = self.sh.m.lock().unwrap();
                         m.start_ready.record(r.lat_ready_us.max(1)).ok();
@@ -572,27 +784,56 @@ impl Engine {
                         if ti == 1 {
                             m.start_b.record(r.lat_ready_us.max(1)).ok();
                         }
-                        m.done += 1;
                     }
-                    evs.push((
-                        ti,
-                        Ev::Done {
-                            exec,
-                            tenant,
-                            step: r.step,
-                            last,
-                            ts,
-                            out_hash: h,
-                            output,
-                        },
-                    ));
-                    if !last {
-                        self.decide(exec, &mut evs, &mut newly);
+                    self.complete(exec, r.step, Bytes::from(r.output), &mut evs, &mut newly);
+                }
+                Msg::WaitDone { exec, step } => {
+                    // il passo `wait` si conclude con un'uscita vuota (il timer è già tolto da `fire_due`)
+                    if self
+                        .execs
+                        .get(&exec)
+                        .is_some_and(|e| e.done[step as usize].is_none())
+                    {
+                        self.complete(exec, step, Bytes::new(), &mut evs, &mut newly);
                     }
                 }
             }
         }
         (evs, newly, replies, acks)
+    }
+
+    /// Conclude un passo con la sua uscita: stato, evento `Done`, decisione dei passi che ne dipendono.
+    fn complete(
+        &mut self,
+        exec: Uid,
+        step: u32,
+        output: Bytes,
+        evs: &mut Vec<(usize, Ev)>,
+        newly: &mut Vec<(usize, Uid, u32, u64)>,
+    ) {
+        let e = self.execs.get_mut(&exec).unwrap();
+        let ti = tenant_idx(&e.tenant).unwrap();
+        let h = sha(&output);
+        let ts = self.bts;
+        e.done[step as usize] = Some(h);
+        let (tenant, last) = (e.tenant, step + 1 == e.steps());
+        self.sh.put_cache(tenant, h, output.clone(), ts);
+        self.sh.m.lock().unwrap().done += 1;
+        evs.push((
+            ti,
+            Ev::Done {
+                exec,
+                tenant,
+                step,
+                last,
+                ts,
+                out_hash: h,
+                output,
+            },
+        ));
+        if !last {
+            self.decide(exec, evs, newly);
+        }
     }
 
     /// Manda gli eventi alle code di scrittura, una per tenant e connessione, ognuna in ordine di arrivo (FIFO).
@@ -649,11 +890,65 @@ impl Engine {
             self.ack_now(sess, id);
         }
         for (ti, exec, step, ts) in g.newly {
-            self.pending[ti].push_back((exec, step, ts));
+            self.pending[ti].push_back((exec, step, ts, 0));
+        }
+        // timer durevoli: ora che i loro eventi sono sul bus si armano in memoria, e solo dopo parte la consegna che li usa
+        for (exec, step, kind, attempt, due) in g.arm {
+            // solo se il timer serve ancora: il tentativo è ancora in volo (scadenza) o il passo non è concluso (attese)
+            let live = if kind == 0 {
+                self.inflight.get(&(exec, step)).map(|f| f.attempt) == Some(attempt)
+            } else {
+                self.execs
+                    .get(&exec)
+                    .is_some_and(|e| e.done[step as usize].is_none())
+            };
+            if live {
+                self.set_timer(exec, step, kind, attempt, due);
+                if self.sh.timer_log && kind != 2 {
+                    eprintln!(
+                        "TSET {kind} {} {step} {attempt} {due} {}",
+                        hex(&exec),
+                        now_us()
+                    );
+                }
+            }
+        }
+        for (tx, mut d) in g.sends {
+            d.sent_us = now_us();
+            let _ = tx.try_send(Ok(d));
         }
         // le esecuzioni concluse escono dallo stato quando i loro eventi sono durevoli
         self.execs.retain(|_, e| !e.finished());
         self.dispatch().await;
+    }
+
+    /// Manda un gruppo di eventi al bus e lo registra tra quelli in volo (con i timer da armare e le consegne da inviare
+    /// accumulati finora). Solo con almeno un evento: un gruppo senza eventi si finalizza subito, da chi lo ha creato.
+    fn launch(
+        &mut self,
+        evs: Vec<(usize, Ev)>,
+        newly: Vec<(usize, Uid, u32, u64)>,
+        replies: Vec<(oneshot::Sender<Result<Uid, Status>>, Uid, Instant)>,
+        acks: Vec<(u64, u64)>,
+        intake: bool,
+    ) {
+        if intake {
+            self.intake_n += 1;
+        }
+        self.gid += 1;
+        let sent = self.submit(self.gid, &evs);
+        let g = Group {
+            remaining: sent,
+            remaining_total: sent,
+            newly,
+            replies,
+            acks,
+            t0: Instant::now(),
+            arm: std::mem::take(&mut self.arm),
+            sends: std::mem::take(&mut self.sends),
+            intake,
+        };
+        self.groups.insert(self.gid, g);
     }
 
     /// Conferma al worker che l'esito con questo `delivery_id` è stato ricevuto (durevole, o scartato come doppione).
@@ -664,27 +959,6 @@ impl Engine {
                 ack: id,
                 ..Default::default()
             }));
-        }
-    }
-
-    /// Tentativi senza esito oltre la scadenza: tornano in coda con una nuova consegna (un altro tentativo).
-    async fn expire(&mut self) {
-        let now = Instant::now();
-        let late: Vec<_> = self
-            .inflight
-            .iter()
-            .filter(|(_, f)| f.deadline <= now)
-            .map(|(k, _)| *k)
-            .collect();
-        for (exec, step) in &late {
-            self.inflight.remove(&(*exec, *step));
-            let ti = tenant_idx(&self.execs[exec].tenant).unwrap();
-            self.tenant_inflight[ti] -= 1;
-            self.pending[ti].push_front((*exec, *step, now_us()));
-        }
-        if !late.is_empty() {
-            self.sh.m.lock().unwrap().expired += late.len() as u64;
-            self.dispatch().await;
         }
     }
 
@@ -700,12 +974,32 @@ impl Engine {
         true
     }
 
+    /// Elabora messaggi (in ingresso o interni): eventi in un gruppo sul bus, oppure subito gli effetti se non c'è niente da scrivere.
+    async fn process(&mut self, batch: Vec<Msg>) {
+        let (evs, newly, replies, acks) = self.handle(batch);
+        if evs.is_empty() {
+            let g = Group {
+                remaining: 0,
+                remaining_total: 0,
+                newly,
+                replies,
+                acks,
+                t0: Instant::now(),
+                arm: vec![],
+                sends: vec![],
+                intake: false,
+            };
+            self.finalize(g).await;
+        } else {
+            self.launch(evs, newly, replies, acks, true);
+        }
+    }
+
     /// Ciclo del motore con fino a `k` gruppi in volo sul bus. Il ciclo non aspetta più la scrittura: continua a
     /// raccogliere messaggi e a decidere; gli effetti di un gruppo partono quando le sue richieste sono durevoli.
     async fn run(mut self, mut rx: mpsc::Receiver<Msg>, mut drx: mpsc::UnboundedReceiver<u64>) {
-        let mut groups: HashMap<u64, Group> = HashMap::new();
-        let mut gid = 0u64;
-        let mut sweep = tokio::time::interval(Duration::from_millis(100));
+        // passata dei timer ogni 20 ms (blocco C; prima 100 ms per le sole scadenze dei tentativi)
+        let mut sweep = tokio::time::interval(Duration::from_millis(20));
         loop {
             let mut batch = Vec::new();
             // Raccolta a gruppi pieni: con un gruppo già in volo se ne apre un altro solo con almeno `minb` messaggi in coda,
@@ -713,37 +1007,41 @@ impl Engine {
             // la coda FIFO della connessione si riempie e la latenza di ogni gruppo cresce di k volte senza più throughput.
             // aggiornamento in corso: non si prende più niente dalla coda, si finiscono i gruppi in volo
             let draining = self.sh.draining.load(Relaxed);
-            let can_take =
-                !draining && groups.len() < self.k && (groups.is_empty() || rx.len() >= self.minb);
+            let can_take = !draining
+                && self.intake_n < self.k
+                && (self.intake_n == 0 || rx.len() >= self.minb);
             tokio::select! {
                 n = rx.recv_many(&mut batch, self.maxb), if can_take => {
                     if n == 0 {
                         return;
                     }
-                    let (evs, newly, replies, acks) = self.handle(batch);
-                    if evs.is_empty() {
-                        self.finalize(Group { remaining: 0, remaining_total: 0, newly, replies, acks, t0: Instant::now() }).await;
-                    } else {
-                        gid += 1;
-                        let sent = self.submit(gid, &evs);
-                        groups.insert(gid, Group { remaining: sent, remaining_total: sent, newly, replies, acks, t0: Instant::now() });
+                    self.process(batch).await;
+                }
+                _ = sweep.tick() => {
+                    if !draining {
+                        let waits = self.fire_due().await;
+                        if !waits.is_empty() {
+                            self.process(waits).await;
+                        }
                     }
                 }
-                _ = sweep.tick() => self.expire().await,
                 Some(id) = drx.recv() => {
-                    let g = groups.get_mut(&id).unwrap();
+                    let g = self.groups.get_mut(&id).unwrap();
                     g.remaining -= 1;
                     if g.remaining == 0 {
-                        let g = groups.remove(&id).unwrap();
+                        let g = self.groups.remove(&id).unwrap();
+                        if g.intake {
+                            self.intake_n -= 1;
+                        }
                         self.finalize(g).await;
                     }
                 }
                 // riesamina la regola di raccolta quando i messaggi in coda crescono
-                _ = tokio::time::sleep(Duration::from_micros(500)), if !groups.is_empty() && !can_take => {}
+                _ = tokio::time::sleep(Duration::from_micros(500)), if !self.groups.is_empty() && !can_take => {}
                 // svuotamento completo: nessun gruppo in volo e posizione applicata uguale alla testa su ogni topic.
                 // Da qui in poi il motore non scrive più sul bus (la coda non si consuma): si può uscire.
                 _ = tokio::time::sleep(Duration::from_millis(20)) => {
-                    if draining && groups.is_empty() && self.drained().await {
+                    if draining && self.groups.is_empty() && self.drained().await {
                         // le risposte alle accettazioni già durevoli escono dal socket prima della fine del processo
                         tokio::time::sleep(Duration::from_millis(300)).await;
                         eprintln!("DRAINED {} accepted={} in_flight_deliveries={}", now_us(), self.sh.m.lock().unwrap().accepted, self.inflight.len());
@@ -764,6 +1062,11 @@ struct Group {
     /// Esiti accettati in questo gruppo (sessione, consegna): si confermano al worker quando il gruppo è durevole.
     acks: Vec<(u64, u64)>,
     t0: Instant,
+    /// Timer da armare e consegne da inviare quando il gruppo è durevole (blocco C).
+    arm: Vec<(Uid, u32, u8, u32, u64)>,
+    sends: Vec<(mpsc::Sender<Result<pb::Delivery, Status>>, pb::Delivery)>,
+    /// Gruppo nato da messaggi in ingresso (conta per il limite `k`), non da una consegna o da un timer.
+    intake: bool,
 }
 
 /// Richiesta di scrittura per una coda (tenant, connessione).
@@ -899,12 +1202,25 @@ async fn conn_worker(
 // ---------------------------------------------------------------- ripresa
 
 /// Ricostruisce lo stato: database fino alla posizione applicata, poi rilettura del bus da lì.
-async fn recover(sh: &Arc<Shared>) -> (HashMap<Uid, Exec>, Vec<(usize, Uid, u32)>) {
+/// Torna le esecuzioni vive, i timer in sospeso (database + coda del bus) e, per ogni attività emessa e non conclusa, il suo timer
+/// (se ne ha uno): la ripresa deduce da lì se è in volo (scadenza), in attesa di ritentare o ancora da consegnare (nessun timer).
+async fn recover(
+    sh: &Arc<Shared>,
+) -> (
+    HashMap<Uid, Exec>,
+    HashMap<(Uid, u32), (u8, u32, u64)>,
+    Vec<(usize, Uid, u32)>,
+) {
     let mut execs = sh
         .db
         .live()
         .await
         .expect("lettura dello stato dal database");
+    let mut timers = sh
+        .db
+        .timers()
+        .await
+        .expect("lettura dei timer dal database");
     let pos = sh.db.positions().await.unwrap();
     let mut replayed = 0u64;
     for (ti, t) in TENANTS.iter().enumerate() {
@@ -929,14 +1245,25 @@ async fn recover(sh: &Arc<Shared>) -> (HashMap<Uid, Exec>, Vec<(usize, Uid, u32)
                         n,
                         work_ms,
                         out_size,
+                        retry_ms,
                         ts,
                         input_hash,
                         input,
                     } => {
                         sh.put_cache(tenant, input_hash, input, ts);
                         execs.entry(exec).or_insert_with(|| {
-                            Exec::new(tenant, kind, n, work_ms, out_size, input_hash)
+                            Exec::new(tenant, kind, n, work_ms, out_size, retry_ms, input_hash)
                         });
+                    }
+                    Ev::Timer {
+                        exec,
+                        step,
+                        kind,
+                        attempt,
+                        due_us,
+                        ..
+                    } => {
+                        timers.insert((exec, step), (kind, attempt, due_us));
                     }
                     Ev::Ready { exec, step, .. } => {
                         if let Some(e) = execs.get_mut(&exec) {
@@ -952,6 +1279,7 @@ async fn recover(sh: &Arc<Shared>) -> (HashMap<Uid, Exec>, Vec<(usize, Uid, u32)
                         output,
                         ..
                     } => {
+                        timers.remove(&(exec, step));
                         sh.put_cache(tenant, out_hash, output, ts);
                         if let Some(e) = execs.get_mut(&exec) {
                             e.issued[step as usize] = true;
@@ -966,7 +1294,8 @@ async fn recover(sh: &Arc<Shared>) -> (HashMap<Uid, Exec>, Vec<(usize, Uid, u32)
         let _ = ti;
     }
     execs.retain(|_, e| !e.finished());
-    // attività emesse e non concluse: da riconsegnare con un nuovo tentativo
+    timers.retain(|(id, _), _| execs.contains_key(id));
+    // attività emesse e non concluse: la ripresa le classifica con il loro timer (v. `main`)
     let redeliver: Vec<(usize, Uid, u32)> = execs
         .iter()
         .flat_map(|(id, e)| {
@@ -976,11 +1305,12 @@ async fn recover(sh: &Arc<Shared>) -> (HashMap<Uid, Exec>, Vec<(usize, Uid, u32)
         })
         .collect();
     eprintln!(
-        "ripresa: {} esecuzioni vive, {replayed} eventi riletti dal bus, {} attività da riconsegnare",
+        "ripresa: {} esecuzioni vive, {replayed} eventi riletti dal bus, {} attività emesse e non concluse, {} timer",
         execs.len(),
-        redeliver.len()
+        redeliver.len(),
+        timers.len()
     );
-    (execs, redeliver)
+    (execs, timers, redeliver)
 }
 
 // ---------------------------------------------------------------- proiettore
@@ -1209,7 +1539,7 @@ impl pb::control_server::Control for Ctl {
             return Err(Status::unavailable("E_UPGRADE_DRAIN"));
         }
         let tenant = tenant_idx(&req.tenant).ok_or_else(|| Status::invalid_argument("E_TENANT"))?;
-        if req.n == 0 || req.n > 10_000 {
+        if req.n == 0 || req.n > 10_000 || req.kind > 3 {
             return Err(Status::invalid_argument("E_SHAPE"));
         }
         let (reply, rx) = oneshot::channel();
@@ -1249,7 +1579,7 @@ impl pb::control_server::Control for Ctl {
         let stm = self.sh.db.stmts.load(Relaxed) - m.stmts0;
         let rows = self.sh.db.rows.load(Relaxed) - m.rows0;
         let text = format!(
-            "secs={secs:.1} accepted={} refused={} done={} rejected={} groups={} expired={} late_ok={}\nactivities_per_s={:.0} accepted_per_s={:.0}\naccept_engine {}\nappend {}\nappend_sub {}\nsub_events_p50={} sub_events_p99={}\nstart_ready {}\nstart_sent {}\nstart_join {}\nstart_ready_tenant_b {}\narchive_read {}\nproj_lag {}\nsql_stmts={stm} sql_rows={rows} sql_per_activity={:.4} rows_per_activity={:.3} wal_bytes_per_activity={:.1}\nengine_cpu_s={:.2} cache_entries={}",
+            "secs={secs:.1} accepted={} refused={} done={} rejected={} groups={} expired={} late_ok={}\nactivities_per_s={:.0} accepted_per_s={:.0}\naccept_engine {}\nappend {}\nappend_sub {}\nsub_events_p50={} sub_events_p99={}\nstart_ready {}\nstart_sent {}\nstart_join {}\nstart_ready_tenant_b {}\narchive_read {}\nproj_lag {}\ntimer_fire_delay {} timers_pending={} heartbeats={}\nsql_stmts={stm} sql_rows={rows} sql_per_activity={:.4} rows_per_activity={:.3} wal_bytes_per_activity={:.1}\nengine_cpu_s={:.2} cache_entries={}",
             m.accepted,
             m.refused,
             m.done,
@@ -1270,6 +1600,9 @@ impl pb::control_server::Control for Ctl {
             f(&m.start_b),
             f(&m.archive_read),
             f(&m.proj_lag),
+            f(&m.timer_delay),
+            self.sh.timers_pending.load(Relaxed),
+            self.sh.heartbeats.load(Relaxed),
             stm as f64 / m.done.max(1) as f64,
             rows as f64 / m.done.max(1) as f64,
             (wal - m.wal0) as f64 / m.done.max(1) as f64,
@@ -1365,6 +1698,7 @@ async fn rewrite_live(sh: &Arc<Shared>, bgen: u64) {
                 n: e.n,
                 work_ms: e.work_ms,
                 out_size: e.out_size,
+                retry_ms: e.retry_ms,
                 ts,
                 input_hash: e.input_hash,
                 input,
@@ -1404,15 +1738,36 @@ async fn rewrite_live(sh: &Arc<Shared>, bgen: u64) {
             }
         }
     }
+    // timer in sospeso (blocco C): ogni riga del database torna un evento `Timer` con la scadenza originale
+    let mut n_timers = 0u64;
+    for ((id, step), (kind, attempt, due)) in sh.db.timers().await.expect("lettura dei timer") {
+        let Some(e) = execs.get(&id) else { continue };
+        let ti = tenant_idx(&e.tenant).unwrap();
+        per[ti].push(sh.seal_ev(
+            &topic_of(&e.tenant),
+            &Ev::Timer {
+                exec: id,
+                tenant: e.tenant,
+                step,
+                kind,
+                attempt,
+                due_us: due,
+                ts,
+            },
+        ));
+        n_timers += 1;
+    }
+    // i due topic si scrivono in parallelo su due connessioni (con 100.000 esecuzioni vive la scrittura in serie dominava la pausa)
+    let (t0n, t1n) = (topic_of(&TENANTS[0]), topic_of(&TENANTS[1]));
+    let (r0, r1) = tokio::join!(
+        append_all(&sh.bus_w[0], &t0n, &per[0]),
+        append_all(&sh.bus_w[1 % sh.bus_w.len()], &t1n, &per[1])
+    );
+    r0.expect("scrittura dello stato vivo sul bus nuovo");
+    r1.expect("scrittura dello stato vivo sul bus nuovo");
     let mut positions = vec![];
-    for (ti, msgs) in per.iter().enumerate() {
-        let topic = topic_of(&TENANTS[ti]);
-        for ch in msgs.chunks(256) {
-            sh.bus
-                .append(&topic, ch)
-                .await
-                .expect("scrittura dello stato vivo sul bus nuovo");
-        }
+    for t in &TENANTS {
+        let topic = topic_of(t);
         positions.push((topic.clone(), sh.bus.head(&topic).await.unwrap()));
     }
     sh.db
@@ -1420,9 +1775,17 @@ async fn rewrite_live(sh: &Arc<Shared>, bgen: u64) {
         .await
         .expect("posizioni della nuova generazione");
     eprintln!(
-        "RIVERSAMENTO gen={bgen}: {n_exec} esecuzioni vive, {n_ready} Ready, {n_done} Done riscritti in {} ms, posizioni {positions:?}",
+        "RIVERSAMENTO gen={bgen}: {n_exec} esecuzioni vive, {n_ready} Ready, {n_done} Done, {n_timers} timer riscritti in {} ms, posizioni {positions:?}",
         t0.elapsed().as_millis()
     );
+}
+
+/// Scrive i messaggi in richieste da 1.024, in ordine.
+async fn append_all(bus: &Bus, topic: &str, msgs: &[Bytes]) -> crate::bus::Res<()> {
+    for ch in msgs.chunks(1024) {
+        bus.append(topic, ch).await?;
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------- avvio
@@ -1460,6 +1823,7 @@ pub async fn main(
     upgrade: bool,
     grace_ms: u64,
     append_timeout_ms: u64,
+    lease_ms: u64,
 ) {
     let t_start = Instant::now();
     // AD-2: un solo motore; il lock si libera da solo se il processo muore (kill -9)
@@ -1539,6 +1903,10 @@ pub async fn main(
         proj_pos: [0.into(), 0.into()],
         grace_ms,
         append_timeout_ms,
+        timers_pending: 0.into(),
+        timer_log: std::env::var("TIMER_LOG").is_ok(),
+        lease_ms,
+        heartbeats: 0.into(),
     });
     // Sonda del bus (blocco B): una connessione propria chiede il topic ogni 500 ms con tempo massimo di 1,5 s; il client
     // non torna con un errore a bus giù (aspetta), quindi è il tempo massimo a dire «giù». Con il bus giù le accettazioni
@@ -1579,7 +1947,7 @@ pub async fn main(
         rewrite_live(&sh, bus_gen).await;
     }
     let (tx, rx) = mpsc::channel(65536);
-    let (execs, redeliver) = recover(&sh).await;
+    let (execs, timers, redeliver) = recover(&sh).await;
     let pos = sh.db.positions().await.unwrap();
     for ti in 0..2 {
         tokio::spawn(projector(
@@ -1647,8 +2015,55 @@ pub async fn main(
         k: kgroups,
         maxb,
         minb,
+        timers: BTreeSet::new(),
+        tmap: HashMap::new(),
+        arm: vec![],
+        sends: vec![],
+        groups: HashMap::new(),
+        gid: 0,
+        intake_n: 0,
     };
-    // decisioni mancanti dopo la ripresa (Ready non scritti), poi riconsegna delle emesse e non concluse
+    // Blocco C: ogni attività emessa e non conclusa si classifica con il suo timer durevole. Scadenza di tentativo = in volo
+    // presso un worker (che può ricollegarsi con l'esito, consegna 0): l'esito vale fino alla scadenza originale, poi si rifà.
+    // Attesa di ritentativo o di `wait` = il timer scatta alla sua scadenza (se è già passata, alla prima passata dopo la ripresa).
+    // Nessun timer = mai consegnata (la consegna scrive prima il suo timer): si consegna subito. Nel blocco B restava «in volo»
+    // per `work_ms` + margine dalla ripresa.
+    let n_recovered = redeliver.len();
+    let (mut n_fly, mut n_wait, mut n_new) = (0, 0, 0);
+    for (ti, exec, step) in redeliver {
+        match timers.get(&(exec, step)).copied() {
+            Some((0, attempt, due)) => {
+                eng.inflight.insert(
+                    (exec, step),
+                    Infl {
+                        delivery_id: 0,
+                        attempt,
+                    },
+                );
+                eng.tenant_inflight[ti] += 1;
+                // una scadenza già passata (o vicina) si sposta in avanti di `grace_ms` dalla ripresa, solo in memoria: il worker che
+                // ha finito durante la pausa deve poter ricollegarsi e consegnare l'esito prima che il tentativo si rifaccia
+                eng.set_timer(exec, step, 0, attempt, due.max(now_us() + grace_ms * 1000));
+                n_fly += 1;
+            }
+            Some((kind, attempt, due)) => {
+                eng.set_timer(exec, step, kind, attempt, due);
+                n_wait += 1;
+            }
+            None if eng.execs[&exec].kind == 2 => {
+                eng.set_timer(exec, step, 2, 0, now_us());
+                n_wait += 1;
+            }
+            None => {
+                eng.pending[ti].push_back((exec, step, now_us(), 0));
+                n_new += 1;
+            }
+        }
+    }
+    eprintln!(
+        "ripresa: {n_recovered} attività emesse e non concluse: {n_fly} in volo (scadenza ripristinata), {n_wait} in attesa di un timer, {n_new} da consegnare subito"
+    );
+    // decisioni mancanti dopo la ripresa (Ready non scritti)
     let ids: Vec<Uid> = eng.execs.keys().copied().collect();
     let (mut evs, mut newly) = (vec![], vec![]);
     for id in ids {
@@ -1660,25 +2075,11 @@ pub async fn main(
         }
     }
     for (ti, exec, step, ts) in newly {
-        eng.pending[ti].push_back((exec, step, ts));
+        eng.pending[ti].push_back((exec, step, ts, 0));
     }
-    // Blocco B: le attività emesse e non concluse sono forse ancora in corso presso un worker che si ricollegherà con
-    // l'esito: restano «in volo» (consegna 0) fino alla scadenza, e si rifanno solo se l'esito non arriva. La scadenza
-    // parte dalla ripresa (la consegna non è sul bus: i timer durevoli sono del blocco C), quindi vale `work_ms` pieni.
-    let n_recovered = redeliver.len();
-    for (ti, exec, step) in redeliver {
-        let deadline =
-            Instant::now() + Duration::from_millis(eng.execs[&exec].work_ms as u64 + grace_ms);
-        eng.inflight.insert(
-            (exec, step),
-            Infl {
-                delivery_id: 0,
-                deadline,
-            },
-        );
-        eng.tenant_inflight[ti] += 1;
+    for (exec, step, kind, attempt, due) in std::mem::take(&mut eng.arm) {
+        eng.set_timer(exec, step, kind, attempt, due);
     }
-    eprintln!("ripresa: {n_recovered} attività in volo in attesa dell'esito o della scadenza");
     tokio::spawn(eng.run(rx, drx));
 
     let cert = std::fs::read(format!("{dir}/tls/cert.pem")).unwrap();

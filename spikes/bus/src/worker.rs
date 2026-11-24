@@ -135,11 +135,13 @@ pub async fn work(d: pb::Delivery, recv: u64) -> pb::FromWorker {
         exec: d.exec,
         step: d.step,
         delivery_id: d.delivery_id,
-        output: out,
+        output: if d.fail { vec![] } else { out },
         lat_ready_us: recv.saturating_sub(d.ready_us),
         lat_sent_us: recv.saturating_sub(d.sent_us),
         hello: false,
         credential: vec![],
+        failed: d.fail,
+        heartbeat: false,
     }
 }
 
@@ -198,7 +200,37 @@ async fn session(ch: Channel, cred: Vec<u8>, once: bool, idx: usize, slot: Slot,
         let (slot, outbox) = (slot.clone(), outbox.clone());
         tokio::spawn(async move {
             log_start(&d);
+            // battiti (blocco C): con `lease_ms` il worker segnala ogni lease_ms/3 che il tentativo è vivo
+            let hb = (d.lease_ms > 0).then(|| {
+                let (slot, exec, step, did, every) = (
+                    slot.clone(),
+                    d.exec.clone(),
+                    d.step,
+                    d.delivery_id,
+                    std::time::Duration::from_millis((d.lease_ms / 3).max(1) as u64),
+                );
+                tokio::spawn(async move {
+                    loop {
+                        tokio::time::sleep(every).await;
+                        let tx = slot.lock().unwrap().clone();
+                        if let Some(tx) = tx {
+                            let _ = tx
+                                .send(pb::FromWorker {
+                                    exec: exec.clone(),
+                                    step,
+                                    delivery_id: did,
+                                    heartbeat: true,
+                                    ..Default::default()
+                                })
+                                .await;
+                        }
+                    }
+                })
+            });
             let r = work(d, recv).await;
+            if let Some(h) = hb {
+                h.abort();
+            }
             outbox
                 .lock()
                 .unwrap()
@@ -218,7 +250,7 @@ type Slot = std::sync::Arc<std::sync::Mutex<Option<mpsc::Sender<pb::FromWorker>>
 type Outbox =
     std::sync::Arc<std::sync::Mutex<std::collections::HashMap<u64, (usize, pb::FromWorker)>>>;
 
-/// Registro degli inizi di tentativo (argomento `worklog=`): una riga `esecuzione passo consegna istante_us` per
+/// Registro degli inizi di tentativo (argomento `worklog=`): una riga `esecuzione passo consegna istante_us tentativo` per
 /// tentativo, scritta subito (sopravvive a `kill -9`). Serve a contare i tentativi eseguiti due volte.
 fn log_start(d: &pb::Delivery) {
     use std::io::Write;
@@ -240,11 +272,12 @@ fn log_start(d: &pb::Delivery) {
         // una sola write per riga: due worker scrivono nello stesso file in append e le righe non devono mescolarsi
         let _ = f.lock().unwrap().write_all(
             format!(
-                "{} {} {} {}\n",
+                "{} {} {} {} {}\n",
                 crate::crypto::hex(&d.exec),
                 d.step,
                 d.delivery_id,
-                now_us()
+                now_us(),
+                d.attempt
             )
             .as_bytes(),
         );

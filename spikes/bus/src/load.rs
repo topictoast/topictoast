@@ -30,6 +30,7 @@ pub async fn load(url: &str, dir: &str) {
     let n: u32 = arg("n", "1").parse().unwrap();
     let size: usize = arg("size", "1024").parse().unwrap();
     let work_ms: u32 = arg("work_ms", "0").parse().unwrap();
+    let retry_ms: u32 = arg("retry_ms", "0").parse().unwrap();
     let secs: f64 = arg("secs", "10").parse().unwrap();
     let warm: f64 = arg("warm", "2").parse().unwrap();
     let tenants = arg("tenants", "a");
@@ -96,6 +97,7 @@ pub async fn load(url: &str, dir: &str) {
                 work_ms,
                 out_size: size as u32,
                 input: input.clone(),
+                retry_ms,
             };
             let Ok(permit) = sem.clone().try_acquire_owned() else {
                 overload.fetch_add(1, Relaxed);
@@ -285,6 +287,22 @@ pub async fn verify(db_url: &str, bus_kind: &str, dir: &str) {
                 p = pp + 1;
             }
         }
+    }
+    // passi `wait` (blocco C): quanti, quanti prima della scadenza (devono essere 0), scarto di scatto p50/p99/max
+    let wd = db.wait_delays().await.unwrap();
+    if !wd.is_empty() {
+        let mut h = crate::hist();
+        for d in &wd {
+            h.record((*d).max(1) as u64).ok();
+        }
+        println!(
+            "wait_delay: n={} scattati_prima_della_scadenza={} p50={:.1}ms p99={:.1}ms max={:.1}ms",
+            wd.len(),
+            wd.iter().filter(|d| **d < 0).count(),
+            h.value_at_quantile(0.5) as f64 / 1e3,
+            h.value_at_quantile(0.99) as f64 / 1e3,
+            h.max() as f64 / 1e3
+        );
     }
     println!(
         "verify: accettate={} concluse_nella_proiezione={} accettate_perse={missing} attivita_concluse={tot} done_events!=1:{bad} attivita_aperte_in_esecuzioni_concluse={open} eventi_Done_sul_bus={dones} duplicati_sul_bus={dup} payload_decifrati={pay_ok} payload_illeggibili={pay_bad} light={light}",
