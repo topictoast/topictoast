@@ -9,7 +9,7 @@ Fonte dei criteri: spine, sezione «S-1 — Bus». Approccio a fasi deciso da Ma
 | 2 | Iggy contro Valkey, con un motore minimo e il collegamento gRPC | chiusa senza vincitore sul desktop (`fase2-risultati.md`) |
 | 2b | Ritardi di coda di Iggy e Valkey rimisurati su una macchina ferma (minisheep) | chiusa senza vincitore (`fase2b-risultati.md`) |
 | 2c | Correttivi comuni ai due bus (archivio a segmenti, scritture in parallelo), misura finale a 4 CPU su minisheep | chiusa senza vincitore (`fase2c-risultati.md`) |
-| 2d | Ultimo giro sulle 10.000 attività/s: scritture parallele del motore corrette, perdita di Iggy nei 10 minuti | in corso |
+| 2d | Ultimo giro sulle 10.000 attività/s: scritture parallele del motore corrette, perdita di Iggy nei 10 minuti | chiusa senza vincitore (`fase2d-risultati.md`), scelta a Marco |
 | 3 | gRPC contro iroh, solo sul bus vincitore | dopo la fase 2 |
 | 4 | Ripresa, guasti, aggiornamento senza perdite, log dei task, timer durevoli, ADR e Update della spine | dopo la fase 3 |
 
