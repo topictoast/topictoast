@@ -335,7 +335,7 @@ dichiarato non fatto.
 | --- | --- |
 | Scrittura durevole per accettazione (NFR-2), modalità di scrittura durevole (M-18) | misurato nelle fasi 2-3: p99 circa 19 ms, p50 circa 11,5 ms contro 5 ms su questo disco; nell'ADR |
 | 10.000 attività/s (NFR-3) | misurato nella 2d e nella 3, con episodi di stallo di Iggy non spiegati: blocco A |
-| Istruzioni SQL per attività (NFR-4), proiezione idempotente | misurato nella fase 2; NFR-4 si ricontrolla con il log dei task attivo (blocco D) |
+| Istruzioni SQL per attività (NFR-4), proiezione idempotente | misurato nella fase 2; NFR-4 si ricontrolla con i timer e il log dei task attivi (blocco D) |
 | RAM (NFR-1) | misurato (Iggy 92-96 MB), in deroga per decisione di Marco; il PRD si riallinea |
 | Lettura dall'archivio con proiezione indietro fino a 1 s, cifratura per tenant (C-12) | misurato nelle fasi 2 e 2c |
 | Attività lenta di un tenant (FR-13) | misurato nelle fasi 2-3 (`iso`) |
@@ -347,7 +347,7 @@ dichiarato non fatto.
 | Crash del motore, database fermo (NFR-6) | misurato nelle fasi 2 e 2c; il crash del motore si rifà come controllo nel blocco B |
 | Crash di Iggy e del worker, disco pieno (NFR-6), ripresa entro 30 s con i worker che si ricollegano (NFR-15) | blocco B |
 | Spegnimento improvviso dell'host (NFR-6) | non provabile su minisheep (ospita i runner): argomentato nell'ADR (risposta solo dopo fsync di Iggy, SQLite `synchronous=FULL`) e dichiarato non misurato |
-| Timer durevoli, con retry e attesa attraverso un crash | blocco C |
+| Timer durevoli, con retry e attesa attraverso un crash | blocco C (fatto); costo dei timer sul percorso caldo nel blocco D |
 | Log dei task (FR-59), creazione solo se assente su disco e su RustFS | blocco D |
 | Chiamata all'ausiliario sul percorso caldo (AD-6), `if`, jq e controllo di input e output (FR-53) | blocco E |
 | `SQLITE_BUSY` tra scritture del motore e gruppi del proiettore | blocco E |
@@ -442,6 +442,12 @@ Criterio: nessun timer perso né doppio in 3 corse; ritardo di scatto p50 e p99 
 
 ### Blocco D: log dei task (FR-59)
 
+- **Prima del log, costo dei timer sul percorso caldo (dal blocco C):** ogni consegna ora scrive un
+  evento `Timer` sul bus prima dell'invio, più un `INSERT … ON CONFLICT` e un `DELETE` nel proiettore.
+  Corse a coppie, motore del blocco B contro motore del blocco C: avvio a 1.000 att./s (5 coppie) e
+  10.000 att./s per 10 minuti (2 coppie, almeno il 99 %), con istruzioni SQL per attività (NFR-4).
+  Criterio: p99 dell'avvio non peggiore di oltre il 20 %; se peggiora, lo si dice con i numeri prima
+  di costruire il log.
 - **Cosa si costruisce:**
   - il worker scrive righe nella sessione gRPC;
   - il motore sostituisce il valore esatto dei segreti consegnati con un segnaposto, applica il tetto
@@ -486,6 +492,9 @@ Criterio: nessun timer perso né doppio in 3 corse; ritardo di scatto p50 e p99 
 
 - Corse a coppie dove la riga confronta con e senza; pavimento del disco registrato prima e dopo ogni
   corsa, come nelle fasi 2d-3.
+- Dal blocco C: ogni confronto a coppie alterna l'ordine dei due bracci da una coppia all'altra, e
+  ogni file grezzo registra il braccio (variabile o binario), non solo il nome del file. Nel blocco C
+  le corse a 200 e 1.000 att./s si sono alternate lenta e veloce fino a 2×, qualunque fosse il braccio.
 - Si uccidono solo container e processi propri, per nome o PID salvati; i runner di GitHub su
   minisheep non si toccano.
 - **Criterio non superato:** se la causa è nel codice dello spike, si corregge, si rifà la riga e lo si
