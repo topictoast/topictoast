@@ -1,0 +1,27 @@
+[stato prima 18:36:44] load: 0.68 1.83 2.56
+[stato prima] io: some avg10=0.72 avg60=8.08 avg300=38.44 total=10015488508
+[stato prima] cpu: some avg10=0.00 avg60=0.34 avg300=2.07 total=1138239322
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.67ms p99=4.13ms p99.9=66.37ms max=66.37ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-3 0.03
+[attesa] 20 s
+### retention-proof su apache/iggy:0.10.0
+scritti 600 messaggi da 20000 byte, testa=600; segmenti=11 messaggi=600 byte=12044160
+trim(pos=0) soglia salvata=None -> primo offset leggibile=0 segmenti=11 messaggi=600 byte=12044160 contigui=true regola=ok
+trim(pos=1) soglia salvata=Some(0) -> primo offset leggibile=0 segmenti=11 messaggi=600 byte=12044160 contigui=true regola=ok
+trim(pos=75) soglia salvata=Some(74) -> primo offset leggibile=60 segmenti=10 messaggi=540 byte=10839744 contigui=true regola=ok
+trim(pos=153) soglia salvata=Some(152) -> primo offset leggibile=120 segmenti=9 messaggi=480 byte=9635328 contigui=true regola=ok
+trim(pos=300) soglia salvata=Some(299) -> primo offset leggibile=300 segmenti=6 messaggi=300 byte=6022080 contigui=true regola=ok
+trim(pos=301) soglia salvata=Some(300) -> primo offset leggibile=300 segmenti=6 messaggi=300 byte=6022080 contigui=true regola=ok
+trim(pos=450) soglia salvata=Some(449) -> primo offset leggibile=420 segmenti=4 messaggi=180 byte=3613248 contigui=true regola=ok
+trim(pos=599) soglia salvata=Some(598) -> primo offset leggibile=540 segmenti=2 messaggi=60 byte=1204416 contigui=true regola=ok
+trim(pos=600) soglia salvata=Some(599) -> primo offset leggibile=600 segmenti=1 messaggi=0 byte=0 contigui=true regola=ok
+violazioni=0
+controllo negativo, nessun consumatore registrato: segmenti 11 -> 1, primo offset leggibile=600 su testa 600 (senza soglia si perde tutto ciò che è chiuso)
+rc=0
+[stato dopo 18:37:05] load: 0.67 1.75 2.52
+[stato dopo] io: some avg10=4.28 avg60=6.98 avg300=35.97 total=10016601573
+[stato dopo] cpu: some avg10=0.20 avg60=0.29 avg300=1.93 total=1138353901
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.66ms p99=4.13ms p99.9=4.69ms max=4.69ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-2 0.01

@@ -94,6 +94,22 @@ case $SC in
     done
     wait $LP; cat out/load.txt
     ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done ;;
+  ret)
+    # conservazione (fase 4): trim=1 con segmenti da 1 MiB (IGGY_SEGMENT_SIZE nell'ambiente), un kill -9 a metà.
+    # Il proiettore esce con E_POSIZIONE_PERSA se la prima lettura non parte dalla posizione applicata.
+    $L rate=${RRATE:-300} kind=0 n=10 size=1024 work_ms=100 secs=${RSECS:-90} warm=1 stats=0 tenants=ab ledger=out/ledger.txt "$@" > out/load.txt &
+    LP=$!
+    sleep 40
+    echo "prima del kill: $("$BIN" bus-info | tr '\n' ' ')"
+    cp out/engine.log out/engine-pre.log
+    echo "E_POSIZIONE_PERSA prima del kill: $(grep -c E_POSIZIONE out/engine-pre.log)"
+    kill -9 $EP; wait $EP 2>/dev/null
+    start_engine
+    echo "dopo la ripresa: $(grep -E 'ripresa' out/engine.log | tr '\n' ' ')"
+    wait $LP; cat out/load.txt
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && break; sleep 3; done
+    echo "E_POSIZIONE_PERSA dopo la ripresa: $(grep -c E_POSIZIONE out/engine.log)"
+    echo "fine: $("$BIN" bus-info | tr '\n' ' ')" ;;
   dbdown)
     $L rate=300 kind=0 n=10 size=1024 work_ms=100 secs=28 warm=1 stats=0 ledger=out/ledger.txt > out/load.txt &
     LP=$!

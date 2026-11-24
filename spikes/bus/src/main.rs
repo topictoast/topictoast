@@ -1,4 +1,5 @@
 //! Spike S-1 fase 2: Iggy contro Valkey. Codice da buttare; un solo binario con sottocomandi.
+mod bench;
 mod bus;
 mod crypto;
 mod db;
@@ -56,7 +57,9 @@ async fn main() {
     match cmd.as_str() {
         "fsync-floor" => fsync_floor(),
         "bench-crypto" => bench_crypto(),
-        "bench-append" => bench_append().await,
+        "bench-append" => bench::append().await,
+        "retention-proof" => bench::retention_proof().await,
+        "bus-info" => bench::info().await,
         "gen-cert" => load::gen_cert(&dir),
         // credenziale del worker (C-11): 32 byte casuali in esadecimale, una per riga
         "gen-nodeid" => println!("{}", iroh::SecretKey::generate().public()),
@@ -80,6 +83,8 @@ async fn main() {
                 arg("minb", "64").parse().unwrap(),
                 &arg("link", "grpc"),
                 &arg("iroh_listen", "127.0.0.1:47011"),
+                arg("busgen", "1").parse().unwrap(),
+                arg("upgrade", "0") == "1",
             )
             .await
         }
@@ -135,52 +140,3 @@ fn fsync_floor() {
     std::fs::remove_file(format!("{dir}/floor.tmp")).unwrap();
 }
 
-/// Solo il bus: `conc` task, ognuno scrive gruppi di `batch` messaggi da `size` byte.
-async fn bench_append() {
-    let kind = arg("bus", "iggy");
-    let size: usize = arg("size", "1024").parse().unwrap();
-    let batch: usize = arg("batch", "1").parse().unwrap();
-    let conc: usize = arg("conc", "1").parse().unwrap();
-    let secs: u64 = arg("secs", "10").parse().unwrap();
-    let warm: u64 = arg("warmup", "2").parse().unwrap();
-    let own = arg("own", "0") == "1";
-    // same=1: connessioni proprie ma stesso topic (come il motore, che scrive tutti sullo stesso topic del tenant)
-    let same = arg("same", "0") == "1";
-    let bus = Bus::connect(&kind).await.unwrap();
-    let topic = format!("bench-{}", std::process::id());
-    bus.ensure_topic(&topic).await.unwrap();
-    let payload = Bytes::from(vec![42u8; size]);
-    let start = Instant::now();
-    let mut tasks = vec![];
-    for _ in 0..conc {
-        // own=1: ogni task ha connessione e topic propri; own=0: tutti sulla stessa connessione e topic
-        let (bus, payload) = (bus.clone(), payload.clone());
-        let topic = if own && !same { format!("{topic}-{}", tasks.len()) } else { topic.clone() };
-        tasks.push(tokio::spawn(async move {
-            let bus = if own { Bus::connect(bus.name()).await.unwrap() } else { bus };
-            bus.ensure_topic(&topic).await.unwrap();
-            let (mut h, mut n) = (hist(), 0u64);
-            let msgs = vec![payload; batch];
-            while start.elapsed() < Duration::from_secs(warm + secs) {
-                let t = Instant::now();
-                bus.append(&topic, &msgs).await.unwrap();
-                if start.elapsed() > Duration::from_secs(warm) {
-                    h.record(t.elapsed().as_micros() as u64).unwrap();
-                    n += batch as u64;
-                }
-            }
-            if own && !same {
-                bus.drop_topic(&topic).await.ok();
-            }
-            (h, n)
-        }));
-    }
-    let (mut h, mut n) = (hist(), 0);
-    for t in tasks {
-        let (a, b) = t.await.unwrap();
-        h.add(a).unwrap();
-        n += b;
-    }
-    bus.drop_topic(&topic).await.ok();
-    println!("bench-append bus={kind} size={size} batch={batch} conc={conc}: {} msgs/s={:.0}", fmt(&h), n as f64 / secs as f64);
-}

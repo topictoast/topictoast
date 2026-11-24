@@ -35,6 +35,8 @@ pub async fn load(url: &str, dir: &str) {
     let ledger = Arc::new(Mutex::new(Vec::<[u8; 16]>::new()));
     let (offered, ok, refused, errs, overload) = (Arc::new(AtomicU64::new(0)), Arc::new(AtomicU64::new(0)), Arc::new(AtomicU64::new(0)), Arc::new(AtomicU64::new(0)), Arc::new(AtomicU64::new(0)));
     let sem = Arc::new(tokio::sync::Semaphore::new(max_out));
+    // pausa vista dal client: il più lungo intervallo senza accettazioni riuscite (gap, inizio, fine in microsecondi)
+    let (last_ok, gap) = (Arc::new(AtomicU64::new(0)), Arc::new(Mutex::new((0u64, 0u64, 0u64))));
     let start = Instant::now();
     let mut tick = tokio::time::interval(Duration::from_millis(1));
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Burst);
@@ -74,7 +76,7 @@ pub async fn load(url: &str, dir: &str) {
             let intended = Instant::now();
             let measured = reset_done;
             let mut c = chans[i % chans.len()].clone();
-            let (h, ledger, ok, refused, errs) = (h.clone(), ledger.clone(), ok.clone(), refused.clone(), errs.clone());
+            let (h, ledger, ok, refused, errs, last_ok, gap) = (h.clone(), ledger.clone(), ok.clone(), refused.clone(), errs.clone(), last_ok.clone(), gap.clone());
             tasks.spawn(async move {
                 match c.accept(req).await {
                     Ok(r) => {
@@ -82,9 +84,17 @@ pub async fn load(url: &str, dir: &str) {
                             h.lock().unwrap().record(intended.elapsed().as_micros() as u64 + 1).ok();
                         }
                         ok.fetch_add(1, Relaxed);
+                        let now = now_us();
+                        let prev = last_ok.swap(now, Relaxed);
+                        if prev != 0 && now.saturating_sub(prev) > 50_000 {
+                            let mut g = gap.lock().unwrap();
+                            if now.saturating_sub(prev) > g.0 {
+                                *g = (now - prev, prev, now);
+                            }
+                        }
                         ledger.lock().unwrap().push(r.into_inner().exec.try_into().unwrap());
                     }
-                    Err(e) if e.message() == "E_PROJECTION_DOWN" => {
+                    Err(e) if e.message() == "E_PROJECTION_DOWN" || e.message() == "E_UPGRADE_DRAIN" => {
                         refused.fetch_add(1, Relaxed);
                     }
                     Err(_) => {
@@ -101,6 +111,8 @@ pub async fn load(url: &str, dir: &str) {
     println!("load tenants={tenants} rate={rate}/s kind={kind} n={n} size={size} work_ms={work_ms} warm={warm}s measured={secs}s");
     println!("offered={} accepted={} refused_E_PROJECTION_DOWN={} errors={} overload_skipped={}", offered.load(Relaxed), ok.load(Relaxed), refused.load(Relaxed), errs.load(Relaxed), overload.load(Relaxed));
     println!("accept_rtt_open_loop {}", fmt(&h.lock().unwrap()));
+    let g = *gap.lock().unwrap();
+    println!("accept_max_gap_ms={:.0} from_us={} to_us={}", g.0 as f64 / 1e3, g.1, g.2);
     println!("-- statistiche del motore a fine finestra (prima dello svuotamento)\n{st}");
     // CPU di motore e worker per 1.000 attività (fase 3): il worker scrive la propria CPU su file, il motore la riporta nelle statistiche
     let num = |k: &str| st.split(k).nth(1).and_then(|s| s.split_whitespace().next()).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
@@ -144,7 +156,7 @@ pub async fn verify(db_url: &str, bus_kind: &str, dir: &str) {
         let topic = topic_of(t);
         let mut p = 0;
         loop {
-            let r = bus.read(&topic, p, 1000).await.unwrap();
+            let r = bus.read(&topic, p, 1000).await.unwrap_or_default();
             if r.is_empty() {
                 break;
             }

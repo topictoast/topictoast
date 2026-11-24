@@ -14,7 +14,7 @@ use crate::{hist, now_us};
 use bytes::Bytes;
 use hdrhistogram::Histogram;
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, oneshot};
@@ -45,6 +45,10 @@ pub struct M {
     pub min_append: Histogram<u64>,
     pub min_sub: Histogram<u64>,
     pub min_lag: Histogram<u64>,
+    /// Tempi del proiettore nel minuto: lettura dal bus, scrittura dei payload nell'archivio, transazione sul database (fase 4).
+    pub min_pread: Histogram<u64>,
+    pub min_parc: Histogram<u64>,
+    pub min_pdb: Histogram<u64>,
     /// Eventi per richiesta, in unità (non in tempo).
     pub sub_events: Histogram<u64>,
     pub start_ready: Histogram<u64>,
@@ -80,6 +84,9 @@ impl M {
             min_append: hist(),
             min_sub: hist(),
             min_lag: hist(),
+            min_pread: hist(),
+            min_parc: hist(),
+            min_pdb: hist(),
             sub_events: hist(),
             start_ready: hist(),
             start_sent: hist(),
@@ -127,6 +134,8 @@ pub struct Shared {
     pub proj_batch: u32,
     /// Attesa prima di applicare un gruppo piccolo: raccoglie più eventi per istruzione (NFR-4, SM-2), restando sotto 1 s di ritardo.
     pub window_ms: u64,
+    /// Aggiornamento in corso: le accettazioni si rifiutano con `E_UPGRADE_DRAIN` e il motore si svuota (fase 4).
+    pub draining: AtomicBool,
 }
 
 impl Shared {
@@ -266,7 +275,8 @@ impl Engine {
 
     /// Consegna le attività pronte ai worker, a turno tra i tenant, rispettando il tetto per tenant.
     async fn dispatch(&mut self) {
-        if self.sessions.is_empty() {
+        // aggiornamento in corso: nessuna consegna nuova, le attività pronte si riconsegnano dopo la ripresa
+        if self.sessions.is_empty() || self.sh.draining.load(Relaxed) {
             return;
         }
         let mut progress = true;
@@ -450,6 +460,18 @@ impl Engine {
         self.dispatch().await;
     }
 
+    /// Posizione applicata uguale alla testa del bus su ogni topic (passo 1 dell'aggiornamento).
+    async fn drained(&self) -> bool {
+        let pos = self.sh.db.positions().await.unwrap();
+        for t in &TENANTS {
+            let topic = topic_of(t);
+            if self.sh.bus.head(&topic).await.unwrap() != pos.get(&topic).copied().unwrap_or(0) {
+                return false;
+            }
+        }
+        true
+    }
+
     /// Ciclo del motore con fino a `k` gruppi in volo sul bus. Il ciclo non aspetta più la scrittura: continua a
     /// raccogliere messaggi e a decidere; gli effetti di un gruppo partono quando le sue richieste sono durevoli.
     async fn run(mut self, mut rx: mpsc::Receiver<Msg>, mut drx: mpsc::UnboundedReceiver<u64>) {
@@ -460,7 +482,9 @@ impl Engine {
             // Raccolta a gruppi pieni: con un gruppo già in volo se ne apre un altro solo con almeno `minb` messaggi in coda,
             // altrimenti si aspetta (raggruppamento naturale). Senza questa regola il ciclo emette tanti gruppi minuscoli,
             // la coda FIFO della connessione si riempie e la latenza di ogni gruppo cresce di k volte senza più throughput.
-            let can_take = groups.len() < self.k && (groups.is_empty() || rx.len() >= self.minb);
+            // aggiornamento in corso: non si prende più niente dalla coda, si finiscono i gruppi in volo
+            let draining = self.sh.draining.load(Relaxed);
+            let can_take = !draining && groups.len() < self.k && (groups.is_empty() || rx.len() >= self.minb);
             tokio::select! {
                 n = rx.recv_many(&mut batch, self.maxb), if can_take => {
                     if n == 0 {
@@ -485,6 +509,16 @@ impl Engine {
                 }
                 // riesamina la regola di raccolta quando i messaggi in coda crescono
                 _ = tokio::time::sleep(Duration::from_micros(500)), if !groups.is_empty() && !can_take => {}
+                // svuotamento completo: nessun gruppo in volo e posizione applicata uguale alla testa su ogni topic.
+                // Da qui in poi il motore non scrive più sul bus (la coda non si consuma): si può uscire.
+                _ = tokio::time::sleep(Duration::from_millis(20)) => {
+                    if draining && groups.is_empty() && self.drained().await {
+                        // le risposte alle accettazioni già durevoli escono dal socket prima della fine del processo
+                        tokio::time::sleep(Duration::from_millis(300)).await;
+                        eprintln!("DRAINED {} accepted={} in_flight_deliveries={}", now_us(), self.sh.m.lock().unwrap().accepted, self.inflight.len());
+                        std::process::exit(0);
+                    }
+                }
             }
         }
     }
@@ -578,12 +612,12 @@ async fn recover(sh: &Arc<Shared>) -> (HashMap<Uid, Exec>, Vec<(usize, Uid, u32)
         let _ = ti;
     }
     execs.retain(|_, e| !e.finished());
-    eprintln!("ripresa: {} esecuzioni vive, {replayed} eventi riletti dal bus", execs.len());
     // attività emesse e non concluse: da riconsegnare con un nuovo tentativo
-    let redeliver = execs
+    let redeliver: Vec<(usize, Uid, u32)> = execs
         .iter()
         .flat_map(|(id, e)| (0..e.steps()).filter(|&s| e.issued[s as usize] && e.done[s as usize].is_none()).map(move |s| (tenant_idx(&e.tenant).unwrap(), *id, s)))
         .collect();
+    eprintln!("ripresa: {} esecuzioni vive, {replayed} eventi riletti dal bus, {} attività da riconsegnare", execs.len(), redeliver.len());
     (execs, redeliver)
 }
 
@@ -597,6 +631,7 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
     let mut last_trim = Instant::now();
     let mut failing = false;
     loop {
+        let tr = Instant::now();
         let raw = match bus.read(&topic, pos, sh.proj_batch).await {
             Ok(r) => r,
             Err(e) => {
@@ -605,6 +640,9 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
                 continue;
             }
         };
+        if !raw.is_empty() {
+            sh.m.lock().unwrap().min_pread.record(tr.elapsed().as_micros() as u64 + 1).ok();
+        }
         if raw.is_empty() {
             tokio::time::sleep(Duration::from_millis(2)).await;
             continue;
@@ -615,12 +653,19 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
         } else {
             raw
         };
+        // Prova della conservazione (fase 4): la posizione applicata più alta è `pos`; se la prima lettura
+        // non parte esattamente da lì, una posizione non ancora applicata è stata cancellata (o saltata).
+        if bus.name() == "iggy" && raw[0].0 != pos {
+            eprintln!("E_POSIZIONE_PERSA: {topic} letto da {pos}, primo offset disponibile {}", raw[0].0);
+            std::process::exit(4);
+        }
         let next = raw.last().unwrap().0 + 1;
         let evs: Vec<Ev> = raw.iter().map(|(_, b)| Ev::decode(&sh.keys.open(&format!("bus/{topic}"), b).2)).collect();
         // payload nel segmento del tenant e un solo fdatasync PRIMA della transazione (la posizione fa scartare il bus)
         let sh2 = sh.clone();
         let evs2 = evs.clone();
         let noarc = std::env::var("DIAG_NOARCHIVE").is_ok();
+        let ta = Instant::now();
         let (locs, located) = tokio::task::spawn_blocking(move || {
             if noarc {
                 return (HashMap::new(), vec![]);
@@ -647,6 +692,7 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
         })
         .await
         .unwrap();
+        sh.m.lock().unwrap().min_parc.record(ta.elapsed().as_micros() as u64 + 1).ok();
         {
             let mut p = sh.pending_locs.lock().unwrap();
             for (_, h, l) in &located {
@@ -655,6 +701,7 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
         }
         let _ = tx.send(Msg::Located(ti, located)).await;
         // transazione; con il database giù si ritenta per sempre, rifiutando lavoro nuovo (AD-2)
+        let td = Instant::now();
         loop {
             match sh.db.apply(&topic, next, &evs, &locs).await {
                 Ok(()) => break,
@@ -668,6 +715,7 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
                 }
             }
         }
+        sh.m.lock().unwrap().min_pdb.record(td.elapsed().as_micros() as u64 + 1).ok();
         if failing {
             failing = false;
             sh.failing.fetch_sub(1, Relaxed);
@@ -714,6 +762,10 @@ impl pb::control_server::Control for Ctl {
     async fn accept(&self, r: tonic::Request<pb::AcceptReq>) -> Result<tonic::Response<pb::AcceptResp>, Status> {
         let t0 = Instant::now();
         let req = r.into_inner();
+        if self.sh.draining.load(Relaxed) {
+            self.sh.m.lock().unwrap().refused += 1;
+            return Err(Status::unavailable("E_UPGRADE_DRAIN"));
+        }
         let tenant = tenant_idx(&req.tenant).ok_or_else(|| Status::invalid_argument("E_TENANT"))?;
         if req.n == 0 || req.n > 10_000 {
             return Err(Status::invalid_argument("E_SHAPE"));
@@ -805,6 +857,51 @@ impl pb::worker_server::Worker for Wrk {
     }
 }
 
+// ---------------------------------------------------------------- aggiornamento del bus
+
+/// Passo 2 dell'aggiornamento: riscrive sul bus nuovo e vuoto lo stato vivo (esecuzioni non concluse con i
+/// loro passi emessi e conclusi), letto dal database e dall'archivio dei payload. Poi, in una transazione,
+/// porta le posizioni salvate alla nuova generazione, subito dopo gli eventi riscritti: il database ne
+/// rappresenta già lo stato, quindi il proiettore non li riapplica (un `Done` riapplicato conterrebbe due volte).
+/// Un crash prima della transazione lascia il bus nuovo non vuoto e la generazione del database vecchia:
+/// al riavvio i topic si svuotano e si ricomincia (ponytail: riversamento ripetibile, non ripresa a metà).
+async fn rewrite_live(sh: &Arc<Shared>, bgen: u64) {
+    let t0 = Instant::now();
+    let execs = sh.db.live().await.expect("lettura dello stato vivo");
+    let ts = now_us();
+    let mut per: [Vec<Bytes>; 2] = [vec![], vec![]];
+    let (mut n_exec, mut n_ready, mut n_done) = (0u64, 0u64, 0u64);
+    for (id, e) in &execs {
+        let ti = tenant_idx(&e.tenant).unwrap();
+        let topic = topic_of(&e.tenant);
+        let input = sh.archive_get(&e.tenant, &e.input_hash, e.locs[&e.input_hash]).await;
+        per[ti].push(sh.seal_ev(&topic, &Ev::Accepted { exec: *id, tenant: e.tenant, kind: e.kind, n: e.n, work_ms: e.work_ms, out_size: e.out_size, ts, input_hash: e.input_hash, input }));
+        n_exec += 1;
+        for s in 0..e.steps() {
+            if !e.issued[s as usize] {
+                continue;
+            }
+            per[ti].push(sh.seal_ev(&topic, &Ev::Ready { exec: *id, tenant: e.tenant, step: s, last: s + 1 == e.steps(), ts }));
+            n_ready += 1;
+            if let Some(h) = e.done[s as usize] {
+                let output = sh.archive_get(&e.tenant, &h, e.locs[&h]).await;
+                per[ti].push(sh.seal_ev(&topic, &Ev::Done { exec: *id, tenant: e.tenant, step: s, last: s + 1 == e.steps(), ts, out_hash: h, output }));
+                n_done += 1;
+            }
+        }
+    }
+    let mut positions = vec![];
+    for (ti, msgs) in per.iter().enumerate() {
+        let topic = topic_of(&TENANTS[ti]);
+        for ch in msgs.chunks(256) {
+            sh.bus.append(&topic, ch).await.expect("scrittura dello stato vivo sul bus nuovo");
+        }
+        positions.push((topic.clone(), sh.bus.head(&topic).await.unwrap()));
+    }
+    sh.db.reset_positions(bgen, &positions).await.expect("posizioni della nuova generazione");
+    eprintln!("RIVERSAMENTO gen={bgen}: {n_exec} esecuzioni vive, {n_ready} Ready, {n_done} Done riscritti in {} ms, posizioni {positions:?}", t0.elapsed().as_millis());
+}
+
 // ---------------------------------------------------------------- avvio
 
 /// Diagnostica: senza archivio i payload non si proiettano, quindi la cache non si svuota.
@@ -821,7 +918,7 @@ async fn futures_n(kind: &str, n: usize) -> Vec<Bus> {
     v
 }
 
-pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: usize, proj_batch: u32, trim: bool, window_ms: u64, wconn: usize, kgroups: usize, maxb: usize, minb: usize, link: &str, iroh_listen: &str) {
+pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: usize, proj_batch: u32, trim: bool, window_ms: u64, wconn: usize, kgroups: usize, maxb: usize, minb: usize, link: &str, iroh_listen: &str, busgen: u64, upgrade: bool) {
     let t_start = Instant::now();
     // AD-2: un solo motore; il lock si libera da solo se il processo muore (kill -9)
     let lock = std::fs::OpenOptions::new().create(true).truncate(true).write(true).open(format!("{dir}/engine.lock")).unwrap();
@@ -839,6 +936,30 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
         bus.ensure_topic(&topic_of(t)).await.unwrap();
     }
     let db = Arc::new(Db::open(db_url).await.unwrap());
+    // Generazione del bus (fase 4): gli offset ripartono da zero a ogni bus nuovo, quindi la posizione salvata
+    // vale solo con la generazione del bus su cui è stata presa. Bus vuoto: nasce con `busgen`.
+    let bus_gen = bus.generation(busgen).await.unwrap();
+    let rewrite = match db.generation().await.unwrap() {
+        None => false,
+        Some(d) if d == bus_gen => false,
+        Some(d) if upgrade && bus_gen > d => true,
+        Some(d) => {
+            eprintln!("E_BUS_GENERATION: posizioni del database di generazione {d}, bus di generazione {bus_gen} (upgrade={upgrade}): il motore non parte");
+            std::process::exit(5);
+        }
+    };
+    db.generation.store(bus_gen, Relaxed);
+    if rewrite {
+        // un riversamento interrotto lascia eventi sul bus nuovo: si riparte da topic vuoti
+        for t in &TENANTS {
+            let topic = topic_of(t);
+            if bus.head(&topic).await.unwrap() > 0 {
+                eprintln!("bus nuovo non vuoto su {topic}: si svuota e si rifà il riversamento");
+                bus.drop_topic(&topic).await.unwrap();
+                bus.ensure_topic(&topic).await.unwrap();
+            }
+        }
+    }
     let sh = Arc::new(Shared {
         keys,
         bus_w: futures_n(bus_kind, 2 * wconn).await,
@@ -854,7 +975,21 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
         trim,
         proj_batch,
         window_ms,
+        draining: AtomicBool::new(false),
     });
+    // SIGUSR1 = inizio dell'aggiornamento: rifiuto delle accettazioni con codice e svuotamento (passo 1)
+    {
+        let sh = sh.clone();
+        tokio::spawn(async move {
+            let mut s = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::user_defined1()).unwrap();
+            s.recv().await;
+            eprintln!("DRAIN_START {}", now_us());
+            sh.draining.store(true, Relaxed);
+        });
+    }
+    if rewrite {
+        rewrite_live(&sh, bus_gen).await;
+    }
     let (tx, rx) = mpsc::channel(65536);
     let (execs, redeliver) = recover(&sh).await;
     let pos = sh.db.positions().await.unwrap();
@@ -873,10 +1008,13 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
             let d = m.done - last_done.min(m.done);
             last_done = m.done;
             let ms = |h: &Histogram<u64>, q: f64| h.value_at_quantile(q) as f64 / 1e3;
-            eprintln!("MIN t={t} act_s={:.0} append_p50_ms={:.1} sub_p50_ms={:.1} lag_p50_ms={:.0} lag_p99_ms={:.0} io=[{io}]", d as f64 / 60.0, ms(&m.min_append, 0.5), ms(&m.min_sub, 0.5), ms(&m.min_lag, 0.5), ms(&m.min_lag, 0.99));
+            eprintln!("MIN t={t} act_s={:.0} append_p50_ms={:.1} sub_p50_ms={:.1} lag_p50_ms={:.0} lag_p99_ms={:.0} proj_read_p50_ms={:.1} proj_arch_p50_ms={:.1} proj_db_p50_ms={:.1} proj_groups={} io=[{io}]", d as f64 / 60.0, ms(&m.min_append, 0.5), ms(&m.min_sub, 0.5), ms(&m.min_lag, 0.5), ms(&m.min_lag, 0.99), ms(&m.min_pread, 0.5), ms(&m.min_parc, 0.5), ms(&m.min_pdb, 0.5), m.min_pdb.len());
             m.min_append.reset();
             m.min_sub.reset();
             m.min_lag.reset();
+            m.min_pread.reset();
+            m.min_parc.reset();
+            m.min_pdb.reset();
         }
     });
     // code di scrittura: una connessione al bus e una coda FIFO per tenant e connessione
@@ -943,7 +1081,7 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
         tokio::spawn(crate::iroh_link::serve(ep, std::sync::Arc::new(allowed), tx.clone(), std::sync::Arc::new(AtomicU64::new(1))));
     }
     let tls = tonic::transport::ServerTlsConfig::new().identity(tonic::transport::Identity::from_pem(cert, key));
-    println!("READY recovered_ms={}", t_start.elapsed().as_millis());
+    println!("READY recovered_ms={} now_us={} gen={bus_gen}", t_start.elapsed().as_millis(), now_us());
     tonic::transport::Server::builder()
         .tls_config(tls)
         .unwrap()

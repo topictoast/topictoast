@@ -1,0 +1,51 @@
+[stato prima 18:46:28] load: 1.48 1.94 2.29
+[stato prima] io: some avg10=0.35 avg60=13.02 avg300=26.31 total=10165514790
+[stato prima] cpu: some avg10=0.00 avg60=0.79 avg300=1.61 total=1149338004
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=6.38ms p99=9.88ms p99.9=86.53ms max=86.53ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 65 s
+iggy: apache/iggy:0.9.0 Up 3 seconds
+### aggiornamento Iggy 0.9.0 -> 0.10.0: carico 
+motore vecchio pid=1850553 READY recovered_ms=305 now_us=1795542397375658 gen=1
+prima: secs=21.0 accepted=19845 refused=0 done=16842 rejected=0 groups=169 activities_per_s=801 accepted_per_s=944 
+T0 segnale=1795542418390653  T1 motore vecchio uscito=1795542418955361 (rc=0)
+DRAIN_START 1795542418391000
+DRAINED 1795542418922964 accepted=19991 in_flight_deliveries=3003
+iggy: apache/iggy:0.10.0 Up Less than a second
+T2 nuovo Iggy avviato=1795542420085048
+T3 motore nuovo READY (script)=1795542422953677 tentativi di avvio=1
+RIVERSAMENTO gen=2: 3149 esecuzioni vive, 3149 Ready, 0 Done riscritti in 266 ms, posizioni [("state-0000000000007000800000000000000a", 3148), ("state-0000000000007000800000000000000b", 3150)]
+ripresa: 3149 esecuzioni vive, 0 eventi riletti dal bus, 3149 attività da riconsegnare
+READY recovered_ms=2764 now_us=1795542422851901 gen=2
+T4 prima attività conclusa dopo la ripresa=1795542426024509
+pausa: svuotamento 565 ms; nuovo Iggy 1130 ms; motore nuovo fino a READY 2869 ms; prima attività conclusa 3071 ms dopo READY; totale segnale -> READY 4563 ms, segnale -> prima conclusa 7634 ms
+load tenants=ab rate=1000/s kind=0 n=1 size=1024 work_ms=3000 warm=2s measured=70s
+offered=72000 accepted=67523 refused_E_PROJECTION_DOWN=531 errors=3946 overload_skipped=0
+accept_rtt_open_loop n=65524 p50=15.21ms p99=218.50ms p99.9=229.38ms max=235.52ms over100ms=13802
+accept_max_gap_ms=4327 from_us=1795542418557175 to_us=1795542422883914
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=1.44 cpu_per_1000_att engine=0.000 worker=1441.000
+-- tempi del generatore di carico: segnale T0=1795542418390653 READY T3=1795542422953677
+verify: accettate=67523 concluse_nella_proiezione=64395 accettate_perse=3128 attivita_concluse=64620 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=48500 duplicati_sul_bus=0 payload_decifrati=64620 payload_illeggibili=0
+verify FALLITA
+verify: accettate=67523 concluse_nella_proiezione=67523 accettate_perse=0 attivita_concluse=67523 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=50681 duplicati_sul_bus=0 payload_decifrati=67523 payload_illeggibili=0
+verify OK
+-- bus nuovo: bus-info state-0000000000007000800000000000000a: testa=76020 primo_offset_leggibile=Some(0) segmenti=1 messaggi=76020 byte=66179872 soglia_consumatore=None bus-info state-0000000000007000800000000000000b: testa=76023 primo_offset_leggibile=Some(0) segmenti=1 messaggi=76023 byte=66183192 soglia_consumatore=None 
+-- posizioni: state-0000000000007000800000000000000b|76023|2 state-0000000000007000800000000000000a|76020|2 
+-- log del motore vecchio (eventi): 2 righe; nuovo:
+RIVERSAMENTO gen=2: 3149 esecuzioni vive, 3149 Ready, 0 Done riscritti in 266 ms, posizioni [("state-0000000000007000800000000000000a", 3148), ("state-0000000000007000800000000000000b", 3150)]
+ripresa: 3149 esecuzioni vive, 0 eventi riletti dal bus, 3149 attività da riconsegnare
+-- RSS dopo la corsa (motore, worker)
+rss iggy 107224 kB
+rss pid=1851727 55980 kB
+rss pid=1850576 24732 kB
+rifiuto 1 (bus nuovo generazione 3, database alla 2, senza upgrade=1): rc=5 E_BUS_GENERATION: posizioni del database di generazione 2, bus di generazione 3 (upgrade=false): il motore non parte
+rifiuto 2 (bus vuoto di generazione 1 con upgrade=1, database alla 2: generazione più vecchia): rc=5 E_BUS_GENERATION: posizioni del database di generazione 2, bus di generazione 1 (upgrade=true): il motore non parte
+[stato dopo 18:48:06] load: 2.00 2.02 2.28
+[stato dopo] io: some avg10=15.65 avg60=25.59 avg300=26.56 total=10192055531
+[stato dopo] cpu: some avg10=1.02 avg60=1.67 avg300=1.66 total=1151497973
+[stato dopo] container non nostri non in esecuzione stabile: 5; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.67ms p99=4.82ms p99.9=21.30ms max=21.30ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

@@ -2,15 +2,24 @@
 //!
 //! Contratto: `append` torna solo dopo la scrittura durevole (Iggy: argomento `persisted`;
 //! Valkey: `appendfsync always`); `read` legge da una posizione, `trim` libera le posizioni
-//! già applicate dal proiettore (solo Valkey: Iggy non sa tagliare per offset).
+//! già applicate dal proiettore (Valkey: `XTRIM`; Iggy dalla fase 4: soglia del consumatore più
+//! `delete_segments`, a granularità di segmento).
 //! Posizione = u64 uguale per i due: offset Iggy, oppure `ms * 1_000_000 + seq` dell'id di stream Valkey.
+//!
+//! Con `--features old` l'adattatore Iggy usa il client 0.11.0 (server 0.9.0) al posto della 0.12.0
+//! (server 0.10.0): serve al motore «vecchio» della prova di aggiornamento della fase 4.
 
 use bytes::Bytes;
+#[cfg(not(feature = "old"))]
 use iggy::prelude::*;
+#[cfg(feature = "old")]
+use iggy_old::prelude::*;
 use redis::aio::MultiplexedConnection;
 
 pub type Res<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 const STREAM: &str = "tt";
+/// Topic con la generazione del bus (un solo messaggio, offset 0).
+const META: &str = "meta";
 
 #[derive(Clone)]
 pub enum Bus {
@@ -30,6 +39,17 @@ fn id_to_pos(id: &str) -> u64 {
     ms.parse::<u64>().unwrap() * 1_000_000 + seq.parse::<u64>().unwrap()
 }
 
+/// Consumatore Iggy che rappresenta il proiettore: la sua posizione salvata è la soglia sotto cui
+/// il server può cancellare segmenti (nessun altro consumatore è registrato sul topic).
+#[cfg(not(feature = "old"))]
+fn projector_consumer() -> Consumer {
+    Consumer { kind: ConsumerKind::Consumer, id: Identifier::numeric(1).unwrap() }
+}
+#[cfg(feature = "old")]
+fn projector_consumer() -> Consumer {
+    Consumer { kind: ConsumerKind::Consumer, id: Identifier::numeric(1).unwrap() }
+}
+
 impl Bus {
     pub async fn connect(kind: &str) -> Res<Bus> {
         match kind {
@@ -45,7 +65,10 @@ impl Bus {
                 // ponytail: crea lo stream se manca; una sola creazione concorrente supportata.
                 let id = Identifier::named(STREAM)?;
                 if c.get_stream(&id).await?.is_none() {
+                    #[cfg(not(feature = "old"))]
                     let _ = c.create_stream(STREAM, &StreamCreateOptions::default()).await;
+                    #[cfg(feature = "old")]
+                    let _ = c.create_stream(STREAM).await;
                 }
                 Ok(Bus::Iggy(c))
             }
@@ -66,7 +89,8 @@ impl Bus {
         }
     }
 
-    /// Crea il topic se manca (una partizione, durabilità piena).
+    /// Crea il topic se manca (una partizione, durabilità piena). `IGGY_SEGMENT_SIZE` (byte, almeno 1 MiB)
+    /// fissa la dimensione dei segmenti, `IGGY_PREALLOC=1` ne riserva i byte all'apertura.
     pub async fn ensure_topic(&self, topic: &str) -> Res<()> {
         if let Bus::Iggy(c) = self {
             let s = Identifier::named(STREAM)?;
@@ -74,12 +98,18 @@ impl Bus {
                 let o = TopicCreateOptions {
                     partitions_count: Some(1),
                     message_expiry: Some(IggyExpiry::NeverExpire),
+                    segment_size: std::env::var("IGGY_SEGMENT_SIZE").ok().map(|v| IggyByteSize::from(v.parse::<u64>().unwrap())),
                     // IGGY_DURABILITY=replicated solo come controllo di confronto
                     durability: if std::env::var("IGGY_DURABILITY").as_deref() == Ok("replicated") {
                         Durability::Replicated
                     } else {
                         Durability::Persisted
                     },
+                    // soglie di scrittura dei segmenti (messaggi e byte), per la fase 4: predefiniti 1.024 messaggi e 1 MiB
+                    messages_required_to_save: std::env::var("IGGY_SAVE_MSGS").ok().map(|v| v.parse().unwrap()),
+                    size_of_messages_required_to_save: std::env::var("IGGY_SAVE_BYTES").ok().map(|v| IggyByteSize::from(v.parse::<u64>().unwrap())),
+                    #[cfg(not(feature = "old"))]
+                    preallocate_segments: std::env::var("IGGY_PREALLOC").ok().map(|v| v == "1"),
                     ..TopicCreateOptions::default()
                 };
                 c.create_topic(&s, topic, &o).await?;
@@ -125,6 +155,7 @@ impl Bus {
     pub async fn read(&self, topic: &str, from: u64, max: u32) -> Res<Vec<(u64, Bytes)>> {
         match self {
             Bus::Iggy(c) => {
+                #[cfg(not(feature = "old"))]
                 let r = c
                     .poll_messages(
                         &Identifier::named(STREAM)?,
@@ -134,6 +165,10 @@ impl Bus {
                         &PollingStrategy::offset(from),
                         PollOptions { count: max, max_bytes: 64 << 20, ..PollOptions::default() },
                     )
+                    .await?;
+                #[cfg(feature = "old")]
+                let r = c
+                    .poll_messages(&Identifier::named(STREAM)?, &Identifier::named(topic)?, Some(0), &Consumer::default(), &PollingStrategy::offset(from), max, false)
                     .await?;
                 Ok(r.messages.into_iter().map(|m| (m.header.offset, m.payload)).collect())
             }
@@ -169,17 +204,78 @@ impl Bus {
         Ok(())
     }
 
-    /// Libera le posizioni < `upto` (Valkey; Iggy: nessuna operazione, vedi PIANO fase 4).
+    /// Libera le posizioni < `upto` (la prossima da leggere del proiettore).
+    /// Valkey: `XTRIM MINID`, al messaggio. Iggy: salva `upto - 1` (l'ultima applicata) come posizione del
+    /// consumatore, poi chiede la cancellazione di tutti i segmenti chiusi; il server si ferma al segmento
+    /// la cui ultima posizione supera quella del consumatore (il segmento attivo non si cancella mai).
+    /// Granularità = un segmento (1 MiB come minimo, 1 GiB di default). L'ordine conta: senza una posizione
+    /// salvata non c'è alcuna soglia e il server cancellerebbe ogni segmento chiuso.
     pub async fn trim(&self, topic: &str, upto: u64) -> Res<()> {
-        if let Bus::Valkey(c) = self {
-            let mut c = c.clone();
-            redis::cmd("XTRIM")
-                .arg(topic)
-                .arg("MINID")
-                .arg(pos_to_id(upto))
-                .query_async::<()>(&mut c)
-                .await?;
+        match self {
+            Bus::Valkey(c) => {
+                let mut c = c.clone();
+                redis::cmd("XTRIM").arg(topic).arg("MINID").arg(pos_to_id(upto)).query_async::<()>(&mut c).await?;
+            }
+            Bus::Iggy(c) => {
+                if upto == 0 {
+                    return Ok(());
+                }
+                let (s, t) = (Identifier::named(STREAM)?, Identifier::named(topic)?);
+                c.store_consumer_offset(&projector_consumer(), &s, &t, Some(0), upto - 1).await?;
+                c.delete_segments(&s, &t, 0, u32::MAX).await?;
+            }
         }
         Ok(())
+    }
+
+    /// Prossima posizione libera del topic (testa del log). Solo Iggy.
+    pub async fn head(&self, topic: &str) -> Res<u64> {
+        match self {
+            Bus::Iggy(c) => {
+                let t = c.get_topic(&Identifier::named(STREAM)?, &Identifier::named(topic)?).await?.ok_or("topic mancante")?;
+                let p = t.partitions.first().ok_or("partizione mancante")?;
+                // partizione vuota: current_offset vale 0 come con un solo messaggio
+                Ok(if p.messages_count == 0 && p.current_offset == 0 { 0 } else { p.current_offset + 1 })
+            }
+            Bus::Valkey(_) => Err("head: solo Iggy".into()),
+        }
+    }
+
+    /// Dimensioni e numero di segmenti della partizione (per la prova di conservazione).
+    pub async fn segments(&self, topic: &str) -> Res<(u32, u64, u64)> {
+        match self {
+            Bus::Iggy(c) => {
+                let t = c.get_topic(&Identifier::named(STREAM)?, &Identifier::named(topic)?).await?.ok_or("topic mancante")?;
+                let p = t.partitions.first().ok_or("partizione mancante")?;
+                Ok((p.segments_count, p.messages_count, p.size.as_bytes_u64()))
+            }
+            Bus::Valkey(_) => Err("segments: solo Iggy".into()),
+        }
+    }
+
+    /// Posizione salvata dal consumatore del proiettore (ultima applicata), se c'è.
+    pub async fn consumer_offset(&self, topic: &str) -> Res<Option<u64>> {
+        match self {
+            Bus::Iggy(c) => Ok(c
+                .get_consumer_offset(&projector_consumer(), &Identifier::named(STREAM)?, &Identifier::named(topic)?, Some(0))
+                .await?
+                .map(|i| i.stored_offset)),
+            Bus::Valkey(_) => Err("consumer_offset: solo Iggy".into()),
+        }
+    }
+
+    /// Generazione del bus: gli offset ripartono da zero a ogni bus nuovo (aggiornamento senza perdite).
+    /// Vive nel topic `meta`, scritto una volta alla creazione del bus vuoto con il valore `default`.
+    /// Valkey: non ha una generazione propria, torna `default`.
+    pub async fn generation(&self, default: u64) -> Res<u64> {
+        if let Bus::Valkey(_) = self {
+            return Ok(default);
+        }
+        self.ensure_topic(META).await?;
+        if let Some((_, b)) = self.read(META, 0, 1).await?.into_iter().next() {
+            return Ok(u64::from_le_bytes(b[..8].try_into()?));
+        }
+        self.append(META, &[Bytes::copy_from_slice(&default.to_le_bytes())]).await?;
+        Ok(default)
     }
 }

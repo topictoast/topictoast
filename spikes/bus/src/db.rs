@@ -19,6 +19,8 @@ pub struct Db {
     pub stmts: AtomicU64,
     /// Righe toccate dalle istruzioni di scrittura.
     pub rows: AtomicU64,
+    /// Generazione del bus corrente, scritta con ogni posizione applicata (fase 4).
+    pub generation: AtomicU64,
 }
 
 const CHUNK: usize = 500;
@@ -42,10 +44,10 @@ impl Db {
             })
         };
         let pool = o.connect(url).await?;
-        let db = Db { pool, pg, stmts: 0.into(), rows: 0.into() };
+        let db = Db { pool, pg, stmts: 0.into(), rows: 0.into(), generation: 1.into() };
         let b = if pg { "BYTEA" } else { "BLOB" };
         for ddl in [
-            "CREATE TABLE IF NOT EXISTS projection_pos(topic TEXT PRIMARY KEY, pos BIGINT NOT NULL)".to_string(),
+            "CREATE TABLE IF NOT EXISTS projection_pos(topic TEXT PRIMARY KEY, pos BIGINT NOT NULL, gen BIGINT NOT NULL DEFAULT 1)".to_string(),
             format!("CREATE TABLE IF NOT EXISTS execution(id {b} PRIMARY KEY, tenant {b} NOT NULL, kind BIGINT NOT NULL, n BIGINT NOT NULL, work_ms BIGINT NOT NULL, out_size BIGINT NOT NULL, input_hash {b} NOT NULL, input_seg BIGINT NOT NULL DEFAULT 0, input_off BIGINT NOT NULL DEFAULT 0, input_len BIGINT NOT NULL DEFAULT 0, accepted_us BIGINT NOT NULL, done_us BIGINT)"),
             format!("CREATE TABLE IF NOT EXISTS activity(exec_id {b} NOT NULL, step BIGINT NOT NULL, tenant {b} NOT NULL, is_last BIGINT NOT NULL, ready_us BIGINT, done_us BIGINT, out_hash {b}, done_events BIGINT NOT NULL DEFAULT 0, out_seg BIGINT, out_off BIGINT, out_len BIGINT, PRIMARY KEY(exec_id, step))"),
             "CREATE INDEX IF NOT EXISTS execution_live ON execution(id) WHERE done_us IS NULL".to_string(),
@@ -124,7 +126,23 @@ impl Db {
         for ch in fin.chunks(CHUNK) {
             self.run(c, &format!("UPDATE execution SET done_us={} WHERE id IN ({})", fin_ts, ch.join(","))).await?;
         }
-        self.run(c, &format!("INSERT INTO projection_pos(topic,pos) VALUES ('{topic}',{next_pos}) ON CONFLICT(topic) DO UPDATE SET pos=excluded.pos")).await
+        self.run(c, &format!("INSERT INTO projection_pos(topic,pos,gen) VALUES ('{topic}',{next_pos},{}) ON CONFLICT(topic) DO UPDATE SET pos=excluded.pos, gen=excluded.gen", self.generation.load(Relaxed))).await
+    }
+
+    /// Generazione del bus a cui si riferiscono le posizioni salvate (`None` se non ce n'è nessuna).
+    pub async fn generation(&self) -> Res<Option<u64>> {
+        let r = sqlx::query("SELECT min(gen) FROM projection_pos").fetch_one(&self.pool).await?;
+        Ok(r.get::<Option<i64>, _>(0).map(|g| g as u64))
+    }
+
+    /// Dopo il riversamento dello stato vivo su un bus nuovo: posizioni e generazione nuove, in una transazione.
+    pub async fn reset_positions(&self, bgen: u64, pos: &[(String, u64)]) -> Res<()> {
+        let mut c = self.pool.acquire().await?;
+        self.run(&mut c, "BEGIN").await?;
+        for (topic, p) in pos {
+            self.run(&mut c, &format!("INSERT INTO projection_pos(topic,pos,gen) VALUES ('{topic}',{p},{bgen}) ON CONFLICT(topic) DO UPDATE SET pos=excluded.pos, gen=excluded.gen")).await?;
+        }
+        self.run(&mut c, "COMMIT").await
     }
 
     /// Prossima posizione da leggere per ogni topic.

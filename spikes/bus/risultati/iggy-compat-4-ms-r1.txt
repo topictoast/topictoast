@@ -1,0 +1,20 @@
+[stato prima 18:34:55] load: 1.39 2.40 2.82
+[stato prima] io: some avg10=0.79 avg60=30.91 avg300=53.43 total=10009220157
+[stato prima] cpu: some avg10=0.02 avg60=1.66 avg300=2.96 total=1137808800
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.31ms p99=8.60ms p99.9=69.06ms max=69.06ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 45 s
+### server apache/iggy:0.9.0 (apache/iggy:0.9.0 Up 3 seconds)
+client old (iggy 0.11.0): bench-append bus=iggy size=1024 batch=10 conc=1 rate=0 mix=false: n=60 p50=51.13ms p99=52.38ms p99.9=52.38ms max=52.38ms over100ms=0 msgs/s=200 
+client new (iggy 0.12.0): thread 'main' (1808129) panicked at src/bench.rs:45:41: called `Result::unwrap()` on an `Err` value: InvalidFormat note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace 
+### server apache/iggy:0.10.0 (apache/iggy:0.10.0 Up 3 seconds)
+client old (iggy 0.11.0): thread 'main' (1808685) panicked at src/bench.rs:45:41: called `Result::unwrap()` on an `Err` value: IncompatibleProtocolVersion(11264, 12290, 12290) note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace 
+client new (iggy 0.12.0): bench-append bus=iggy size=1024 batch=10 conc=1 rate=0 mix=false: n=209 p50=14.43ms p99=15.97ms p99.9=16.72ms max=16.72ms over100ms=0 msgs/s=697 
+FINITO compat
+[stato dopo 18:35:17] load: 1.27 2.31 2.78
+[stato dopo] io: some avg10=28.14 avg60=27.60 avg300=50.89 total=10013748833
+[stato dopo] cpu: some avg10=0.99 avg60=1.34 avg300=2.78 total=1138050170
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.57ms p99=5.33ms p99.9=7.42ms max=7.42ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
