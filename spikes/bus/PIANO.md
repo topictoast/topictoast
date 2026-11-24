@@ -444,10 +444,14 @@ Criterio: nessun timer perso né doppio in 3 corse; ritardo di scatto p50 e p99 
 
 - **Prima del log, costo dei timer sul percorso caldo (dal blocco C):** ogni consegna ora scrive un
   evento `Timer` sul bus prima dell'invio, più un `INSERT … ON CONFLICT` e un `DELETE` nel proiettore.
-  Corse a coppie, motore del blocco B contro motore del blocco C: avvio a 1.000 att./s (5 coppie) e
-  10.000 att./s per 10 minuti (2 coppie, almeno il 99 %), con istruzioni SQL per attività (NFR-4).
-  Criterio: p99 dell'avvio non peggiore di oltre il 20 %; se peggiora, lo si dice con i numeri prima
-  di costruire il log.
+  Primo passo: binario costruito dal commit in testa, hash registrato, e una corsa ciascuna di retry e
+  scadenza attraverso un crash (nel blocco C quelle righe non hanno corse sul codice committato).
+  Corse a coppie, motore del blocco B contro motore del blocco C: avvio a 1.000 att./s (6 coppie, ogni
+  braccio primo 3 volte) e 10.000 att./s per 10 minuti (2 coppie, una per ordine, almeno il 99 %), con
+  istruzioni SQL per attività (NFR-4). Criterio: mediana per braccio del p99 dell'avvio non peggiore di
+  oltre il 20 %, e la differenza si dichiara solo se ha lo stesso segno in tutte e due le posizioni; se
+  peggiora, lo si dice con i numeri prima di costruire il log. Stessa aggregazione per le righe a
+  coppie del log (worker rumoroso) e del blocco E (ausiliario).
 - **Cosa si costruisce:**
   - il worker scrive righe nella sessione gRPC;
   - il motore sostituisce il valore esatto dei segreti consegnati con un segnaposto, applica il tetto
