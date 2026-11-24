@@ -409,6 +409,10 @@ il tempo fino a `READY` e fino alla prima attività conclusa (mancava nella 2c).
   docker); prima si verifica che si possa fare, e il filesystem vero di minisheep non si riempie mai.
   Criterio: lavoro nuovo rifiutato con un codice esplicito, accettato non perso, stato precedente
   intatto (ogni payload applicato si decifra), ripresa dopo aver liberato spazio.
+- **Pause del disco a 10.000 att./s** (dal blocco A, decisione di Marco del 2026-11-24): il registro
+  delle accettate e il tipo di ogni errore del generatore di carico diventano parte di ogni corsa a
+  10.000 att./s; 3 corse da 10 minuti con la verifica «zero accettate perse». Se una pausa del disco
+  capita, la verifica la copre; se non capita, si dice.
 
 ### Blocco C: timer durevoli
 
@@ -419,6 +423,9 @@ battiti del worker) e la ripresa li ricostruisce.
   crash del motore a metà attesa, riavvio. Il ritentativo parte una volta sola, non prima della
   scadenza, al più 1 s dopo la fine della ripresa.
 - **Molti timer:** 100.000 timer in sospeso, ripresa ancora entro 30 s, RAM riportata.
+- **Aggiornamento del bus con i timer:** la procedura del blocco A con 100.000 timer in sospeso e
+  attività in volo; pausa dal segnale a `READY` entro 30 s (soglia di Marco del 2026-11-24, uguale
+  alla ripresa di NFR-15); nessun timer perso né doppio.
 
 Criterio: nessun timer perso né doppio in 3 corse; ritardo di scatto p50 e p99 riportato.
 
