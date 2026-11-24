@@ -1,0 +1,53 @@
+[stato prima 23:47:22] load: 0.35 0.36 0.69
+[stato prima] io: some avg10=0.02 avg60=0.07 avg300=0.72 total=12784700202
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.01 total=1411532325
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] binario sha256: 2d0fda73e8e7adf9
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.73ms p99=3.75ms p99.9=4.59ms max=4.59ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.05
+[attesa] 0 s
+### iggy + sqlite: t100k 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2943478 READY recovered_ms=409 now_us=1795560450588787 gen=1
+load tenants=ab rate=5000/s kind=2 n=1 size=64 work_ms=150000 warm=0s measured=20s
+offered=100000 accepted=100000 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+errors_by_type {}
+accept_rtt_open_loop n=100000 p50=13.53ms p99=21.92ms p99.9=24.25ms max=27.93ms over100ms=0
+accept_max_gap_ms=0 from_us=0 to_us=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.01 cpu_per_1000_att engine=0.000 worker=14.000
+prima del kill: secs=36.3 accepted=100000 refused=0 done=0 rejected=0 groups=348 expired=0 late_ok=0 timer_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 timers_pending=100000 heartbeats=0 
+rss iggy 79004 kB
+rss pid=2943478 100260 kB
+rss pid=2943663 15328 kB
+engine pid=2944992 READY recovered_ms=1212 now_us=1795560488248364 gen=1
+kill -> READY: 1219 ms (READY recovered_ms=1212 now_us=1795560488248364 gen=1)
+ripresa: 100000 esecuzioni vive, 0 eventi riletti dal bus, 100000 attività emesse e non concluse, 100000 timer
+ripresa: 100000 attività emesse e non concluse: 0 in volo (scadenza ripristinata), 100000 in attesa di un timer, 0 da consegnare subito
+motore subito dopo READY: secs=1.0 accepted=0 refused=0 done=0 rejected=0 groups=0 expired=0 late_ok=0 timer_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 timers_pending=100000 heartbeats=0 
+rss iggy 99524 kB
+rss pid=2944992 194716 kB
+rss pid=2943663 15456 kB
+timer in sospeso dopo l'attesa: timer_fire_delay n=100000 p50=9.96ms p99=19.89ms p99.9=20.72ms max=20.83ms over100ms=0 timers_pending=0 heartbeats=0  (dopo 135 s)
+wait_delay: n=100000 scattati_prima_della_scadenza=0 p50=10.0ms p99=20.0ms max=20.9ms
+verify: accettate=100000 concluse_nella_proiezione=100000 accettate_perse=0 attivita_concluse=100000 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=100000 duplicati_sul_bus=0 payload_decifrati=100000 payload_illeggibili=0 light=false
+verify OK
+motore dopo la corsa: secs=138.1 accepted=0 refused=0 done=100000 rejected=0 groups=182 expired=0 late_ok=0 timer_fire_delay n=100000 p50=9.96ms p99=19.89ms p99.9=20.72ms max=20.83ms over100ms=0 timers_pending=0 heartbeats=0 
+rss iggy 109764 kB
+rss pid=2944992 200144 kB
+rss pid=2943663 15524 kB
+MIN t=1 act_s=0 append_p50_ms=0.0 sub_p50_ms=0.0 lag_p50_ms=0 lag_p99_ms=0 proj_read_p50_ms=0.0 proj_arch_p50_ms=0.0 proj_db_p50_ms=0.0 proj_groups=0 io=[some avg10=0.20 avg60=3.19 avg300=2.48 total=12792669006]
+MIN t=2 act_s=534 append_p50_ms=10.1 sub_p50_ms=9.3 lag_p50_ms=135 lag_p99_ms=262 proj_read_p50_ms=0.4 proj_arch_p50_ms=3.1 proj_db_p50_ms=10.8 proj_groups=56 io=[some avg10=8.37 avg60=2.86 avg300=2.37 total=12794270490]
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 109764 kB
+rss pid=2944992 200144 kB
+rss pid=2943663 15524 kB
+-- conteggio file archivio: 74
+[stato dopo 23:50:25] load: 0.77 0.72 0.79
+[stato dopo] io: some avg10=15.15 avg60=7.09 avg300=3.40 total=12797467463
+[stato dopo] cpu: some avg10=1.26 avg60=0.57 avg300=0.23 total=1413178772
+[stato dopo] container non nostri non in esecuzione stabile: 4; in esecuzione: 12
+[stato dopo] binario sha256: 2d0fda73e8e7adf9
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.61ms p99=4.55ms p99.9=32.80ms max=32.80ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
