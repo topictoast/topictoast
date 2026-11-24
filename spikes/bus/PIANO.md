@@ -10,8 +10,8 @@ Fonte dei criteri: spine, sezione «S-1 — Bus». Approccio a fasi deciso da Ma
 | 2b | Ritardi di coda di Iggy e Valkey rimisurati su una macchina ferma (minisheep) | chiusa senza vincitore (`fase2b-risultati.md`) |
 | 2c | Correttivi comuni ai due bus (archivio a segmenti, scritture in parallelo), misura finale a 4 CPU su minisheep | chiusa senza vincitore (`fase2c-risultati.md`) |
 | 2d | Ultimo giro sulle 10.000 attività/s: scritture parallele del motore corrette, perdita di Iggy nei 10 minuti | chiusa senza vincitore (`fase2d-risultati.md`), Marco sceglie Iggy (2026-11-24) |
-| 3 | gRPC contro iroh, solo sul bus vincitore | chiusa (`fase3-risultati.md`): iroh peggiore in ogni riga giudicata, resta gRPC con TLS |
-| 4 | Ripresa, guasti, aggiornamento senza perdite, log dei task, timer durevoli, ADR e Update della spine | dopo la fase 3 |
+| 3 | gRPC contro iroh, solo sul bus vincitore | chiusa (`fase3-risultati.md`): iroh peggiore in consegna e CPU, pari nel ritmo massimo, una corsa da 10 minuti sotto il 99 %: resta gRPC con TLS |
+| 4 | Ripresa, guasti, aggiornamento senza perdite, log dei task, timer durevoli, ADR e Update della spine | piano scritto (sezione «Fase 4»), in attesa del via di Marco |
 
 ## Fase 2: Iggy contro Valkey
 
@@ -318,3 +318,163 @@ timer durevoli sono della fase 4, sul collegamento che vince.
 
 `spikes/bus/fase3-risultati.md`, numeri grezzi in `spikes/bus/risultati/` con il suffisso `-3-ms`.
 Ogni causa citata nel report è segnata «misurata» (con il file grezzo) o «ipotesi».
+
+## Fase 4: ripresa, guasti, aggiornamento, timer, log dei task, su Iggy con gRPC
+
+Base: Iggy `server-0.10.0`, collegamento dei worker gRPC con TLS (fase 3), motore della 2d, SQLite;
+Postgres solo dove la riga lo dice. Minisheep, stessi 4 CPU delle fasi 2c-3. Qui non si confrontano
+varianti: ogni criterio è superato o no.
+
+### Copertura dei criteri di S-1
+
+Ogni criterio della spine (sezione S-1, compreso «da fissare e provare nell'ADR») e ogni punto «non
+provato» delle fasi 2-3 ha un esito: già misurato, corsa della fase 4, deciso a tavolino nell'ADR,
+dichiarato non fatto.
+
+| Criterio | Esito |
+| --- | --- |
+| Scrittura durevole per accettazione (NFR-2), modalità di scrittura durevole (M-18) | misurato nelle fasi 2-3: p99 circa 19 ms, p50 circa 11,5 ms contro 5 ms su questo disco; nell'ADR |
+| 10.000 attività/s (NFR-3) | misurato nella 2d e nella 3, con episodi di stallo di Iggy non spiegati: blocco A |
+| Istruzioni SQL per attività (NFR-4), proiezione idempotente | misurato nella fase 2; NFR-4 si ricontrolla con il log dei task attivo (blocco D) |
+| RAM (NFR-1) | misurato (Iggy 92-96 MB), in deroga per decisione di Marco; il PRD si riallinea |
+| Lettura dall'archivio con proiezione indietro fino a 1 s, cifratura per tenant (C-12) | misurato nelle fasi 2 e 2c |
+| Attività lenta di un tenant (FR-13) | misurato nelle fasi 2-3 (`iso`) |
+| Autenticazione obbligatoria del bus, credenziali generate | fatto nella fase 2 (compose dello spike) |
+| Credenziale del worker, verifica del server | misurato nella fase 3, con prove di rifiuto |
+| Conservazione legata alla posizione del proiettore | blocco A |
+| Aggiornamento senza perdite (FR-51, M-17) | blocco A |
+| Database lento ma attivo, proiezione oltre 1 s | blocco A (se gli stalli sono ritardo di proiezione) e una corsa con ritardo iniettato |
+| Crash del motore, database fermo (NFR-6) | misurato nelle fasi 2 e 2c; il crash del motore si rifà come controllo nel blocco B |
+| Crash di Iggy e del worker, disco pieno (NFR-6), ripresa entro 30 s con i worker che si ricollegano (NFR-15) | blocco B |
+| Spegnimento improvviso dell'host (NFR-6) | non provabile su minisheep (ospita i runner): argomentato nell'ADR (risposta solo dopo fsync di Iggy, SQLite `synchronous=FULL`) e dichiarato non misurato |
+| Timer durevoli, con retry e attesa attraverso un crash | blocco C |
+| Log dei task (FR-59), creazione solo se assente su disco e su RustFS | blocco D |
+| Chiamata all'ausiliario sul percorso caldo (AD-6), `if`, jq e controllo di input e output (FR-53) | blocco E |
+| `SQLITE_BUSY` tra scritture del motore e gruppi del proiettore | blocco E |
+| Annullamento (FR-10) e arresto per timeout dell'esecuzione | blocco E |
+| Credenziale del bus per tenant in sola lettura (pipeline stream) | blocco E, con prova di rifiuto |
+| Posizione per partizione con la generazione del bus, token opaco, ordine tra eventi (AD-18, C-8) | a tavolino nell'ADR; la generazione si prova nel blocco A |
+| Controlli di AD-18 sullo stato più vecchio della rilettura | a tavolino nell'ADR |
+| Nessun effetto esterno prima della scrittura durevole | lettura del codice più i duplicati a zero dopo i kill; nell'ADR |
+| Spazio per tenant sul bus, motivo di attesa dovuto alle partizioni (T-66) | a tavolino nell'ADR (oggi un topic e una partizione per tenant) |
+| Contenuto di una consegna, worker che scrive su uno stream (C-2, AD-20) | a tavolino nell'ADR |
+
+### Ordine
+
+Prima ciò che può riaprire la scelta del bus (blocco A), poi il resto. Un blocco alla volta, con il
+rapporto dopo ogni blocco.
+
+### Blocco A: Iggy sotto carico, conservazione, aggiornamento
+
+- **Stalli a 10.000/s** (fase 3: l'append passa da circa 80 a 400-470 ms per 1-2 minuti, con tutti e
+  due i collegamenti). Per eliminazione, 10 minuti ciascuna: Iggy da solo allo stesso ritmo di byte
+  (`bench-append`), poi il motore senza archivio (`DIAG_NOARCHIVE`), poi completo. Si leggono, in sola
+  lettura, la pressione I/O e le statistiche I/O per cgroup, per vedere se la fonte è un altro
+  container. Al più due cambi di configurazione di Iggy. Al massimo 3 ore. Ogni causa segnata
+  «misurata» o «ipotesi».
+- **Conservazione:** prima si verifica quali primitive di cancellazione ha Iggy 0.10.0 (la fase 2 ha
+  visto che non taglia per offset). La riga prova che si cancellano solo segmenti sotto la posizione
+  applicata più bassa e mai una posizione non applicata.
+- **Aggiornamento senza perdite:** caso reale, Iggy 0.9.0 verso 0.10.0, che non legge i dati della
+  0.9. Prima si verifica quale versione del crate `iggy` parla con il server 0.9.0. Se la 0.12.0 non ci
+  parla, si sceglie tra due build del motore e un cambio verso un bus nuovo e vuoto con la stessa
+  versione, e lo si dice. Procedura da provare, sotto carico a 1.000 attività/s con attività lunghe in
+  volo:
+  1. il motore smette di accettare (rifiuto con codice) e aspetta che la posizione applicata sia uguale
+     alla testa su ogni topic;
+  2. parte il nuovo Iggy su una directory vuota e il motore ci riscrive lo stato vivo (esecuzioni non
+     concluse, timer in sospeso) dal database e dall'archivio;
+  3. la posizione salvata porta la generazione del bus, perché gli offset ripartono da zero;
+  4. il motore riprende.
+
+  Criterio: zero accettate perse, zero esecuzioni in corso perse, timer conservati. La durata della
+  pausa si misura; la soglia la decide Marco con il numero davanti (FR-51 non la fissa).
+
+### Blocco B: guasti e ripresa (NFR-6, NFR-15)
+
+3 corse per caso, SQLite; una con Postgres per i casi che toccano il database. Per ogni caso si misura
+il tempo fino a `READY` e fino alla prima attività conclusa (mancava nella 2c).
+
+- **Crash del motore** con attività lunghe in volo (`work_ms=3000`): i worker si ricollegano da soli e
+  consegnano gli esiti finiti durante la pausa; ripresa entro 30 s; zero accettate perse; ogni
+  tentativo eseguito due volte è contato e spiegato.
+- **Crash di Iggy:** il motore rifiuta lavoro nuovo con codice finché il bus non torna, e si ricollega
+  da solo (oggi un errore del bus ferma il processo). Zero accettate perse, nessun «accettato» senza
+  scrittura durevole. Questo misura il crash del processo, non lo spegnimento dell'host: la cache del
+  sistema sopravvive.
+- **Crash del worker** a metà attività: l'attività torna disponibile alla scadenza del tentativo e si
+  ritenta, senza esiti doppi.
+- **Disco pieno**, separatamente per i dati di Iggy e per database e archivio. Solo su un mount
+  piccolo con limite di dimensione ottenuto senza sudo (per esempio un tmpfs con limite montato da
+  docker); prima si verifica che si possa fare, e il filesystem vero di minisheep non si riempie mai.
+  Criterio: lavoro nuovo rifiutato con un codice esplicito, accettato non perso, stato precedente
+  intatto (ogni payload applicato si decifra), ripresa dopo aver liberato spazio.
+
+### Blocco C: timer durevoli
+
+Il motore scrive i timer come eventi sul log (attesa tra i tentativi, `wait`, scadenza del tentativo,
+battiti del worker) e la ripresa li ricostruisce.
+
+- **Retry con attesa attraverso un crash** (il caso della spine): un'attività fallisce, attesa di 5 s,
+  crash del motore a metà attesa, riavvio. Il ritentativo parte una volta sola, non prima della
+  scadenza, al più 1 s dopo la fine della ripresa.
+- **Molti timer:** 100.000 timer in sospeso, ripresa ancora entro 30 s, RAM riportata.
+
+Criterio: nessun timer perso né doppio in 3 corse; ritardo di scatto p50 e p99 riportato.
+
+### Blocco D: log dei task (FR-59)
+
+- **Cosa si costruisce:**
+  - il worker scrive righe nella sessione gRPC;
+  - il motore sostituisce il valore esatto dei segreti consegnati con un segnaposto, applica il tetto
+    per tentativo (righe e byte, scarto con conteggio), raggruppa le righe per tentativo in pezzi
+    chiusi al più ogni 500 ms, li cifra per tenant nel formato di C-12 e li scrive nell'archivio con
+    creazione solo se assente;
+  - sul bus va solo il riferimento al pezzo;
+  - il worker tiene le righe finché il pezzo non è confermato e dopo un ricollegamento le rimanda;
+    i doppioni si scartano per tentativo e numero di pezzo.
+
+  Unico scrittore dei pezzi: il motore (proposta per AD-17, da confermare nell'ADR). RustFS: una prova
+  della creazione solo se assente (`If-None-Match`), con la versione verificata prima.
+- **Righe misurate:**
+  - visibilità: dalla scrittura nel worker alla riga leggibile nell'archivio, p99 entro 1 s;
+  - worker rumoroso: tenant A scrive fino al tetto su ogni attività, tenant B a 1.000 attività/s. Corse
+    a coppie con e senza A: il p99 di B non peggiora di oltre il 20 %, con le soglie di NFR-2 accanto;
+    istruzioni SQL per attività invariate (NFR-4);
+  - segreto: gli eventi del bus sono cifrati, quindi la ricerca nei dati grezzi di Iggy non prova
+    niente. Si cerca dopo la decifratura, negli eventi del bus e nei pezzi, più una corsa di controllo
+    con il segnaposto spento che il valore lo deve trovare;
+  - crash del motore con righe in volo: nessuna riga persa né doppia dopo la ripresa;
+  - tetto: oltre il tetto le righe si scartano e il pezzo dice quante.
+
+### Blocco E: ausiliario e casi rimasti
+
+- **Chiamata all'ausiliario (AD-6):** sottocomando dello stesso binario in un processo separato,
+  chiamato dal motore per `if`, mappatura jq e controllo di input e output; librerie verificate prima
+  (versione, licenza). Corse a coppie con e senza l'ausiliario: avvio a 1.000 attività/s (5 coppie,
+  p99 non peggiore di oltre il 20 %) e 10.000 attività/s per 10 minuti (2 coppie, almeno il 99 %);
+  costo per attività riportato.
+- **Database lento ma attivo:** ritardo iniettato nell'adattatore del database fino a portare la
+  proiezione oltre 1 s; si registra cosa fa il motore e lo si confronta con AD-2.
+- **`SQLITE_BUSY`:** scritture del motore (segreti, chiavi avvolte) insieme ai gruppi del proiettore a
+  10.000/s; criterio: zero `SQLITE_BUSY`.
+- **Annullamento e timeout dell'esecuzione** consegnati a un worker in corso; tempo dal comando
+  all'arresto riportato.
+- **Credenziale del bus per tenant in sola lettura:** utente Iggy con sola lettura sul topic di A;
+  lettura del topic di B e scrittura su A rifiutate.
+
+### Regole delle corse
+
+- Corse a coppie dove la riga confronta con e senza; pavimento del disco registrato prima e dopo ogni
+  corsa, come nelle fasi 2d-3.
+- Si uccidono solo container e processi propri, per nome o PID salvati; i runner di GitHub su
+  minisheep non si toccano.
+- **Criterio non superato:** se la causa è nel codice dello spike, si corregge, si rifà la riga e lo si
+  dice; se è in Iggy e nessuna configurazione la risolve entro il limite di tempo, ci si ferma e si
+  torna da Marco con i numeri, compresa la possibilità di riaprire la scelta del bus.
+
+### Uscita
+
+`spikes/bus/fase4-risultati.md`, una sezione per blocco; numeri grezzi in `spikes/bus/risultati/` con
+il suffisso `-4-ms`. Ogni causa citata è segnata «misurata» (con il file grezzo) o «ipotesi». Poi
+l'ADR `docs/decisions/YYYY-MM-DD-bus.md` e l'Update della spine, in una PR a parte.
