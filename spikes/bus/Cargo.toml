@@ -24,6 +24,8 @@ rcgen = "=0.14.10"
 uuid = { version = "=1.29.1", features = ["v7"] }
 libc = "=0.2.191"
 bytes = "=1.12.1"
+# fase 3: collegamento dei worker su QUIC (iroh 1.4.1: ultima versione con almeno due settimane, nessun avviso pubblicato)
+iroh = { version = "=1.4.1", default-features = false, features = ["tls-ring"] }
 rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std"] }
 
 [build-dependencies]

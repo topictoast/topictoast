@@ -8,6 +8,7 @@ use crate::bus::Bus;
 use crate::crypto::{Keys, Uid, hex, sha};
 use crate::db::Db;
 use crate::ev::{Ev, Exec, Hash, Loc};
+use sha2::Digest;
 use crate::pb;
 use crate::{hist, now_us};
 use bytes::Bytes;
@@ -772,6 +773,8 @@ impl pb::control_server::Control for Ctl {
 struct Wrk {
     tx: mpsc::Sender<Msg>,
     next: AtomicU64,
+    /// Impronte delle credenziali dei worker note al motore (C-11).
+    creds: Vec<[u8; 32]>,
 }
 
 #[tonic::async_trait]
@@ -779,11 +782,17 @@ impl pb::worker_server::Worker for Wrk {
     type SessionStream = tokio_stream::wrappers::ReceiverStream<Result<pb::Delivery, Status>>;
 
     async fn session(&self, r: tonic::Request<tonic::Streaming<pb::FromWorker>>) -> Result<tonic::Response<Self::SessionStream>, Status> {
+        let mut inb = r.into_inner();
+        // la credenziale nel saluto si controlla a ogni collegamento, prima di registrare la sessione
+        let h = inb.message().await?.ok_or_else(|| Status::unauthenticated("E_CREDENZIALE"))?;
+        let hh: [u8; 32] = sha2::Sha256::digest(&h.credential).into();
+        if !h.hello || !self.creds.contains(&hh) {
+            return Err(Status::unauthenticated("E_CREDENZIALE"));
+        }
         let sess = self.next.fetch_add(1, Relaxed);
         let (dtx, drx) = mpsc::channel(8192);
         self.tx.send(Msg::Register { sess, tx: dtx }).await.map_err(|_| Status::unavailable("E_ENGINE"))?;
         let tx = self.tx.clone();
-        let mut inb = r.into_inner();
         tokio::spawn(async move {
             while let Ok(Some(m)) = inb.message().await {
                 if !m.hello {
@@ -812,7 +821,7 @@ async fn futures_n(kind: &str, n: usize) -> Vec<Bus> {
     v
 }
 
-pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: usize, proj_batch: u32, trim: bool, window_ms: u64, wconn: usize, kgroups: usize, maxb: usize, minb: usize) {
+pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: usize, proj_batch: u32, trim: bool, window_ms: u64, wconn: usize, kgroups: usize, maxb: usize, minb: usize, link: &str, iroh_listen: &str) {
     let t_start = Instant::now();
     // AD-2: un solo motore; il lock si libera da solo se il processo muore (kill -9)
     let lock = std::fs::OpenOptions::new().create(true).truncate(true).write(true).open(format!("{dir}/engine.lock")).unwrap();
@@ -915,13 +924,31 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
 
     let cert = std::fs::read(format!("{dir}/tls/cert.pem")).unwrap();
     let key = std::fs::read(format!("{dir}/tls/key.pem")).unwrap();
+    // credenziali dei worker (C-11) e, con iroh, collegamento QUIC: identità del nodo del motore fissata da file, relay e scoperta spenti
+    let creds: Vec<Vec<u8>> = std::fs::read_to_string(format!("{dir}/worker.cred")).unwrap_or_default().lines().filter(|l| !l.trim().is_empty()).map(|l| l.trim().as_bytes().to_vec()).collect();
+    let cred_hashes: Vec<[u8; 32]> = creds.iter().map(|c| sha2::Sha256::digest(c).into()).collect();
+    if link == "iroh" {
+        let kp = format!("{dir}/iroh-engine.key");
+        let sk = match std::fs::read(&kp) {
+            Ok(b) if b.len() == 32 => iroh::SecretKey::from_bytes(&b.try_into().unwrap()),
+            _ => {
+                let k = iroh::SecretKey::generate();
+                std::fs::write(&kp, k.to_bytes()).unwrap();
+                k
+            }
+        };
+        let ep = crate::iroh_link::endpoint(sk, iroh_listen).await;
+        std::fs::write(format!("{dir}/engine.nodeid"), ep.id().to_string()).unwrap();
+        let allowed: std::collections::HashMap<iroh::EndpointId, [u8; 32]> = creds.iter().map(|c| (crate::iroh_link::key_from_cred(c).public(), sha2::Sha256::digest(c).into())).collect();
+        tokio::spawn(crate::iroh_link::serve(ep, std::sync::Arc::new(allowed), tx.clone(), std::sync::Arc::new(AtomicU64::new(1))));
+    }
     let tls = tonic::transport::ServerTlsConfig::new().identity(tonic::transport::Identity::from_pem(cert, key));
     println!("READY recovered_ms={}", t_start.elapsed().as_millis());
     tonic::transport::Server::builder()
         .tls_config(tls)
         .unwrap()
         .add_service(pb::control_server::ControlServer::new(Ctl { tx: tx.clone(), sh: sh.clone() }).max_decoding_message_size(64 << 20))
-        .add_service(pb::worker_server::WorkerServer::new(Wrk { tx, next: 1.into() }).max_decoding_message_size(64 << 20).max_encoding_message_size(64 << 20))
+        .add_optional_service((link == "grpc").then(|| pb::worker_server::WorkerServer::new(Wrk { tx: tx.clone(), next: 1.into(), creds: cred_hashes.clone() }).max_decoding_message_size(64 << 20).max_encoding_message_size(64 << 20)))
         .serve(listen.parse().unwrap())
         .await
         .unwrap();

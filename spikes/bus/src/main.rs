@@ -5,6 +5,7 @@ mod db;
 mod engine;
 mod ev;
 mod load;
+mod iroh_link;
 mod worker;
 
 pub mod pb {
@@ -57,6 +58,12 @@ async fn main() {
         "bench-crypto" => bench_crypto(),
         "bench-append" => bench_append().await,
         "gen-cert" => load::gen_cert(&dir),
+        // credenziale del worker (C-11): 32 byte casuali in esadecimale, una per riga
+        "gen-nodeid" => println!("{}", iroh::SecretKey::generate().public()),
+        "gen-cred" => {
+            let b = [*uuid::Uuid::new_v4().as_bytes(), *uuid::Uuid::new_v4().as_bytes()].concat();
+            std::fs::write(format!("{dir}/worker.cred"), format!("{}\n", crypto::hex(&b))).unwrap()
+        }
         "engine" => {
             engine::main(
                 &arg("bus", "valkey"),
@@ -71,6 +78,8 @@ async fn main() {
                 arg("kgroups", "4").parse().unwrap(),
                 arg("maxb", "1024").parse().unwrap(),
                 arg("minb", "64").parse().unwrap(),
+                &arg("link", "grpc"),
+                &arg("iroh_listen", "127.0.0.1:47011"),
             )
             .await
         }

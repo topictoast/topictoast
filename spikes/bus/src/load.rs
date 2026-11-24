@@ -8,6 +8,11 @@ use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+/// CPU cumulata del worker, scritta dal worker su `out/worker.cpu`.
+fn worker_cpu(dir: &str) -> f64 {
+    std::fs::read_to_string(format!("{dir}/worker.cpu")).ok().and_then(|s| s.trim().parse().ok()).unwrap_or(0.0)
+}
+
 pub async fn stats(url: &str, dir: &str, reset: bool) -> String {
     let mut c = pb::control_client::ControlClient::new(worker::channel(url, dir));
     c.stats(pb::StatsReq { reset }).await.map(|r| r.into_inner().text).unwrap_or_else(|e| format!("stats non disponibili: {e}"))
@@ -36,6 +41,7 @@ pub async fn load(url: &str, dir: &str) {
     let mut acc = 0.0;
     let mut i = 0usize;
     let mut reset_done = false;
+    let mut w0 = 0.0;
     let mut tasks = tokio::task::JoinSet::new();
     let mut input = vec![0u8; size];
     // intervallo di misura = [warm, warm+secs]; l'ultimo istante di invio è warm+secs
@@ -46,6 +52,7 @@ pub async fn load(url: &str, dir: &str) {
             reset_done = true;
             if do_stats {
                 stats(url, dir, true).await;
+                w0 = worker_cpu(dir);
             }
         }
         acc += rate / 1000.0;
@@ -95,6 +102,10 @@ pub async fn load(url: &str, dir: &str) {
     println!("offered={} accepted={} refused_E_PROJECTION_DOWN={} errors={} overload_skipped={}", offered.load(Relaxed), ok.load(Relaxed), refused.load(Relaxed), errs.load(Relaxed), overload.load(Relaxed));
     println!("accept_rtt_open_loop {}", fmt(&h.lock().unwrap()));
     println!("-- statistiche del motore a fine finestra (prima dello svuotamento)\n{st}");
+    // CPU di motore e worker per 1.000 attività (fase 3): il worker scrive la propria CPU su file, il motore la riporta nelle statistiche
+    let num = |k: &str| st.split(k).nth(1).and_then(|s| s.split_whitespace().next()).and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+    let (done, ecpu, wcpu) = (num("done="), num("engine_cpu_s="), worker_cpu(dir) - w0);
+    println!("worker_cpu_s={wcpu:.2} cpu_per_1000_att engine={:.3} worker={:.3}", ecpu * 1000.0 / done.max(1.0), wcpu * 1000.0 / done.max(1.0));
     if !ledger_path.is_empty() {
         let mut f = std::io::BufWriter::new(std::fs::File::create(&ledger_path).unwrap());
         for id in ledger.lock().unwrap().iter() {

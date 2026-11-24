@@ -21,7 +21,7 @@ case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; esac
 
 start_engine() {
   : > out/engine.log
-  $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} >> out/engine.log 2>&1 &
+  $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
@@ -35,9 +35,10 @@ rm -rf out/archive out/spike.db* out/master.key out/ledger.txt
 # archivio su un altro disco (variabile SPIKE_ARCHIVE): out/archive diventa un collegamento
 [ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
+[ -f out/worker.cred ] || "$BIN" gen-cred dir=out
 echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64}"
 start_engine
-$TS_ENG "$BIN" worker dir=out sessions=8 > out/worker.log 2>&1 &
+$TS_ENG "$BIN" worker dir=out link=${LINK:-grpc} sessions=${WSESS:-4} > out/worker.log 2>&1 &
 WP=$!
 sleep 1
 L="$TS_LOAD $BIN load dir=out"
@@ -48,7 +49,7 @@ case $SC in
   thr10k) $L rate=1000 kind=0 n=10 size=1024 secs=60 warm=5 tenants=ab "$@" ;;
   thrmax) $L rate=2500 kind=0 n=10 size=1024 secs=30 warm=5 tenants=ab "$@" ;;
   size64k) $L rate=100 kind=0 n=5 size=65536 secs=30 warm=5 tenants=ab "$@" ;;
-  size1m) $L rate=20 kind=0 n=5 size=1048576 secs=30 warm=5 tenants=ab "$@" ;;
+  size1m) $L rate=${RATE1M:-10} kind=0 n=5 size=1048576 secs=30 warm=5 tenants=ab "$@" ;;
   join) $L rate=50 kind=1 n=4 size=1024 work_ms=1500 secs=30 warm=5 tenants=ab "$@" ;;
   iso0) $L rate=100 kind=0 n=10 size=1024 tenants=b secs=30 warm=5 "$@" ;;
   iso)
@@ -57,6 +58,20 @@ case $SC in
     sleep 3
     $L rate=100 kind=0 n=10 size=1024 tenants=b secs=30 warm=5 "$@"
     wait $LA; echo "-- tenant A (lento)"; cat out/iso-a.txt ;;
+  sec)
+    # prove di rifiuto (fase 3): ogni condizione di sicurezza ha un collegamento che deve essere rifiutato
+    W="$TS_ENG $BIN worker dir=out link=${LINK:-grpc} once=1"
+    "$BIN" gen-cert dir=out/other
+    echo "buono (credenziale, identita e certificato giusti): $($W 2>&1 | tail -3 | tr "\n" " ")"
+    echo "credenziale errata: $($W cred=00ff 2>&1 | tail -1)"
+    if [ "${LINK:-grpc}" = grpc ]; then
+      echo "il worker non verifica il server (certificato di un altro motore): $($W tlsdir=out/other 2>&1 | tail -1)"
+    else
+      echo "il worker non verifica il server (identita attesa di un altro nodo): $($W engine_id=$("$BIN" gen-nodeid) 2>&1 | tail -1)"
+      echo "identita del nodo non derivata dalla credenziale: $($W badkey=1 2>&1 | tail -1)"
+      echo "-- connessioni di rete di motore e worker (solo localhost ammesso):"
+      ss -Htunap 2>/dev/null | grep -E "pid=($EP|$WP)," | awk "{print \$1, \$5, \$6}"
+    fi ;;
   rss)
     sleep 60
     ./rss.sh $EP $WP ;;

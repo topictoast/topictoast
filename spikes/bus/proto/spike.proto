@@ -38,6 +38,7 @@ message FromWorker {
   uint64 lat_ready_us = 5; // ricezione nel worker meno ready_us
   uint64 lat_sent_us = 6;  // ricezione nel worker meno sent_us
   bool hello = 7;
+  bytes credential = 8; // credenziale del worker (C-11), solo nel saluto: controllata a ogni collegamento
 }
 service Worker {
   rpc Session(stream FromWorker) returns (stream Delivery);
