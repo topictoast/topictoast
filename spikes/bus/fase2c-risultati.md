@@ -1,5 +1,7 @@
 # Spike S-1, fase 2c: correttivi comuni e misura finale a 4 CPU (minisheep)
 
+> **Aggiornamento 2d (2026-11-24):** la §2 (scritture parallele) conteneva una causa sbagliata, corretta in `fase2d-risultati.md`, dove il motore tiene più gruppi in volo e le cifre di throughput della 2c cambiano.
+
 Data: 2026-11-23. Segue PIANO.md, sezione «Fase 2c». Per decisione di Marco tutte le corse misurate sono su
 minisheep; sul desktop, che Marco usa, ho solo compilato (v. §9 per una deviazione). Numeri grezzi:
 `risultati/*-c-ms-r*.txt`; ogni file riporta la riga `cpu:` con i processori usati.
@@ -54,7 +56,7 @@ confermate). **N fissato a 1** per tutte le corse, uguale per i due bus. La cors
 
 (Prime corse con N=4 e 8, prima di una correzione mia: Valkey 0 perché il motore si fermava, Iggy 5.826 e 5.605.)
 Il motivo più probabile: dividere ogni gruppo in N richieste più piccole moltiplica gli `fdatasync` (2,7 ms ciascuno
-su questa macchina) e le fa contendere. Il guadagno visto nel bench del solo bus sul desktop (fsync 0,4 ms) non si ripete qui.
+su questa macchina) e le fa contendere. **Correzione (fase 2d): questa spiegazione era sbagliata, e il bench del solo bus con 4 connessioni era su minisheep, non sul desktop** (`bench-valkey-ms-r2`: 5.750 msg/s con 1 connessione, 19.667 con 4). Il peggioramento con N > 1 non veniva dal costo degli `fsync` su questo disco ma dal ciclo del motore, che aspettava la scrittura di un solo gruppo alla volta: v. `fase2d-risultati.md`.
 Il codice per N > 1 resta (`wconn=`, default 1). Nel farlo ho trovato e corretto un difetto del mio motore: la
 cache dei payload si svuotava in base all'istante dell'ultimo evento applicato, e con più connessioni il proiettore può
 vedere eventi più nuovi prima di quelli più vecchi della stessa iterazione, quindi un payload non ancora proiettato

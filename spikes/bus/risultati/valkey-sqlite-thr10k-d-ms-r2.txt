@@ -1,0 +1,20 @@
+[stato prima 04:09:38] load: 0.85 2.97 3.32
+[stato prima] io: some avg10=0.99 avg60=1.83 avg300=14.86 total=5105536398
+[stato prima] cpu: some avg10=0.00 avg60=0.11 avg300=1.49 total=663976771
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=9.76ms p99=13.05ms p99.9=164.35ms max=164.35ms over100ms=1
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.05
+[attesa] 205 s
+### valkey + sqlite: thr10k secs=600
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=4 kgroups=4 maxb=1024 minb=64
+motore non partito
+
+thread 'main' (3083443) panicked at src/engine.rs:832:46:
+called `Result::unwrap()` on an `Err` value: PoolTimedOut
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[stato dopo 04:10:52] load: 0.73 2.51 3.14
+[stato dopo] io: some avg10=0.72 avg60=3.50 avg300=12.85 total=5110557577
+[stato dopo] cpu: some avg10=0.00 avg60=0.02 avg300=1.15 total=664091141
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=9.07ms p99=54.75ms p99.9=134.01ms max=134.01ms over100ms=1
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.16
