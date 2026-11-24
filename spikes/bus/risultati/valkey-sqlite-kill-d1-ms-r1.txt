@@ -1,0 +1,43 @@
+[stato prima 03:22:33] load: 0.83 1.06 1.64
+[stato prima] io: some avg10=0.87 avg60=7.91 avg300=8.91 total=4509399309
+[stato prima] cpu: some avg10=0.02 avg60=0.35 avg300=0.32 total=597009621
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.34ms p99=7.52ms p99.9=8.28ms max=8.28ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 40 s
+### valkey + sqlite: kill 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=4 kgroups=4 maxb=1024
+engine pid=2923479 READY recovered_ms=57
+prima del kill: secs=9.2 accepted=2386 refused=0 done=21483 rejected=0 groups=50 activities_per_s=2346 accepted_per_s=261 
+engine pid=2924181 READY recovered_ms=27
+kill -9 -> motore di nuovo in ascolto: 1.208 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.326 s
+prima del kill: secs=5.3 accepted=1582 refused=0 done=16048 rejected=0 groups=36 activities_per_s=3016 accepted_per_s=297 
+engine pid=2924530 READY recovered_ms=31
+kill -9 -> motore di nuovo in ascolto: 1.208 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.325 s
+prima del kill: secs=6.3 accepted=1836 refused=0 done=16650 rejected=0 groups=39 activities_per_s=2633 accepted_per_s=290 
+engine pid=2925364 READY recovered_ms=42
+kill -9 -> motore di nuovo in ascolto: 1.208 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.436 s
+load tenants=a rate=300/s kind=0 n=10 size=1024 work_ms=100 warm=1s measured=28s
+offered=8699 accepted=7689 refused_E_PROJECTION_DOWN=0 errors=1010 overload_skipped=0
+accept_rtt_open_loop n=7390 p50=46.66ms p99=255.87ms p99.9=324.35ms max=347.39ms over100ms=1323
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+verify: accettate=7689 concluse_nella_proiezione=7249 accettate_perse=485 attivita_concluse=74911 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=77340 duplicati_sul_bus=0 payload_decifrati=74911 payload_illeggibili=0
+verify FALLITA
+verify: accettate=7689 concluse_nella_proiezione=7734 accettate_perse=0 attivita_concluse=77340 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=77340 duplicati_sul_bus=0 payload_decifrati=77340 payload_illeggibili=0
+verify OK
+-- valkey: total_forks:1 aof_last_rewrite_time_sec:0 aof_rewrites:1 
+-- RSS dopo la corsa (motore, worker, bus)
+rss valkey 136768 kB
+rss pid=2925364 39824 kB
+rss pid=2923533 14600 kB
+-- conteggio file archivio: 27
+[stato dopo 03:23:17] load: 1.91 1.34 1.71
+[stato dopo] io: some avg10=10.52 avg60=9.70 avg300=9.22 total=4514505651
+[stato dopo] cpu: some avg10=0.11 avg60=0.22 avg300=0.28 total=597294869
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.47ms p99=5.78ms p99.9=7.35ms max=7.35ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

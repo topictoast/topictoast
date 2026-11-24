@@ -70,6 +70,7 @@ async fn main() {
                 arg("wconn", "1").parse().unwrap(),
                 arg("kgroups", "4").parse().unwrap(),
                 arg("maxb", "1024").parse().unwrap(),
+                arg("minb", "64").parse().unwrap(),
             )
             .await
         }

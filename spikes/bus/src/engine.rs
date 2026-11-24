@@ -245,6 +245,8 @@ struct Engine {
     k: usize,
     /// Messaggi al più per gruppo.
     maxb: usize,
+    /// Messaggi in coda necessari per aprire un gruppo mentre un altro è già in volo.
+    minb: usize,
 }
 
 impl Engine {
@@ -454,8 +456,12 @@ impl Engine {
         let mut gid = 0u64;
         loop {
             let mut batch = Vec::new();
+            // Raccolta a gruppi pieni: con un gruppo già in volo se ne apre un altro solo con almeno `minb` messaggi in coda,
+            // altrimenti si aspetta (raggruppamento naturale). Senza questa regola il ciclo emette tanti gruppi minuscoli,
+            // la coda FIFO della connessione si riempie e la latenza di ogni gruppo cresce di k volte senza più throughput.
+            let can_take = groups.len() < self.k && (groups.is_empty() || rx.len() >= self.minb);
             tokio::select! {
-                n = rx.recv_many(&mut batch, self.maxb), if groups.len() < self.k => {
+                n = rx.recv_many(&mut batch, self.maxb), if can_take => {
                     if n == 0 {
                         return;
                     }
@@ -476,6 +482,8 @@ impl Engine {
                         self.finalize(g).await;
                     }
                 }
+                // riesamina la regola di raccolta quando i messaggi in coda crescono
+                _ = tokio::time::sleep(Duration::from_micros(500)), if !groups.is_empty() && !can_take => {}
             }
         }
     }
@@ -804,7 +812,7 @@ async fn futures_n(kind: &str, n: usize) -> Vec<Bus> {
     v
 }
 
-pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: usize, proj_batch: u32, trim: bool, window_ms: u64, wconn: usize, kgroups: usize, maxb: usize) {
+pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: usize, proj_batch: u32, trim: bool, window_ms: u64, wconn: usize, kgroups: usize, maxb: usize, minb: usize) {
     let t_start = Instant::now();
     // AD-2: un solo motore; il lock si libera da solo se il processo muore (kill -9)
     let lock = std::fs::OpenOptions::new().create(true).truncate(true).write(true).open(format!("{dir}/engine.lock")).unwrap();
@@ -884,6 +892,7 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
         jobs,
         k: kgroups,
         maxb,
+        minb,
     };
     // decisioni mancanti dopo la ripresa (Ready non scritti), poi riconsegna delle emesse e non concluse
     let ids: Vec<Uid> = eng.execs.keys().copied().collect();

@@ -1,0 +1,45 @@
+[stato prima 02:59:20] load: 1.48 2.67 3.09
+[stato prima] io: some avg10=0.31 avg60=6.56 avg300=14.41 total=4322442926
+[stato prima] cpu: some avg10=0.00 avg60=0.80 avg300=2.04 total=586190100
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.93ms p99=6.18ms p99.9=8.26ms max=8.26ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.05
+[attesa] 70 s
+### iggy + sqlite: iso 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024
+engine pid=2828311 READY recovered_ms=734
+load tenants=b rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=30s
+offered=3499 accepted=3499 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=3000 p50=80.19ms p99=110.91ms p99.9=148.35ms max=160.64ms over100ms=88
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=14996 refused=0 done=35178 rejected=0 groups=269
+activities_per_s=1173 accepted_per_s=500
+accept_engine n=14996 p50=79.68ms p99=110.85ms p99.9=149.50ms max=160.77ms over100ms=388
+append n=1679 p50=69.63ms p99=92.61ms p99.9=136.96ms max=143.74ms over100ms=12
+append_sub n=3357 p50=16.94ms p99=28.24ms p99.9=57.02ms max=64.93ms over100ms=0
+sub_events_p50=22 sub_events_p99=78
+start_ready n=35178 p50=71.94ms p99=19283.97ms p99.9=19333.12ms max=19365.89ms over100ms=5343
+start_sent n=35178 p50=0.22ms p99=0.64ms p99.9=1.27ms max=2.27ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=30058 p50=70.21ms p99=94.08ms p99.9=129.66ms max=144.64ms over100ms=223
+archive_read n=6438 p50=0.03ms p99=0.19ms p99.9=0.47ms max=1.02ms over100ms=0
+proj_lag n=92373 p50=184.06ms p99=311.55ms p99.9=337.15ms max=398.59ms over100ms=82072
+sql_stmts=1751 sql_rows=100773 sql_per_activity=0.0498 rows_per_activity=2.865 wal_bytes_per_activity=0.0
+engine_cpu_s=4.20 cache_entries=362
+-- tenant A (lento)
+load tenants=a rate=400/s kind=0 n=1 size=1024 work_ms=3000 warm=2s measured=40s
+offered=16800 accepted=16800 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=16000 p50=79.30ms p99=108.80ms p99.9=145.15ms max=161.15ms over100ms=484
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 77380 kB
+rss pid=2828311 36260 kB
+rss pid=2828350 13224 kB
+-- conteggio file archivio: 71
+[stato dopo 03:00:17] load: 2.76 2.80 3.11
+[stato dopo] io: some avg10=49.59 avg60=27.74 avg300=18.69 total=4344631998
+[stato dopo] cpu: some avg10=2.51 avg60=1.64 avg300=2.03 total=587509570
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.74ms p99=8.38ms p99.9=8.61ms max=8.61ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
