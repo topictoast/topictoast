@@ -10,13 +10,15 @@ Ogni causa citata è segnata **misurata** (con il file grezzo) o **ipotesi**.
 ### Sintesi
 
 1. **Stalli a 10.000 attività/s: riprodotti, la fonte è il disco, nessuna configurazione di Iggy provata li toglie.** Il motore completo ne ha avuto uno in 1 corsa su 3 (`full` r2, minuti 4-7: 4.154 e 6.139 att./s, poi recupero), le altre due e `noarc` sono piatte a 10.000
-   (nella fase 3 ne stallavano 3 su 4). Iggy da solo allo stesso ritmo di byte con richieste da 128 messaggi stalla in 3 corse su 3 (da 21.000 a 12.300-14.700 messaggi/s, append p50 da 9 a 35 ms); con richieste come quelle del motore (204 messaggi) regge per 10 minuti.
-   Nello stallo del motore il disco sta al 100 % con 22-33 ms per scrittura (0,25 ms normali) e solo 1.100-1.350 scritture/s, i container degli altri scrivono 0 byte, la temperatura è 51 °C: il disco stesso si ferma per circa 2 minuti.
+   (nella fase 3 ne stallavano 3 su 4). Iggy da solo, allo stesso ritmo di byte, **non riproduce l'episodio**: mostra uno scalino di latenza (append p50 per richiesta da 128 messaggi da 9 a 35 ms, attesa per scrittura sul disco ×3, senza recupero in 4-6 minuti) che il bench a scadenze fisse
+   trasforma in un calo di throughput (4 connessioni × 128 messaggi ogni 24,4 ms: oltre quella latenza il ritmo cala a 4 × 128 / 35 ms = 14,6k messaggi/s), mentre il motore accorpa e lo tollera (17-19 ms per richiesta, 10.000 att./s). Lo scalino è comparso sempre prima
+   nelle corse successive (minuto 7, 4, 2): l'ordine delle corse è confuso con le due modifiche. Nello stallo vero del motore il disco sta al 100 % con 22-33 ms per scrittura (0,25 ms normali) e solo 1.100-1.350 scritture/s e 32 MB/s in tutto, `system.slice` meno Iggy scrive 0,7-0,9 MB/s,
+   la temperatura è 51 °C: il disco stesso si ferma per circa 2 minuti.
    **Il ritardo di 7-17 s è ritardo di proiezione, misurato**: nello stallo archivio e database del proiettore costano 11-12 volte di più (63 e 98 ms contro 5,5 e 8,5), la lettura dal bus no (1,0-1,3 ms). Margine sottile anche fuori dagli stalli: il disco sta all'89 % di utilizzo a 10.000 att./s.
 2. **Conservazione: c'è, a granularità di segmento.** Iggy 0.10.0 cancella i segmenti chiusi fino alla posizione salvata del consumatore (`store_consumer_offset` poi `delete_segments`): provato in 3 corse del solo bus e in 3 corse con il motore sotto carico e `kill -9`
    (nessuna posizione non applicata persa, zero accettate perse). Senza posizione salvata il server cancella ogni segmento chiuso: la posizione va salvata prima, sempre.
-3. **Aggiornamento 0.9.0 → 0.10.0: due build del motore, nessun client parla con tutti e due i server** (matrice §A3.1). Procedura provata in 3 corse a 1.000 att./s con attività da 3 s: zero accettate perse, zero esecuzioni perse, pausa
-   (segnale → motore nuovo pronto) 2,4-4,6 s, accettazioni ferme per 2,3-4,3 s dal punto di vista del client; circa 3.000 attività in volo si rifanno (eseguite due volte).
+3. **Aggiornamento 0.9.0 → 0.10.0: due build del motore, nessun client parla con tutti e due i server** (matrice §A3.1). Procedura provata in 6 corse a 1.000 att./s con attività da 3 s (3 con esecuzioni da un passo, 3 da tre passi, queste con 3.067-3.068 `Done` riscritti sul bus nuovo): zero accettate perse, zero esecuzioni perse, pausa
+   (segnale → motore nuovo pronto) 2,4-6,0 s (mediana 2,8 s), accettazioni ferme per 2,3-5,9 s dal punto di vista del client; circa 3.000 attività in volo si rifanno (eseguite due volte).
 
 ### A1. Stalli di Iggy a 10.000 att./s
 
@@ -104,17 +106,17 @@ quindi il disco non è limitato in banda a 50-90 MB/s.
 
 | Affermazione | Etichetta | Evidenza |
 | --- | --- | --- |
-| Iggy da solo, senza motore né SQLite né archivio, riproduce lo stallo allo stesso ritmo di byte con richieste da 128 messaggi: throughput da 21.000 a 12.300-14.700 messaggi/s, p50 da 9 a 35 ms, ritardo sulla scadenza fino a 85-124 s | **misurata** | `…-stall-bench-4-ms-r1.txt` (min 6-7), `…-bench-flush16m-…` (min 4); `gc5000` cala meno (18.200-20.800, p50 22-30 ms) |
-| L'altezza del gradino non dipende dalla configurazione provata: p50 35 ± 0,5 ms con le soglie di scrittura a 16 MiB, come con quelle predefinite; con il group commit a 5 ms il p50 sale a 22-30 ms dal minuto 2 e il throughput regge al 93 % | **misurata** | file sopra |
-| Con richieste come quelle del motore (204 messaggi, 103 richieste/s) Iggy da solo regge 21.000 messaggi/s per 10 minuti (20.972, p99 65 ms) | **misurata** (una corsa) | `…-bench-b204-4-ms-r1.txt` |
+| Iggy da solo, senza motore né SQLite né archivio, allo stesso ritmo di byte con richieste da 128 messaggi mostra uno **scalino di latenza**: append p50 da 9 a 35 ms (attesa per scrittura sul disco ×3), senza recupero fino a fine corsa; il bench a scadenze fisse (periodo 24,4 ms per 4 connessioni da 128) ne fa un calo di throughput da 21.000 a 12.300-14.700 messaggi/s e un ritardo sulla scadenza fino a 85-124 s. **Non è l'episodio del motore** (nessun recupero, nessuna attesa per scrittura da 22-33 ms, nessun rifiuto): il confronto è sui file di `full` r2 | **misurata** | `…-stall-bench-4-ms-r1.txt` (min 6-7), `…-bench-flush16m-…` (min 4); `gc5000` cala meno (18.200-20.800, p50 22-30 ms) |
+| L'altezza dello scalino non dipende dalla configurazione provata, ma l'ordine delle corse è confuso con le modifiche: lo scalino è arrivato al minuto 7 (base), 4 (soglie a 16 MiB), 2 (group commit a 5 ms); p50 35 ± 0,5 ms con le soglie predefinite o a 16 MiB; con il group commit a 5 ms il p50 è 22-30 ms e il throughput regge al 93 %, ma la richiesta costa più dei 9 ms iniziali | **misurata** | file sopra |
+| Con richieste da 204 messaggi, 103 richieste/s (periodo 38,9 ms) Iggy da solo regge 21.000 messaggi/s per 10 minuti (20.972, p99 65 ms); ma il p50 sta a 17-24 ms dal minuto 1, probabilmente già nello stato «dopo lo scalino» (un periodo di 38,9 ms assorbe anche 35 ms): non prova che lo scalino non ci sia | **misurata** (una corsa), lettura **ipotesi** | `…-bench-b204-4-ms-r1.txt` |
 | Il motore tiene 10.000 att./s per 10 minuti senza cali in 3 corse su 5 (`noarc`, `full` r1, `full` r3: 9.996-10.036 att./s, p50 dell'append del gruppo 72-81 ms, ritardo di proiezione p50 184-234 ms); `full` r2 ha uno stallo di circa 3 minuti (9.957 att./s sull'intera corsa), con rifiuti `E_PROJECTION_DOWN` | **misurata** | `…-noarc-…-r1.txt`, `…-full-…-r{1,2,3}.txt` |
 | Nello stallo del motore (`full` r2, minuti 4-5) il disco è al 100 % con 22,5-33,1 ms di attesa per scrittura (normale 0,25 ms, 1,0-1,4 ms nelle corse sane del motore), 1.084-1.347 scritture/s e 32-34 MB/s; il container di Iggy scrive 10 MB/s (43-55 prima); i container degli altri 0,00; temperatura 51 °C | **misurata** | `an4.sh` su `…-full-4-ms-r2.txt` |
-| Nessun altro container è la fonte: i loro cgroup non scrivono (0,00 MB/s in ogni minuto di tutte le corse), la CPU massima di un container dei runner in un campione da 30 s è 0,03-10 % (blip a minuto 4,8 nel bench r1 e a 7,0 in `noarc`, senza byte scritti né relazione con gli stalli) | **misurata** | campioni `CG`, `DS` dei file delle corse; `an4.sh` |
+| Nessun altro container è la fonte: i loro cgroup non scrivono (0,00 MB/s contando solo gli incrementi positivi, in ogni minuto di tutte le corse; due container dei runner si riavviavano di continuo e i loro contatori ripartivano, per questo `an4.sh` ignora i cali); riprova indipendente: `system.slice` meno il container di Iggy scrive 0,7-0,9 MB/s nei minuti di stallo di `full` r2 (al massimo 4,3 MB/s in un minuto qualunque di qualunque corsa, servizi di sistema compresi) e il totale sul disco nello stallo (32 MB/s) è più basso, non più alto, che nei minuti sani (86-128); la CPU massima di un container dei runner in un campione da 30 s è 0,03-10 % (blip a minuto 4,8 nel bench r1 e a 7,0 in `noarc`, senza byte scritti né relazione con gli stalli) | **misurata** | campioni `CG`, `DS` dei file delle corse; `an4.sh` |
 | Nessun rallentamento termico: sensore `Composite` 46-53 °C in tutte le corse con la temperatura registrata (da gc5000 in poi) | **misurata** (il bench r1 e flush16m non la registravano) | righe `TEMP` |
 | Il disco non ha un limite di banda a questo livello (1,1-3,0 GB/s sequenziali) | **misurata** | `disk-cliff-4-ms-r1.txt` |
-| Durante lo stallo il disco è saturo per tempo di servizio, non per banda: utilizzo 88-97 %, attesa per scrittura ×3, meno scritture/s (4,4k → 2,8k) e meno MB/s | **misurata** | `an4.sh` su `bench` e `flush16m` |
+| Durante lo scalino del bench il disco è saturo per tempo di servizio, non per banda: utilizzo 88-97 %, attesa per scrittura ×3, meno scritture/s (4,4k → 2,8k) e meno MB/s | **misurata** | `an4.sh` su `bench` e `flush16m` |
 | Il peso sul disco per 13,3 MB/s di payload è 2,0-3,9×: 27-52 MB/s scritti dal cgroup di Iggy (WAL più segmenti più indici), 46-99 MB/s sul disco con btrfs e dm-crypt | **misurata** (il fattore); la scomposizione WAL/segmento/metadati **ipotesi** | `an4.sh` |
-| La causa dello stallo è lo stato interno dell'SSD (un modello consumer senza DRAM, con Host Memory Buffer, sotto LUKS e btrfs) quando riceve molte fsync piccole: lo stato cambia da una corsa all'altra (pavimento prima della corsa 2,7-8,3 ms) e il gradino compare dopo 3-7 minuti | **ipotesi** | compatibile con i pavimenti e con il gradino, non isolata: non ho letto lo stato interno del disco né provato un altro disco |
+| La causa dello scalino e dello stallo è lo stato interno dell'SSD (un modello consumer senza DRAM, con Host Memory Buffer, sotto LUKS e btrfs) quando riceve molte fsync piccole: lo stato cambia da una corsa all'altra (pavimento prima della corsa 2,7-8,3 ms) e il gradino compare dopo 3-7 minuti | **ipotesi** | compatibile con i pavimenti e con il gradino, non isolata: non ho letto lo stato interno del disco né provato un altro disco |
 | La differenza di incidenza (1 su 3 con il motore completo ora, 3 su 4 nella fase 3) viene dall'ora del giorno o dallo stato del disco; il pavimento prima della corsa non la spiega (stallo con 2,78 ms, nessuno con 9,12 ms) | **ipotesi** | nessuna lettura dei cgroup nella fase 3; il pavimento prima è in `[stato prima]` di ogni file |
 
 **Il ritardo di 7-17 s è ritardo di proiezione?** Sì, **misurato** in `full` r2 (tabella sopra): nel minuto 5 `lag_p50` è 17.203 ms con append p50 per gruppo 193 ms e per richiesta 46 ms; l'attesa nella coda di scrittura (al più 4 gruppi) non spiega più di 1-2 s.
@@ -123,7 +125,7 @@ scendono da 1.363 a 497. Il proiettore è sequenziale per tenant (archivio poi d
 recupera (17.073 att./s nel minuto 6). Il disco che rallenta colpisce insieme l'append su Iggy, l'archivio e SQLite, che stanno tutti sullo stesso btrfs. Per il criterio «database lento ma attivo, proiezione oltre 1 s»: qui il motore ha continuato ad accettare con la
 proiezione a 2-32 s di ritardo (`lag_p99`) per circa 3 minuti, con 1.991 rifiuti `E_PROJECTION_DOWN` e 1.401 errori (sopra); non ho confrontato con AD-2 riga per riga (è il blocco E).
 
-**Esito del criterio.** Gli stalli non sono eliminati da una configurazione di Iggy: la fonte è il disco (sopra) e le due modifiche, provate solo nel bench, non la toccano; per la regola di fase mi fermo qui e riporto i numeri. A 10.000 att./s con il motore il disco sta all'89 % di utilizzo e
+**Esito del criterio.** Gli stalli non sono eliminati da una configurazione di Iggy: la fonte è il disco (sopra) e le due modifiche, provate solo sul bench e giudicate contro lo scalino di latenza (non contro l'episodio, che nel bench non si è riprodotto), non lo toccano; per la regola di fase mi fermo qui e riporto i numeri. A 10.000 att./s con il motore il disco sta all'89 % di utilizzo e
 una volta su tre (`full`), o tre su quattro nella fase 3, si ferma per qualche minuto. Non ho aggirato Iggy nel motore. Le modifiche di configurazione non sono state provate con il motore (una sola corsa di stallo osservata, incidenza 1 su 3: una corsa sola non distinguerebbe).
 
 #### A1.5 Corse del motore completo ripetute (incidenza)
@@ -146,8 +148,8 @@ Più `noarc` r1 (nessuno stallo, 605.001 / 605.001, p99 205 ms). Quindi **1 cors
 | --- | --- | --- |
 | `delete_segments(stream, topic, partition, segments_count)` | cancella i **primi N segmenti chiusi** della partizione; il segmento attivo non si cancella mai; **si ferma alla posizione più bassa salvata da qualunque consumatore o gruppo**, quindi può togliere meno di N. Ritorna dopo il commit dei metadati, il file sul disco sparisce al passo successivo del server | `core/common/src/traits/segment_client.rs`; scenari `core/integration/tests/server/scenarios/delete_segments_scenario.rs` («barrier blocks deletion», «segment_deletable(seg_end, barrier)») |
 | `store_consumer_offset(consumer, stream, topic, partition, offset)` | salva la posizione del consumatore: è la **soglia**. Un segmento è cancellabile quando la sua ultima posizione è ≤ della soglia | stessi scenari |
-| `purge_topic` | cancella tutto il topic (non serve) | `topic_client.rs` |
-| `message_expiry` e `max_topic_size` del topic | cancellazione per età o dimensione dal pulitore di segmenti, **senza guardare i consumatori** (non adatte: cancellerebbero posizioni non applicate) | `core/server/src/segment_cleaner.rs` |
+| `purge_topic` | cancella tutto il topic (non serve); esiste nel crate 0.11.0, **non** nel 0.12.0 (nessuna corrispondenza nelle sorgenti del client) | `topic_client.rs` del crate 0.11.0 |
+| `message_expiry` e `max_topic_size` del topic | cancellazione per età o dimensione dal pulitore di segmenti (attivo solo con scadenza o dimensione finite); nelle sorgenti lette (`segment_cleaner.rs`, `config.toml`) non c'è alcun riferimento ai consumatori e la cancellazione vera sta nel pump dello shard, non letto: **ipotesi** che non ne rispetti la soglia, quindi non adatte (cancellerebbero posizioni non applicate) e non usate | `core/server/src/segment_cleaner.rs` |
 | nessuna cancellazione per offset | non esiste: la granularità è il segmento (conferma della fase 2) | |
 
 Senza alcuna posizione salvata non c'è soglia e `delete_segments` cancella ogni segmento chiuso (controllo negativo sotto). **Granularità**: un segmento. La dimensione è per topic (`segment_size`, tra 1 MiB e 1 GiB, 1 GiB di default); è un limite morbido: un segmento si chiude con la richiesta che lo supera
@@ -183,14 +185,15 @@ senza soglia si perde tutto ciò che è chiuso. Per questo `trim` salva la posiz
 
 300 esecuzioni/s da 10 passi (6.300 eventi/s), `trim=1`, segmenti da 1 MiB, 90 s; a 40 s un `kill -9` del motore e riavvio; verifica finale come nelle fasi precedenti.
 
-| Corsa | Accettate | Errori durante il riavvio (non accettate) | Accettate perse | `E_POSIZIONE_PERSA` | Segmenti in coda | Pavimento prima > dopo (ms) |
+| Corsa | Accettate | Errori durante il riavvio (senza risposta) | Accettate perse | `E_POSIZIONE_PERSA` | Segmenti in coda | Pavimento prima > dopo (ms) |
 | --- | --- | --- | --- | --- | --- | --- |
 | r1 | 26.974 | 325 | **0** | 0 | 1 + 1 | 8,01 > 2,85 |
 | r2 | 27.257 | 42 | **0** | 0 | 1 + 1 | 2,78 > 4,37 |
 | r3 | 27.258 | 41 | **0** | 0 | 1 + 1 | 7,88 > 4,54 |
 
 Prima del kill ogni topic teneva 2-3 segmenti (1.538-4.330 messaggi) contro i 100.000 e più scritti; la soglia del consumatore stava 900-3.300 posizioni sotto la testa (ritardo di proiezione); alla fine 1 segmento per topic.
-Tutti i payload di uscita si decifrano (270.660, 272.640, 272.640), `done_events != 1`: 0. Il primo `verify` di ogni corsa dice «FALLITA» perché parte mentre le ultime attività sono ancora in corso; il ciclo di ripetizione dello script lo rifà fino a «OK»
+Esecuzioni concluse contro accettate riconosciute: r1 27.066 / 26.974 (92 in più), r2 27.264 / 27.257 (7), r3 27.264 / 27.258 (6): una parte delle richieste rimaste senza risposta nel `kill -9` era già durevole e il motore nuovo l'ha eseguita (nessuna perdita;
+esecuzioni che il client non conosce e che ritenterebbe: l'idempotenza dell'accettazione non è nello spike). Tutti i payload di uscita si decifrano (270.660, 272.640, 272.640), `done_events != 1`: 0. Il primo `verify` di ogni corsa dice «FALLITA» perché parte mentre le ultime attività sono ancora in corso; il ciclo di ripetizione dello script lo rifà fino a «OK»
 (vedi i file). Non copre: crash di Iggy con la posizione del consumatore da recuperare (blocco B), più consumatori sullo stesso topic (la soglia è il minimo, per costruzione del server, non provato qui).
 
 ### A3. Aggiornamento senza perdite, Iggy 0.9.0 → 0.10.0
@@ -217,7 +220,7 @@ un solo motore parla con tutti e due i server, quindi l'aggiornamento di Iggy e 
    All'avvio il motore confronta le due: uguali = ripresa normale; database vecchio e bus più nuovo **con** `upgrade=1` = riversamento; ogni altro caso = `E_BUS_GENERATION` e il motore non parte (prove di rifiuto sotto).
 4. **Riversamento dello stato vivo.** Il motore nuovo (`busgen=2 upgrade=1`) legge dal database le esecuzioni non concluse con i passi emessi e conclusi, ne riprende i payload dall'archivio, riscrive sul bus nuovo `Accepted`, `Ready`, `Done`
    (in richieste da 256), e in **una transazione** porta le posizioni salvate alla generazione 2 subito dopo gli eventi riscritti (il database ne rappresenta già lo stato: riapplicarli conterebbe due volte i `Done`). Se il riversamento si interrompe,
-   al riavvio i topic si svuotano e si ricomincia. Poi la ripresa normale: le attività emesse e non concluse si riconsegnano con un nuovo tentativo, le decisioni mancanti si scrivono.
+   al riavvio i topic si svuotano e si ricomincia (realizzato nel codice, **non provato**: nessuna corsa lo ha interrotto). Poi la ripresa normale: le attività emesse e non concluse si riconsegnano con un nuovo tentativo, le decisioni mancanti si scrivono.
 5. **Ripresa.** I worker si ricollegano da soli; il generatore di carico riprende a essere accettato.
 
 Carico: 1.000 esecuzioni/s da un'attività da 3 s (`kind=0 n=1 work_ms=3000`, tetto per tenant 4.096), 70 s, due tenant; l'aggiornamento parte a 20 s. Circa 3.000 attività sono in volo in ogni istante.
@@ -243,10 +246,31 @@ Carico: 1.000 esecuzioni/s da un'attività da 3 s (`kind=0 n=1 work_ms=3000`, te
 | Il più lungo intervallo senza accettazioni riuscite (client) | 4.327 ms | 2.283 ms | 2.577 ms |
 
 Criterio **superato**: zero accettate perse, zero esecuzioni in corso perse (ogni accettata è conclusa una sola volta nella proiezione, con il payload che si decifra). Il client vede le accettazioni ferme 2,3-4,3 s; la prima attività conclusa dopo la ripresa
-arriva 3,05-3,10 s dopo `READY`, che è la durata dell'attività (le 3.000 in volo si rifanno da capo). La soglia della pausa la decide Marco; i tre numeri per decidere sono **2,4 / 2,7 / 4,6 s**, dominati da nuovo Iggy (1,1 s, comprende il `compose`)
-e dall'avvio del motore (0,7-2,9 s: la differenza è la creazione dei topic sul server nuovo, che in r1 ha preso 2,8 s e in una corsa del solo blocco A2 7,8 s).
+arriva 3,05-3,10 s dopo `READY`, che è la durata dell'attività (le 3.000 in volo si rifanno da capo). La soglia della pausa la decide Marco; i numeri per decidere sono, con esecuzioni da un passo, **2,4 / 2,7 / 4,6 s** (con tre passi 2,6 / 2,8 / 6,0 s), dominati da nuovo Iggy (1,1 s, comprende il `compose`)
+e dall'avvio del motore (0,7-2,9 s; la causa della differenza non è misurata, **ipotesi**: la creazione dei topic sul server nuovo, che in una corsa del blocco A2 ha preso 7,8 s al primo avvio).
 
-**Prove di rifiuto della generazione** (stesso file, fine corsa, 3 su 3): bus nuovo vuoto di generazione 3 contro posizioni di generazione 2 senza `upgrade=1`: `E_BUS_GENERATION`, codice di uscita 5, il motore non parte; bus vuoto di generazione 1 con `upgrade=1`
+**Con esecuzioni a metà catena** (le tre corse sopra, con `n=1`, riscrivono 0 `Done`: lo stato vivo aveva solo `Ready`). Tre corse in più, `iggy-sqlite-upgrade-n3-4-ms-r{1,2,3}.txt`: 334 esecuzioni/s da **tre** passi da 3 s (1.002 attività/s, 9 s per esecuzione, circa 3.000 esecuzioni vive),
+così lo stato vivo comprende passi già conclusi:
+
+| Misura | r1 | r2 | r3 |
+| --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,85 > 4,55 | 4,61 > 4,51 | 4,53 > 4,97 |
+| Accettate / offerte; rifiutate `E_UPGRADE_DRAIN`; errori di trasporto | 22.057 / 24.048; 152; 1.839 | 23.118 / 24.048; 195; 735 | 23.182 / 24.048; 165; 701 |
+| **Accettate perse** | **0** | **0** | **0** |
+| Esecuzioni concluse = accettate | 22.057 | 23.118 | 23.182 |
+| `done_events != 1`, duplicati sul bus nuovo, payload illeggibili | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 |
+| Esecuzioni vive riversate / `Ready` / **`Done` riscritti** | 3.079 / 6.147 / **3.068** | 3.072 / 6.139 / **3.067** | 3.071 / 6.139 / **3.068** |
+| Riversamento (database e archivio → bus nuovo) | 864 ms | 512 ms | 495 ms |
+| Attività in volo rifatte (eseguite due volte) | 3.079 | 3.072 | 3.071 |
+| Svuotamento / nuovo Iggy / motore nuovo fino a `READY` | 463 / 1.941 / 3.585 ms | 616 / 1.145 / 1.030 ms | 514 / 1.149 / 924 ms |
+| **Pausa: segnale → `READY`** | **5.989 ms** | **2.791 ms** | **2.587 ms** |
+| Segnale → prima attività conclusa | 9.170 ms | 5.857 ms | 5.742 ms |
+| Il più lungo intervallo senza accettazioni riuscite (client) | 5.928 ms | 2.738 ms | 2.554 ms |
+
+Criterio **superato anche qui**: i `Done` riscritti (3.067-3.068, uno per ogni esecuzione a metà catena) sono sul bus nuovo e tutte le esecuzioni si concludono con i payload che si decifrano. Il primo `verify` di ogni corsa dice «FALLITA» finché le ultime esecuzioni da 9 s non finiscono
+(il ciclo lo ripete fino a «OK»). Le corse lente sono le r1 di entrambe le serie (4,6 e 6,0 s): nuovo Iggy + avvio del motore 1,1 + 2,9 s (n=1) e 1,9 + 3,6 s (n=3), contro 1,1 + 0,7-1,0 s nelle altre quattro; la causa (primo avvio di Iggy dopo una pausa del disco, creazione dei topic) è **ipotesi**, non isolata.
+
+**Prove di rifiuto della generazione** (stesso file, fine corsa, 3 su 3 in entrambe le serie): bus nuovo vuoto di generazione 3 contro posizioni di generazione 2 senza `upgrade=1`: `E_BUS_GENERATION`, codice di uscita 5, il motore non parte; bus vuoto di generazione 1 con `upgrade=1`
 (più vecchio del database): stesso esito.
 
 **Non coperto o scelto così.** (a) Timer in sospeso: non esistono ancora (blocco C): il riversamento copre esecuzioni e passi, un timer andrà riscritto allo stesso modo come evento. (b) Il motore non aspetta le attività in volo: si rifanno (3.000 eseguite due volte a questo carico);
@@ -265,6 +289,13 @@ dell'uscita non riceve risposta (errore di trasporto, il client non la considera
 - **A3:** la directory dati «nuova e vuota» è la stessa svuotata da `reset.sh`; la pausa comprende il `compose down/up`. Il motore vecchio è lo stesso sorgente compilato con il client 0.11.0, non una versione vecchia del codice del motore.
 - Prove funzionali sul desktop (non misurate, non conservate): `retention-proof`, la scena `ret` e l'aggiornamento con tempi ridotti, per mettere a punto gli script mentre minisheep era occupato.
 - Le righe `verify` che dicono «FALLITA» in A2 e A3 sono il primo tentativo dello script, che parte mentre le ultime attività sono in corso; il ciclo lo ripete fino a «OK».
+- **`trim=1` nelle corse del motore** (`noarc`, `full`, come `scen.sh` fa sempre fuori da `kill` e `dbdown`): con Iggy il `trim` ora non è più un'operazione vuota (salva la posizione del consumatore ogni 500 ms per topic e chiede `delete_segments`, quasi mai efficace con segmenti da 1 GiB);
+  la fase 3 non aveva questo carico. Confonde il confronto «1 su 4 ora, 3 su 4 nella fase 3». L'aggiornamento (A3) gira con `trim=0`.
+- **Dipendenze:** `Cargo.lock` guadagna solo `iggy`, `iggy_binary_protocol`, `iggy_common` 0.11.0 (Apache-2.0, pubblicate il 2026-09-18, oltre due settimane prima), versioni esatte nel `Cargo.toml`.
+- **Letture della configurazione:** le soglie di scrittura dei segmenti sono rilette dal topic (`BUS_PRINT_TOPIC`: `messages_required_to_save` 65.536, `size_of_messages_required_to_save` 16 MiB, `explicit: true`, `segment_size` 1 GiB di default); il ritardo del group commit è letto
+  dall'ambiente del container (`IGGY_PARTITION_WAL_GROUP_COMMIT_DELAY_MICROS=5000`), il valore effettivo nel server non è stato riletto. Le letture sono state fatte sul desktop con le stesse variabili.
+- **Esecuzione:** le sequenze sono partite in background con `nohup` mentre sul desktop compilavo e provavo gli script; i binari sono stati sostituiti su minisheep tra una corsa e l'altra (17:26 e 17:42, ora di minisheep: il secondo aggiunge i tempi del proiettore e non cambia il
+  comportamento), quindi `bench` e `bench-flush16m` girano con il primo e le altre con il secondo.
 - Tempo: A1 circa 2 ore e mezza tra corse e attese, dentro le 3 ore; A2 e A3 circa 1 ora di codice e prove sul desktop, 20 minuti di corse su minisheep.
 
 ## Comandi per rifare
@@ -281,4 +312,4 @@ Su minisheep, in `~/ttspikebus` (`env.sh`; `.env` da `./gen-env.sh`; i due binar
 | Conservazione (motore, `kill -9`) | `IGGY_SEGMENT_SIZE=1048576 ./ms-run.sh risultati/iggy-sqlite-ret-4-ms-r1.txt ./scen.sh iggy sqlite ret RSECS=90` |
 | Compatibilità client-server | `./ms-run.sh risultati/iggy-compat-4-ms-r1.txt ./compat.sh` |
 | Aggiornamento | `CAP=4096 ./ms-run.sh risultati/iggy-sqlite-upgrade-4-ms-r1.txt ./up-run.sh` |
-| Sequenze usate | `a1-chain.sh` (interrotta dopo `flush16m`), `a1-chain2.sh`, `a1-chain3.sh`, `a23-chain.sh` |
+| Sequenze usate | `a1-chain.sh` (interrotta dopo `flush16m`), `a1-chain2.sh`, `a1-chain3.sh`, `a23-chain.sh`, `a3-chain-n3.sh` |

@@ -1,0 +1,55 @@
+[stato prima 19:32:28] load: 1.41 1.59 2.25
+[stato prima] io: some avg10=0.75 avg60=16.11 avg300=16.00 total=10764564452
+[stato prima] cpu: some avg10=0.01 avg60=0.70 avg300=0.81 total=1209945800
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.53ms p99=8.53ms p99.9=8.91ms max=8.91ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.03
+[attesa] 30 s
+iggy: apache/iggy:0.9.0 Up 3 seconds
+### aggiornamento Iggy 0.9.0 -> 0.10.0: carico n=3 rate=334
+motore vecchio pid=2024015 READY recovered_ms=354 now_us=1795545157045761 gen=1
+prima: secs=21.1 accepted=6643 refused=0 done=13850 rejected=0 groups=163 activities_per_s=657 accepted_per_s=315 
+T0 segnale=1795545178113164  T1 motore vecchio uscito=1795545178626799 (rc=0)
+DRAIN_START 1795545178113710
+DRAINED 1795545178610115 accepted=6665 in_flight_deliveries=3011
+iggy: apache/iggy:0.10.0 Up Less than a second
+T2 nuovo Iggy avviato=1795545179775325
+T3 motore nuovo READY (script)=1795545180699720 tentativi di avvio=1
+RIVERSAMENTO gen=2: 3071 esecuzioni vive, 6139 Ready, 3068 Done riscritti in 495 ms, posizioni [("state-0000000000007000800000000000000a", 6138), ("state-0000000000007000800000000000000b", 6140)]
+ripresa: 3071 esecuzioni vive, 0 eventi riletti dal bus, 3071 attività da riconsegnare
+READY recovered_ms=877 now_us=1795545180655049 gen=2
+T4 prima attività conclusa dopo la ripresa=1795545183855554
+pausa: svuotamento 514 ms; nuovo Iggy 1149 ms; motore nuovo fino a READY 924 ms; prima attività conclusa 3156 ms dopo READY; totale segnale -> READY 2587 ms, segnale -> prima conclusa 5742 ms
+load tenants=ab rate=334/s kind=0 n=3 size=1024 work_ms=3000 warm=2s measured=70s
+offered=24048 accepted=23182 refused_E_PROJECTION_DOWN=165 errors=701 overload_skipped=0
+accept_rtt_open_loop n=22514 p50=25.54ms p99=119.42ms p99.9=147.07ms max=191.49ms over100ms=1278
+accept_max_gap_ms=2554 from_us=1795545178133120 to_us=1795545180686896
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=1.38 cpu_per_1000_att engine=0.000 worker=1380.000
+-- tempi del generatore di carico: segnale T0=1795545178113164 READY T3=1795545180699720
+verify: accettate=23182 concluse_nella_proiezione=20099 accettate_perse=3083 attivita_concluse=63455 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=53397 duplicati_sul_bus=0 payload_decifrati=63455 payload_illeggibili=0
+verify FALLITA
+verify: accettate=23182 concluse_nella_proiezione=21356 accettate_perse=1826 attivita_concluse=66984 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=56698 duplicati_sul_bus=0 payload_decifrati=66984 payload_illeggibili=0
+verify FALLITA
+verify: accettate=23182 concluse_nella_proiezione=22623 accettate_perse=559 attivita_concluse=68987 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=58481 duplicati_sul_bus=0 payload_decifrati=68987 payload_illeggibili=0
+verify FALLITA
+verify: accettate=23182 concluse_nella_proiezione=23182 accettate_perse=0 attivita_concluse=69546 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=58764 duplicati_sul_bus=0 payload_decifrati=69546 payload_illeggibili=0
+verify OK
+-- bus nuovo: bus-info state-0000000000007000800000000000000a: testa=68558 primo_offset_leggibile=Some(0) segmenti=1 messaggi=68558 byte=52493296 soglia_consumatore=None bus-info state-0000000000007000800000000000000b: testa=68558 primo_offset_leggibile=Some(0) segmenti=1 messaggi=68558 byte=52490480 soglia_consumatore=None 
+-- posizioni: state-0000000000007000800000000000000b|68558|2 state-0000000000007000800000000000000a|68558|2 
+-- log del motore vecchio (eventi): 2 righe; nuovo:
+RIVERSAMENTO gen=2: 3071 esecuzioni vive, 6139 Ready, 3068 Done riscritti in 495 ms, posizioni [("state-0000000000007000800000000000000a", 6138), ("state-0000000000007000800000000000000b", 6140)]
+ripresa: 3071 esecuzioni vive, 0 eventi riletti dal bus, 3071 attività da riconsegnare
+-- RSS dopo la corsa (motore, worker)
+rss iggy 110280 kB
+rss pid=2025667 58476 kB
+rss pid=2024166 22012 kB
+rifiuto 1 (bus nuovo generazione 3, database alla 2, senza upgrade=1): rc=5 E_BUS_GENERATION: posizioni del database di generazione 2, bus di generazione 3 (upgrade=false): il motore non parte
+rifiuto 2 (bus vuoto di generazione 1 con upgrade=1, database alla 2: generazione più vecchia): rc=5 E_BUS_GENERATION: posizioni del database di generazione 2, bus di generazione 1 (upgrade=true): il motore non parte
+[stato dopo 19:34:15] load: 2.42 1.92 2.30
+[stato dopo] io: some avg10=12.31 avg60=27.03 avg300=19.97 total=10795734710
+[stato dopo] cpu: some avg10=0.50 avg60=1.33 avg300=1.02 total=1212050743
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.97ms p99=12.85ms p99.9=41.31ms max=41.31ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.02
