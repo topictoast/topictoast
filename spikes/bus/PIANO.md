@@ -419,6 +419,17 @@ il tempo fino a `READY` e fino alla prima attività conclusa (mancava nella 2c).
 Il motore scrive i timer come eventi sul log (attesa tra i tentativi, `wait`, scadenza del tentativo,
 battiti del worker) e la ripresa li ricostruisce.
 
+Prima dei timer, due righe aggiunte dopo il blocco B:
+
+- **Percorso dei dati di Iggy:** dalla fase 2 Iggy scriveva in `/app/local_data`, nello strato del
+  container, non nel montaggio del compose. Si corregge il montaggio (predefinito `/app/local_data`)
+  e si fa una coppia di corse, strato contro montaggio, su accettazione e avvio a 1.000 att./s e su
+  10.000 att./s per 10 minuti; se la coppia differisce di oltre il 20 % lo si dice, e i numeri delle
+  fasi precedenti vanno riletti.
+- **Aggiornamento rifatto col motore del blocco B:** la procedura del blocco A (3 corse, attività da
+  3 s) con il nuovo ritorno dei tentativi e la nuova ripresa; pausa dal segnale a `READY` e attività
+  rieseguite riportate, prima di aggiungere i timer, così la riga con i timer cambia una cosa sola.
+
 - **Retry con attesa attraverso un crash** (il caso della spine): un'attività fallisce, attesa di 5 s,
   crash del motore a metà attesa, riavvio. Il ritentativo parte una volta sola, non prima della
   scadenza, al più 1 s dopo la fine della ripresa.
@@ -464,7 +475,8 @@ Criterio: nessun timer perso né doppio in 3 corse; ritardo di scatto p50 e p99 
 - **Database lento ma attivo:** ritardo iniettato nell'adattatore del database fino a portare la
   proiezione oltre 1 s; si registra cosa fa il motore e lo si confronta con AD-2.
 - **`SQLITE_BUSY`:** scritture del motore (segreti, chiavi avvolte) insieme ai gruppi del proiettore a
-  10.000/s; criterio: zero `SQLITE_BUSY`.
+  10.000/s; criterio: zero `SQLITE_BUSY`. Il blocco B ne ha già visti due («database is locked», 331 e
+  411 ms) nella corsa r3 a 10.000/s.
 - **Annullamento e timeout dell'esecuzione** consegnati a un worker in corso; tempo dal comando
   all'arresto riportato.
 - **Credenziale del bus per tenant in sola lettura:** utente Iggy con sola lettura sul topic di A;
