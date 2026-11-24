@@ -9,8 +9,8 @@ Fonte dei criteri: spine, sezione «S-1 — Bus». Approccio a fasi deciso da Ma
 | 2 | Iggy contro Valkey, con un motore minimo e il collegamento gRPC | chiusa senza vincitore sul desktop (`fase2-risultati.md`) |
 | 2b | Ritardi di coda di Iggy e Valkey rimisurati su una macchina ferma (minisheep) | chiusa senza vincitore (`fase2b-risultati.md`) |
 | 2c | Correttivi comuni ai due bus (archivio a segmenti, scritture in parallelo), misura finale a 4 CPU su minisheep | chiusa senza vincitore (`fase2c-risultati.md`) |
-| 2d | Ultimo giro sulle 10.000 attività/s: scritture parallele del motore corrette, perdita di Iggy nei 10 minuti | chiusa senza vincitore (`fase2d-risultati.md`), scelta a Marco |
-| 3 | gRPC contro iroh, solo sul bus vincitore | dopo la fase 2 |
+| 2d | Ultimo giro sulle 10.000 attività/s: scritture parallele del motore corrette, perdita di Iggy nei 10 minuti | chiusa senza vincitore (`fase2d-risultati.md`), Marco sceglie Iggy (2026-11-24) |
+| 3 | gRPC contro iroh, solo sul bus vincitore | in corso |
 | 4 | Ripresa, guasti, aggiornamento senza perdite, log dei task, timer durevoli, ADR e Update della spine | dopo la fase 3 |
 
 ## Fase 2: Iggy contro Valkey
@@ -243,3 +243,78 @@ le supera, si torna da Marco con i numeri per la scelta.
 `spikes/bus/fase2d-risultati.md`, numeri grezzi in `spikes/bus/risultati/` con il suffisso `-d-ms`. In
 `fase2c-risultati.md` una nota in testa che rimanda alla 2d e la correzione della §2: il bench del
 solo bus con 4 connessioni era su minisheep, non sul desktop.
+
+## Fase 3: gRPC contro iroh, su Iggy
+
+Decisione di Marco del 2026-11-24 (memlog dell'architettura, voce 95): il bus è Apache Iggy. La RAM
+a riposo (92-96 MB) resta in deroga e il limite del PRD si riallinea con l'Update della spine. La fase
+3 confronta i collegamenti (2) e (3) dei criteri di S-1, worker dal motore su gRPC con TLS e worker
+dal motore su QUIC con iroh, con lo stesso motore della 2d e Iggy a una connessione.
+
+### Passo 0: impostazione del motore (Iggy, prima del confronto)
+
+Nella 2d i ritardi di Iggy a regime basso sono saliti rispetto alla 2c senza una causa isolata.
+Prima del confronto, 3 coppie alternate di accettazione e di avvio a 1.000 attività/s con SQLite:
+motore come nella 2c (un gruppo in volo, gruppi fino a 256 messaggi) contro motore della 2d (fino a
+4 gruppi in volo, gruppi fino a 1.024, soglia di 64 messaggi). Se la 2c ha il p99 mediano più basso
+di almeno il 20 % in entrambe le righe, la fase 3 la usa per le righe a regime basso e la 2d per le
+10.000 attività/s; altrimenti la 2d per tutte. Il risultato entra nell'ADR come dato su Iggy e sul
+limite dei 25 ms su questo disco.
+
+### Cosa si costruisce
+
+- **Collegamento iroh:** un secondo adattatore del collegamento dei worker, con la stessa forma della
+  variante gRPC (una connessione per worker, 4 sessioni bidirezionali, stessi messaggi di consegna e
+  di esito); il motore e il worker scelgono l'adattatore dalla configurazione, il resto del codice è
+  comune.
+- **Versione di iroh:** verificata sul registro dei crate prima di scrivere codice: l'ultima pubblicata
+  da almeno due settimane, con licenza ammessa dalla spine; una più recente solo per una vulnerabilità
+  pubblicata. Si verifica anche che quella versione funzioni con relay e scoperta esterni spenti e con
+  l'identità del nodo remoto fissata. Al massimo 4 ore per l'adattatore; poi si misura con quello che
+  c'è e lo si dice.
+- **Condizioni di sicurezza, per tutti e due i collegamenti, ognuna con una prova di rifiuto:**
+  credenziale del worker legata alla connessione e controllata a ogni collegamento (oggi il saluto del
+  worker non ne porta); il worker verifica il server (gRPC: certificato; iroh: identità del nodo
+  attesa, dalla configurazione); con iroh relay e scoperta esterni spenti e identità del nodo del
+  worker legata alla sua credenziale (C-11). Un collegamento che non le soddisfa esce qualunque siano i
+  numeri.
+
+### Corse misurate, per collegamento (minisheep, stessi 4 CPU della 2c e della 2d)
+
+| Riga | Corse |
+| --- | --- |
+| Avvio a 1.000 attività/s, SQLite | 5 |
+| Payload da 64 KB (500 attività/s) e da 1 MB (50 attività/s), SQLite | 3 ciascuno |
+| Ritmo massimo (`thrmax`, 30 s), SQLite | 3 |
+| 10.000 attività/s per 10 minuti, SQLite | 2 |
+| Tenant lento (`iso`), SQLite | 3 |
+
+Le corse sono a coppie, gRPC e iroh una dopo l'altra, con il pavimento del disco registrato prima e
+dopo ogni corsa; soglia di partenza come nella 2d. Se con gRPC il ritmo dei payload da 1 MB satura il
+bus nella prova di fumo, si dimezza per tutti e due prima di misurare. Il worker registra la propria
+CPU come già fa il motore.
+
+### Cosa si confronta e come si decide
+
+- **Giudicato, perché dipende dal collegamento:** il tratto dalla consegna inviata alla consegna
+  ricevuta (`start_sent`, p50 e p99), la CPU di motore e worker per 1.000 attività, il ritmo massimo.
+  Si confrontano le mediane delle coppie.
+- **Riportato, non giudicato:** il tempo di avvio completo (`start_ready`), che comprende la scrittura
+  durevole su Iggy, comune ai due e con una variabilità tra corse (18-57 ms di p99 nella 2d) più grande
+  della differenza da misurare; le soglie assolute del PRD accanto.
+- **10.000 attività/s per 10 minuti:** almeno il 99 % del ritmo offerto in entrambe le corse; un
+  collegamento che non le tiene esce.
+- **Regola:** iroh sostituisce gRPC solo se migliora di almeno il 20 % il p99 di `start_sent` o la CPU
+  per 1.000 attività, non peggiora di oltre il 20 % nessun'altra riga giudicata e tiene le 10.000
+  attività/s. Altrimenti resta gRPC, che ha meno parti e meno codice nuovo (scelta di Marco per la
+  parità).
+
+### Fuori dalla fase 3
+
+La variante (1) è uscita nella fase 1. Ripresa, guasti, aggiornamento senza perdite, log dei task e
+timer durevoli sono della fase 4, sul collegamento che vince.
+
+### Uscita
+
+`spikes/bus/fase3-risultati.md`, numeri grezzi in `spikes/bus/risultati/` con il suffisso `-3-ms`.
+Ogni causa citata nel report è segnata «misurata» (con il file grezzo) o «ipotesi».
