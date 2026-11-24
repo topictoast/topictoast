@@ -1,6 +1,6 @@
 # Spike S-1, fase 4: risultati
 
-Segue PIANO.md, sezione «Fase 4». Qui c'è solo il **blocco A** (Iggy sotto carico, conservazione, aggiornamento); i blocchi B-E non sono fatti.
+Segue PIANO.md, sezione «Fase 4». Qui ci sono i **blocchi A** (Iggy sotto carico, conservazione, aggiornamento) e **B** (guasti e ripresa); i blocchi C-E non sono fatti.
 Base: Iggy `server-0.10.0` (immagine `apache/iggy:0.10.0`), collegamento dei worker gRPC con TLS, motore della 2d (4 gruppi in volo, 1.024 messaggi, soglia 64), SQLite, minisheep con gli stessi 4 CPU delle fasi 2c-3
 (motore e Iggy su `1-4`, carico su `8-11`). Numeri grezzi in `risultati/*-4-ms-*`; ogni file porta il pavimento di `fdatasync` prima e dopo la corsa (300 scritture da 4 KB, come nella fase 3).
 Ogni causa citata è segnata **misurata** (con il file grezzo) o **ipotesi**.
@@ -314,3 +314,231 @@ Su minisheep, in `~/ttspikebus` (`env.sh`; `.env` da `./gen-env.sh`; i due binar
 | Compatibilità client-server | `./ms-run.sh risultati/iggy-compat-4-ms-r1.txt ./compat.sh` |
 | Aggiornamento | `CAP=4096 ./ms-run.sh risultati/iggy-sqlite-upgrade-4-ms-r1.txt ./up-run.sh` |
 | Sequenze usate | `a1-chain.sh` (interrotta dopo `flush16m`), `a1-chain2.sh`, `a1-chain3.sh`, `a23-chain.sh`, `a3-chain-n3.sh` |
+
+
+## Blocco B
+
+Guasti e ripresa (NFR-6, NFR-15). Cinque casi, 3 corse su SQLite ciascuno e una su Postgres dove il caso tocca il database. Binario unico per tutto il blocco (sha256 `d51b36de4ca9c6dc`, stampato in ogni file grezzo), nessuna sostituzione a metà serie.
+Minisheep, stessi 4 CPU (motore e Iggy su `1-4`, carico su `8-11`), `ms-run.sh` con pavimento di `fdatasync` prima e dopo. File grezzi `risultati/iggy-<db>-<caso>-4-ms-r<n>.txt`. Ogni causa è **misurata** (con il file) o **ipotesi**.
+Tutti i guasti qui sono crash di **processo** (`kill -9`, `docker kill`) o esaurimento di spazio: non sono spegnimenti dell'host, e la cache del sistema operativo sopravvive. Lo spegnimento improvviso dell'host non è misurato (minisheep ospita i runner).
+
+### Sintesi
+
+1. **Crash del motore: superato in 4 corse su 4** (3 SQLite, 1 Postgres). `kill -9` → `READY` in 94-112 ms, → prima attività conclusa in 217-222 ms (soglia NFR-15: 30 s). Zero accettate perse. I worker si ricollegano da soli e consegnano gli esiti: 2.688-2.719 attività su 2.710-2.722 in volo
+   si chiudono con l'esito finito durante la pausa (`late_ok`), le altre 3-25 scadono e si rifanno. **Nessun tentativo eseguito due volte** (registro dei worker: 27.792-27.816 inizi, tutti distinti): le scadute non erano mai arrivate al worker (misurata, v. sotto).
+2. **Crash di Iggy: superato in 4 corse su 4**, ma non come il piano lo immaginava. Il client `iggy` 0.12.0 **non torna con un errore** quando il server muore: la chiamata aspetta e si risolve da sola (8,4 s in una prova). Il motore rifiuta lavoro nuovo con `E_BUS_DOWN` entro 1,9-2,0 s dal kill (sonda
+   periodica) e si ricollega da solo; `READY` non vale qui (il motore non riparte): kill → bus di nuovo raggiungibile 8,4-13,7 s (5 s di pausa voluta prima di `docker start`, poi 3,1-8,5 s di avvio di Iggy e ricollegamento del client). Zero accettate perse, zero duplicati sul bus.
+3. **Crash di un worker: superato in 3 corse su 3.** L'attività torna disponibile alla scadenza del tentativo (consegna + `work_ms` 3 s + margine 2 s = 5 s): 2,0-5,1 s dopo il kill, mediana 3,5-3,6 s. 1.347-1.355 attività rifatte, tutte e sole le scadute, zero esiti doppi.
+4. **Disco pieno: superato per database e archivio** (6 corse + 3 con il solo database): rifiuto con `E_STORAGE_FULL` entro 0,8-7,6 s dalla zavorra, ripresa 5-392 ms dopo che lo spazio è tornato, zero accettate perse, ogni payload si decifra.
+   **Per i dati di Iggy: Iggy non rifiuta, si ferma.** A disco pieno il server esce (v. §B4.1); il motore lo vede come bus giù (`E_BUS_DOWN`, **non** un codice di disco pieno) e, con un ciclo che rilancia Iggy (rilancio del processo, non della macchina), riprende 1,7-10,9 s dopo che lo spazio torna. Zero accettate perse, stato precedente intatto.
+   Il criterio «codice esplicito» è superato solo in senso lato (`E_BUS_DOWN` è esplicito ma non dice «disco»); la causa è in Iggy (**misurata**), nessuna configurazione provata la cambia: **da riportare a Marco**.
+5. **Pause del disco a 10.000 att./s: in 3 corse da 10 minuti su 3 il criterio di stallo, scritto prima delle corse, segna almeno un minuto sotto soglia** (v. §B5); zero accettate perse in tutte e tre. Il registro delle accettate e il tipo di ogni errore sono ora permanenti.
+
+### Cosa è cambiato nel motore (codice dello spike, per le prove)
+
+- **Attesa dell'esito oltre la sessione.** Il worker tiene gli esiti finiti in una cassetta che sopravvive alla sessione, li rimanda a ogni ricollegamento e li toglie solo con la conferma durevole del motore (nuovo campo `ack` di `Delivery`).
+  Il motore accetta l'esito da qualunque sessione se porta la consegna corrente, o se la consegna è di prima della ripresa; gli altri li scarta e li conferma.
+- **Scadenza del tentativo come unico modo di tornare disponibile.** Ogni consegna ha una scadenza (`work_ms` + 2.000 ms, in memoria); un passaggio ogni 100 ms rimette in coda le scadute. Una sessione persa non rimette più in coda le sue consegne (prima sì, subito). Dopo una ripresa le attività emesse e non concluse restano «in volo» (consegna 0)
+  fino a `work_ms` + 2.000 ms dalla ripresa, invece di essere riconsegnate subito (**cambia anche il comportamento dell'aggiornamento del blocco A**, che non è stato rimisurato).
+- **Bus giù.** Una sonda ogni 500 ms (tempo massimo 1,5 s) e una guardia sulle append (5 s) alzano un indicatore; con l'indicatore alzato le accettazioni tornano `E_BUS_DOWN`. L'append non si annulla mai (annullarla lascia un'operazione incerta che blocca la partizione, §B2.1).
+- **Disco pieno nel proiettore.** Gli errori dell'archivio (prima `unwrap`) e del database passano dallo stesso ciclo di ripetizione; se il testo dice spazio finito le accettazioni tornano `E_STORAGE_FULL`. Il segmento in scrittura si abbandona a un errore, così gli scostamenti dei payload non slittano.
+- **Generatore di carico:** tipo (codice e messaggio) di ogni risposta non riuscita; `verify light=1` per le corse da 10.000/s.
+
+### B1. Crash del motore con attività lunghe in volo
+
+300 esecuzioni/s da 3 passi da 3 s (900 att./s, circa 2.700 in volo), due tenant, 30 s; a 12 s `kill -9` del motore e riavvio immediato (nessuna attesa voluta, a differenza della fase 2). Un solo worker (4 sessioni) sempre vivo.
+
+| Misura | SQLite r1 | SQLite r2 | SQLite r3 | Postgres r1 |
+| --- | --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 5,12 > 1,92 | 6,73 > 2,76 | 2,90 > 2,68 | 1,92 > 2,93 |
+| **kill → `READY`** (ms) | **109** | **112** | **106** | **94** |
+| **kill → prima attività conclusa** (ms) | **217** | **222** | **220** | **217** |
+| Attività in volo alla ripresa | 2.713 | 2.722 | 2.712 | 2.710 |
+| Esiti arrivati dopo il ricollegamento (`late_ok`) | 2.688 | 2.719 | 2.705 | 2.701 |
+| Scadute e rifatte (`expired`) | 25 | 3 | 7 | 9 |
+| Esiti scartati come doppioni (`rejected`) | 17 | 0 | 7 | 6 |
+| Accettate (ledger) / concluse nella proiezione | 9.264 / 9.265 | 9.261 / 9.264 | 9.264 / 9.266 | 9.268 / 9.272 |
+| **Accettate perse** | **0** | **0** | **0** | **0** |
+| Tentativi iniziati / distinti / eseguiti due volte | 27.795 / 27.795 / 0 | 27.792 / 27.792 / 0 | 27.798 / 27.798 / 0 | 27.816 / 27.816 / 0 |
+| `done_events != 1`, duplicati sul bus, payload illeggibili | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 |
+
+Criterio **superato** (ripresa 30 s, zero accettate perse, nessun tentativo doppio). Il tempo di `READY` (94-112 ms) è quasi tutto la ripresa del motore (`recovered_ms` 90-103).
+
+**Concluse > accettate** di 1-4 per corsa: sono esecuzioni accettate dal motore la cui risposta è andata persa nel `kill` (il client ha visto un errore di trasporto e non le ha messe nel registro); eseguite, non perse. **Misurata**: `errors_by_type` ha 3-8 `Unknown: transport error` per corsa.
+
+**Perché le scadute non sono doppie (misurata, `expired + late_ok` = in volo alla ripresa, in tutte e quattro le corse):** erano consegne scritte sul socket dal motore morto e mai lette dal worker; non hanno una riga nel registro dei worker, quindi il primo tentativo è quello rifatto. **Gli scartati** (`rejected`) sono esiti rimandati dal worker per una conferma andata persa con la
+sessione e già accettati. Un tentativo che girasse due volte non c'è stato in nessuna corsa; il meccanismo che lo conterebbe (registro `worklog` dei worker) è provato nel caso B3, dove i doppi sono 1.350.
+
+### B2. Crash di Iggy (`docker kill`, riavvio dopo 5 s)
+
+300 esecuzioni/s da 3 passi da 500 ms, 40 s; a 10 s `docker kill` del container di Iggy (SIGKILL), a +5 s `docker start` (stesso container, stessi dati). `trim=0` per il controllo sul bus.
+
+| Misura | SQLite r1 | SQLite r2 | SQLite r3 | Postgres r1 |
+| --- | --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,79 > 2,92 | 2,65 > 2,92 | 2,79 > 2,85 | 6,23 > 2,85 |
+| kill → `BUS_DOWN` del motore (ms) | 2.002 | 1.889 | 1.901 | 1.889 |
+| avvio di Iggy → `BUS_UP` (ms) | 7.222 | 8.464 | 7.166 | 3.108 |
+| **kill → `BUS_UP`** (ms) | **12.515** | **13.682** | **12.414** | **8.396** |
+| `BUS_UP` → prima attività conclusa (ms) | 429 | 578 | 582 | 59 |
+| Il più lungo intervallo senza accettazioni riuscite (client, ms) | 11.881 | 8.096 | 7.434 | 7.914 |
+| Accettate / rifiutate con `E_BUS_DOWN` / offerte | 8.602 / 3.698 / 12.300 | 8.256 / 4.043 / 12.299 | 8.629 / 3.670 / 12.299 | 9.836 / 2.463 / 12.299 |
+| Altri errori del client | 0 | 0 | 0 | 0 |
+| Tentativi scaduti durante la pausa (`expired` = `rejected`) | 1.188 | 894 | 630 | 927 |
+| **Accettate perse** | **0** | **0** | **0** | **0** |
+| `done_events != 1`, duplicati sul bus, payload illeggibili | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 |
+
+Criterio **superato**: rifiuto con codice (`E_BUS_DOWN`, e `E_PROJECTION_DOWN` mai), ricollegamento da solo (nessun intervento sul motore), zero accettate perse, nessun «accettato» senza scrittura durevole (le accettazioni già nel gruppo in volo aspettano il bus e rispondono dopo: `accept_rtt` max ≈ 8 s).
+La coda `APPEND_FAIL` (ricerca dell'esito nella coda del topic) **non si è mai attivata**: le append bloccate sono tornate `Ok` da sole (`APPEND_SLOW` 2 per corsa, poi `APPEND_OK`); quel percorso non è provato.
+
+#### B2.1 Il client `iggy` 0.12.0 e il crash del server (sorgente del crate e prove sul desktop; non misurate)
+
+- **La chiamata non torna con un errore: aspetta.** Prova `bus-probe`, una append ogni 100 ms, `docker kill` a 8 s e `docker start` a 12 s: 301 append `ok`, zero errori; una sola è durata 8.401 ms (a cavallo del crash), poi ha risposto `ok`. Il client si ricollega e rifà il login da solo (`reconnection` attivo, tentativi illimitati, nelle impostazioni predefinite
+  del crate). La testa del topic era 301 = messaggi riconosciuti: nessun duplicato. Per questo la sonda del motore ragiona sul **tempo**, non sull'errore.
+- **Annullare l'append è un errore.** In una prima versione ogni append aveva un tempo massimo e si annullava (`tokio::time::timeout`). Dopo il crash il client risponde `LaneBlocked(op)`: «Lane blocked by operation N with an unknown outcome». Il motore è rimasto fermo oltre 5 minuti (un'operazione incerta, quella annullata,
+  blocca la partizione finché non si risolve) e le richieste dei client si sono accumulate. Il crate offre `resolve_operation(op, scadenza)`, che rigioca l'operazione trattenuta finché ne prova l'esito (una sola volta sul log); `OperationUncertain(op)` e `LaneBlocked(op)` sono gestiti in `Bus::append` e l'append non si annulla più
+  (si segna solo l'indicatore «lenta»). Con questa correzione le quattro corse sopra. **Causa: misurata** (log del motore, desktop, non conservato) e **letta** nel sorgente del crate (`iggy-0.12.0/src/tcp/tcp_client.rs`, `iggy_common-0.12.0/src/traits/client.rs`).
+- **Perché i tentativi scadono** (`expired` = `rejected`, 630-1.188 per corsa): durante la pausa il ciclo del motore ha 4 gruppi in volo sul bus e non legge più dalla coda (`can_take`, lettura del codice), quindi gli esiti dei worker restano fermi in coda oltre la scadenza (`work_ms` 0,5 s + 2 s); alla ripresa gli esiti vecchi si scartano e le attività si rifanno.
+  **Ipotesi coerente con i numeri, non isolata:** i rifacimenti non sono contati con il registro dei worker in questo caso. Costo: un'interruzione del bus più lunga della scadenza rifà le attività che erano finite; con scadenze reali (minuti) non succederebbe.
+
+### B3. Crash di un worker a metà attività
+
+Due worker (4 sessioni ciascuno), 300 esecuzioni/s da 3 passi da 3 s, 30 s; a 12 s `kill -9` del worker 1; il worker 2 prende i tentativi che scadono. Il worker 1 non riparte.
+
+| Misura | r1 | r2 | r3 |
+| --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,96 > 2,86 | 1,91 > 2,86 | 7,16 > 2,77 |
+| Tentativi scaduti e rifatti (`expired`) | 1.355 | 1.351 | 1.347 |
+| Attività eseguite più di una volta (registro dei worker) | 1.355 | 1.351 | 1.347 |
+| Tentativi iniziati / attività distinte | 29.252 / 27.897 | 29.251 / 27.900 | 29.247 / 27.900 |
+| **kill → nuovo inizio della stessa attività** (min / mediana / max, ms) | 2.034 / 3.535 / 5.034 | 2.081 / 3.581 / 5.082 | 2.100 / 3.602 / 5.002 |
+| Accettate perse / esiti doppi (`done_events != 1`) / duplicati sul bus | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 |
+| Esiti scartati (`rejected`) | 0 | 0 | 0 |
+
+Criterio **superato**: l'attività torna disponibile alla scadenza (consegna + 5 s: un tentativo consegnato t secondi prima del kill riparte a 5 − t s dopo il kill, quindi 2-5 s) e si rifà una volta sola. Le rifatte sono **tutte e sole** le scadute (1.355 = 1.355, **misurata**). `READY` non vale (il motore non cade) e non ho misurato «prima attività conclusa»: il motore ha continuato a concludere
+le attività del worker 2 senza pausa (`accept_max_gap_ms` 97 ms nella prova sul desktop). La scadenza è in memoria: una scadenza che sopravvive a un crash del motore è il blocco C.
+
+### B4. Disco pieno
+
+Nessun filesystem vero si riempie. Il limite di dimensione si ottiene senza sudo in due modi:
+
+- **Iggy:** volume docker di tipo `tmpfs` con `size=128m` montato dove Iggy scrive davvero, `/app/local_data` (**il montaggio `/local_data` del compose non è usato da Iggy**, v. deviazioni). La zavorra (un file con `dd`) si crea e si toglie con `docker exec` nel container di Iggy,
+  perché un volume tmpfs si monta di nuovo per ogni container.
+- **Database e archivio:** il motore gira in un namespace di mount proprio (`unshare -Urm`, nessun privilegio) con un `tmpfs` da 128 MB su `out/capmnt` dove stanno `spike.db` e l'archivio dei payload (`capns.sh`, che rifiuta di partire se il mount non è un tmpfs); zavorra e verifica con `nsenter` sul PID del motore.
+  Variante `dbonly`: nel tmpfs c'è solo il database (archivio sul disco vero), per provare il disco pieno del database da solo.
+
+Carico: 300 esecuzioni/s da 3 passi, 30 s (circa 1,4 MB/s di scritture). La zavorra lascia 10 MB liberi (1 MB per `dbonly`), 8 s di osservazione a disco pieno, poi la zavorra si toglie.
+**Il tmpfs sta in RAM: `fsync` non costa niente e l'errore di spazio finito è quello vero (`ENOSPC`), ma la latenza non è quella del disco.**
+
+#### B4.1 Dati di Iggy: Iggy si ferma (`dfull-iggy`, 3 corse)
+
+| Misura | r1 | r2 | r3 |
+| --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 7,08 > 2,92 | 2,81 > 2,89 | 2,93 > 1,96 |
+| zavorra → motore vede il bus giù (ms) | 3.223 | 2.890 | 3.220 |
+| **zavorra tolta → bus di nuovo su** (ms) | **4.522** | **1.666** | **10.916** |
+| zavorra tolta → prima attività conclusa (ms) | 4.213 | 1.686 | 7.615 |
+| Il più lungo intervallo senza accettazioni (client, ms) | 10.930 | 11.917 | 16.461 |
+| Accettate / rifiutate `E_BUS_DOWN` | 5.463 / 3.281 | 5.002 / 4.298 | 3.225 / 6.074 |
+| Concluse nella proiezione | 6.018 | 5.002 | 3.225 |
+| **Accettate perse** | **0** | **0** | **0** |
+| `done_events != 1`, duplicati sul bus, payload illeggibili | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 |
+
+- **Iggy non rifiuta con un errore, esce.** Nel log del server (prova `cap-probe.sh`, `risultati/iggy-cap-probe-4-ms-r1.txt`): `partition prepare persistence failed … No space left on device (os error 28)`, poi `message pump stopped on a partition commit fault; the server is shutting down` e uscita del processo. **Misurata.**
+  Il motore lo vede come bus giù (`E_BUS_DOWN`). Senza un supervisore il bus resta giù finché qualcuno rilancia Iggy: il ciclo di rilancio (`while true; do iggy-server; sleep 1; done` come entrypoint del container di prova) è parte della prova, non del motore. Con spazio ancora pieno il server riparte e ricade alla prima scrittura (nel log del motore `BUS_UP`/`BUS_DOWN` si alternano).
+- **Stato precedente intatto:** dopo il rilancio Iggy rilegge i suoi dati; nella prova sul solo bus le messaggi riconosciuti (1.008) uguagliano la testa del topic (1.008); nelle corse ogni payload applicato si decifra e ogni accettata è conclusa una volta sola.
+- **r1: 555 esecuzioni concluse ma non nel registro** (concluse 6.018 contro 5.463 nel ledger): 555 risposte `ResourceExhausted: h2 protocol error` viste dal client mentre le richieste erano ferme sul bus; il motore le aveva accettate in modo durevole. Eseguite, non perse; **causa lato client: ipotesi** (limite del collegamento HTTP/2 con migliaia di richieste ferme).
+- **Il tempo di ripresa dipende dal ciclo di rilancio e dal client** (1,7-10,9 s): **ipotesi**, tre corse non lo spiegano (la corsa lenta ha avuto un ciclo di crash in più prima di restare su).
+- **Soglia di 2 ore per la causa in Iggy:** non usata: la prova mostra la causa subito (ENOSPC fatale nel server) e nessuna impostazione provata la cambia; **non** è stata tentata `preallocate_segments`. Riportato come previsto.
+
+#### B4.2 Database e archivio (`dfull-db`, 3 corse SQLite + 1 Postgres con l'archivio nel tmpfs)
+
+| Misura | SQLite r1 | SQLite r2 | SQLite r3 | Postgres r1 (archivio nel tmpfs) |
+| --- | --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,81 > 6,91 | 2,84 > 2,59 | 2,79 > 2,84 | 2,87 > 2,89 |
+| zavorra → `STORAGE_FULL` (ms) | 5.275 | 5.339 | 5.278 | 7.597 |
+| **zavorra tolta → proiezione ripresa** (ms) | **84** | **30** | **79** | **45** |
+| zavorra tolta → prima attività conclusa (ms) | 392 | 261 | 374 | 250 |
+| Accettate / rifiutate `E_STORAGE_FULL` | 6.800 / 2.499 | 6.816 / 2.484 | 6.798 / 2.502 | 6.798 / 2.501 |
+| **Accettate perse** | **0** | **0** | **0** | **0** |
+| Payload illeggibili, `done_events != 1`, duplicati | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 | 0, 0, 0 |
+
+Con il database e l'archivio insieme in tutte le corse il primo a finire lo spazio è **l'archivio** (8 righe `STORAGE_FULL` su 8, tutte «archivio: No space left on device (os error 28)»; **misurata**). Per provare il database da solo, variante `dbonly` (1 MB liberi, archivio sul disco vero), 3 corse:
+
+| Misura | r1 | r2 | r3 |
+| --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,64 > 5,32 | 2,81 > 2,94 | 2,83 > 2,70 |
+| zavorra → `STORAGE_FULL` (ms) | 761 | 790 | 788 |
+| zavorra tolta → proiezione ripresa (ms) | 108 | 145 | 5 |
+| zavorra tolta → prima attività conclusa (ms) | 266 | 322 | 270 |
+| Accettate / rifiutate `E_STORAGE_FULL` | 6.828 / 2.471 | 6.794 / 2.506 | 6.837 / 2.462 |
+| **Accettate perse** | **0** | **0** | **0** |
+
+L'errore del database è `database or disk is full (code: 13)` (SQLite). **Il disco pieno del solo database di Postgres non è provato:** la corsa Postgres ha il tmpfs sull'archivio, non sul volume di Postgres (che, a disco pieno, andrebbe in `PANIC` e riavvio di recupero: **ipotesi**, non misurata).
+
+Il motore continua ad accettare i risultati dei worker (durevoli sul bus) mentre il proiettore è fermo; la proiezione, a ripresa avvenuta, recupera l'arretrato. «Prima attività conclusa» qui è un esito **durevole sul bus**, non ancora proiettato.
+
+### B5. Pause del disco a 10.000 att./s (3 corse da 10 minuti, SQLite, motore completo)
+
+Come `full` del blocco A (1.000 esecuzioni/s da 10 passi, due tenant, `trim=1`), ora con il registro delle accettate e `verify light` (ledger contro database, `done_events`, payload a campione di circa 1/997 perché il taglio del bus è attivo: **la scansione dei duplicati sul bus non prova niente con `trim=1` e non si fa**).
+**Criterio di stallo, scritto nel file grezzo prima delle corse:** un minuto (riga `MIN`) con meno di 9.000 att./s, oppure un intervallo senza accettazioni riuscite oltre 5 s, oppure ritardo di proiezione p99 oltre 1.000 ms.
+
+| Misura | r1 | r2 | r3 |
+| --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,77 > 4,55 | 4,40 > 4,39 | 4,58 > 4,30 |
+| Offerte / accettate (ledger) | 605.000 / 605.000 | 605.001 / 604.622 | 605.000 / 603.639 |
+| Rifiutate `E_PROJECTION_DOWN` | 0 | 0 | 819 |
+| Errori del client, per tipo | nessuno | 379 `ResourceExhausted: h2 protocol error` | 541 `ResourceExhausted: h2 protocol error`, 1 `Cancelled` |
+| **Accettate perse** (ledger contro database) | **0** | **0** | **0** |
+| Concluse nella proiezione, oltre il ledger | 0 | 378 | 541 |
+| `done_events != 1`, payload illeggibili (campione) | 0, 0 | 0, 0 | 0, 0 |
+| Minuti con meno di 9.000 att./s (escluso il minuto 1, di avvio, sotto soglia in tutte e tre: 8.770-8.964) | 3 (8.889) | 6 (8.990) | 2, 3 (5.421 e 4.913) |
+| Ritardo di proiezione p99 oltre 1.000 ms | minuti 3 e 4 (1.933, 2.357 ms) | minuti 6 e 7 (3.979, 1.244 ms) | minuti 2-5 (8.749, 16.327, 20.480, 5.431 ms) |
+| Il più lungo intervallo senza accettazioni (client, ms) | 492 | 1.777 | 1.184 |
+| **Stallo secondo il criterio** | **sì** (minuti 3-4) | **sì** (minuti 6-7) | **sì** (minuti 2-5, il più lungo) |
+
+**Esito:** zero accettate perse in 3 corse su 3, con uno stallo del disco in ognuna (nel blocco A: uno in 3 corse del motore completo). I 3 episodi sono diversi: r1 e r2 sono un picco di ritardo di proiezione di 1-4 s con throughput quasi pieno; r3 è lungo 4 minuti, la proiezione resta indietro fino a 20 s e il throughput scende a 4.913 att./s, poi recupera a 14-15.000.
+
+- **Durante lo stallo di r3 il disco è lento, non il bus** (misurata, righe `MIN` di `iggy-sqlite-stall10k-4-ms-r3.txt`): scrittura dei payload nell'archivio p50 47,7-53,7 ms contro 8-12 (minuti 6-10) e transazione del database 80,6-89,3 ms contro 13-27; la lettura dal bus resta a 0,9-1,2 ms. Stessa firma dell'episodio del blocco A. **La causa del rallentamento del disco resta ipotesi** (non isolata, come nel blocco A).
+- **`database is locked` di SQLite (code 5), 2 volte in r3** (`proiezione ferma` … `ripresa` dopo 331 e 411 ms): `busy_timeout` è 300 ms e il proiettore ritenta; nel frattempo le accettazioni tornano `E_PROJECTION_DOWN` (819 rifiuti). In r1 e r2 nessun `database is locked`. È il punto del blocco E («`SQLITE_BUSY`») già comparso a 10.000/s; **la causa è ipotesi** (il file trattenuto oltre 300 ms durante il rallentamento del disco).
+- **Gli errori «senza tipo» del blocco A (1.401) erano probabilmente di questo tipo** (**ipotesi**, perché quel registro non c'era): `ResourceExhausted: h2 protocol error` visto dal client, con richieste che il motore ha invece accettato e concluso (378 e 541 concluse oltre il ledger). Per «zero accettate perse» valgono come eseguite non confermate, non come perse.
+- **Il minuto 1 sta sotto 9.000 in tutte e tre le corse** (8.770-8.964): è la salita del carico e dell'avvio (nessun intervallo senza accettazioni oltre 0,5 s all'inizio); l'ho escluso dal conteggio e lo dichiaro qui perché il criterio scritto prima non lo escludeva.
+
+### Deviazioni dal piano (blocco B)
+
+- **`/local_data` non è la directory dati di Iggy.** Il compose monta i dati in `/local_data`, ma `iggy-server` scrive in `/app/local_data` (visto con `find` nel container). In tutte le fasi precedenti i dati di Iggy erano nello strato scrivibile del container (overlay2, `/var/lib/docker`, che su minisheep sta sullo stesso
+  filesystem di `/home`); la corsa di `reset.sh` li cancellava perché `compose down` elimina il container. Le misure non cambiano; la directory dati «vuota» dell'aggiornamento del blocco A era in realtà il container nuovo. Per il disco pieno il montaggio limitato va su `/app/local_data` (`IGGY_MNT`).
+- **Iggy con un ciclo di rilancio** nel solo caso `dfull-iggy` (`IGGY_SUP`): senza, il container esce e il volume tmpfs si perde. Rilancio del processo, non della macchina.
+- **Il tmpfs è RAM**, non disco (v. B4). Nessun altro modo senza sudo; il filesystem vero non è mai stato riempito.
+- **Postgres:** una corsa per il crash del motore, una per il crash di Iggy, una per il disco pieno con l'archivio nel tmpfs. **Non** una per il disco pieno del volume di Postgres (v. B4.2). Il crash del worker non tocca il database: solo SQLite. I 10.000/s: solo SQLite (il blocco A non aveva Postgres).
+- **Il codice del motore è cambiato** (elenco sopra) **rispetto al blocco A**: le corse del blocco A non sono rimisurate e l'aggiornamento (A3) ha un comportamento diverso dopo la ripresa. L'ultima corsa di A3 non è stata rifatta.
+- **Scarto di corse.** Nessuna corsa scartata dopo averla vista. Prima della serie misurata sono girate sul desktop (non conservate) le prove di messa a punto: la prima versione di Iggy giù (con tempo massimo e annullamento) è rimasta ferma sul `LaneBlocked` e ho cambiato il codice (B2.1); nessuna corsa misurata usa quella versione.
+- **Script cambiati tra una corsa e l'altra**, non il binario: `scen.sh` ha avuto due modifiche durante la serie, la riga `DBURL` per Postgres con `dfull-db` (prima di `diskfull-db` Postgres e `dbonly`) e la variabile `CAPDBONLY` (prima di `dbonly`); i casi già eseguiti non le usano. `ms-run.sh` ha da ora la riga `binario sha256`.
+- **La prima corsa `dbonly` r1 con 10 MB liberi non ha riempito il database** (non si è scartata come «fallita»: il database cresce troppo poco in 30 s; l'ho rifatta con 1 MB liberi e la prima versione non è conservata: il file è stato sovrascritto prima di aver deciso di riportarla). È la sola corsa rifatta con parametri diversi.
+- **Prove sul desktop non misurate né conservate** (messa a punto e fattibilità): `cap-probe.sh` e `kill-probe.sh` sul desktop, le corse di prova dei casi. Il file `iggy-cap-probe-4-ms-r1.txt` su minisheep rifà `cap-probe.sh`.
+- **Le attività rifatte per un bus giù** (B2) sono contate dal motore (`expired`, `rejected`) e non dal registro dei worker.
+- **Registro dei worker** (`worklog`) attivo solo nei casi B1-B4; a 10.000/s no (una scrittura per consegna).
+- **Tempo:** circa un giorno di lavoro tra codice, prove sul desktop e corse (le tre corse da 10 minuti e le attese del cancello di quiete comprese), dentro il tempo previsto; nessun caso ha superato le 2 ore per la causa in Iggy.
+
+### Non coperto
+
+- Spegnimento improvviso dell'host (NFR-6) e la perdita della cache del sistema: non misurabile su minisheep, argomentato nell'ADR.
+- Disco pieno del volume di Postgres; disco pieno su un filesystem vero (qui tmpfs).
+- Il percorso `APPEND_FAIL` (ricerca dell'esito nella coda del topic): mai eseguito dalle corse misurate.
+- Un crash del motore mentre Iggy è giù; più guasti insieme; un crash del motore a metà `rewrite_live` (già non provato nel blocco A).
+- Una scadenza del tentativo che sopravvive al crash del motore (blocco C): qui dopo la ripresa la scadenza riparte da zero.
+- Iggy con refusal specifico «disco pieno»: Iggy esce, il motore dice `E_BUS_DOWN`.
+
+### Comandi per rifare (blocco B)
+
+Su minisheep, in `~/ttspikebus` (`env.sh`, `.env` da `./gen-env.sh`, binario `bin/busspike`). Una corsa alla volta, staccata dalla shell e attesa in primo piano: `./brun.sh <file> <comando>` poi `./brun.sh wait` se serve.
+
+| Misura | Comando |
+| --- | --- |
+| B1 crash del motore | `CAP=4096 ./brun.sh risultati/iggy-sqlite-crash-engine-4-ms-r1.txt ./scen.sh iggy sqlite ekill` (Postgres: `… iggy pg ekill`) |
+| B2 crash di Iggy | `CAP=4096 ./brun.sh risultati/iggy-sqlite-crash-iggy-4-ms-r1.txt ./scen.sh iggy sqlite bkill` |
+| B3 crash di un worker | `CAP=4096 ./brun.sh risultati/iggy-sqlite-crash-worker-4-ms-r1.txt ./scen.sh iggy sqlite wkill` |
+| B4.1 disco pieno di Iggy | `CAP=4096 ./brun.sh risultati/iggy-sqlite-diskfull-iggy-4-ms-r1.txt ./scen.sh iggy sqlite dfull-iggy` |
+| B4.2 disco pieno di database e archivio | `CAP=4096 ./brun.sh risultati/iggy-sqlite-diskfull-db-4-ms-r1.txt ./scen.sh iggy sqlite dfull-db` (Postgres: `… iggy pg dfull-db`; solo database: `CAPFREE=1 CAPDBONLY=1 …`) |
+| B4.1 fattibilità del disco pieno di Iggy | `./ms-run.sh risultati/iggy-cap-probe-4-ms-r1.txt ./cap-probe.sh` |
+| B5 stalli a 10.000/s | `GATE60=1 ./brun.sh risultati/iggy-sqlite-stall10k-4-ms-r1.txt ./with-sampler.sh risultati/iggy-sqlite-stall10k-4-ms-r1.io ./scen.sh iggy sqlite thr10k secs=600` |
+| Prova del client `iggy` su un crash | `./kill-probe.sh` (desktop o minisheep) |

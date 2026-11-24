@@ -15,6 +15,7 @@ use iggy::prelude::*;
 #[cfg(feature = "old")]
 use iggy_old::prelude::*;
 use redis::aio::MultiplexedConnection;
+use std::time::Duration;
 
 pub type Res<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 const STREAM: &str = "tt";
@@ -43,11 +44,17 @@ fn id_to_pos(id: &str) -> u64 {
 /// il server può cancellare segmenti (nessun altro consumatore è registrato sul topic).
 #[cfg(not(feature = "old"))]
 fn projector_consumer() -> Consumer {
-    Consumer { kind: ConsumerKind::Consumer, id: Identifier::numeric(1).unwrap() }
+    Consumer {
+        kind: ConsumerKind::Consumer,
+        id: Identifier::numeric(1).unwrap(),
+    }
 }
 #[cfg(feature = "old")]
 fn projector_consumer() -> Consumer {
-    Consumer { kind: ConsumerKind::Consumer, id: Identifier::numeric(1).unwrap() }
+    Consumer {
+        kind: ConsumerKind::Consumer,
+        id: Identifier::numeric(1).unwrap(),
+    }
 }
 
 impl Bus {
@@ -66,7 +73,9 @@ impl Bus {
                 let id = Identifier::named(STREAM)?;
                 if c.get_stream(&id).await?.is_none() {
                     #[cfg(not(feature = "old"))]
-                    let _ = c.create_stream(STREAM, &StreamCreateOptions::default()).await;
+                    let _ = c
+                        .create_stream(STREAM, &StreamCreateOptions::default())
+                        .await;
                     #[cfg(feature = "old")]
                     let _ = c.create_stream(STREAM).await;
                 }
@@ -74,8 +83,11 @@ impl Bus {
             }
             "valkey" => {
                 let url = format!("redis://:{}@127.0.0.1:47002", env("VALKEY_PASSWORD"));
-                let cfg = redis::AsyncConnectionConfig::new().set_response_timeout(Some(std::time::Duration::from_secs(60)));
-                let c = redis::Client::open(url)?.get_multiplexed_async_connection_with_config(&cfg).await?;
+                let cfg = redis::AsyncConnectionConfig::new()
+                    .set_response_timeout(Some(std::time::Duration::from_secs(60)));
+                let c = redis::Client::open(url)?
+                    .get_multiplexed_async_connection_with_config(&cfg)
+                    .await?;
                 Ok(Bus::Valkey(c))
             }
             _ => Err("bus: iggy|valkey".into()),
@@ -98,7 +110,9 @@ impl Bus {
                 let o = TopicCreateOptions {
                     partitions_count: Some(1),
                     message_expiry: Some(IggyExpiry::NeverExpire),
-                    segment_size: std::env::var("IGGY_SEGMENT_SIZE").ok().map(|v| IggyByteSize::from(v.parse::<u64>().unwrap())),
+                    segment_size: std::env::var("IGGY_SEGMENT_SIZE")
+                        .ok()
+                        .map(|v| IggyByteSize::from(v.parse::<u64>().unwrap())),
                     // IGGY_DURABILITY=replicated solo come controllo di confronto
                     durability: if std::env::var("IGGY_DURABILITY").as_deref() == Ok("replicated") {
                         Durability::Replicated
@@ -106,8 +120,12 @@ impl Bus {
                         Durability::Persisted
                     },
                     // soglie di scrittura dei segmenti (messaggi e byte), per la fase 4: predefiniti 1.024 messaggi e 1 MiB
-                    messages_required_to_save: std::env::var("IGGY_SAVE_MSGS").ok().map(|v| v.parse().unwrap()),
-                    size_of_messages_required_to_save: std::env::var("IGGY_SAVE_BYTES").ok().map(|v| IggyByteSize::from(v.parse::<u64>().unwrap())),
+                    messages_required_to_save: std::env::var("IGGY_SAVE_MSGS")
+                        .ok()
+                        .map(|v| v.parse().unwrap()),
+                    size_of_messages_required_to_save: std::env::var("IGGY_SAVE_BYTES")
+                        .ok()
+                        .map(|v| IggyByteSize::from(v.parse::<u64>().unwrap())),
                     #[cfg(not(feature = "old"))]
                     preallocate_segments: std::env::var("IGGY_PREALLOC").ok().map(|v| v == "1"),
                     ..TopicCreateOptions::default()
@@ -115,7 +133,10 @@ impl Bus {
                 c.create_topic(&s, topic, &o).await?;
             }
             // rilettura: la durabilità richiesta deve essere quella applicata
-            let t = c.get_topic(&s, &Identifier::named(topic)?).await?.ok_or("topic mancante")?;
+            let t = c
+                .get_topic(&s, &Identifier::named(topic)?)
+                .await?
+                .ok_or("topic mancante")?;
             if std::env::var("BUS_PRINT_TOPIC").is_ok() {
                 eprintln!("{t:?}");
             }
@@ -131,6 +152,34 @@ impl Bus {
                     .iter()
                     .map(|b| IggyMessage::builder().payload(b.clone()).build())
                     .collect::<Result<_, _>>()?;
+                // Client 0.12.0: una scrittura con esito incerto (crash del server a metà) torna `OperationUncertain(op)`;
+                // `resolve_operation` la rigioca finché ne prova l'esito (una sola volta sul log). `LaneBlocked(op)` dice
+                // che un'operazione incerta precedente blocca la partizione e questo gruppo non è partito: si libera e si rimanda.
+                // Annullare una append a metà (timeout) lascia proprio questo blocco: per questo l'append non si annulla mai.
+                #[cfg(not(feature = "old"))]
+                loop {
+                    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+                    match c
+                        .send_messages(
+                            &Identifier::named(STREAM)?,
+                            &Identifier::named(topic)?,
+                            &Partitioning::partition_id(0),
+                            &mut m,
+                        )
+                        .await
+                    {
+                        Ok(_) => break,
+                        Err(IggyError::OperationUncertain(op)) => {
+                            c.resolve_operation(op, deadline).await?;
+                            break;
+                        }
+                        Err(IggyError::LaneBlocked(op)) => {
+                            c.resolve_operation(op, deadline).await?
+                        }
+                        Err(e) => return Err(e.into()),
+                    }
+                }
+                #[cfg(feature = "old")]
                 c.send_messages(
                     &Identifier::named(STREAM)?,
                     &Identifier::named(topic)?,
@@ -142,7 +191,12 @@ impl Bus {
             Bus::Valkey(c) => {
                 let mut p = redis::pipe();
                 for b in msgs {
-                    p.cmd("XADD").arg(topic).arg("*").arg("d").arg(b.as_ref()).ignore();
+                    p.cmd("XADD")
+                        .arg(topic)
+                        .arg("*")
+                        .arg("d")
+                        .arg(b.as_ref())
+                        .ignore();
                 }
                 let mut c = c.clone();
                 p.query_async::<()>(&mut c).await?;
@@ -163,14 +217,29 @@ impl Bus {
                         0,
                         &Consumer::default(),
                         &PollingStrategy::offset(from),
-                        PollOptions { count: max, max_bytes: 64 << 20, ..PollOptions::default() },
+                        PollOptions {
+                            count: max,
+                            max_bytes: 64 << 20,
+                            ..PollOptions::default()
+                        },
                     )
                     .await?;
                 #[cfg(feature = "old")]
                 let r = c
-                    .poll_messages(&Identifier::named(STREAM)?, &Identifier::named(topic)?, Some(0), &Consumer::default(), &PollingStrategy::offset(from), max, false)
+                    .poll_messages(
+                        &Identifier::named(STREAM)?,
+                        &Identifier::named(topic)?,
+                        Some(0),
+                        &Consumer::default(),
+                        &PollingStrategy::offset(from),
+                        max,
+                        false,
+                    )
                     .await?;
-                Ok(r.messages.into_iter().map(|m| (m.header.offset, m.payload)).collect())
+                Ok(r.messages
+                    .into_iter()
+                    .map(|m| (m.header.offset, m.payload))
+                    .collect())
             }
             Bus::Valkey(c) => {
                 let mut c = c.clone();
@@ -194,11 +263,16 @@ impl Bus {
     pub async fn drop_topic(&self, topic: &str) -> Res<()> {
         match self {
             Bus::Iggy(c) => {
-                let _ = c.delete_topic(&Identifier::named(STREAM)?, &Identifier::named(topic)?).await;
+                let _ = c
+                    .delete_topic(&Identifier::named(STREAM)?, &Identifier::named(topic)?)
+                    .await;
             }
             Bus::Valkey(c) => {
                 let mut c = c.clone();
-                redis::cmd("DEL").arg(topic).query_async::<()>(&mut c).await?;
+                redis::cmd("DEL")
+                    .arg(topic)
+                    .query_async::<()>(&mut c)
+                    .await?;
             }
         }
         Ok(())
@@ -214,14 +288,20 @@ impl Bus {
         match self {
             Bus::Valkey(c) => {
                 let mut c = c.clone();
-                redis::cmd("XTRIM").arg(topic).arg("MINID").arg(pos_to_id(upto)).query_async::<()>(&mut c).await?;
+                redis::cmd("XTRIM")
+                    .arg(topic)
+                    .arg("MINID")
+                    .arg(pos_to_id(upto))
+                    .query_async::<()>(&mut c)
+                    .await?;
             }
             Bus::Iggy(c) => {
                 if upto == 0 {
                     return Ok(());
                 }
                 let (s, t) = (Identifier::named(STREAM)?, Identifier::named(topic)?);
-                c.store_consumer_offset(&projector_consumer(), &s, &t, Some(0), upto - 1).await?;
+                c.store_consumer_offset(&projector_consumer(), &s, &t, Some(0), upto - 1)
+                    .await?;
                 c.delete_segments(&s, &t, 0, u32::MAX).await?;
             }
         }
@@ -232,10 +312,17 @@ impl Bus {
     pub async fn head(&self, topic: &str) -> Res<u64> {
         match self {
             Bus::Iggy(c) => {
-                let t = c.get_topic(&Identifier::named(STREAM)?, &Identifier::named(topic)?).await?.ok_or("topic mancante")?;
+                let t = c
+                    .get_topic(&Identifier::named(STREAM)?, &Identifier::named(topic)?)
+                    .await?
+                    .ok_or("topic mancante")?;
                 let p = t.partitions.first().ok_or("partizione mancante")?;
                 // partizione vuota: current_offset vale 0 come con un solo messaggio
-                Ok(if p.messages_count == 0 && p.current_offset == 0 { 0 } else { p.current_offset + 1 })
+                Ok(if p.messages_count == 0 && p.current_offset == 0 {
+                    0
+                } else {
+                    p.current_offset + 1
+                })
             }
             Bus::Valkey(_) => Err("head: solo Iggy".into()),
         }
@@ -245,7 +332,10 @@ impl Bus {
     pub async fn segments(&self, topic: &str) -> Res<(u32, u64, u64)> {
         match self {
             Bus::Iggy(c) => {
-                let t = c.get_topic(&Identifier::named(STREAM)?, &Identifier::named(topic)?).await?.ok_or("topic mancante")?;
+                let t = c
+                    .get_topic(&Identifier::named(STREAM)?, &Identifier::named(topic)?)
+                    .await?
+                    .ok_or("topic mancante")?;
                 let p = t.partitions.first().ok_or("partizione mancante")?;
                 Ok((p.segments_count, p.messages_count, p.size.as_bytes_u64()))
             }
@@ -257,7 +347,12 @@ impl Bus {
     pub async fn consumer_offset(&self, topic: &str) -> Res<Option<u64>> {
         match self {
             Bus::Iggy(c) => Ok(c
-                .get_consumer_offset(&projector_consumer(), &Identifier::named(STREAM)?, &Identifier::named(topic)?, Some(0))
+                .get_consumer_offset(
+                    &projector_consumer(),
+                    &Identifier::named(STREAM)?,
+                    &Identifier::named(topic)?,
+                    Some(0),
+                )
                 .await?
                 .map(|i| i.stored_offset)),
             Bus::Valkey(_) => Err("consumer_offset: solo Iggy".into()),
@@ -275,7 +370,8 @@ impl Bus {
         if let Some((_, b)) = self.read(META, 0, 1).await?.into_iter().next() {
             return Ok(u64::from_le_bytes(b[..8].try_into()?));
         }
-        self.append(META, &[Bytes::copy_from_slice(&default.to_le_bytes())]).await?;
+        self.append(META, &[Bytes::copy_from_slice(&default.to_le_bytes())])
+            .await?;
         Ok(default)
     }
 }

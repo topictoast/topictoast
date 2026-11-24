@@ -1,0 +1,54 @@
+[stato prima 20:56:28] load: 0.64 1.25 1.15
+[stato prima] io: some avg10=0.35 avg60=2.51 avg300=11.65 total=11018340308
+[stato prima] cpu: some avg10=0.08 avg60=0.30 avg300=0.71 total=1232914125
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] binario sha256: d51b36de4ca9c6dc
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.93ms p99=4.10ms p99.9=4.74ms max=4.74ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.03
+[attesa] 0 s
+### iggy + sqlite: dfull-iggy 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2308508 READY recovered_ms=210 now_us=1795550195913852 gen=1
+103809024 bytes (104 MB, 99 MiB) copied, 0.0261803 s, 4.0 GB/s
+tmpfs                128   120         9  94% /app/local_data
+T0 zavorra messa=1795550200203398 (restano 10 MB)
+T_pieno=1795550203424362 (zavorra -> pieno 3220 ms)
+tmpfs                128   128         0 100% /app/local_data
+tmpfs                128    29        99  23% /app/local_data
+T1 zavorra tolta=1795550211530617
+T_ripresa=1795550222447282 (zavorra tolta -> ripresa 10916 ms)
+zavorra tolta -> prima attività conclusa dopo la ripresa: 7615 ms
+load tenants=ab rate=300/s kind=0 n=3 size=1024 work_ms=0 warm=1s measured=30s
+offered=9299 accepted=3225 refused_E_PROJECTION_DOWN=6074 errors=0 overload_skipped=0
+errors_by_type {"Unavailable:E_BUS_DOWN": 6074}
+accept_rtt_open_loop n=2926 p50=0.71ms p99=17072.13ms p99.9=17154.05ms max=17170.43ms over100ms=193
+accept_max_gap_ms=16461 from_us=1795550201557730 to_us=1795550218018747
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.66 cpu_per_1000_att engine=0.000 worker=656.000
+-- eventi di disco e bus del motore
+BUS_DOWN 1795550203424362
+BUS_UP 1795550203926485
+BUS_DOWN 1795550205928996
+APPEND_SLOW 1795550206561182 state-0000000000007000800000000000000b: nessuna risposta in 5000 ms
+APPEND_SLOW 1795550208939421 state-0000000000007000800000000000000a: nessuna risposta in 5000 ms
+APPEND_OK 1795550218018300 state-0000000000007000800000000000000b: 2 messaggi riscritti, 0 già durevoli
+APPEND_OK 1795550219144609 state-0000000000007000800000000000000a: 64 messaggi riscritti, 0 già durevoli
+BUS_UP 1795550222447282
+motore dopo la corsa: secs=32.2 accepted=3225 refused=6074 done=9675 rejected=0 groups=97 expired=0 late_ok=0
+verify: accettate=3225 concluse_nella_proiezione=3187 accettate_perse=38 attivita_concluse=9561 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=9675 duplicati_sul_bus=0 payload_decifrati=9561 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=3225 concluse_nella_proiezione=3225 accettate_perse=0 attivita_concluse=9675 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=9675 duplicati_sul_bus=0 payload_decifrati=9675 payload_illeggibili=0 light=false
+verify OK
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 107672 kB
+rss pid=2308508 53336 kB
+rss pid=2308546 16924 kB
+-- conteggio file archivio: 25
+[stato dopo 20:57:13] load: 0.57 1.15 1.12
+[stato dopo] io: some avg10=0.11 avg60=1.41 avg300=10.08 total=11018750374
+[stato dopo] cpu: some avg10=0.35 avg60=0.29 avg300=0.64 total=1233192628
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] binario sha256: d51b36de4ca9c6dc
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=1.96ms p99=4.17ms p99.9=6.33ms max=6.33ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

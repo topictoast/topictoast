@@ -29,7 +29,9 @@ impl Db {
     pub async fn open(url: &str) -> Res<Db> {
         sqlx::any::install_default_drivers();
         let pg = url.starts_with("postgres");
-        let o = AnyPoolOptions::new().max_connections(4).acquire_timeout(std::time::Duration::from_secs(2));
+        let o = AnyPoolOptions::new()
+            .max_connections(4)
+            .acquire_timeout(std::time::Duration::from_secs(2));
         let o = if pg {
             o
         } else {
@@ -44,7 +46,13 @@ impl Db {
             })
         };
         let pool = o.connect(url).await?;
-        let db = Db { pool, pg, stmts: 0.into(), rows: 0.into(), generation: 1.into() };
+        let db = Db {
+            pool,
+            pg,
+            stmts: 0.into(),
+            rows: 0.into(),
+            generation: 1.into(),
+        };
         let b = if pg { "BYTEA" } else { "BLOB" };
         for ddl in [
             "CREATE TABLE IF NOT EXISTS projection_pos(topic TEXT PRIMARY KEY, pos BIGINT NOT NULL, gen BIGINT NOT NULL DEFAULT 1)".to_string(),
@@ -58,7 +66,11 @@ impl Db {
     }
 
     fn lit(&self, b: &[u8]) -> String {
-        if self.pg { format!("'\\x{}'", hex(b)) } else { format!("X'{}'", hex(b)) }
+        if self.pg {
+            format!("'\\x{}'", hex(b))
+        } else {
+            format!("X'{}'", hex(b))
+        }
     }
 
     async fn run(&self, c: &mut sqlx::AnyConnection, sql: &str) -> Res<()> {
@@ -69,7 +81,13 @@ impl Db {
     }
 
     /// Applica un gruppo di eventi del topic e la nuova posizione (la prossima da leggere), in una transazione.
-    pub async fn apply(&self, topic: &str, next_pos: u64, evs: &[Ev], locs: &HashMap<Hash, Loc>) -> Res<()> {
+    pub async fn apply(
+        &self,
+        topic: &str,
+        next_pos: u64,
+        evs: &[Ev],
+        locs: &HashMap<Hash, Loc>,
+    ) -> Res<()> {
         let mut c = self.pool.acquire().await?;
         self.run(&mut c, "BEGIN").await?;
         let r = self.apply_in_tx(&mut c, topic, next_pos, evs, locs).await;
@@ -82,12 +100,29 @@ impl Db {
         }
     }
 
-    async fn apply_in_tx(&self, c: &mut sqlx::AnyConnection, topic: &str, next_pos: u64, evs: &[Ev], locs: &HashMap<Hash, Loc>) -> Res<()> {
+    async fn apply_in_tx(
+        &self,
+        c: &mut sqlx::AnyConnection,
+        topic: &str,
+        next_pos: u64,
+        evs: &[Ev],
+        locs: &HashMap<Hash, Loc>,
+    ) -> Res<()> {
         let (mut ex, mut rd, mut dn, mut fin) = (vec![], vec![], vec![], vec![]);
         let mut fin_ts = 0;
         for e in evs {
             match e {
-                Ev::Accepted { exec, tenant, kind, n, work_ms, out_size, ts, input_hash, .. } => ex.push(format!(
+                Ev::Accepted {
+                    exec,
+                    tenant,
+                    kind,
+                    n,
+                    work_ms,
+                    out_size,
+                    ts,
+                    input_hash,
+                    ..
+                } => ex.push(format!(
                     "({},{},{},{},{},{},{},{},{},{},{},NULL)",
                     self.lit(exec),
                     self.lit(tenant),
@@ -101,12 +136,43 @@ impl Db {
                     locs.get(input_hash).map_or(0, |l| l.2),
                     ts
                 )),
-                Ev::Ready { exec, tenant, step, last, ts } => {
-                    rd.push(format!("({},{},{},{},{},NULL,NULL,0,NULL,NULL,NULL)", self.lit(exec), step, self.lit(tenant), *last as u8, ts))
-                }
-                Ev::Done { exec, tenant, step, last, ts, out_hash, .. } => {
+                Ev::Ready {
+                    exec,
+                    tenant,
+                    step,
+                    last,
+                    ts,
+                } => rd.push(format!(
+                    "({},{},{},{},{},NULL,NULL,0,NULL,NULL,NULL)",
+                    self.lit(exec),
+                    step,
+                    self.lit(tenant),
+                    *last as u8,
+                    ts
+                )),
+                Ev::Done {
+                    exec,
+                    tenant,
+                    step,
+                    last,
+                    ts,
+                    out_hash,
+                    ..
+                } => {
                     let l = locs.get(out_hash).copied().unwrap_or_default();
-                    dn.push(format!("({},{},{},{},{},{},{},1,{},{},{})", self.lit(exec), step, self.lit(tenant), *last as u8, ts, ts, self.lit(out_hash), l.0, l.1, l.2));
+                    dn.push(format!(
+                        "({},{},{},{},{},{},{},1,{},{},{})",
+                        self.lit(exec),
+                        step,
+                        self.lit(tenant),
+                        *last as u8,
+                        ts,
+                        ts,
+                        self.lit(out_hash),
+                        l.0,
+                        l.1,
+                        l.2
+                    ));
                     if *last {
                         fin.push(self.lit(exec));
                         fin_ts = *ts;
@@ -124,14 +190,24 @@ impl Db {
             self.run(c, &format!("INSERT INTO activity(exec_id,step,tenant,is_last,ready_us,done_us,out_hash,done_events,out_seg,out_off,out_len) VALUES {} ON CONFLICT(exec_id,step) DO UPDATE SET done_us=excluded.done_us, out_hash=excluded.out_hash, out_seg=excluded.out_seg, out_off=excluded.out_off, out_len=excluded.out_len, done_events=activity.done_events+1", ch.join(","))).await?;
         }
         for ch in fin.chunks(CHUNK) {
-            self.run(c, &format!("UPDATE execution SET done_us={} WHERE id IN ({})", fin_ts, ch.join(","))).await?;
+            self.run(
+                c,
+                &format!(
+                    "UPDATE execution SET done_us={} WHERE id IN ({})",
+                    fin_ts,
+                    ch.join(",")
+                ),
+            )
+            .await?;
         }
         self.run(c, &format!("INSERT INTO projection_pos(topic,pos,gen) VALUES ('{topic}',{next_pos},{}) ON CONFLICT(topic) DO UPDATE SET pos=excluded.pos, gen=excluded.gen", self.generation.load(Relaxed))).await
     }
 
     /// Generazione del bus a cui si riferiscono le posizioni salvate (`None` se non ce n'è nessuna).
     pub async fn generation(&self) -> Res<Option<u64>> {
-        let r = sqlx::query("SELECT min(gen) FROM projection_pos").fetch_one(&self.pool).await?;
+        let r = sqlx::query("SELECT min(gen) FROM projection_pos")
+            .fetch_one(&self.pool)
+            .await?;
         Ok(r.get::<Option<i64>, _>(0).map(|g| g as u64))
     }
 
@@ -147,8 +223,12 @@ impl Db {
 
     /// Prossima posizione da leggere per ogni topic.
     pub async fn positions(&self) -> Res<HashMap<String, u64>> {
-        let r = sqlx::query("SELECT topic, pos FROM projection_pos").fetch_all(&self.pool).await?;
-        Ok(r.iter().map(|x| (x.get::<String, _>(0), x.get::<i64, _>(1) as u64)).collect())
+        let r = sqlx::query("SELECT topic, pos FROM projection_pos")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(r.iter()
+            .map(|x| (x.get::<String, _>(0), x.get::<i64, _>(1) as u64))
+            .collect())
     }
 
     /// Esecuzioni vive (non concluse) con lo stato dei passi, come proiettato fino alla posizione applicata.
@@ -161,8 +241,22 @@ impl Db {
             let id: Uid = x.get::<Vec<u8>, _>(0).try_into().unwrap();
             let tenant: Uid = x.get::<Vec<u8>, _>(1).try_into().unwrap();
             let h: Hash = x.get::<Vec<u8>, _>(6).try_into().unwrap();
-            let mut ex = Exec::new(tenant, x.get::<i64, _>(2) as u8, x.get::<i64, _>(3) as u32, x.get::<i64, _>(4) as u32, x.get::<i64, _>(5) as u32, h);
-            ex.locs.insert(h, (x.get::<i64, _>(7) as u64, x.get::<i64, _>(8) as u64, x.get::<i64, _>(9) as u32));
+            let mut ex = Exec::new(
+                tenant,
+                x.get::<i64, _>(2) as u8,
+                x.get::<i64, _>(3) as u32,
+                x.get::<i64, _>(4) as u32,
+                x.get::<i64, _>(5) as u32,
+                h,
+            );
+            ex.locs.insert(
+                h,
+                (
+                    x.get::<i64, _>(7) as u64,
+                    x.get::<i64, _>(8) as u64,
+                    x.get::<i64, _>(9) as u32,
+                ),
+            );
             m.insert(id, ex);
         }
         let r = sqlx::query("SELECT a.exec_id, a.step, a.out_hash, a.out_seg, a.out_off, a.out_len FROM activity a JOIN execution e ON e.id = a.exec_id WHERE e.done_us IS NULL")
@@ -173,8 +267,15 @@ impl Db {
             let step = x.get::<i64, _>(1) as usize;
             if let Some(e) = m.get_mut(&id) {
                 e.issued[step] = true;
-                e.done[step] = x.get::<Option<Vec<u8>>, _>(2).map(|h| h.try_into().unwrap());
-                if let (Some(h), Some(s), Some(o), Some(l)) = (e.done[step], x.get::<Option<i64>, _>(3), x.get::<Option<i64>, _>(4), x.get::<Option<i64>, _>(5)) {
+                e.done[step] = x
+                    .get::<Option<Vec<u8>>, _>(2)
+                    .map(|h| h.try_into().unwrap());
+                if let (Some(h), Some(s), Some(o), Some(l)) = (
+                    e.done[step],
+                    x.get::<Option<i64>, _>(3),
+                    x.get::<Option<i64>, _>(4),
+                    x.get::<Option<i64>, _>(5),
+                ) {
                     e.locs.insert(h, (s as u64, o as u64, l as u32));
                 }
             }
@@ -183,26 +284,49 @@ impl Db {
     }
 
     /// Payload di uscita proiettati: (tenant, impronta, segmento, scostamento, lunghezza), per la verifica dopo il guasto.
-    pub async fn out_locs(&self) -> Res<Vec<(Uid, Hash, Loc)>> {
-        let r = sqlx::query("SELECT tenant, out_hash, out_seg, out_off, out_len FROM activity WHERE done_us IS NOT NULL").fetch_all(&self.pool).await?;
+    pub async fn out_locs(&self, sample: u64) -> Res<Vec<(Uid, Hash, Loc)>> {
+        // sample > 1: solo le righe con scostamento multiplo di `sample` (campione, per le corse da milioni di attività)
+        let r = sqlx::query(sqlx::AssertSqlSafe(format!("SELECT tenant, out_hash, out_seg, out_off, out_len FROM activity WHERE done_us IS NOT NULL AND out_off % {} = 0", sample.max(1)))).fetch_all(&self.pool).await?;
         Ok(r.iter()
-            .map(|x| (x.get::<Vec<u8>, _>(0).try_into().unwrap(), x.get::<Vec<u8>, _>(1).try_into().unwrap(), (x.get::<i64, _>(2) as u64, x.get::<i64, _>(3) as u64, x.get::<i64, _>(4) as u32)))
+            .map(|x| {
+                (
+                    x.get::<Vec<u8>, _>(0).try_into().unwrap(),
+                    x.get::<Vec<u8>, _>(1).try_into().unwrap(),
+                    (
+                        x.get::<i64, _>(2) as u64,
+                        x.get::<i64, _>(3) as u64,
+                        x.get::<i64, _>(4) as u32,
+                    ),
+                )
+            })
             .collect())
     }
 
     /// Byte di WAL scritti finora (solo Postgres; SQLite: 0, non misurato).
     pub async fn wal_bytes(&self) -> Res<i64> {
-        if self.pg { self.count("SELECT (pg_current_wal_lsn() - '0/0'::pg_lsn)::bigint").await } else { Ok(0) }
+        if self.pg {
+            self.count("SELECT (pg_current_wal_lsn() - '0/0'::pg_lsn)::bigint")
+                .await
+        } else {
+            Ok(0)
+        }
     }
 
     /// Un intero da una query di conteggio (verifiche).
     pub async fn count(&self, sql: &str) -> Res<i64> {
-        Ok(sqlx::query(sqlx::AssertSqlSafe(sql.to_string())).fetch_one(&self.pool).await?.get::<i64, _>(0))
+        Ok(sqlx::query(sqlx::AssertSqlSafe(sql.to_string()))
+            .fetch_one(&self.pool)
+            .await?
+            .get::<i64, _>(0))
     }
 
     /// Identificativi delle esecuzioni concluse.
     pub async fn done_ids(&self) -> Res<std::collections::HashSet<Uid>> {
-        let r = sqlx::query("SELECT id FROM execution WHERE done_us IS NOT NULL").fetch_all(&self.pool).await?;
-        Ok(r.iter().map(|x| x.get::<Vec<u8>, _>(0).try_into().unwrap()).collect())
+        let r = sqlx::query("SELECT id FROM execution WHERE done_us IS NOT NULL")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(r.iter()
+            .map(|x| x.get::<Vec<u8>, _>(0).try_into().unwrap())
+            .collect())
     }
 }

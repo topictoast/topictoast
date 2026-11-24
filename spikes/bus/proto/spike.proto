@@ -29,6 +29,7 @@ message Delivery {
   uint32 out_size = 7;
   uint64 ready_us = 8;  // istante della decisione "pronta"
   uint64 sent_us = 9;   // istante dopo la scrittura durevole, subito prima dell'invio
+  uint64 ack = 10;      // se diverso da 0 non è una consegna: conferma durevole dell esito con questo delivery_id
 }
 message FromWorker {
   bytes exec = 1;

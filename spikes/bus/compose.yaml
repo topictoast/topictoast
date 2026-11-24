@@ -4,6 +4,8 @@ name: ttspikebus
 services:
   iggy:
     image: apache/iggy:${IGGY_IMAGE:-0.10.0}
+    # IGGY_SUP: solo nella prova di disco pieno, un ciclo che rilancia il server quando esce (il volume tmpfs vive quanto il container)
+    entrypoint: ["sh", "-c", "${IGGY_SUP:-exec iggy-server}"]
     cap_add: [SYS_NICE]
     security_opt: ["seccomp:unconfined"]
     ulimits: { memlock: { soft: -1, hard: -1 } }
@@ -23,7 +25,7 @@ services:
       IGGY_WEBSOCKET_ENABLED: "false"
     cpuset: "${SPIKE_CPUSET:-}"
     ports: ["127.0.0.1:47001:8090"]
-    volumes: ["${SPIKE_DATA:-/home/white_sheep/.cache/ttspikebus-data}/iggy:/local_data"]
+    volumes: ["${IGGY_DATA:-${SPIKE_DATA:-/home/white_sheep/.cache/ttspikebus-data}/iggy}:${IGGY_MNT:-/local_data}"]
   valkey:
     image: valkey/valkey:9.1.4
     command: >
@@ -40,4 +42,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?genera .env}
     cpuset: "${SPIKE_CPUSET:-}"
     ports: ["127.0.0.1:47003:5432"]
-    volumes: ["${SPIKE_DATA:-/home/white_sheep/.cache/ttspikebus-data}/postgres:/var/lib/postgresql"]
+    volumes: ["${PG_DATA:-${SPIKE_DATA:-/home/white_sheep/.cache/ttspikebus-data}/postgres}:/var/lib/postgresql"]
+# volumi con limite di dimensione (tmpfs di docker) per le prove di disco pieno (fase 4, blocco B):
+# creati da scen.sh, usati solo con IGGY_DATA=iggycap o PG_DATA=pgcap
+volumes:
+  iggycap: { external: true, name: ttspikebus-iggycap }
+  pgcap: { external: true, name: ttspikebus-pgcap }

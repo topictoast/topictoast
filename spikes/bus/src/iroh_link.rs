@@ -25,7 +25,11 @@ const MAX_FRAME: usize = 64 << 20;
 
 /// Chiave del nodo del worker derivata dalla credenziale: legame tra identità e credenziale.
 pub fn key_from_cred(cred: &[u8]) -> SecretKey {
-    let h: [u8; 32] = Sha256::new().chain_update(b"iroh-worker-v1").chain_update(cred).finalize().into();
+    let h: [u8; 32] = Sha256::new()
+        .chain_update(b"iroh-worker-v1")
+        .chain_update(cred)
+        .finalize()
+        .into();
     SecretKey::from_bytes(&h)
 }
 
@@ -72,7 +76,12 @@ async fn write_frame(w: &mut SendStream, body: &[u8]) -> bool {
 // ---------------------------------------------------------------- lato motore
 
 /// Accetta connessioni dei worker. `allowed`: identità di nodo attese → impronta della credenziale.
-pub async fn serve(ep: Endpoint, allowed: Arc<HashMap<EndpointId, [u8; 32]>>, tx: mpsc::Sender<Msg>, next: Arc<AtomicU64>) {
+pub async fn serve(
+    ep: Endpoint,
+    allowed: Arc<HashMap<EndpointId, [u8; 32]>>,
+    tx: mpsc::Sender<Msg>,
+    next: Arc<AtomicU64>,
+) {
     while let Some(incoming) = ep.accept().await {
         let (allowed, tx, next) = (allowed.clone(), tx.clone(), next.clone());
         tokio::spawn(async move {
@@ -96,9 +105,19 @@ pub async fn serve(ep: Endpoint, allowed: Arc<HashMap<EndpointId, [u8; 32]>>, tx
 }
 
 /// Una sessione: il saluto porta la credenziale, che deve corrispondere a quella legata al nodo. Torna false se rifiutata.
-async fn session(mut send: SendStream, mut recv: RecvStream, want: [u8; 32], tx: mpsc::Sender<Msg>, sess: u64) -> bool {
-    let Some(first) = read_frame(&mut recv).await else { return true };
-    let Ok(h) = pb::FromWorker::decode(&first[..]) else { return false };
+async fn session(
+    mut send: SendStream,
+    mut recv: RecvStream,
+    want: [u8; 32],
+    tx: mpsc::Sender<Msg>,
+    sess: u64,
+) -> bool {
+    let Some(first) = read_frame(&mut recv).await else {
+        return true;
+    };
+    let Ok(h) = pb::FromWorker::decode(&first[..]) else {
+        return false;
+    };
     if !h.hello || cred_hash(&h.credential) != want {
         return false;
     }
@@ -128,14 +147,30 @@ async fn session(mut send: SendStream, mut recv: RecvStream, want: [u8; 32], tx:
 
 /// Connessione del worker: una connessione, `sessions` sessioni bidirezionali. In modalità `once` prova il collegamento
 /// e riporta se è stato rifiutato, senza ritentare.
-pub async fn worker(sk: SecretKey, bind: &str, engine: EndpointId, addr: SocketAddr, cred: Vec<u8>, sessions: usize, once: bool) {
+pub async fn worker(
+    sk: SecretKey,
+    bind: &str,
+    engine: EndpointId,
+    addr: SocketAddr,
+    cred: Vec<u8>,
+    sessions: usize,
+    once: bool,
+) {
     let ep = endpoint(sk, bind).await;
     if once {
         // prova di spegnimento di relay e scoperta: nessun indirizzo relay, nessun servizio di scoperta
-        println!("iroh: relay_urls={} address_lookup={:?}", ep.addr().relay_urls().count(), ep.address_lookup().map(|s| format!("{s:?}")).map_err(|e| e.to_string()));
+        println!(
+            "iroh: relay_urls={} address_lookup={:?}",
+            ep.addr().relay_urls().count(),
+            ep.address_lookup()
+                .map(|s| format!("{s:?}"))
+                .map_err(|e| e.to_string())
+        );
     }
     loop {
-        let r = ep.connect(EndpointAddr::new(engine).with_ip_addr(addr), ALPN).await;
+        let r = ep
+            .connect(EndpointAddr::new(engine).with_ip_addr(addr), ALPN)
+            .await;
         match r {
             Err(e) => {
                 if once {
@@ -146,7 +181,9 @@ pub async fn worker(sk: SecretKey, bind: &str, engine: EndpointId, addr: SocketA
             Ok(conn) => {
                 let mut tasks = vec![];
                 for _ in 0..sessions {
-                    let Ok((send, recv)) = conn.open_bi().await else { break };
+                    let Ok((send, recv)) = conn.open_bi().await else {
+                        break;
+                    };
                     tasks.push(tokio::spawn(wsession(send, recv, cred.clone())));
                 }
                 if once {
@@ -167,7 +204,11 @@ pub async fn worker(sk: SecretKey, bind: &str, engine: EndpointId, addr: SocketA
 }
 
 async fn wsession(mut send: SendStream, mut recv: RecvStream, cred: Vec<u8>) {
-    let hello = pb::FromWorker { hello: true, credential: cred, ..Default::default() };
+    let hello = pb::FromWorker {
+        hello: true,
+        credential: cred,
+        ..Default::default()
+    };
     if !write_frame(&mut send, &hello.encode_to_vec()).await {
         return;
     }
@@ -181,7 +222,9 @@ async fn wsession(mut send: SendStream, mut recv: RecvStream, cred: Vec<u8>) {
     });
     while let Some(b) = read_frame(&mut recv).await {
         let recv_us = now_us();
-        let Ok(d) = pb::Delivery::decode(&b[..]) else { continue };
+        let Ok(d) = pb::Delivery::decode(&b[..]) else {
+            continue;
+        };
         let tx = tx.clone();
         tokio::spawn(async move {
             let _ = tx.send(crate::worker::work(d, recv_us).await).await;

@@ -17,11 +17,37 @@ TS_ENG=${SPIKE_CPUS:+taskset -c $SPIKE_CPUS}; TS_LOAD=${SPIKE_LOADCPUS:+taskset 
 EP=; WP=
 # N scelto dalla verifica della fase 2d (mediana più alta di thrmax): Valkey 4, Iggy 1
 WDEF=1; [ "$BUS" = valkey ] && WDEF=4
-case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; esac
+WL=; ENGPFX=
+case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db) TRIM=0; WL="worklog=out/work.log" ;; esac
+us() { echo $(( $(date +%s%N) / 1000 )); }
+# millisecondi tra due istanti in microsecondi
+ms() { echo $(( ($2 - $1) / 1000 )); }
+# valore di una riga del log del motore: <ETICHETTA> <us> ..., la prima oppure l'ultima
+logus() { grep -E "^$1 " out/engine.log | $2 -1 | cut -d' ' -f2; }
+# attende che compaia una riga nel log del motore (al più $2 secondi)
+waitlog() { i=0; until grep -qE "$1" out/engine.log; do i=$((i+1)); [ $i -gt $(( $2 * 10 )) ] && return 1; sleep 0.1; done; }
+# attende almeno $2 righe che corrispondono a $1 nel log del motore (al più $3 secondi)
+waitn() { i=0; until [ "$(grep -cE "$1" out/engine.log)" -ge $2 ]; do i=$((i+1)); [ $i -gt $(( $3 * 10 )) ] && return 1; sleep 0.1; done; }
+CAPSIZE=${CAPSIZE:-128m}; CAPFREE=${CAPFREE:-10}
+# disco pieno di Iggy: volume tmpfs di docker con limite, montato dove Iggy scrive davvero (/app/local_data: il montaggio
+# /local_data del compose non è quello dei dati), con un ciclo che rilancia il server quando esce
+if [ "$SC" = dfull-iggy ]; then
+  export IGGY_DATA=iggycap IGGY_MNT=/app/local_data IGGY_SUP="while true; do iggy-server; sleep 1; done"
+  docker compose -p ttspikebus down -t 1 >/dev/null 2>&1; docker volume rm ttspikebus-iggycap >/dev/null 2>&1
+  docker volume create --driver local --opt type=tmpfs --opt device=tmpfs --opt o=size=$CAPSIZE ttspikebus-iggycap >/dev/null
+fi
+# disco pieno di database e archivio: il motore gira in un namespace di mount proprio (senza sudo) con un tmpfs a
+# dimensione limitata su out/capmnt, dove stanno spike.db e l'archivio; le prove si fanno con nsenter sul suo PID
+if [ "$SC" = dfull-db ]; then
+  mkdir -p out/capmnt
+  [ $DB = sqlite ] && DBURL="sqlite://$PWD/out/capmnt/spike.db?mode=rwc"
+  ENGPFX="unshare -Urm ./capns.sh $PWD/out/capmnt $CAPSIZE"
+fi
+NSE() { nsenter -U --preserve-credentials -m -t $EP "$@"; }
 
 start_engine() {
   : > out/engine.log
-  $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} >> out/engine.log 2>&1 &
+  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
@@ -34,11 +60,14 @@ if [ $DB = pg ]; then i=0; until docker compose -p ttspikebus exec -T postgres p
 rm -rf out/archive out/spike.db* out/master.key out/ledger.txt
 # archivio su un altro disco (variabile SPIKE_ARCHIVE): out/archive diventa un collegamento
 [ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
+# CAPDBONLY=1: solo il database nel tmpfs (l archivio resta sul disco vero), per provare il disco pieno del database da solo
+[ "$SC" = dfull-db ] && [ -z "$CAPDBONLY" ] && ln -s "$PWD/out/capmnt/archive" out/archive
+rm -f out/work.log
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
 [ -f out/worker.cred ] || "$BIN" gen-cred dir=out
 echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64}"
 start_engine
-$TS_ENG "$BIN" worker dir=out link=${LINK:-grpc} sessions=${WSESS:-4} > out/worker.log 2>&1 &
+$TS_ENG "$BIN" worker dir=out link=${LINK:-grpc} sessions=${WSESS:-4} $WL > out/worker.log 2>&1 &
 WP=$!
 sleep 1
 L="$TS_LOAD $BIN load dir=out"
@@ -46,7 +75,15 @@ L="$TS_LOAD $BIN load dir=out"
 case $SC in
   accept) $L rate=200 kind=0 n=1 size=1024 secs=30 warm=3 "$@" ;;
   start1k) $L rate=100 kind=0 n=10 size=1024 secs=40 warm=5 "$@" ;;
-  thr10k) $L rate=1000 kind=0 n=10 size=1024 secs=60 warm=5 tenants=ab "$@" ;;
+  thr10k)
+    # Dal blocco B ogni corsa a 10.000 att./s ha il registro delle accettate (ledger) e la verifica «zero accettate perse»
+    # (verify light: ledger contro database, niente scansione del bus, payload a campione), e il tipo di ogni errore.
+    # Criterio di stallo, fissato prima delle corse: un minuto (riga MIN) con meno di 9.000 att./s, oppure un intervallo
+    # senza accettazioni riuscite di oltre 5 s (accept_max_gap_ms), oppure ritardo di proiezione p99 oltre 1.000 ms.
+    echo "criterio di stallo: minuto con act_s < 9000, oppure accept_max_gap_ms > 5000, oppure lag_p99_ms > 1000"
+    $L rate=1000 kind=0 n=10 size=1024 secs=60 warm=5 tenants=ab ledger=out/ledger.txt "$@"
+    echo "-- righe di errore del motore"; grep -vE "^(MIN|READY|ripresa|capns|FIRST_DONE)" out/engine.log | head -40
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done ;;
   thrmax) $L rate=2500 kind=0 n=10 size=1024 secs=30 warm=5 tenants=ab "$@" ;;
   size64k) $L rate=100 kind=0 n=5 size=65536 secs=30 warm=5 tenants=ab "$@" ;;
   size1m) $L rate=${RATE1M:-10} kind=0 n=5 size=1048576 secs=30 warm=5 tenants=ab "$@" ;;
@@ -124,6 +161,93 @@ case $SC in
     fi
     wait $LP; cat out/load.txt; grep -E "proiezione" out/engine.log | head -4
     for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && break; sleep 3; done ;;
+  ekill)
+    # Blocco B, caso 1: crash del motore con attività lunghe in volo (300 att./s da 3 s: circa 900 in volo), riavvio subito
+    $L rate=${ERATE:-300} kind=0 n=3 size=1024 work_ms=3000 secs=30 warm=1 stats=0 tenants=ab ledger=out/ledger.txt > out/load.txt &
+    LP=$!
+    sleep 12
+    echo "prima del kill: $("$BIN" stats dir=out | head -1)"
+    cp out/engine.log out/engine-pre.log
+    T0=$(us); kill -9 $EP; wait $EP 2>/dev/null
+    start_engine
+    RU=$(sed -n 's/^READY .*now_us=\([0-9]*\).*/\1/p' out/engine.log)
+    echo "kill -9 -> READY: $(ms $T0 $RU) ms ($(grep -E '^READY' out/engine.log))"
+    grep -E "ripresa" out/engine.log
+    waitlog "^FIRST_DONE" 60; FD=$(logus FIRST_DONE head)
+    echo "kill -9 -> prima attività conclusa: $(ms $T0 $FD) ms"
+    wait $LP; cat out/load.txt
+    echo "motore dopo la corsa: $("$BIN" stats dir=out | head -1)"
+    ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done
+    echo "tentativi iniziati: $(wc -l < out/work.log), attività distinte: $(cut -d' ' -f1,2 out/work.log | sort -u | wc -l), eseguite più di una volta: $(cut -d' ' -f1,2 out/work.log | sort | uniq -d | wc -l)" ;;
+  bkill)
+    # Blocco B, caso 2: crash di Iggy (docker kill = SIGKILL del processo; non è uno spegnimento dell'host), riavvio dopo 5 s
+    $L rate=${ERATE:-300} kind=0 n=3 size=1024 work_ms=500 secs=40 warm=1 stats=0 tenants=ab ledger=out/ledger.txt > out/load.txt &
+    LP=$!
+    sleep 10
+    echo "prima del kill: $("$BIN" stats dir=out | head -1)"
+    T0=$(us); docker kill ttspikebus-iggy-1 >/dev/null; echo "T0 kill di Iggy=$T0"
+    sleep 5
+    T1=$(us); docker start ttspikebus-iggy-1 >/dev/null; echo "T1 avvio di Iggy=$T1"
+    waitlog "^BUS_UP" 120; BU=$(logus BUS_UP tail)
+    waitn "^FIRST_DONE" 2 60; FD=$(logus FIRST_DONE tail)
+    echo "kill -> BUS_DOWN (motore): $(ms $T0 $(logus BUS_DOWN head)) ms; avvio -> BUS_UP: $(ms $T1 $BU) ms; kill -> BUS_UP: $(ms $T0 $BU) ms; BUS_UP -> prima attività conclusa: $(ms $BU $FD) ms; kill -> prima attività conclusa dopo il ritorno: $(ms $T0 $FD) ms"
+    wait $LP; cat out/load.txt
+    echo "-- eventi del motore sul bus"; grep -E "^(BUS_|APPEND_)" out/engine.log
+    echo "motore dopo la corsa: $("$BIN" stats dir=out | head -1)"
+    ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done ;;
+  wkill)
+    # Blocco B, caso 3: crash di un worker a metà attività (due worker; il secondo prende i tentativi che scadono)
+    $TS_ENG "$BIN" worker dir=out link=grpc sessions=${WSESS:-4} $WL > out/worker2.log 2>&1 &
+    W2=$!
+    sleep 1
+    $L rate=${ERATE:-300} kind=0 n=3 size=1024 work_ms=3000 secs=30 warm=1 stats=0 tenants=ab ledger=out/ledger.txt > out/load.txt &
+    LP=$!
+    sleep 12
+    echo "prima del kill: $("$BIN" stats dir=out | head -1)"
+    T0=$(us); kill -9 $WP; wait $WP 2>/dev/null; echo "T0 kill del worker 1=$T0"; WP=$W2
+    wait $LP; cat out/load.txt
+    echo "motore dopo la corsa: $("$BIN" stats dir=out | head -1)"
+    ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done
+    echo "tentativi iniziati: $(wc -l < out/work.log), attività distinte: $(cut -d' ' -f1,2 out/work.log | sort -u | wc -l), eseguite più di una volta: $(cut -d' ' -f1,2 out/work.log | sort | uniq -d | wc -l)"
+    # tempo dal kill al secondo inizio di ogni attività eseguita due volte (minimo, mediana, massimo, in ms)
+    sort -k4 -n out/work.log | awk -v t0=$T0 '{k=$1" "$2; if (k in s) {d[++n]=($4-t0)/1000}; s[k]=1} END{asort(d); if (n) printf "riesecuzioni: %d; kill -> nuovo inizio: min %.0f, mediana %.0f, max %.0f ms\n", n, d[1], d[int((n+1)/2)], d[n]; else print "riesecuzioni: 0"}' ;;
+  dfull-iggy|dfull-db)
+    # Blocco B, caso 4: disco pieno. 333 esecuzioni/s da 3 passi; zavorra che lascia ${CAPFREE} MB, attesa del rifiuto,
+    # 8 s di osservazione, zavorra tolta, ripresa. iggy: tmpfs di docker (zavorra con docker exec); db: tmpfs nel namespace
+    $L rate=${ERATE:-300} kind=0 n=3 size=1024 secs=${DSECS:-30} warm=1 stats=0 tenants=ab ledger=out/ledger.txt > out/load.txt &
+    LP=$!
+    sleep 3
+    # la zavorra riempie tutto lo spazio libero meno CAPFREE MB (lo spazio già usato dall'avvio non si conta due volte)
+    if [ $SC = dfull-iggy ]; then AV=$(docker exec ttspikebus-iggy-1 df -m /app/local_data | tail -1 | tr -s " " | cut -d" " -f4); else AV=$(NSE df -m $PWD/out/capmnt | tail -1 | tr -s " " | cut -d" " -f4); fi
+    MB=$(( AV - CAPFREE ))
+    if [ $SC = dfull-iggy ]; then
+      docker exec ttspikebus-iggy-1 sh -c "dd if=/dev/zero of=/app/local_data/ballast bs=1M count=$MB 2>&1 | tail -1; df -m /app/local_data | tail -1"
+      FULLRE="^BUS_DOWN"; UPRE="^BUS_UP"
+    else
+      NSE sh -c "dd if=/dev/zero of=$PWD/out/capmnt/ballast bs=1M count=$MB 2>&1 | tail -1; df -m $PWD/out/capmnt | tail -1"
+      FULLRE="^STORAGE_FULL"; UPRE="^proiezione ripresa"
+    fi
+    T0=$(us); echo "T0 zavorra messa=$T0 (restano ${CAPFREE} MB)"
+    waitlog "$FULLRE" 90 || echo "il disco non si è riempito in 90 s"
+    TF=$(logus $(echo $FULLRE | tr -d '^') head); echo "T_pieno=$TF (zavorra -> pieno $(ms $T0 ${TF:-$T0}) ms)"
+    sleep 8
+    if [ $SC = dfull-iggy ]; then docker exec ttspikebus-iggy-1 sh -c "df -m /app/local_data | tail -1; rm -f /app/local_data/ballast; df -m /app/local_data | tail -1"
+    else NSE sh -c "df -m $PWD/out/capmnt | tail -1; rm -f $PWD/out/capmnt/ballast; df -m $PWD/out/capmnt | tail -1"; fi
+    T1=$(us); echo "T1 zavorra tolta=$T1"
+    # ripresa = primo evento di ritorno DOPO la zavorra tolta (con Iggy il ciclo lo rilancia anche a disco pieno, e crolla alla prima scrittura)
+    after() { grep -E "$1" out/engine.log | awk -v t=$T1 '$NF > t {print $NF; exit}'; }
+    i=0; TU=; while [ $i -lt 1200 ]; do TU=$(after "$UPRE"); [ -n "$TU" ] && break; i=$((i+1)); sleep 0.1; done
+    echo "T_ripresa=$TU (zavorra tolta -> ripresa $(ms $T1 ${TU:-$T1}) ms)"
+    i=0; FD=; while [ $i -lt 600 ]; do FD=$(grep -E "^FIRST_DONE" out/engine.log | awk -v t=$T1 '$2 > t {print $2; exit}'); [ -n "$FD" ] && break; i=$((i+1)); sleep 0.1; done
+    echo "zavorra tolta -> prima attività conclusa dopo la ripresa: $(ms $T1 ${FD:-$T1}) ms"
+    wait $LP; cat out/load.txt
+    echo "-- eventi di disco e bus del motore"; grep -E "^(BUS_|APPEND_|STORAGE_FULL|proiezione)" out/engine.log | cut -c1-220 | head -20
+    echo "motore dopo la corsa: $("$BIN" stats dir=out | head -1)"
+    if [ $SC = dfull-db ]; then
+      ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do NSE "$BIN" verify db="$DBURL" bus=$BUS dir=$PWD/out ledger=$PWD/out/ledger.txt && ok=1 && break; sleep 3; done
+    else
+      ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done
+    fi ;;
   *) echo "scenario sconosciuto" ;;
 esac
 [ $BUS = valkey ] && { echo "-- valkey: $(docker compose -p ttspikebus exec -T valkey valkey-cli -a "$VALKEY_PASSWORD" info stats 2>/dev/null | grep -E "total_forks" | tr -d "\r") $(docker compose -p ttspikebus exec -T valkey valkey-cli -a "$VALKEY_PASSWORD" info persistence 2>/dev/null | grep -E "aof_rewrites:|aof_last_rewrite_time_sec" | tr -d "\r" | tr "\n" " ")"; }
@@ -133,3 +257,4 @@ echo "-- RSS dopo la corsa (motore, worker, bus)"
 echo "-- conteggio file archivio: $(find out/archive -type f 2>/dev/null | wc -l)"
 stop_all
 rm -rf out/archive; [ -n "$SPIKE_ARCHIVE" ] && rm -rf "$SPIKE_ARCHIVE"
+if [ "$SC" = dfull-iggy ]; then docker compose -p ttspikebus down -t 1 >/dev/null 2>&1; docker volume rm ttspikebus-iggycap >/dev/null; fi

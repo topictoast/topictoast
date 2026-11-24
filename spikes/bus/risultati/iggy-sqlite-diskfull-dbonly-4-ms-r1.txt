@@ -1,0 +1,52 @@
+[stato prima 21:08:41] load: 0.39 0.82 1.02
+[stato prima] io: some avg10=0.11 avg60=0.35 avg300=6.03 total=11086734218
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.35 total=1239422162
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] binario sha256: d51b36de4ca9c6dc
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.64ms p99=4.13ms p99.9=5.46ms max=5.46ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.01
+[attesa] 0 s
+### iggy + sqlite: dfull-db 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2363423 READY recovered_ms=333 now_us=1795550928805693 gen=1
+131072000 bytes (131 MB, 125 MiB) copied, 0.0304566 s, 4.3 GB/s
+tmpfs                128   128         1 100% /home/white_sheep/ttspikebus/out/capmnt
+T0 zavorra messa=1795550932915020 (restano 1 MB)
+T_pieno=1795550933676592 (zavorra -> pieno 761 ms)
+tmpfs                128   128         0 100% /home/white_sheep/ttspikebus/out/capmnt
+tmpfs                128     3       125   3% /home/white_sheep/ttspikebus/out/capmnt
+T1 zavorra tolta=1795550941761123
+T_ripresa=1795550941869395 (zavorra tolta -> ripresa 108 ms)
+zavorra tolta -> prima attività conclusa dopo la ripresa: 266 ms
+load tenants=ab rate=300/s kind=0 n=3 size=1024 work_ms=0 warm=1s measured=30s
+offered=9299 accepted=6828 refused_E_PROJECTION_DOWN=2471 errors=0 overload_skipped=0
+errors_by_type {"Unavailable:E_STORAGE_FULL": 2471}
+accept_rtt_open_loop n=6529 p50=16.77ms p99=107.78ms p99.9=252.16ms max=272.89ms over100ms=71
+accept_max_gap_ms=8304 from_us=1795550933680505 to_us=1795550941984569
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.74 cpu_per_1000_att engine=0.000 worker=739.000
+-- eventi di disco e bus del motore
+proiezione ferma su state-0000000000007000800000000000000b 1795550933676571: database: error returned from database: (code: 13) database or disk is full
+STORAGE_FULL 1795550933676592 state-0000000000007000800000000000000b: database: error returned from database: (code: 13) database or disk is full
+proiezione ferma su state-0000000000007000800000000000000a 1795550933707556: database: error returned from database: (code: 13) database or disk is full
+STORAGE_FULL 1795550933707577 state-0000000000007000800000000000000a: database: error returned from database: (code: 13) database or disk is full
+proiezione ripresa su state-0000000000007000800000000000000b 1795550941869395
+proiezione ripresa su state-0000000000007000800000000000000a 1795550941907742
+motore dopo la corsa: secs=32.1 accepted=6828 refused=2471 done=20398 rejected=0 groups=210 expired=0 late_ok=0
+verify: accettate=6828 concluse_nella_proiezione=6730 accettate_perse=98 attivita_concluse=20240 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=20484 duplicati_sul_bus=0 payload_decifrati=20240 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=6828 concluse_nella_proiezione=6828 accettate_perse=0 attivita_concluse=20484 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=20484 duplicati_sul_bus=0 payload_decifrati=20484 payload_illeggibili=0 light=false
+verify OK
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 99256 kB
+rss pid=2363423 30112 kB
+rss pid=2363488 16620 kB
+-- conteggio file archivio: 44
+[stato dopo 21:09:24] load: 1.14 0.95 1.06
+[stato dopo] io: some avg10=32.74 avg60=15.58 avg300=9.10 total=11099020931
+[stato dopo] cpu: some avg10=1.85 avg60=0.83 avg300=0.51 total=1240249631
+[stato dopo] container non nostri non in esecuzione stabile: 5; in esecuzione: 12
+[stato dopo] binario sha256: d51b36de4ca9c6dc
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=5.32ms p99=13.41ms p99.9=19.54ms max=19.54ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-1 0.02

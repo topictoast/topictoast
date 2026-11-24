@@ -13,11 +13,35 @@ pub type Loc = (u64, u64, u32);
 #[derive(Clone, Debug)]
 pub enum Ev {
     /// Un'esecuzione accettata, con il suo input.
-    Accepted { exec: Uid, tenant: Uid, kind: u8, n: u32, work_ms: u32, out_size: u32, ts: u64, input_hash: Hash, input: Bytes },
+    Accepted {
+        exec: Uid,
+        tenant: Uid,
+        kind: u8,
+        n: u32,
+        work_ms: u32,
+        out_size: u32,
+        ts: u64,
+        input_hash: Hash,
+        input: Bytes,
+    },
     /// Decisione del motore: l'attività è pronta; l'input è l'insieme di payload dedotto dallo stato.
-    Ready { exec: Uid, tenant: Uid, step: u32, last: bool, ts: u64 },
+    Ready {
+        exec: Uid,
+        tenant: Uid,
+        step: u32,
+        last: bool,
+        ts: u64,
+    },
     /// Esito giudicato dal motore, con il payload di uscita.
-    Done { exec: Uid, tenant: Uid, step: u32, last: bool, ts: u64, out_hash: Hash, output: Bytes },
+    Done {
+        exec: Uid,
+        tenant: Uid,
+        step: u32,
+        last: bool,
+        ts: u64,
+        out_hash: Hash,
+        output: Bytes,
+    },
 }
 
 impl Ev {
@@ -38,7 +62,17 @@ impl Ev {
         let u32w = |v: &mut Vec<u8>, x: u32| v.extend_from_slice(&x.to_le_bytes());
         let u64w = |v: &mut Vec<u8>, x: u64| v.extend_from_slice(&x.to_le_bytes());
         match self {
-            Ev::Accepted { exec, tenant, kind, n, work_ms, out_size, ts, input_hash, input } => {
+            Ev::Accepted {
+                exec,
+                tenant,
+                kind,
+                n,
+                work_ms,
+                out_size,
+                ts,
+                input_hash,
+                input,
+            } => {
                 v.push(1);
                 v.extend_from_slice(exec);
                 v.extend_from_slice(tenant);
@@ -50,7 +84,13 @@ impl Ev {
                 v.extend_from_slice(input_hash);
                 v.extend_from_slice(input);
             }
-            Ev::Ready { exec, tenant, step, last, ts } => {
+            Ev::Ready {
+                exec,
+                tenant,
+                step,
+                last,
+                ts,
+            } => {
                 v.push(2);
                 v.extend_from_slice(exec);
                 v.extend_from_slice(tenant);
@@ -58,7 +98,15 @@ impl Ev {
                 v.push(*last as u8);
                 u64w(&mut v, *ts);
             }
-            Ev::Done { exec, tenant, step, last, ts, out_hash, output } => {
+            Ev::Done {
+                exec,
+                tenant,
+                step,
+                last,
+                ts,
+                out_hash,
+                output,
+            } => {
                 v.push(3);
                 v.extend_from_slice(exec);
                 v.extend_from_slice(tenant);
@@ -89,7 +137,13 @@ impl Ev {
                 input_hash: b[54..86].try_into().unwrap(),
                 input: Bytes::copy_from_slice(&b[86..]),
             },
-            2 => Ev::Ready { exec, tenant, step: u32r(33), last: b[37] == 1, ts: u64r(38) },
+            2 => Ev::Ready {
+                exec,
+                tenant,
+                step: u32r(33),
+                last: b[37] == 1,
+                ts: u64r(38),
+            },
             3 => Ev::Done {
                 exec,
                 tenant,
@@ -121,9 +175,26 @@ pub struct Exec {
 }
 
 impl Exec {
-    pub fn new(tenant: Uid, kind: u8, n: u32, work_ms: u32, out_size: u32, input_hash: Hash) -> Exec {
+    pub fn new(
+        tenant: Uid,
+        kind: u8,
+        n: u32,
+        work_ms: u32,
+        out_size: u32,
+        input_hash: Hash,
+    ) -> Exec {
         let steps = if kind == 0 { n } else { n + 1 } as usize;
-        Exec { tenant, kind, n, work_ms, out_size, input_hash, issued: vec![false; steps], done: vec![None; steps], locs: Default::default() }
+        Exec {
+            tenant,
+            kind,
+            n,
+            work_ms,
+            out_size,
+            input_hash,
+            issued: vec![false; steps],
+            done: vec![None; steps],
+            locs: Default::default(),
+        }
     }
 
     pub fn steps(&self) -> u32 {
@@ -155,11 +226,18 @@ impl Exec {
     pub fn input_refs(&self, step: u32) -> Vec<Hash> {
         let s = step as usize;
         if self.kind == 0 {
-            vec![if s == 0 { self.input_hash } else { self.done[s - 1].unwrap() }]
+            vec![if s == 0 {
+                self.input_hash
+            } else {
+                self.done[s - 1].unwrap()
+            }]
         } else if s < self.n as usize {
             vec![self.input_hash]
         } else {
-            self.done[..self.n as usize].iter().map(|d| d.unwrap()).collect()
+            self.done[..self.n as usize]
+                .iter()
+                .map(|d| d.unwrap())
+                .collect()
         }
     }
 }

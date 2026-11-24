@@ -1,0 +1,53 @@
+[stato prima 21:01:44] load: 0.93 1.15 1.14
+[stato prima] io: some avg10=0.93 avg60=10.79 avg300=11.94 total=11056770560
+[stato prima] cpu: some avg10=0.05 avg60=0.68 avg300=0.74 total=1236272405
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] binario sha256: d51b36de4ca9c6dc
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.87ms p99=4.14ms p99.9=4.86ms max=4.86ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 30 s
+### iggy + pg: dfull-db 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2330174 READY recovered_ms=489 now_us=1795550515357286 gen=1
+120586240 bytes (121 MB, 115 MiB) copied, 0.030524 s, 4.0 GB/s
+tmpfs                128   119        10  93% /home/white_sheep/ttspikebus/out/capmnt
+T0 zavorra messa=1795550519513940 (restano 10 MB)
+T_pieno=1795550527111218 (zavorra -> pieno 7597 ms)
+tmpfs                128   128         0 100% /home/white_sheep/ttspikebus/out/capmnt
+tmpfs                128    13       115  11% /home/white_sheep/ttspikebus/out/capmnt
+T1 zavorra tolta=1795550535230238
+T_ripresa=1795550535275272 (zavorra tolta -> ripresa 45 ms)
+zavorra tolta -> prima attività conclusa dopo la ripresa: 250 ms
+load tenants=ab rate=300/s kind=0 n=3 size=1024 work_ms=0 warm=1s measured=30s
+offered=9299 accepted=6798 refused_E_PROJECTION_DOWN=2501 errors=0 overload_skipped=0
+errors_by_type {"Unavailable:E_STORAGE_FULL": 2501}
+accept_rtt_open_loop n=6499 p50=12.89ms p99=22.09ms p99.9=58.56ms max=72.51ms over100ms=0
+accept_max_gap_ms=8343 from_us=1795550527113845 to_us=1795550535456796
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.72 cpu_per_1000_att engine=0.000 worker=720.000
+-- eventi di disco e bus del motore
+proiezione ferma su state-0000000000007000800000000000000a 1795550527111194: archivio: No space left on device (os error 28)
+STORAGE_FULL 1795550527111218 state-0000000000007000800000000000000a: archivio: No space left on device (os error 28)
+proiezione ferma su state-0000000000007000800000000000000b 1795550527295323: archivio: No space left on device (os error 28)
+STORAGE_FULL 1795550527295347 state-0000000000007000800000000000000b: archivio: No space left on device (os error 28)
+proiezione ripresa su state-0000000000007000800000000000000a 1795550535275272
+proiezione ripresa su state-0000000000007000800000000000000b 1795550535444218
+motore dopo la corsa: secs=32.2 accepted=6798 refused=2501 done=20376 rejected=0 groups=214 expired=0 late_ok=0
+verify: accettate=6798 concluse_nella_proiezione=6734 accettate_perse=64 attivita_concluse=20217 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=20394 duplicati_sul_bus=0 payload_decifrati=20217 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=6798 concluse_nella_proiezione=6798 accettate_perse=0 attivita_concluse=20394 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=20394 duplicati_sul_bus=0 payload_decifrati=20394 payload_illeggibili=0 light=false
+verify OK
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 99104 kB
+rss postgres 159332 kB
+rss pid=2330174 27844 kB
+rss pid=2330247 16560 kB
+-- conteggio file archivio: 0
+[stato dopo 21:02:31] load: 1.33 1.22 1.16
+[stato dopo] io: some avg10=31.50 avg60=20.26 avg300=14.20 total=11069399024
+[stato dopo] cpu: some avg10=2.10 avg60=1.27 avg300=0.87 total=1237250115
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] binario sha256: d51b36de4ca9c6dc
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.89ms p99=4.12ms p99.9=6.77ms max=6.77ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.01

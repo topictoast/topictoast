@@ -10,7 +10,10 @@ use std::time::{Duration, Instant};
 
 /// Riga della pressione I/O del sistema, come la stampa il motore.
 fn io_pressure() -> String {
-    std::fs::read_to_string("/proc/pressure/io").ok().and_then(|s| s.lines().next().map(String::from)).unwrap_or_default()
+    std::fs::read_to_string("/proc/pressure/io")
+        .ok()
+        .and_then(|s| s.lines().next().map(String::from))
+        .unwrap_or_default()
 }
 
 /// Metrica del minuto corrente di `append`.
@@ -52,7 +55,12 @@ pub async fn append() {
     let small = Bytes::from(vec![43u8; 80]);
     let start = Instant::now();
     let total = Duration::from_secs(warm + secs);
-    let min = Arc::new(Mutex::new(Min { h: hist(), msgs: 0, batches: 0, lag_max_us: 0 }));
+    let min = Arc::new(Mutex::new(Min {
+        h: hist(),
+        msgs: 0,
+        batches: 0,
+        lag_max_us: 0,
+    }));
     let mon = {
         let min = min.clone();
         tokio::spawn(async move {
@@ -62,7 +70,16 @@ pub async fn append() {
                 t += 1;
                 let mut m = min.lock().unwrap();
                 let ms = |q: f64| m.h.value_at_quantile(q) as f64 / 1e3;
-                println!("BMIN t={t} msgs_s={:.0} batches={} append_p50_ms={:.1} append_p99_ms={:.1} append_max_ms={:.1} lagmax_ms={:.0} io=[{}]", m.msgs as f64 / minsecs as f64, m.batches, ms(0.5), ms(0.99), m.h.max() as f64 / 1e3, m.lag_max_us as f64 / 1e3, io_pressure());
+                println!(
+                    "BMIN t={t} msgs_s={:.0} batches={} append_p50_ms={:.1} append_p99_ms={:.1} append_max_ms={:.1} lagmax_ms={:.0} io=[{}]",
+                    m.msgs as f64 / minsecs as f64,
+                    m.batches,
+                    ms(0.5),
+                    ms(0.99),
+                    m.h.max() as f64 / 1e3,
+                    m.lag_max_us as f64 / 1e3,
+                    io_pressure()
+                );
                 m.h.reset();
                 m.msgs = 0;
                 m.batches = 0;
@@ -82,12 +99,17 @@ pub async fn append() {
             topic.clone()
         };
         tasks.push(tokio::spawn(async move {
-            let bus = if own { Bus::connect(bus.name()).await.unwrap() } else { bus };
+            let bus = if own {
+                Bus::connect(bus.name()).await.unwrap()
+            } else {
+                bus
+            };
             if topics == 0 && !(own && same) {
                 bus.ensure_topic(&topic).await.unwrap();
             }
             let (mut h, mut n) = (hist(), 0u64);
-            let period = (rate > 0.0).then(|| Duration::from_secs_f64(batch as f64 * conc as f64 / rate));
+            let period =
+                (rate > 0.0).then(|| Duration::from_secs_f64(batch as f64 * conc as f64 / rate));
             let mut next = Instant::now();
             let mut k = i * 7;
             while start.elapsed() < total {
@@ -102,7 +124,13 @@ pub async fn append() {
                     }
                 }
                 let msgs: Vec<Bytes> = (0..batch)
-                    .map(|j| if !mix || (k + j) % 21 < 11 { big.clone() } else { small.clone() })
+                    .map(|j| {
+                        if !mix || (k + j) % 21 < 11 {
+                            big.clone()
+                        } else {
+                            small.clone()
+                        }
+                    })
                     .collect();
                 k += batch;
                 let t = Instant::now();
@@ -139,7 +167,11 @@ pub async fn append() {
         bus.drop_topic(&tp).await.ok();
     }
     bus.drop_topic(&topic).await.ok();
-    println!("bench-append bus={kind} size={size} batch={batch} conc={conc} rate={rate} mix={mix}: {} msgs/s={:.0}", fmt(&h), n as f64 / secs as f64);
+    println!(
+        "bench-append bus={kind} size={size} batch={batch} conc={conc} rate={rate} mix={mix}: {} msgs/s={:.0}",
+        fmt(&h),
+        n as f64 / secs as f64
+    );
 }
 
 /// Sostituisce 8 byte iniziali del payload con l'indice del messaggio: dopo una cancellazione di segmenti
@@ -188,7 +220,8 @@ async fn first_and_check(bus: &Bus, topic: &str, head: u64) -> (u64, bool) {
         }
         for (o, b) in &r {
             first.get_or_insert(*o);
-            if next.is_some_and(|n| n != *o) || u64::from_le_bytes(b[..8].try_into().unwrap()) != *o {
+            if next.is_some_and(|n| n != *o) || u64::from_le_bytes(b[..8].try_into().unwrap()) != *o
+            {
                 ok = false;
             }
             next = Some(o + 1);
@@ -196,7 +229,10 @@ async fn first_and_check(bus: &Bus, topic: &str, head: u64) -> (u64, bool) {
         }
     }
     // nulla di leggibile è corretto solo se tutto fino alla testa è stato applicato e cancellato (primo = testa)
-    (first.unwrap_or(head), ok && (next == Some(head) || first.is_none()))
+    (
+        first.unwrap_or(head),
+        ok && (next == Some(head) || first.is_none()),
+    )
 }
 
 /// Prova delle primitive di conservazione di Iggy 0.10.0 (fase 4, blocco A). Ogni riga: posizione del proiettore
@@ -211,16 +247,33 @@ pub async fn retention_proof() {
     bus.ensure_topic(&topic).await.unwrap();
     let mut i = 0u64;
     for _ in 0..nb {
-        let msgs: Vec<Bytes> = (0..per).map(|_| { i += 1; payload(i - 1, size) }).collect();
+        let msgs: Vec<Bytes> = (0..per)
+            .map(|_| {
+                i += 1;
+                payload(i - 1, size)
+            })
+            .collect();
         bus.append(&topic, &msgs).await.unwrap();
     }
     let head = bus.head(&topic).await.unwrap();
     let (s0, m0, b0) = settle(&bus, &topic).await;
-    println!("scritti {i} messaggi da {size} byte, testa={head}; segmenti={s0} messaggi={m0} byte={b0}");
+    println!(
+        "scritti {i} messaggi da {size} byte, testa={head}; segmenti={s0} messaggi={m0} byte={b0}"
+    );
     // mappa dei segmenti: dopo ogni trim si vede il primo offset retenuto; i confini si ricavano dalle cancellazioni
     let mut violations = 0;
     let mut prev_first = 0u64;
-    let steps = [0u64, 1, head / 8, head / 4 + 3, head / 2, head / 2 + 1, head * 3 / 4, head - 1, head];
+    let steps = [
+        0u64,
+        1,
+        head / 8,
+        head / 4 + 3,
+        head / 2,
+        head / 2 + 1,
+        head * 3 / 4,
+        head - 1,
+        head,
+    ];
     for pos in steps {
         if pos > 0 {
             bus.trim(&topic, pos).await.unwrap();
@@ -234,7 +287,10 @@ pub async fn retention_proof() {
         if !rule {
             violations += 1;
         }
-        println!("trim(pos={pos}) soglia salvata={stored:?} -> primo offset leggibile={first} segmenti={segs} messaggi={msgs} byte={bytes} contigui={intact} regola={}", if rule { "ok" } else { "VIOLATA" });
+        println!(
+            "trim(pos={pos}) soglia salvata={stored:?} -> primo offset leggibile={first} segmenti={segs} messaggi={msgs} byte={bytes} contigui={intact} regola={}",
+            if rule { "ok" } else { "VIOLATA" }
+        );
         prev_first = first;
     }
     println!("violazioni={violations}");
@@ -243,7 +299,12 @@ pub async fn retention_proof() {
     bus.ensure_topic(&t2).await.unwrap();
     let mut j = 0u64;
     for _ in 0..nb {
-        let msgs: Vec<Bytes> = (0..per).map(|_| { j += 1; payload(j - 1, size) }).collect();
+        let msgs: Vec<Bytes> = (0..per)
+            .map(|_| {
+                j += 1;
+                payload(j - 1, size)
+            })
+            .collect();
         bus.append(&t2, &msgs).await.unwrap();
     }
     let h2 = bus.head(&t2).await.unwrap();
@@ -253,13 +314,18 @@ pub async fn retention_proof() {
     {
         use iggy::prelude::*;
         if let Bus::Iggy(c) = &bus {
-            let (s, t) = (Identifier::named("tt").unwrap(), Identifier::named(&t2).unwrap());
+            let (s, t) = (
+                Identifier::named("tt").unwrap(),
+                Identifier::named(&t2).unwrap(),
+            );
             c.delete_segments(&s, &t, 0, u32::MAX).await.unwrap();
         }
     }
     let (b, _, _) = settle(&bus, &t2).await;
     let (first2, _) = first_and_check(&bus, &t2, h2).await;
-    println!("controllo negativo, nessun consumatore registrato: segmenti {a} -> {b}, primo offset leggibile={first2} su testa {h2} (senza soglia si perde tutto ciò che è chiuso)");
+    println!(
+        "controllo negativo, nessun consumatore registrato: segmenti {a} -> {b}, primo offset leggibile={first2} su testa {h2} (senza soglia si perde tutto ciò che è chiuso)"
+    );
     bus.drop_topic(&topic).await.ok();
     bus.drop_topic(&t2).await.ok();
     if violations > 0 {
@@ -275,7 +341,13 @@ pub async fn info() {
         let (segs, msgs, bytes) = bus.segments(&topic).await.unwrap();
         let head = bus.head(&topic).await.unwrap();
         let stored = bus.consumer_offset(&topic).await.unwrap();
-        let first = bus.read(&topic, 0, 1).await.ok().and_then(|r| r.first().map(|m| m.0));
-        println!("bus-info {topic}: testa={head} primo_offset_leggibile={first:?} segmenti={segs} messaggi={msgs} byte={bytes} soglia_consumatore={stored:?}");
+        let first = bus
+            .read(&topic, 0, 1)
+            .await
+            .ok()
+            .and_then(|r| r.first().map(|m| m.0));
+        println!(
+            "bus-info {topic}: testa={head} primo_offset_leggibile={first:?} segmenti={segs} messaggi={msgs} byte={bytes} soglia_consumatore={stored:?}"
+        );
     }
 }

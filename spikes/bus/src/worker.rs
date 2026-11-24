@@ -8,7 +8,9 @@ use tonic::transport::{Certificate, Channel, ClientTlsConfig};
 /// Canale TLS verso il motore; il certificato è quello generato da `gen-cert`.
 pub fn channel(url: &str, dir: &str) -> Channel {
     let ca = std::fs::read(format!("{dir}/tls/cert.pem")).unwrap();
-    let tls = ClientTlsConfig::new().ca_certificate(Certificate::from_pem(ca)).domain_name("localhost");
+    let tls = ClientTlsConfig::new()
+        .ca_certificate(Certificate::from_pem(ca))
+        .domain_name("localhost");
     Channel::from_shared(url.to_string())
         .unwrap()
         .tls_config(tls)
@@ -20,14 +22,25 @@ pub fn channel(url: &str, dir: &str) -> Channel {
 
 /// CPU del processo in secondi, come `engine_cpu_s` del motore.
 fn cpu_s() -> f64 {
-    let mut t = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    let mut t = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
     unsafe { libc::clock_gettime(libc::CLOCK_PROCESS_CPUTIME_ID, &mut t) };
     t.tv_sec as f64 + t.tv_nsec as f64 / 1e9
 }
 
 /// Credenziale del worker: argomento `cred=` oppure file `out/worker.cred` (esadecimale).
 pub fn credential(dir: &str) -> Vec<u8> {
-    let s = std::env::args().rev().find_map(|a| a.strip_prefix("cred=").map(String::from)).unwrap_or_else(|| std::fs::read_to_string(format!("{dir}/worker.cred")).unwrap().trim().to_string());
+    let s = std::env::args()
+        .rev()
+        .find_map(|a| a.strip_prefix("cred=").map(String::from))
+        .unwrap_or_else(|| {
+            std::fs::read_to_string(format!("{dir}/worker.cred"))
+                .unwrap()
+                .trim()
+                .to_string()
+        });
     s.into_bytes()
 }
 
@@ -43,20 +56,53 @@ pub async fn run(url: &str, dir: &str, sessions: usize) {
     let once = arg("once", "0") == "1";
     let cred = credential(dir);
     if arg("link", "grpc") == "iroh" {
-        let engine: iroh::EndpointId = arg("engine_id", &std::fs::read_to_string(format!("{dir}/engine.nodeid")).unwrap_or_default().trim().to_string()).parse().expect("identità del motore");
-        let sk = if arg("badkey", "0") == "1" { iroh::SecretKey::generate() } else { crate::iroh_link::key_from_cred(&cred) };
-        crate::iroh_link::worker(sk, "127.0.0.1:0", engine, arg("iroh_addr", "127.0.0.1:47011").parse().unwrap(), cred.clone(), sessions, once).await;
+        let engine: iroh::EndpointId = arg(
+            "engine_id",
+            &std::fs::read_to_string(format!("{dir}/engine.nodeid"))
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
+        )
+        .parse()
+        .expect("identità del motore");
+        let sk = if arg("badkey", "0") == "1" {
+            iroh::SecretKey::generate()
+        } else {
+            crate::iroh_link::key_from_cred(&cred)
+        };
+        crate::iroh_link::worker(
+            sk,
+            "127.0.0.1:0",
+            engine,
+            arg("iroh_addr", "127.0.0.1:47011").parse().unwrap(),
+            cred.clone(),
+            sessions,
+            once,
+        )
+        .await;
         if once {
             return;
         }
         std::future::pending::<()>().await;
     }
     let ch = channel(url, &arg("tlsdir", dir));
-    for _ in 0..sessions {
-        let (ch, cred) = (ch.clone(), cred.clone());
+    // Esiti finiti e non ancora confermati dal motore (fase 4, blocco B): sopravvivono alla sessione, si rimandano
+    // a ogni nuovo collegamento della stessa sessione (indice) e si tolgono solo con la conferma durevole `ack`.
+    let outbox: Outbox = Default::default();
+    for idx in 0..sessions {
+        let (ch, cred, outbox) = (ch.clone(), cred.clone(), outbox.clone());
         tokio::spawn(async move {
+            let slot: Slot = Default::default();
             loop {
-                session(ch.clone(), cred.clone(), once).await;
+                session(
+                    ch.clone(),
+                    cred.clone(),
+                    once,
+                    idx,
+                    slot.clone(),
+                    outbox.clone(),
+                )
+                .await;
                 if once {
                     return;
                 }
@@ -77,7 +123,12 @@ pub async fn work(d: pb::Delivery, recv: u64) -> pb::FromWorker {
         tokio::time::sleep(std::time::Duration::from_millis(d.work_ms as u64)).await;
     }
     let mut out = vec![(d.delivery_id & 0xff) as u8; d.out_size as usize];
-    let hdr = [d.exec.as_slice(), &d.step.to_le_bytes(), &d.delivery_id.to_le_bytes()].concat();
+    let hdr = [
+        d.exec.as_slice(),
+        &d.step.to_le_bytes(),
+        &d.delivery_id.to_le_bytes(),
+    ]
+    .concat();
     let n = hdr.len().min(out.len());
     out[..n].copy_from_slice(&hdr[..n]);
     pb::FromWorker {
@@ -92,11 +143,22 @@ pub async fn work(d: pb::Delivery, recv: u64) -> pb::FromWorker {
     }
 }
 
-async fn session(ch: Channel, cred: Vec<u8>, once: bool) {
-    let mut c = pb::worker_client::WorkerClient::new(ch).max_decoding_message_size(64 << 20).max_encoding_message_size(64 << 20);
+async fn session(ch: Channel, cred: Vec<u8>, once: bool, idx: usize, slot: Slot, outbox: Outbox) {
+    let mut c = pb::worker_client::WorkerClient::new(ch)
+        .max_decoding_message_size(64 << 20)
+        .max_encoding_message_size(64 << 20);
     let (tx, rx) = mpsc::channel::<pb::FromWorker>(8192);
-    let _ = tx.send(pb::FromWorker { hello: true, credential: cred, ..Default::default() }).await;
-    let resp = match c.session(tokio_stream::wrappers::ReceiverStream::new(rx)).await {
+    let _ = tx
+        .send(pb::FromWorker {
+            hello: true,
+            credential: cred,
+            ..Default::default()
+        })
+        .await;
+    let resp = match c
+        .session(tokio_stream::wrappers::ReceiverStream::new(rx))
+        .await
+    {
         Ok(r) => r,
         Err(e) => {
             if once {
@@ -114,11 +176,77 @@ async fn session(ch: Channel, cred: Vec<u8>, once: bool) {
         }
         return;
     }
+    // da qui i nuovi esiti escono da questa sessione; quelli rimasti nella cassetta si rimandano subito (il motore
+    // scarta e conferma i doppioni)
+    *slot.lock().unwrap() = Some(tx.clone());
+    let pending: Vec<_> = outbox
+        .lock()
+        .unwrap()
+        .values()
+        .filter(|(i, _)| *i == idx)
+        .map(|(_, r)| r.clone())
+        .collect();
+    for r in pending {
+        let _ = tx.send(r).await;
+    }
     while let Ok(Some(d)) = inb.message().await {
+        if d.ack != 0 {
+            outbox.lock().unwrap().remove(&d.ack);
+            continue;
+        }
         let recv = now_us();
-        let tx = tx.clone();
+        let (slot, outbox) = (slot.clone(), outbox.clone());
         tokio::spawn(async move {
-            let _ = tx.send(work(d, recv).await).await;
+            log_start(&d);
+            let r = work(d, recv).await;
+            outbox
+                .lock()
+                .unwrap()
+                .insert(r.delivery_id, (idx, r.clone()));
+            let tx = slot.lock().unwrap().clone();
+            if let Some(tx) = tx {
+                let _ = tx.send(r).await;
+            }
         });
+    }
+    *slot.lock().unwrap() = None;
+}
+
+/// Sessione di un collegamento: il suo mittente corrente (vuoto tra un collegamento e il successivo).
+type Slot = std::sync::Arc<std::sync::Mutex<Option<mpsc::Sender<pb::FromWorker>>>>;
+/// Esiti non confermati, per `delivery_id`, con l'indice della sessione che li rimanda.
+type Outbox =
+    std::sync::Arc<std::sync::Mutex<std::collections::HashMap<u64, (usize, pb::FromWorker)>>>;
+
+/// Registro degli inizi di tentativo (argomento `worklog=`): una riga `esecuzione passo consegna istante_us` per
+/// tentativo, scritta subito (sopravvive a `kill -9`). Serve a contare i tentativi eseguiti due volte.
+fn log_start(d: &pb::Delivery) {
+    use std::io::Write;
+    static LOG: std::sync::OnceLock<Option<std::sync::Mutex<std::fs::File>>> =
+        std::sync::OnceLock::new();
+    let log = LOG.get_or_init(|| {
+        let p = arg("worklog", "");
+        (!p.is_empty()).then(|| {
+            std::sync::Mutex::new(
+                std::fs::OpenOptions::new()
+                    .append(true)
+                    .create(true)
+                    .open(p)
+                    .unwrap(),
+            )
+        })
+    });
+    if let Some(f) = log {
+        // una sola write per riga: due worker scrivono nello stesso file in append e le righe non devono mescolarsi
+        let _ = f.lock().unwrap().write_all(
+            format!(
+                "{} {} {} {}\n",
+                crate::crypto::hex(&d.exec),
+                d.step,
+                d.delivery_id,
+                now_us()
+            )
+            .as_bytes(),
+        );
     }
 }

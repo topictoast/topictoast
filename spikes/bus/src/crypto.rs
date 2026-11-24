@@ -44,7 +44,8 @@ impl Keys {
     fn derive(&self, tenant: &Uid, info: &[u8]) -> Aes256Gcm {
         let tk = Hkdf::<Sha256>::new(None, &self.master);
         let mut tenant_key = [0u8; 32];
-        tk.expand(&[b"tenant".as_slice(), tenant].concat(), &mut tenant_key).unwrap();
+        tk.expand(&[b"tenant".as_slice(), tenant].concat(), &mut tenant_key)
+            .unwrap();
         let ok = Hkdf::<Sha256>::new(None, &tenant_key);
         let mut obj_key = [0u8; 32];
         ok.expand(info, &mut obj_key).unwrap();
@@ -57,7 +58,15 @@ impl Keys {
         out.extend_from_slice(tenant);
         out.extend_from_slice(id);
         let c = self.derive(tenant, &[addr.as_bytes(), id].concat());
-        let ct = c.encrypt(&[0u8; 12].into(), Payload { msg: plain, aad: &out }).unwrap();
+        let ct = c
+            .encrypt(
+                &[0u8; 12].into(),
+                Payload {
+                    msg: plain,
+                    aad: &out,
+                },
+            )
+            .unwrap();
         out.extend_from_slice(&ct);
         out
     }
@@ -68,7 +77,13 @@ impl Keys {
         let id: Uid = env[18..34].try_into().unwrap();
         let c = self.derive(&tenant, &[addr.as_bytes(), &id].concat());
         let plain = c
-            .decrypt(&[0u8; 12].into(), Payload { msg: &env[34..], aad: &env[..34] })
+            .decrypt(
+                &[0u8; 12].into(),
+                Payload {
+                    msg: &env[34..],
+                    aad: &env[..34],
+                },
+            )
             .expect("decifratura fallita");
         (tenant, id, plain)
     }
