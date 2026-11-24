@@ -38,6 +38,14 @@ fn tenant_idx(t: &[u8]) -> Option<usize> {
 pub struct M {
     pub accept: Histogram<u64>,
     pub append: Histogram<u64>,
+    /// Durata di ogni singola richiesta di scrittura (una per tenant e connessione).
+    pub append_sub: Histogram<u64>,
+    /// Istogrammi del minuto corrente, azzerati dalla riga al minuto della diagnosi.
+    pub min_append: Histogram<u64>,
+    pub min_sub: Histogram<u64>,
+    pub min_lag: Histogram<u64>,
+    /// Eventi per richiesta, in unità (non in tempo).
+    pub sub_events: Histogram<u64>,
     pub start_ready: Histogram<u64>,
     pub start_sent: Histogram<u64>,
     pub start_join: Histogram<u64>,
@@ -67,6 +75,11 @@ impl M {
         M {
             accept: hist(),
             append: hist(),
+            append_sub: hist(),
+            min_append: hist(),
+            min_sub: hist(),
+            min_lag: hist(),
+            sub_events: hist(),
             start_ready: hist(),
             start_sent: hist(),
             start_join: hist(),
@@ -226,6 +239,12 @@ struct Engine {
     /// Istante comune a tutti gli eventi di una iterazione: con scritture in parallelo il bus può mostrare al proiettore
     /// una parte della iterazione prima del resto; la cache si svuota solo per istanti strettamente più vecchi.
     bts: u64,
+    /// Code di scrittura sul bus, una per tenant e connessione (indice tenant * n + connessione).
+    jobs: Vec<mpsc::UnboundedSender<Job>>,
+    /// Gruppi di eventi al più in volo sul bus.
+    k: usize,
+    /// Messaggi al più per gruppo.
+    maxb: usize,
 }
 
 impl Engine {
@@ -241,43 +260,6 @@ impl Engine {
         }
     }
 
-    /// Scrive in modo durevole, per tenant in parallelo. Un errore del bus è fatale per il processo.
-    // ponytail: un errore del bus ferma il motore; il rifiuto con codice e la ripresa sono della fase 4.
-    async fn append(&self, evs: &[(usize, Ev)]) {
-        let t0 = Instant::now();
-        let mut set: tokio::task::JoinSet<crate::bus::Res<()>> = tokio::task::JoinSet::new();
-        let n = self.sh.bus_w.len();
-        for (ti, ci) in (0..2).flat_map(|t| (0..n).map(move |c| (t, c))) {
-            let topic = topic_of(&TENANTS[ti]);
-            // la connessione si sceglie dall'id dell'esecuzione: l'ordine degli eventi di un'esecuzione non cambia
-            let msgs: Vec<Bytes> = evs.iter().filter(|(i, e)| *i == ti && e.exec_hash() % n as u64 == ci as u64).map(|(_, e)| self.sh.seal_ev(&topic, e)).collect();
-            if msgs.is_empty() {
-                continue;
-            }
-            let bus = self.sh.bus_w[ci].clone();
-            set.spawn(async move {
-                // gruppi di al più 8 MB (Iggy rifiuta richieste oltre 64 MB), in ordine, tutti durevoli prima di tornare
-                let mut from = 0;
-                while from < msgs.len() {
-                    let (mut to, mut bytes) = (from, 0);
-                    while to < msgs.len() && (to == from || bytes + msgs[to].len() <= (8 << 20)) {
-                        bytes += msgs[to].len();
-                        to += 1;
-                    }
-                    bus.append(&topic, &msgs[from..to]).await?;
-                    from = to;
-                }
-                Ok(())
-            });
-        }
-        while let Some(r) = set.join_next().await {
-            if let Err(e) = r.unwrap() {
-                eprintln!("append sul bus fallita: {e}");
-                std::process::exit(2);
-            }
-        }
-        self.sh.m.lock().unwrap().append.record(t0.elapsed().as_micros() as u64 + 1).ok();
-    }
 
     /// Consegna le attività pronte ai worker, a turno tra i tenant, rispettando il tetto per tenant.
     async fn dispatch(&mut self) {
@@ -331,18 +313,14 @@ impl Engine {
         }
     }
 
-    async fn run(mut self, mut rx: mpsc::Receiver<Msg>) {
-        const MAXB: usize = 256;
-        let mut batch = Vec::with_capacity(MAXB);
-        loop {
-            if rx.recv_many(&mut batch, MAXB).await == 0 {
-                return;
-            }
-            self.bts = now_us();
-            let mut evs: Vec<(usize, Ev)> = vec![];
-            let mut newly = vec![];
-            let mut replies = vec![];
-            for msg in batch.drain(..) {
+    /// Elabora un gruppo di messaggi: aggiorna lo stato e produce gli eventi da scrivere, i passi pronti e le risposte.
+    /// Nessun effetto esterno qui: risposte e consegne partono solo quando il gruppo è durevole (AD-2).
+    fn handle(&mut self, batch: Vec<Msg>) -> (Vec<(usize, Ev)>, Vec<(usize, Uid, u32, u64)>, Vec<(oneshot::Sender<Result<Uid, Status>>, Uid, Instant)>) {
+        self.bts = now_us();
+        let mut evs: Vec<(usize, Ev)> = vec![];
+        let mut newly = vec![];
+        let mut replies = vec![];
+        for msg in batch {
                 match msg {
                     Msg::Located(ti, v) => {
                         for (exec, h, loc) in v {
@@ -422,26 +400,130 @@ impl Engine {
                     }
                 }
             }
-            if !evs.is_empty() {
-                self.append(&evs).await;
-            }
-            {
-                let mut m = self.sh.m.lock().unwrap();
-                for (_, _, t0) in &replies {
-                    m.accept.record(t0.elapsed().as_micros() as u64 + 1).ok();
+        (evs, newly, replies)
+    }
+
+    /// Manda gli eventi alle code di scrittura, una per tenant e connessione, ognuna in ordine di arrivo (FIFO).
+    /// L'esecuzione usa sempre la connessione scelta dal suo id: l'ordine dei suoi eventi sul bus non cambia, anche
+    /// con più gruppi in volo. Torna il numero di richieste inviate.
+    fn submit(&self, gid: u64, evs: &[(usize, Ev)]) -> usize {
+        let n = self.jobs.len() / 2;
+        let mut sent = 0;
+        for ti in 0..2 {
+            let topic = topic_of(&TENANTS[ti]);
+            for ci in 0..n {
+                let msgs: Vec<Bytes> = evs.iter().filter(|(i, e)| *i == ti && e.exec_hash() % n as u64 == ci as u64).map(|(_, e)| self.sh.seal_ev(&topic, e)).collect();
+                if msgs.is_empty() {
+                    continue;
                 }
-                m.accepted += replies.len() as u64;
+                let _ = self.jobs[ti * n + ci].send(Job { gid, topic: topic.clone(), msgs });
+                sent += 1;
             }
-            for (reply, exec, _) in replies {
-                let _ = reply.send(Ok(exec));
-            }
-            for (ti, exec, step, ts) in newly {
-                self.pending[ti].push_back((exec, step, ts));
-            }
-            // le esecuzioni concluse escono dallo stato dopo la scrittura durevole dei loro eventi
-            self.execs.retain(|_, e| !e.finished());
-            self.dispatch().await;
         }
+        sent
+    }
+
+    /// Effetti di un gruppo diventato durevole: risposte alle accettazioni, passi pronti, consegne.
+    async fn finalize(&mut self, g: Group) {
+        {
+            let mut m = self.sh.m.lock().unwrap();
+            for (_, _, t0) in &g.replies {
+                m.accept.record(t0.elapsed().as_micros() as u64 + 1).ok();
+            }
+            m.accepted += g.replies.len() as u64;
+            if g.remaining_total > 0 {
+                m.append.record(g.t0.elapsed().as_micros() as u64 + 1).ok();
+                m.min_append.record(g.t0.elapsed().as_micros() as u64 + 1).ok();
+            }
+        }
+        for (reply, exec, _) in g.replies {
+            let _ = reply.send(Ok(exec));
+        }
+        for (ti, exec, step, ts) in g.newly {
+            self.pending[ti].push_back((exec, step, ts));
+        }
+        // le esecuzioni concluse escono dallo stato quando i loro eventi sono durevoli
+        self.execs.retain(|_, e| !e.finished());
+        self.dispatch().await;
+    }
+
+    /// Ciclo del motore con fino a `k` gruppi in volo sul bus. Il ciclo non aspetta più la scrittura: continua a
+    /// raccogliere messaggi e a decidere; gli effetti di un gruppo partono quando le sue richieste sono durevoli.
+    async fn run(mut self, mut rx: mpsc::Receiver<Msg>, mut drx: mpsc::UnboundedReceiver<u64>) {
+        let mut groups: HashMap<u64, Group> = HashMap::new();
+        let mut gid = 0u64;
+        loop {
+            let mut batch = Vec::new();
+            tokio::select! {
+                n = rx.recv_many(&mut batch, self.maxb), if groups.len() < self.k => {
+                    if n == 0 {
+                        return;
+                    }
+                    let (evs, newly, replies) = self.handle(batch);
+                    if evs.is_empty() {
+                        self.finalize(Group { remaining: 0, remaining_total: 0, newly, replies, t0: Instant::now() }).await;
+                    } else {
+                        gid += 1;
+                        let sent = self.submit(gid, &evs);
+                        groups.insert(gid, Group { remaining: sent, remaining_total: sent, newly, replies, t0: Instant::now() });
+                    }
+                }
+                Some(id) = drx.recv() => {
+                    let g = groups.get_mut(&id).unwrap();
+                    g.remaining -= 1;
+                    if g.remaining == 0 {
+                        let g = groups.remove(&id).unwrap();
+                        self.finalize(g).await;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Gruppo di eventi in volo sul bus.
+struct Group {
+    remaining: usize,
+    remaining_total: usize,
+    newly: Vec<(usize, Uid, u32, u64)>,
+    replies: Vec<(oneshot::Sender<Result<Uid, Status>>, Uid, Instant)>,
+    t0: Instant,
+}
+
+/// Richiesta di scrittura per una coda (tenant, connessione).
+struct Job {
+    gid: u64,
+    topic: String,
+    msgs: Vec<Bytes>,
+}
+
+/// Una connessione al bus e una coda FIFO: scrive le richieste in ordine e segnala il gruppo quando sono durevoli.
+/// Un errore del bus ferma il processo (ponytail: rifiuto con codice e ripresa sono della fase 4).
+async fn conn_worker(bus: Bus, mut rx: mpsc::UnboundedReceiver<Job>, dtx: mpsc::UnboundedSender<u64>, sh: Arc<Shared>) {
+    while let Some(j) = rx.recv().await {
+        let ts = Instant::now();
+        let nev = j.msgs.len() as u64;
+        // richieste di al più 8 MB (Iggy rifiuta oltre 64 MB), in ordine
+        let mut from = 0;
+        while from < j.msgs.len() {
+            let (mut to, mut bytes) = (from, 0);
+            while to < j.msgs.len() && (to == from || bytes + j.msgs[to].len() <= (8 << 20)) {
+                bytes += j.msgs[to].len();
+                to += 1;
+            }
+            if let Err(e) = bus.append(&j.topic, &j.msgs[from..to]).await {
+                eprintln!("append sul bus fallita: {e}");
+                std::process::exit(2);
+            }
+            from = to;
+        }
+        {
+            let mut m = sh.m.lock().unwrap();
+            m.append_sub.record(ts.elapsed().as_micros() as u64 + 1).ok();
+            m.min_sub.record(ts.elapsed().as_micros() as u64 + 1).ok();
+            m.sub_events.record(nev).ok();
+        }
+        let _ = dtx.send(j.gid);
     }
 }
 
@@ -588,9 +670,21 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
             m.groups += 1;
             for e in &evs {
                 m.proj_lag.record(now.saturating_sub(e.ts()).max(1)).ok();
+                m.min_lag.record(now.saturating_sub(e.ts()).max(1)).ok();
             }
         }
         sh.applied_ts[ti].store(evs.iter().map(|e| e.ts()).max().unwrap(), Relaxed);
+        // la cache si svuota con i payload appena proiettati (non per istante: con più connessioni l'ordine sul bus non segue gli istanti)
+        if !noarc_flag() {
+            let mut c = sh.cache.lock().unwrap();
+            for e in &evs {
+                match e {
+                    Ev::Accepted { tenant, input_hash, .. } => c.remove(&(*tenant, *input_hash)),
+                    Ev::Done { tenant, out_hash, .. } => c.remove(&(*tenant, *out_hash)),
+                    _ => None,
+                };
+            }
+        }
         pos = next;
         if sh.trim && last_trim.elapsed() > Duration::from_millis(500) {
             last_trim = Instant::now();
@@ -631,7 +725,7 @@ impl pb::control_server::Control for Ctl {
         let stm = self.sh.db.stmts.load(Relaxed) - m.stmts0;
         let rows = self.sh.db.rows.load(Relaxed) - m.rows0;
         let text = format!(
-            "secs={secs:.1} accepted={} refused={} done={} rejected={} groups={}\nactivities_per_s={:.0} accepted_per_s={:.0}\naccept_engine {}\nappend {}\nstart_ready {}\nstart_sent {}\nstart_join {}\nstart_ready_tenant_b {}\narchive_read {}\nproj_lag {}\nsql_stmts={stm} sql_rows={rows} sql_per_activity={:.4} rows_per_activity={:.3} wal_bytes_per_activity={:.1}\nengine_cpu_s={:.2} cache_entries={}",
+            "secs={secs:.1} accepted={} refused={} done={} rejected={} groups={}\nactivities_per_s={:.0} accepted_per_s={:.0}\naccept_engine {}\nappend {}\nappend_sub {}\nsub_events_p50={} sub_events_p99={}\nstart_ready {}\nstart_sent {}\nstart_join {}\nstart_ready_tenant_b {}\narchive_read {}\nproj_lag {}\nsql_stmts={stm} sql_rows={rows} sql_per_activity={:.4} rows_per_activity={:.3} wal_bytes_per_activity={:.1}\nengine_cpu_s={:.2} cache_entries={}",
             m.accepted,
             m.refused,
             m.done,
@@ -641,6 +735,9 @@ impl pb::control_server::Control for Ctl {
             m.accepted as f64 / secs,
             f(&m.accept),
             f(&m.append),
+            f(&m.append_sub),
+            m.sub_events.value_at_quantile(0.5),
+            m.sub_events.value_at_quantile(0.99),
             f(&m.start_ready),
             f(&m.start_sent),
             f(&m.start_join),
@@ -693,6 +790,11 @@ impl pb::worker_server::Worker for Wrk {
 
 // ---------------------------------------------------------------- avvio
 
+/// Diagnostica: senza archivio i payload non si proiettano, quindi la cache non si svuota.
+fn noarc_flag() -> bool {
+    std::env::var("DIAG_NOARCHIVE").is_ok()
+}
+
 /// `n` connessioni di scrittura al bus (parallelismo delle scritture; l'esecuzione sceglie con il suo id).
 async fn futures_n(kind: &str, n: usize) -> Vec<Bus> {
     let mut v = Vec::new();
@@ -702,7 +804,7 @@ async fn futures_n(kind: &str, n: usize) -> Vec<Bus> {
     v
 }
 
-pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: usize, proj_batch: u32, trim: bool, window_ms: u64, wconn: usize) {
+pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: usize, proj_batch: u32, trim: bool, window_ms: u64, wconn: usize, kgroups: usize, maxb: usize) {
     let t_start = Instant::now();
     // AD-2: un solo motore; il lock si libera da solo se il processo muore (kill -9)
     let lock = std::fs::OpenOptions::new().create(true).truncate(true).write(true).open(format!("{dir}/engine.lock")).unwrap();
@@ -722,7 +824,7 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
     let db = Arc::new(Db::open(db_url).await.unwrap());
     let sh = Arc::new(Shared {
         keys,
-        bus_w: futures_n(bus_kind, wconn).await,
+        bus_w: futures_n(bus_kind, 2 * wconn).await,
         pending_locs: Mutex::new(HashMap::new()),
         segs: [0, 1].map(|_| Mutex::new(Seg { file: None, id: 0, len: 0, opened: Instant::now() })),
         bus,
@@ -742,17 +844,32 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
     for ti in 0..2 {
         tokio::spawn(projector(sh.clone(), ti, pos.get(&topic_of(&TENANTS[ti])).copied().unwrap_or(0), tx.clone()));
     }
-    // eviction della cache dei payload non ancora proiettati
-    let sh2 = sh.clone();
+    // riga al minuto per la diagnosi (fase 2d): attività/s, scrittura sul bus, ritardo del proiettore, pressione I/O
+    let sh3 = sh.clone();
     tokio::spawn(async move {
+        let (mut last_done, mut t) = (0u64, 0u32);
         loop {
-            tokio::time::sleep(Duration::from_millis(500)).await;
-            let w = [sh2.applied_ts[0].load(Relaxed), sh2.applied_ts[1].load(Relaxed)];
-            if std::env::var("DIAG_NOARCHIVE").is_err() {
-            sh2.cache.lock().unwrap().retain(|(t, _), (_, ts)| *ts >= w[tenant_idx(t).unwrap()]);
-            }
+            tokio::time::sleep(Duration::from_secs(60)).await;
+            t += 1;
+            let io = std::fs::read_to_string("/proc/pressure/io").ok().and_then(|s| s.lines().next().map(String::from)).unwrap_or_default();
+            let mut m = sh3.m.lock().unwrap();
+            let d = m.done - last_done.min(m.done);
+            last_done = m.done;
+            let ms = |h: &Histogram<u64>, q: f64| h.value_at_quantile(q) as f64 / 1e3;
+            eprintln!("MIN t={t} act_s={:.0} append_p50_ms={:.1} sub_p50_ms={:.1} lag_p50_ms={:.0} lag_p99_ms={:.0} io=[{io}]", d as f64 / 60.0, ms(&m.min_append, 0.5), ms(&m.min_sub, 0.5), ms(&m.min_lag, 0.5), ms(&m.min_lag, 0.99));
+            m.min_append.reset();
+            m.min_sub.reset();
+            m.min_lag.reset();
         }
     });
+    // code di scrittura: una connessione al bus e una coda FIFO per tenant e connessione
+    let (dtx, mut drx) = mpsc::unbounded_channel::<u64>();
+    let mut jobs = vec![];
+    for b in sh.bus_w.iter() {
+        let (jtx, jrx) = mpsc::unbounded_channel();
+        tokio::spawn(conn_worker(b.clone(), jrx, dtx.clone(), sh.clone()));
+        jobs.push(jtx);
+    }
     let mut eng = Engine {
         sh: sh.clone(),
         execs,
@@ -764,6 +881,9 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
         cap,
         next_delivery: now_us(),
         bts: now_us(),
+        jobs,
+        k: kgroups,
+        maxb,
     };
     // decisioni mancanti dopo la ripresa (Ready non scritti), poi riconsegna delle emesse e non concluse
     let ids: Vec<Uid> = eng.execs.keys().copied().collect();
@@ -772,7 +892,9 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
         eng.decide(id, &mut evs, &mut newly);
     }
     if !evs.is_empty() {
-        eng.append(&evs).await;
+        for _ in 0..eng.submit(0, &evs) {
+            drx.recv().await;
+        }
     }
     for (ti, exec, step, ts) in newly {
         eng.pending[ti].push_back((exec, step, ts));
@@ -780,7 +902,7 @@ pub async fn main(bus_kind: &str, db_url: &str, listen: &str, dir: &str, cap: us
     for (ti, exec, step) in redeliver {
         eng.pending[ti].push_back((exec, step, now_us()));
     }
-    tokio::spawn(eng.run(rx));
+    tokio::spawn(eng.run(rx, drx));
 
     let cert = std::fs::read(format!("{dir}/tls/cert.pem")).unwrap();
     let key = std::fs::read(format!("{dir}/tls/key.pem")).unwrap();

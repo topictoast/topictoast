@@ -68,6 +68,8 @@ async fn main() {
                 arg("trim", "1") == "1",
                 arg("window_ms", "200").parse().unwrap(),
                 arg("wconn", "1").parse().unwrap(),
+                arg("kgroups", "4").parse().unwrap(),
+                arg("maxb", "1024").parse().unwrap(),
             )
             .await
         }
@@ -112,7 +114,8 @@ fn fsync_floor() {
     let f = std::fs::File::create(format!("{dir}/floor.tmp")).unwrap();
     let buf = vec![7u8; 4096];
     let mut h = hist();
-    for i in 0..3000u64 {
+    let n: u64 = arg("n", "3000").parse().unwrap();
+    for i in 0..n {
         let t = Instant::now();
         f.write_at(&buf, i * 4096).unwrap();
         f.sync_data().unwrap();
@@ -131,6 +134,8 @@ async fn bench_append() {
     let secs: u64 = arg("secs", "10").parse().unwrap();
     let warm: u64 = arg("warmup", "2").parse().unwrap();
     let own = arg("own", "0") == "1";
+    // same=1: connessioni proprie ma stesso topic (come il motore, che scrive tutti sullo stesso topic del tenant)
+    let same = arg("same", "0") == "1";
     let bus = Bus::connect(&kind).await.unwrap();
     let topic = format!("bench-{}", std::process::id());
     bus.ensure_topic(&topic).await.unwrap();
@@ -140,7 +145,7 @@ async fn bench_append() {
     for _ in 0..conc {
         // own=1: ogni task ha connessione e topic propri; own=0: tutti sulla stessa connessione e topic
         let (bus, payload) = (bus.clone(), payload.clone());
-        let topic = if own { format!("{topic}-{}", tasks.len()) } else { topic.clone() };
+        let topic = if own && !same { format!("{topic}-{}", tasks.len()) } else { topic.clone() };
         tasks.push(tokio::spawn(async move {
             let bus = if own { Bus::connect(bus.name()).await.unwrap() } else { bus };
             bus.ensure_topic(&topic).await.unwrap();
@@ -154,7 +159,7 @@ async fn bench_append() {
                     n += batch as u64;
                 }
             }
-            if own {
+            if own && !same {
                 bus.drop_topic(&topic).await.ok();
             }
             (h, n)

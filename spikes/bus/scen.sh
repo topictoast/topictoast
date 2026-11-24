@@ -15,11 +15,13 @@ CAP=${CAP:-512}; TRIM=1; PB=${PB:-1000}
 # pinning a 4 CPU (2c): SPIKE_CPUS per motore e worker (taskset), SPIKE_CPUSET per i container, SPIKE_LOADCPUS per il carico
 TS_ENG=${SPIKE_CPUS:+taskset -c $SPIKE_CPUS}; TS_LOAD=${SPIKE_LOADCPUS:+taskset -c $SPIKE_LOADCPUS}
 EP=; WP=
+# N scelto dalla verifica della fase 2d (mediana più alta di thrmax): Valkey 4, Iggy 1
+WDEF=1; [ "$BUS" = valkey ] && WDEF=4
 case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; esac
 
 start_engine() {
   : > out/engine.log
-  $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM proj_batch=$PB wconn=${WCONN:-1} >> out/engine.log 2>&1 &
+  $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
@@ -33,7 +35,7 @@ rm -rf out/archive out/spike.db* out/master.key out/ledger.txt
 # archivio su un altro disco (variabile SPIKE_ARCHIVE): out/archive diventa un collegamento
 [ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
-echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-1}"
+echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024}"
 start_engine
 $TS_ENG "$BIN" worker dir=out sessions=8 > out/worker.log 2>&1 &
 WP=$!
@@ -69,11 +71,11 @@ case $SC in
       sleep 1
       start_engine
       T1=$(date +%s.%N)
-      echo "kill -9 -> motore di nuovo in ascolto: $(echo "$T1 - $T0" | bc) s (1 s di attesa voluta inclusa)"
+      D1=$(awk -v a="$T1" -v b="$T0" 'BEGIN{printf "%.3f", a-b}'); echo "kill -9 -> motore di nuovo in ascolto: $D1 s (1 s di attesa voluta inclusa)"
       # prima riconsegna/conclusione dopo la ripresa
       i=0; until "$BIN" stats dir=out | grep -q "done=[1-9]"; do i=$((i+1)); [ $i -gt 300 ] && break; sleep 0.1; done
       T2=$(date +%s.%N)
-      echo "kill -9 -> prima attività conclusa dopo la ripresa: $(echo "$T2 - $T0" | bc) s"
+      D2=$(awk -v a="$T2" -v b="$T0" 'BEGIN{printf "%.3f", a-b}'); echo "kill -9 -> prima attività conclusa dopo la ripresa: $D2 s"
     done
     wait $LP; cat out/load.txt
     ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done ;;
@@ -94,6 +96,7 @@ case $SC in
   *) echo "scenario sconosciuto" ;;
 esac
 [ $BUS = valkey ] && { echo "-- valkey: $(docker compose -p ttspikebus exec -T valkey valkey-cli -a "$VALKEY_PASSWORD" info stats 2>/dev/null | grep -E "total_forks" | tr -d "\r") $(docker compose -p ttspikebus exec -T valkey valkey-cli -a "$VALKEY_PASSWORD" info persistence 2>/dev/null | grep -E "aof_rewrites:|aof_last_rewrite_time_sec" | tr -d "\r" | tr "\n" " ")"; }
+grep "^MIN" out/engine.log
 echo "-- RSS dopo la corsa (motore, worker, bus)"
 ./rss.sh $EP $WP
 echo "-- conteggio file archivio: $(find out/archive -type f 2>/dev/null | wc -l)"
