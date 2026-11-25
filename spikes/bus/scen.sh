@@ -171,6 +171,8 @@ case $SC in
     LP=$!
     sleep 12
     echo "prima del kill: $("$BIN" stats dir=out | head -1)"
+    # blocco D, parte seconda: consegne inviate il cui Timer non è ancora durevole (ora e massimo della corsa)
+    echo "prima del kill: $("$BIN" stats dir=out | grep -E '^undurable_deliveries')"
     cp out/engine.log out/engine-pre.log
     T0=$(us); kill -9 $EP; wait $EP 2>/dev/null
     start_engine
@@ -353,6 +355,12 @@ grep "^MIN" out/engine.log
 echo "-- RSS dopo la corsa (motore, worker, bus)"
 ./rss.sh $EP $WP
 echo "-- conteggio file archivio: $(find out/archive -type f 2>/dev/null | wc -l)"
+# blocco D, parte seconda: righe `timer` rimaste per attività concluse (attese 0: un Timer dopo il suo Done sarebbe reinserito dal proiettore)
+if [ $DB = sqlite ] && [ -f out/spike.db ]; then
+  TSQL="SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL"
+  echo "sql: $TSQL"
+  echo "timer_rows_for_finished_activities: $(sqlite3 out/spike.db "$TSQL" 2>&1); timer_rows_total: $(sqlite3 out/spike.db 'SELECT count(*) FROM timer' 2>&1)"
+fi
 stop_all
 rm -rf out/archive; [ -n "$SPIKE_ARCHIVE" ] && rm -rf "$SPIKE_ARCHIVE"
 if [ "$SC" = dfull-iggy ]; then docker compose -p ttspikebus down -t 1 >/dev/null 2>&1; docker volume rm ttspikebus-iggycap >/dev/null; fi
