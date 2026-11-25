@@ -1625,3 +1625,60 @@ Mediana delle 6 corse del p50 / p99: OFF **28,9 / 36,6 ms**, ON **17,5 / 37,0 ms
 ### Comandi per rifare
 
 Su minisheep, in `~/ttspikebus` (`.env` da `./gen-env.sh`, binario `bin/busspike-aux-af23e79`): `./aux-chain.sh rows` staccato (poi `tail chain-aux.log`); singole corse: `PAYLOAD=json [AUX=1] ./scen.sh iggy sqlite aux1k`, `PAYLOAD=json AUX=1 INBAD=10 ./scen.sh iggy sqlite auxneg rate=50 n=1 secs=10 warm=2`, `PAYLOAD=json AUX=1 INFLAG=0 …`, `PAYLOAD=json AUX=1 ./scen.sh iggy sqlite auxrss`.
+
+## Blocco E, processo ausiliario a 10.000 att./s (bigsheep)
+
+Il processo ausiliario di AD-6 (stesso binario `bin/busspike-aux-af23e79`, commit `af23e79`, sha256 `f2152947f38633cf`, `PREPARE` in pipeline) a 10.000 att./s su **bigsheep** (Ryzen 7 9700X, 8 core / 16 thread, 60 GB, NVMe Samsung 990 PRO, Arch, kernel 7.2.4, governor `powersave` non modificato e scritto in ogni file grezzo). I numeri di bigsheep si confrontano solo tra loro, mai con le serie di minisheep. Regole: `risultati/bigsheep-iggy-sqlite-aux10k-regola-4-ms.txt` (commit `4371c8c`, 21:49:30, scritte prima di ogni corsa misurata); la prima corsa misurata ha `[stato prima 22:04:56]` (dopo tre attese del cancello del disco, v. sotto). File grezzi `risultati/bigsheep-iggy-sqlite-aux10k-<OFF|ON>-4-ms-r<n>.txt` (con i campioni di I/O; contengono 690 righe `CG <id>` di 64 cifre esadecimali = identificatori dei cgroup dei container, nessuna password), più `bigsheep-aux10k-floor-4-ms.txt`, `bigsheep-aux10k-chain-4-ms.txt` (registro del cancello e della catena) e la corsa di prova `…-smoke-OFF-…`.
+
+**Preparazione.** Immagine copiata da minisheep con `docker save`/`docker load` (nessun pull): `apache/iggy:0.10.0` (e `valkey/valkey:9.1.4`, solo per il contenitore usa e getta che svuota i dati). Verificata uguale: stessi strati (impronta di `RootFS.Layers` uguale), stessa configurazione, stessa data di creazione; l'identificatore mostrato da `docker images` differisce (4574944d61b9 contro 78f25266c7e9) perché bigsheep usa l'archivio containerd, che mostra l'impronta del manifest. L'immagine resta caricata su bigsheep.
+
+**Posizionamento.** Motore, worker e Iggy sui core fisici 1-4 (CPU 1-4; i fratelli SMT 9-12 senza carico nostro); generatore di carico, campionatore e script di corsa sui core fisici 5-7 (CPU 5,6,7; fratelli 13-15 liberi).
+
+**Disco.** Pavimento di `fdatasync` prima delle regole, tre misure: p50 4,92 / 4,93 / 4,93 ms, p99.9 6,13 / 5,20 / 9,75 ms. **Il cancello «p50 ≤ 4,0 ms» non è mai rispettato su questo disco** (il pavimento è stabile a 4,9 ms): tutte e quattro le corse hanno aspettato le tre attese da 5 minuti e sono partite comunque (4 volte «ancora fuori soglia dopo 3 attese», 0 volte «disco tranquillo»; p50 nelle misure del cancello 4,92-4,96 ms, p99.9 6,5-16,1 ms), come previsto dalle regole.
+
+**Prova non misurata (3 minuti, OFF).** 9.999 att./s sull'intera corsa, minuti 2 e 3 a 9.997 e 10.003, 0 perse, `start_ready` p50 161 ms: bigsheep raggiunge i 10.000/s.
+
+### Sintesi
+
+1. **Tutte e 4 le corse sono superate** (media dei minuti 2-10 ≥ 9.900 att./s e 0 accettate perse): OFF r1 **9.999,9**, ON r1 **9.999,9**, ON r2 **10.000,3**, OFF r2 **9.999,1** att./s; minuti 2-10 sotto 9.900: 0 in tutte e quattro (il minuto 1, escluso dalla regola, è a 8.884-8.992 per l'avvio). `verify OK` in tutte.
+2. **Validità di ON: rispettata in tutte e due le corse.** `calls_prepare` = `calls_check` = **6.050.000** = `attivita_concluse` dell'ultima verifica; `skipped=0`, `input_invalid=0`, `output_invalid=0`, errori dell'ausiliario **0**.
+3. **Lettura a: «l'ausiliario regge 10.000 att./s» (misurato, su bigsheep).** Le due coppie contano (OFF r1 e OFF r2 superate) e ON è superata in tutte e due. (misurata)
+
+### Per corsa (ordine in tempo: OFF r1, ON r1, ON r2, OFF r2)
+
+| Misura | OFF r1 | ON r1 | ON r2 | OFF r2 |
+| --- | --- | --- | --- | --- |
+| `[stato prima]` | 22:04:56 | 22:30:29 | 22:56:32 | 23:22:04 |
+| att./s, intera corsa | 10.000 | 9.987 | 9.990 | 9.999 |
+| media minuti 2-10 | 9.999,9 | 9.999,9 | 10.000,3 | 9.999,1 |
+| minuti 2-10 sotto 9.900 | 0 | 0 | 0 | 0 |
+| intervallo più lungo senza accettazioni (ms) | 164 | 149 | 128 | 170 |
+| `start_ready` p50 / p99 (ms) | 162,18 / 242,43 | 156,03 / 205,95 | 155,78 / 214,40 | 165,25 / 251,78 |
+| CPU del motore per 1.000 att. (s) | 0,041 | 0,043 | 0,043 | 0,041 |
+| CPU dell'ausiliario per 1.000 att. (s) | — | 0,025 | 0,024 | — |
+| `aux_rtt` p50 / p99 (ms); RSS dell'ausiliario | — | 0,26 / 2,05; 14.604 kB | 0,26 / 2,04; 14.380 kB | — |
+| istruzioni SQL per attività | 0,0293 | 0,0294 | 0,0294 | 0,0293 |
+| «database is locked» / `SQLITE_BUSY` nel registro del motore | 0 | 0 | 0 | 0 |
+| attività concluse (verifica) | 6.050.000 | 6.050.000 | 6.050.000 | 6.050.010 |
+| pavimento prima (p50 / p99 / p99.9, ms) | 4,93 / 5,16 / 14,36 | 6,56 / 7,24 / 11,94 | 4,92 / 5,20 / 14,34 | 4,93 / 5,37 / 9,89 |
+| pavimento dopo | 4,91 / 5,22 / 6,07 | 4,92 / 5,20 / 6,00 | 4,94 / 5,44 / 6,29 | 4,92 / 5,20 / 5,87 |
+| carico a 1 min prima / dopo | 0,11 / 4,19 | 0,00 / 3,99 | 0,06 / 4,53 | 0,02 / 3,91 |
+| container di Marco, CPU % prima | qwen38-27b 1,82; open-webui 0,41; watchamovie 0,12; reranker 0; embedder 0 | 0,07; 0,25; 0,12; 0; 0 | 0,07; 0,25; 0,12; 0; 0 | 0,06; 0,24; 0,13; 0; 0 |
+| container di Marco, CPU % dopo | 0,07; open-webui 3,39; 0,12; 0; 0 | 0,08; 0,43; 0,12; reranker 1,74; 0 | 0,07; 0,26; 0,12; 0; embedder 1,82 | 0,08; 0,23; 0,12; 0; 0 |
+
+Nessuna corsa porta `[macchina non ferma]`; attesa di quiete 0-30 s. (misurata)
+
+### Osservazioni (non giudicate)
+
+- **Costo.** ON contro OFF: CPU del motore per 1.000 attività 0,043 contro 0,041 (circa +5 %) più 0,024-0,025 s per 1.000 attività nell'ausiliario; andata e ritorno p50 0,26 ms e p99 2,0 ms; RSS dell'ausiliario circa 14,4-14,6 MB; istruzioni SQL per attività uguali. Questi valori non si confrontano con quelli di minisheep (altra CPU, altro disco).
+- **`start_ready` in ON è più basso che in OFF** (p50 156 contro 162-165 ms, p99 206-214 contro 242-252 ms) in entrambe le coppie. La causa è **ipotesi**, non isolata: il motore tiene il tetto di 512 attività in volo per tenant e a 10.000/s la coda di avvio dipende dal ritmo con cui le attività escono dal tetto, che con l'ausiliario cambia (la rilevazione `held_max` per minuto è 0 in tutte e due le corse ON e 276-741 in OFF). Non è un vantaggio dell'ausiliario da dichiarare: nessun criterio lo usa.
+- **Cancello del disco.** Il pavimento di questo disco (4,9 ms, stabile) è sopra il limite di 4,0 ms in tutte le misure: il cancello non ha mai potuto passare e ha solo aggiunto 15 minuti di attesa prima di ogni corsa (nessun effetto sul pavimento: 4,92-4,96 ms prima e dopo). Il pavimento misurato all'inizio di ON r1 (6,56 ms) è un picco isolato, subito rientrato (4,92 ms dopo).
+- **Scritture sul disco.** Il campionatore mostra una pressione I/O `some` di circa 53-62 % durante le corse, in tutti e quattro i casi (stessa forma di minisheep: il disco lavora quanto basta a sostenere il ritmo).
+
+### Non coperto
+
+Confronto con minisheep; il criterio «database is locked» / `SQLITE_BUSY` (solo riportato: zero in tutte le corse); `PR_SET_DUMPABLE` e i core dump; più ausiliari; il comportamento dopo un crash dell'ausiliario; schemi pesanti; Postgres; il percorso `wasm32-wasip1`.
+
+### Comandi per rifare
+
+Su bigsheep (ogni comando in `bash -c`, shell di login fish), in `~/ttspikebus` (script copiati dal repository, `env.sh` = `env-bigsheep.sh`, `.env` da `./gen-env.sh`, binario `bin/busspike-aux-af23e79`): `./aux10k-chain.sh floor`, `./aux10k-chain.sh smoke`, `./aux10k-chain.sh rows` (staccato, con `taskset -c 5,6,7`; stato in `chain-aux10k.log`).

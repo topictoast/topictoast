@@ -1,0 +1,29 @@
+21:49:31 gate p1-OFF (attesa 0): fsync-floor /home/white_sheep/.cache: n=300 p50=4.94ms p99=5.17ms p99.9=5.20ms max=5.20ms over100ms=0
+21:54:33 gate p1-OFF (attesa 1): fsync-floor /home/white_sheep/.cache: n=300 p50=4.96ms p99=5.49ms p99.9=14.36ms max=14.36ms over100ms=0
+21:59:34 gate p1-OFF (attesa 2): fsync-floor /home/white_sheep/.cache: n=300 p50=4.96ms p99=5.24ms p99.9=14.67ms max=14.67ms over100ms=0
+22:04:36 gate p1-OFF (attesa 3): fsync-floor /home/white_sheep/.cache: n=300 p50=4.95ms p99=5.42ms p99.9=14.64ms max=14.64ms over100ms=0
+22:04:36 gate p1-OFF: ancora fuori soglia dopo 3 attese, si parte comunque
+22:04:36 INIZIO bigsheep-iggy-sqlite-aux10k-OFF-4-ms-r1.txt
+22:15:22 FINE bigsheep-iggy-sqlite-aux10k-OFF-4-ms-r1.txt: activities_per_s=10000 accepted_per_s=1000 verify OK 
+22:15:24 gate p1-ON (attesa 0): fsync-floor /home/white_sheep/.cache: n=300 p50=4.92ms p99=5.19ms p99.9=9.19ms max=9.19ms over100ms=0
+22:20:25 gate p1-ON (attesa 1): fsync-floor /home/white_sheep/.cache: n=300 p50=4.93ms p99=5.19ms p99.9=14.32ms max=14.32ms over100ms=0
+22:25:27 gate p1-ON (attesa 2): fsync-floor /home/white_sheep/.cache: n=300 p50=4.91ms p99=5.85ms p99.9=9.40ms max=9.40ms over100ms=0
+22:30:29 gate p1-ON (attesa 3): fsync-floor /home/white_sheep/.cache: n=300 p50=6.53ms p99=7.61ms p99.9=16.05ms max=16.05ms over100ms=0
+22:30:29 gate p1-ON: ancora fuori soglia dopo 3 attese, si parte comunque
+22:30:29 INIZIO bigsheep-iggy-sqlite-aux10k-ON-4-ms-r1.txt
+22:40:56 FINE bigsheep-iggy-sqlite-aux10k-ON-4-ms-r1.txt: activities_per_s=9987 accepted_per_s=1000 verify OK 
+22:40:57 gate p2-ON (attesa 0): fsync-floor /home/white_sheep/.cache: n=300 p50=4.92ms p99=5.19ms p99.9=8.70ms max=8.70ms over100ms=0
+22:45:59 gate p2-ON (attesa 1): fsync-floor /home/white_sheep/.cache: n=300 p50=4.91ms p99=5.14ms p99.9=14.29ms max=14.29ms over100ms=0
+22:51:00 gate p2-ON (attesa 2): fsync-floor /home/white_sheep/.cache: n=300 p50=4.91ms p99=13.70ms p99.9=14.31ms max=14.31ms over100ms=0
+22:56:02 gate p2-ON (attesa 3): fsync-floor /home/white_sheep/.cache: n=300 p50=4.92ms p99=5.20ms p99.9=14.37ms max=14.37ms over100ms=0
+22:56:02 gate p2-ON: ancora fuori soglia dopo 3 attese, si parte comunque
+22:56:02 INIZIO bigsheep-iggy-sqlite-aux10k-ON-4-ms-r2.txt
+23:06:58 FINE bigsheep-iggy-sqlite-aux10k-ON-4-ms-r2.txt: activities_per_s=9990 accepted_per_s=1000 verify OK 
+23:07:00 gate p2-OFF (attesa 0): fsync-floor /home/white_sheep/.cache: n=300 p50=4.92ms p99=5.20ms p99.9=8.89ms max=8.89ms over100ms=0
+23:12:01 gate p2-OFF (attesa 1): fsync-floor /home/white_sheep/.cache: n=300 p50=4.89ms p99=5.18ms p99.9=14.26ms max=14.26ms over100ms=0
+23:17:03 gate p2-OFF (attesa 2): fsync-floor /home/white_sheep/.cache: n=300 p50=4.90ms p99=5.17ms p99.9=9.78ms max=9.78ms over100ms=0
+23:22:04 gate p2-OFF (attesa 3): fsync-floor /home/white_sheep/.cache: n=300 p50=4.92ms p99=5.40ms p99.9=14.31ms max=14.31ms over100ms=0
+23:22:04 gate p2-OFF: ancora fuori soglia dopo 3 attese, si parte comunque
+23:22:04 INIZIO bigsheep-iggy-sqlite-aux10k-OFF-4-ms-r2.txt
+23:32:31 FINE bigsheep-iggy-sqlite-aux10k-OFF-4-ms-r2.txt: activities_per_s=9999 accepted_per_s=1000 verify OK 
+23:32:31 ALLDONE
