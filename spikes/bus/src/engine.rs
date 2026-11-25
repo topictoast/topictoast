@@ -181,6 +181,8 @@ pub struct Shared {
     /// Blocco D (log dei task): valore del segreto sintetico consegnato ai worker (vuoto = nessuno) e contatori del log.
     pub secret: Vec<u8>,
     pub logs: Arc<crate::tasklog::Counters>,
+    /// Blocco sentinella: ogni evento di stato porta l'intestazione utente in chiaro (argomento `meta=1`).
+    pub meta: bool,
 }
 
 impl Shared {
@@ -299,7 +301,15 @@ impl Shared {
             | Ev::Timer { tenant, .. } => tenant,
         };
         let id = *uuid::Uuid::now_v7().as_bytes();
-        Bytes::from(self.keys.seal(t, &format!("bus/{topic}"), &id, &e.encode()))
+        let sealed = self.keys.seal(t, &format!("bus/{topic}"), &id, &e.encode());
+        if self.meta {
+            // blocco sentinella: l'intestazione in chiaro viaggia davanti al carico, `Bus::append` la sposta nell'intestazione utente
+            let mut v = vec![crate::bus::META_MAGIC];
+            v.extend_from_slice(&crate::sentinel::encode(e));
+            v.extend_from_slice(&sealed);
+            return Bytes::from(v);
+        }
+        Bytes::from(sealed)
     }
 }
 
@@ -1196,7 +1206,7 @@ async fn missing_from_tail(
     }
     Ok(todo
         .iter()
-        .filter(|m| !present.contains(*m))
+        .filter(|m| !present.contains(&crate::bus::split_meta(m).1))
         .cloned()
         .collect())
 }
@@ -1994,6 +2004,7 @@ pub async fn main(
             .unwrap_or_default()
             .into_bytes(),
         logs: Arc::new(Default::default()),
+        meta: crate::arg("meta", "0") == "1",
     });
     // Sonda del bus (blocco B): una connessione propria chiede il topic ogni 500 ms con tempo massimo di 1,5 s; il client
     // non torna con un errore a bus giù (aspetta), quindi è il tempo massimo a dire «giù». Con il bus giù le accettazioni

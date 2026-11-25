@@ -18,7 +18,7 @@ EP=; WP=
 # N scelto dalla verifica della fase 2d (mediana più alta di thrmax): Valkey 4, Iggy 1
 WDEF=1; [ "$BUS" = valkey ] && WDEF=4
 WL=; ENGPFX=
-case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db|tretry|tdead|theart) TRIM=0; WL="worklog=out/work.log" ;; t100k) TRIM=0 ;; logrun) TRIM=0 ;; esac
+case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db|tretry|tdead|theart|retry) TRIM=0; WL="worklog=out/work.log" ;; t100k) TRIM=0 ;; logrun) TRIM=0 ;; esac
 # blocco D (log dei task): profilo delle righe dei worker (LOGA, LOGB = NxL: N righe da L byte per tentativo, tenant A e B),
 # pausa tra le due metà (LOGSPLIT), tetto (LOGLINES, LOGBYTES), ritardo della conferma (ACKHOLD), sostituzione del segreto
 # (REDACT=0 la spegne: corsa di controllo), LOGMARK=1 genera un segreto sintetico per corsa (mai da .env, mai stampato)
@@ -55,12 +55,12 @@ NSE() { nsenter -U --preserve-credentials -m -t $EP "$@"; }
 
 start_engine() {
   : > out/engine.log
-  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} >> out/engine.log 2>&1 &
+  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} meta=${META:-0} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
 }
-stop_all() { [ -n "$WP" ] && kill $WP 2>/dev/null; [ -n "$EP" ] && kill $EP 2>/dev/null; wait 2>/dev/null; }
+stop_all() { [ -n "$SP" ] && kill $SP 2>/dev/null; [ -n "$WP" ] && kill $WP 2>/dev/null; [ -n "$EP" ] && kill $EP 2>/dev/null; wait 2>/dev/null; }
 
 # blocco D: rilegge tutti i pezzi dell'archivio e li confronta con la verità di base del worker (si ritenta finché i pezzi
 # ancora in volo non sono scritti); solo se la corsa ha righe di log
@@ -84,11 +84,22 @@ rm -rf out/archive out/logs out/spike.db* out/master.key out/ledger.txt
 [ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
 # CAPDBONLY=1: solo il database nel tmpfs (l archivio resta sul disco vero), per provare il disco pieno del database da solo
 [ "$SC" = dfull-db ] && [ -z "$CAPDBONLY" ] && ln -s "$PWD/out/capmnt/archive" out/archive
-rm -f out/work.log out/engine-pre.log out/kind0-dump.txt out/log-written.txt out/logcheck.txt out/logtail.txt out/noisy-a.txt
+rm -f out/sentinel.log out/sentinel.stop out/sentinel.txt out/newtopic.txt out/work.log out/engine-pre.log out/kind0-dump.txt out/log-written.txt out/logcheck.txt out/logtail.txt out/noisy-a.txt
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
 [ -f out/worker.cred ] || "$BIN" gen-cred dir=out
 echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64}"
 start_engine
+# blocco sentinella: SENT=1 avvia il sentinella (sulle CPU del motore: fa parte della piattaforma), META=1 (sopra) fa scrivere al motore
+# l'intestazione in chiaro; il sentinella si ferma con `out/sentinel.stop` e stampa le sue statistiche
+SP=
+[ -n "$SENT" ] && { $TS_ENG "$BIN" sentinel dir=out secs=${SENTSECS:-900} > out/sentinel.txt 2>&1 & SP=$!; sleep 1; }
+sentinel_stop() {
+  [ -n "$SP" ] || return 0
+  touch out/sentinel.stop; wait $SP; SP=
+  cat out/sentinel.txt
+  echo "sentinel allarmi: overdue=$(grep -c 'ALARM overdue' out/sentinel.log) retry=$(grep -c 'ALARM retry' out/sentinel.log) engine-silent=$(grep -c 'ALARM engine-silent' out/sentinel.log) recovered=$(grep -c 'RECOVERED engine' out/sentinel.log)"
+  echo "sentinel prime righe: $(grep -m1 'ALARM overdue' out/sentinel.log) | $(grep -m1 'ALARM engine-silent' out/sentinel.log) | $(grep -m1 'RECOVERED engine' out/sentinel.log) | $(grep -m1 'ALARM retry' out/sentinel.log)"
+}
 $TS_ENG "$BIN" worker dir=out link=${LINK:-grpc} sessions=${WSESS:-4} $WL > out/worker.log 2>&1 &
 WP=$!
 sleep 1
@@ -134,6 +145,25 @@ case $SC in
     [ -n "$NOISY" ] && { wait $LA; echo "-- tenant A (rumoroso)"; grep -E "^(load|offered|accept_rtt|activities)" out/noisy-a.txt; }
     for i in $(seq 1 12); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
     logcheck_loop ;;
+  retry)
+    # Blocco sentinella, riga 3: errori senza kill. kind 3: il primo tentativo di ogni passo fallisce, attesa di ${RETRY_MS:-300} ms,
+    # secondo tentativo. 100 esecuzioni/s per 5 s; i tentativi falliti sono i primi tentativi iniziati (registro dei worker).
+    $L rate=100 kind=3 n=1 size=1024 work_ms=100 retry_ms=${RETRY_MS:-300} secs=5 warm=0 stats=0 tenants=ab ledger=out/ledger.txt "$@"
+    for i in $(seq 1 12); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
+    echo "tentativi falliti (primi tentativi iniziati, registro dei worker): $(awk '$5==0' out/work.log | wc -l); ritentativi iniziati: $(awk '$5==1' out/work.log | wc -l)" ;;
+  newtenant)
+    # Blocco sentinella, riga 5: durante un carico normale, a 4 s, nasce un topic `state-*` nuovo (un tenant che il sentinella non conosceva);
+    # si confronta l'istante della sua creazione con la riga `FIRST` del sentinella.
+    $L rate=20 kind=0 n=1 size=1024 secs=8 warm=1 stats=0 ledger=out/ledger.txt "$@" > out/load.txt &
+    LP=$!
+    sleep 4
+    "$BIN" sentinel-newtopic > out/newtopic.txt
+    wait $LP; cat out/load.txt out/newtopic.txt
+    for i in $(seq 1 12); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
+    sleep 2; sentinel_stop
+    NT=$(sed -n 's/^NEWTOPIC \([^ ]*\) .*/\1/p' out/newtopic.txt); CU=$(sed -n 's/.*create_us=\([0-9]*\) .*/\1/p' out/newtopic.txt)
+    FR=$(grep -m1 "FIRST $NT" out/sentinel.log | cut -d' ' -f1)
+    echo "newtenant: topic $NT, primo evento letto $(( (${FR:-0} - CU) / 1000 )) ms dopo la creazione (create_us=$CU first_read_us=${FR:-nessuno})" ;;
   sec)
     # prove di rifiuto (fase 3): ogni condizione di sicurezza ha un collegamento che deve essere rifiutato
     W="$TS_ENG $BIN worker dir=out link=${LINK:-grpc} once=1"
@@ -210,7 +240,9 @@ case $SC in
     # blocco D, parte seconda: consegne inviate il cui record/Timer non è ancora durevole (ora e massimo della corsa).
     # Terza parte: il campione e il timer in memoria (attività in volo) si prendono subito prima del kill.
     echo "prima del kill: $("$BIN" stats dir=out | grep -E '^undurable_deliveries|timers_pending|^tasklog' | tr '\n' ' ')"
-    T0=$(us); kill -9 $EP; wait $EP 2>/dev/null
+    T0=$(us); kill -9 $EP; wait $EP 2>/dev/null; echo "kill T0_us=$T0"
+    # blocco sentinella: DOWN=<secondi> lascia il motore fermo prima di riavviarlo (scena `ekill-down` delle regole)
+    [ -n "$DOWN" ] && sleep $DOWN
     # blocco D, parte terza (SQLite): righe `timer` di tipo 0 dopo il kill e PRIMA della ripartenza (esecuzione passo tentativo)
     if [ $DB = sqlite ]; then
       sqlite3 out/spike.db "SELECT lower(hex(exec_id)), step, attempt FROM timer WHERE kind=0" > out/kind0-dump.txt
@@ -424,6 +456,7 @@ if [ $DB = pg ]; then
 fi
 # blocco D, parte terza: occorrenze di database bloccato nei registri del motore (prima e dopo un eventuale crash)
 echo "busy_hits_engine_log: $(cat out/engine.log out/engine-pre.log 2>/dev/null | grep -ciE 'database is locked|sqlite_busy')"
+sentinel_stop
 stop_all
 rm -rf out/archive out/logs; [ -n "$SPIKE_ARCHIVE" ] && rm -rf "$SPIKE_ARCHIVE"
 if [ "$SC" = dfull-iggy ]; then docker compose -p ttspikebus down -t 1 >/dev/null 2>&1; docker volume rm ttspikebus-iggycap >/dev/null; fi

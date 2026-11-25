@@ -17,6 +17,7 @@ mod iroh_link;
 mod load;
 mod logchk;
 mod probe;
+mod sentinel;
 mod tasklog;
 mod worker;
 mod worklog;
@@ -126,6 +127,9 @@ async fn main() {
         ),
         "verify" => load::verify(&arg("db", ""), &arg("bus", "valkey"), &dir).await,
         "logcheck" => logchk::check(&dir, &arg("bus", "iggy")).await,
+        #[cfg(not(feature = "old"))]
+        "sentinel" => sentinel::run(&dir, arg("secs", "600").parse().unwrap()).await,
+        "sentinel-newtopic" => sentinel::new_topic(&arg("bus", "iggy")).await,
         "logtail" => logchk::tail(&dir, arg("secs", "60").parse().unwrap()),
         "lock-db" => load::lock_db(&arg("db", ""), arg("secs", "10").parse().unwrap()).await,
         _ => eprintln!(

@@ -18,7 +18,43 @@ use redis::aio::MultiplexedConnection;
 use std::time::Duration;
 
 pub type Res<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
-const STREAM: &str = "tt";
+pub const STREAM: &str = "tt";
+
+/// Blocco sentinella: con `meta=1` il motore antepone al messaggio sigillato un prefisso `[META_MAGIC][META_LEN byte]`
+/// (v. `sentinel::encode`); `append` lo toglie dal carico e lo mette in un'intestazione utente di Iggy in chiaro. Il carico
+/// sigillato comincia con la versione `1`, quindi `0xFF` non si confonde. Chi legge vede sempre il carico senza prefisso.
+pub const META_MAGIC: u8 = 0xFF;
+pub const META_LEN: usize = 35;
+
+/// Separa l'eventuale prefisso di intestazione dal carico.
+pub fn split_meta(b: &Bytes) -> (Option<[u8; META_LEN]>, Bytes) {
+    if b.len() > META_LEN && b[0] == META_MAGIC {
+        (b[1..=META_LEN].try_into().ok(), b.slice(META_LEN + 1..))
+    } else {
+        (None, b.clone())
+    }
+}
+
+/// Messaggio Iggy con l'intestazione utente `m` (35 byte grezzi) se il prefisso c'è.
+#[cfg(not(feature = "old"))]
+fn iggy_msg(b: &Bytes) -> Result<IggyMessage, IggyError> {
+    use std::str::FromStr;
+    let (meta, payload) = split_meta(b);
+    let m = IggyMessage::builder().payload(payload);
+    match meta {
+        Some(meta) => m
+            .user_headers(std::collections::BTreeMap::from([(
+                HeaderKey::from_str("m")?,
+                HeaderValue::from_raw(HeaderKind::Raw, &meta)?,
+            )]))
+            .build(),
+        None => m.build(),
+    }
+}
+#[cfg(feature = "old")]
+fn iggy_msg(b: &Bytes) -> Result<IggyMessage, IggyError> {
+    IggyMessage::builder().payload(split_meta(b).1).build()
+}
 /// Topic con la generazione del bus (un solo messaggio, offset 0).
 const META: &str = "meta";
 
@@ -148,10 +184,8 @@ impl Bus {
     pub async fn append(&self, topic: &str, msgs: &[Bytes]) -> Res<()> {
         match self {
             Bus::Iggy(c) => {
-                let mut m: Vec<IggyMessage> = msgs
-                    .iter()
-                    .map(|b| IggyMessage::builder().payload(b.clone()).build())
-                    .collect::<Result<_, _>>()?;
+                let mut m: Vec<IggyMessage> =
+                    msgs.iter().map(iggy_msg).collect::<Result<_, _>>()?;
                 // Client 0.12.0: una scrittura con esito incerto (crash del server a metà) torna `OperationUncertain(op)`;
                 // `resolve_operation` la rigioca finché ne prova l'esito (una sola volta sul log). `LaneBlocked(op)` dice
                 // che un'operazione incerta precedente blocca la partizione e questo gruppo non è partito: si libera e si rimanda.
@@ -195,7 +229,7 @@ impl Bus {
                         .arg(topic)
                         .arg("*")
                         .arg("d")
-                        .arg(b.as_ref())
+                        .arg(split_meta(b).1.as_ref())
                         .ignore();
                 }
                 let mut c = c.clone();
