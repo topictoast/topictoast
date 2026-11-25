@@ -89,8 +89,9 @@ pub async fn run(url: &str, dir: &str, sessions: usize) {
     // Esiti finiti e non ancora confermati dal motore (fase 4, blocco B): sopravvivono alla sessione, si rimandano
     // a ogni nuovo collegamento della stessa sessione (indice) e si tolgono solo con la conferma durevole `ack`.
     let outbox: Outbox = Default::default();
+    let logbox: crate::worklog::LogBox = Default::default();
     for idx in 0..sessions {
-        let (ch, cred, outbox) = (ch.clone(), cred.clone(), outbox.clone());
+        let (ch, cred, outbox, logbox) = (ch.clone(), cred.clone(), outbox.clone(), logbox.clone());
         tokio::spawn(async move {
             let slot: Slot = Default::default();
             loop {
@@ -101,6 +102,7 @@ pub async fn run(url: &str, dir: &str, sessions: usize) {
                     idx,
                     slot.clone(),
                     outbox.clone(),
+                    logbox.clone(),
                 )
                 .await;
                 if once {
@@ -142,10 +144,19 @@ pub async fn work(d: pb::Delivery, recv: u64) -> pb::FromWorker {
         credential: vec![],
         failed: d.fail,
         heartbeat: false,
+        ..Default::default()
     }
 }
 
-async fn session(ch: Channel, cred: Vec<u8>, once: bool, idx: usize, slot: Slot, outbox: Outbox) {
+async fn session(
+    ch: Channel,
+    cred: Vec<u8>,
+    once: bool,
+    idx: usize,
+    slot: Slot,
+    outbox: Outbox,
+    logbox: crate::worklog::LogBox,
+) {
     let mut c = pb::worker_client::WorkerClient::new(ch)
         .max_decoding_message_size(64 << 20)
         .max_encoding_message_size(64 << 20);
@@ -191,13 +202,27 @@ async fn session(ch: Channel, cred: Vec<u8>, once: bool, idx: usize, slot: Slot,
     for r in pending {
         let _ = tx.send(r).await;
     }
+    // righe di log non confermate di questa sessione: si rimandano tutte (il motore scarta i doppioni per numero di riga)
+    for m in crate::worklog::resend(&logbox, idx) {
+        let _ = tx.send(m).await;
+    }
     while let Ok(Some(d)) = inb.message().await {
+        if d.log_ack != 0 {
+            crate::worklog::confirm(&logbox, &d.exec, d.step, d.attempt, d.log_ack);
+            continue;
+        }
         if d.ack != 0 {
             outbox.lock().unwrap().remove(&d.ack);
             continue;
         }
         let recv = now_us();
         let (slot, outbox) = (slot.clone(), outbox.clone());
+        tokio::spawn(crate::worklog::task(
+            d.clone(),
+            idx,
+            slot.clone(),
+            logbox.clone(),
+        ));
         tokio::spawn(async move {
             log_start(&d);
             // battiti (blocco C): con `lease_ms` il worker segnala ogni lease_ms/3 che il tentativo è vivo
@@ -245,7 +270,7 @@ async fn session(ch: Channel, cred: Vec<u8>, once: bool, idx: usize, slot: Slot,
 }
 
 /// Sessione di un collegamento: il suo mittente corrente (vuoto tra un collegamento e il successivo).
-type Slot = std::sync::Arc<std::sync::Mutex<Option<mpsc::Sender<pb::FromWorker>>>>;
+pub(crate) type Slot = std::sync::Arc<std::sync::Mutex<Option<mpsc::Sender<pb::FromWorker>>>>;
 /// Esiti non confermati, per `delivery_id`, con l'indice della sessione che li rimanda.
 type Outbox =
     std::sync::Arc<std::sync::Mutex<std::collections::HashMap<u64, (usize, pb::FromWorker)>>>;

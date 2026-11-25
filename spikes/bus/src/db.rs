@@ -12,11 +12,18 @@ use sqlx::{AnyPool, Executor, Row, any::AnyPoolOptions};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
+tokio::task_local! {
+    /// Indice del tenant il cui proiettore sta applicando (solo per contare le istruzioni per tenant).
+    pub static TENANT: usize;
+}
+
 pub struct Db {
     pool: AnyPool,
     pg: bool,
     /// Istruzioni SQL inviate (BEGIN e COMMIT compresi).
     pub stmts: AtomicU64,
+    /// Blocco D: istruzioni per tenant (il proiettore di un tenant imposta `TENANT` per la sua `apply`).
+    pub stmts_t: [AtomicU64; 2],
     /// Righe toccate dalle istruzioni di scrittura.
     pub rows: AtomicU64,
     /// Generazione del bus corrente, scritta con ogni posizione applicata (fase 4).
@@ -50,6 +57,7 @@ impl Db {
             pool,
             pg,
             stmts: 0.into(),
+            stmts_t: [0.into(), 0.into()],
             rows: 0.into(),
             generation: 1.into(),
         };
@@ -76,6 +84,7 @@ impl Db {
 
     async fn run(&self, c: &mut sqlx::AnyConnection, sql: &str) -> Res<()> {
         self.stmts.fetch_add(1, Relaxed);
+        let _ = TENANT.try_with(|t| self.stmts_t[*t].fetch_add(1, Relaxed));
         let r = c.execute(sqlx::AssertSqlSafe(sql.to_string())).await?;
         self.rows.fetch_add(r.rows_affected(), Relaxed);
         Ok(())

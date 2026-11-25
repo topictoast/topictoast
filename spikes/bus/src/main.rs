@@ -15,8 +15,11 @@ mod engine;
 mod ev;
 mod iroh_link;
 mod load;
+mod logchk;
 mod probe;
+mod tasklog;
 mod worker;
+mod worklog;
 
 pub mod pb {
     tonic::include_proto!("spike");
@@ -122,6 +125,8 @@ async fn main() {
             load::stats(&url, &dir, arg("reset", "0") == "1").await
         ),
         "verify" => load::verify(&arg("db", ""), &arg("bus", "valkey"), &dir).await,
+        "logcheck" => logchk::check(&dir, &arg("bus", "iggy")).await,
+        "logtail" => logchk::tail(&dir, arg("secs", "60").parse().unwrap()),
         "lock-db" => load::lock_db(&arg("db", ""), arg("secs", "10").parse().unwrap()).await,
         _ => eprintln!(
             "sottocomandi: fsync-floor bench-append gen-cert engine worker load stats verify lock-db"

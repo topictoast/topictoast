@@ -18,7 +18,12 @@ EP=; WP=
 # N scelto dalla verifica della fase 2d (mediana più alta di thrmax): Valkey 4, Iggy 1
 WDEF=1; [ "$BUS" = valkey ] && WDEF=4
 WL=; ENGPFX=
-case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db|tretry|tdead|theart) TRIM=0; WL="worklog=out/work.log" ;; t100k) TRIM=0 ;; esac
+case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db|tretry|tdead|theart) TRIM=0; WL="worklog=out/work.log" ;; t100k) TRIM=0 ;; logrun) TRIM=0 ;; esac
+# blocco D (log dei task): profilo delle righe dei worker (LOGA, LOGB = NxL: N righe da L byte per tentativo, tenant A e B),
+# pausa tra le due metà (LOGSPLIT), tetto (LOGLINES, LOGBYTES), ritardo della conferma (ACKHOLD), sostituzione del segreto
+# (REDACT=0 la spegne: corsa di controllo), LOGMARK=1 genera un segreto sintetico per corsa (mai da .env, mai stampato)
+WL="$WL loga=${LOGA:-0x0} logb=${LOGB:-0x0} logsplit_ms=${LOGSPLIT:-0} logw=out/log-written.txt"
+[ -n "$LOGMARK" ] && { SPIKE_SECRET=ttmark-$(od -An -N12 -tx1 /dev/urandom | tr -d ' \n'); export SPIKE_SECRET; echo "segreto sintetico generato per questa corsa (lunghezza ${#SPIKE_SECRET}), mai stampato"; }
 # blocco C: nelle corse con pochi timer il motore scrive una riga per ogni timer programmato (TSET) e scattato (TFIRE)
 case $SC in tretry|tdead|theart) export TIMER_LOG=1 ;; esac
 case $SC in theart) LEASE=${LEASE:-1500}; GRACE=${GRACE:-500} ;; esac
@@ -50,22 +55,34 @@ NSE() { nsenter -U --preserve-credentials -m -t $EP "$@"; }
 
 start_engine() {
   : > out/engine.log
-  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} >> out/engine.log 2>&1 &
+  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
 }
 stop_all() { [ -n "$WP" ] && kill $WP 2>/dev/null; [ -n "$EP" ] && kill $EP 2>/dev/null; wait 2>/dev/null; }
 
+# blocco D: rilegge tutti i pezzi dell'archivio e li confronta con la verità di base del worker (si ritenta finché i pezzi
+# ancora in volo non sono scritti); solo se la corsa ha righe di log
+logcheck_loop() {
+  [ -n "$LOGA$LOGB" ] || return 0
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    "$BIN" logcheck dir=out bus=$BUS logw=out/log-written.txt log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} > out/logcheck.txt 2>&1 && break
+    sleep 2
+  done
+  cat out/logcheck.txt
+  echo "-- log dei task a fine corsa (contatori del motore, SQL per attività dei due tenant): $("$BIN" stats dir=out | grep -E '^(tasklog|sql_per_activity_tenant)' | tr '\n' ' ')"
+}
+
 SERV="$BUS"; [ $DB = pg ] && SERV="$SERV postgres"
 ./reset.sh $SERV
 if [ $DB = pg ]; then i=0; until docker compose -p ttspikebus exec -T postgres pg_isready -U spike >/dev/null 2>&1; do i=$((i+1)); [ $i -gt 60 ] && exit 1; sleep 1; done; sleep 2; fi
-rm -rf out/archive out/spike.db* out/master.key out/ledger.txt
+rm -rf out/archive out/logs out/spike.db* out/master.key out/ledger.txt
 # archivio su un altro disco (variabile SPIKE_ARCHIVE): out/archive diventa un collegamento
 [ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
 # CAPDBONLY=1: solo il database nel tmpfs (l archivio resta sul disco vero), per provare il disco pieno del database da solo
 [ "$SC" = dfull-db ] && [ -z "$CAPDBONLY" ] && ln -s "$PWD/out/capmnt/archive" out/archive
-rm -f out/work.log out/engine-pre.log out/kind0-dump.txt
+rm -f out/work.log out/engine-pre.log out/kind0-dump.txt out/log-written.txt out/logcheck.txt out/logtail.txt out/noisy-a.txt
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
 [ -f out/worker.cred ] || "$BIN" gen-cred dir=out
 echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64}"
@@ -99,6 +116,22 @@ case $SC in
     sleep 3
     $L rate=100 kind=0 n=10 size=1024 tenants=b secs=30 warm=5 "$@"
     wait $LA; echo "-- tenant A (lento)"; cat out/iso-a.txt ;;
+  logrun)
+    # Blocco D, log dei task: una corsa con righe (profilo LOGA/LOGB). TAIL=1 misura la visibilità (logtail su CPU del carico);
+    # in ogni caso rilegge tutti i pezzi, li confronta con la verità di base del worker e cerca il segreto (logcheck).
+    [ -n "$TAIL" ] && { $TS_LOAD "$BIN" logtail dir=out secs=${TAILSECS:-52} > out/logtail.txt 2>&1 & TP=$!; sleep 1; }
+    $L rate=100 kind=0 n=10 size=1024 secs=40 warm=5 ledger=out/ledger.txt "$@"
+    [ -n "$TAIL" ] && { wait $TP; cat out/logtail.txt; }
+    for i in $(seq 1 12); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
+    logcheck_loop ;;
+  lognoisy)
+    # Blocco D, worker rumoroso: B a 1.000 att./s (si misura start_ready_tenant_b); con NOISY=1 anche A, che scrive fino al tetto
+    # a ogni attività (NRATE esecuzioni/s da 10 passi, 50 = 500 att./s), parte 3 s prima e finisce dopo la finestra di B.
+    [ -n "$NOISY" ] && { $L rate=${NRATE:-50} kind=0 n=10 size=1024 tenants=a secs=50 warm=0 stats=0 > out/noisy-a.txt 2>&1 & LA=$!; sleep 3; }
+    $L rate=100 kind=0 n=10 size=1024 tenants=b secs=40 warm=5 ledger=out/ledger.txt "$@"
+    [ -n "$NOISY" ] && { wait $LA; echo "-- tenant A (rumoroso)"; grep -E "^(load|offered|accept_rtt|activities)" out/noisy-a.txt; }
+    for i in $(seq 1 12); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
+    logcheck_loop ;;
   sec)
     # prove di rifiuto (fase 3): ogni condizione di sicurezza ha un collegamento che deve essere rifiutato
     W="$TS_ENG $BIN worker dir=out link=${LINK:-grpc} once=1"
@@ -174,7 +207,7 @@ case $SC in
     cp out/engine.log out/engine-pre.log
     # blocco D, parte seconda: consegne inviate il cui record/Timer non è ancora durevole (ora e massimo della corsa).
     # Terza parte: il campione e il timer in memoria (attività in volo) si prendono subito prima del kill.
-    echo "prima del kill: $("$BIN" stats dir=out | grep -E '^undurable_deliveries|timers_pending' | tr '\n' ' ')"
+    echo "prima del kill: $("$BIN" stats dir=out | grep -E '^undurable_deliveries|timers_pending|^tasklog' | tr '\n' ' ')"
     T0=$(us); kill -9 $EP; wait $EP 2>/dev/null
     # blocco D, parte terza (SQLite): righe `timer` di tipo 0 dopo il kill e PRIMA della ripartenza (esecuzione passo tentativo)
     if [ $DB = sqlite ]; then
@@ -203,7 +236,8 @@ case $SC in
     sqlite3 out/spike.db "SELECT lower(hex(id)) FROM execution WHERE accepted_us > $RU" | sort > out/new-ids.txt
     FDV=$(awk -v ru=$RU 'NR==FNR{n[$1]=1; next} ($1 in n) && $4>ru {if (m==""||$4<m) m=$4} END{print m}' out/new-ids.txt out/work.log)
     echo "dopo READY: prima accettazione nuova $(( ${FA:-0} / 1000 )) ms (us grezzi: ${FA:-nessuna}); prima consegna di un'esecuzione nuova $(( (${FDV:-$RU} - RU) / 1000 )) ms (vuoto = nessuna: $([ -z "$FDV" ] && echo sì || echo no))"
-    echo "dopo READY, entro 2 s: accettate nuove $(sqlite3 out/spike.db "SELECT count(*) FROM execution WHERE accepted_us BETWEEN $RU AND $RU + 2000000"); consegne di esecuzioni nuove $(awk -v ru=$RU 'NR==FNR{n[$1]=1; next} ($1 in n) && $4>ru && $4<=ru+2000000' out/new-ids.txt out/work.log | wc -l)" ;;
+    echo "dopo READY, entro 2 s: accettate nuove $(sqlite3 out/spike.db "SELECT count(*) FROM execution WHERE accepted_us BETWEEN $RU AND $RU + 2000000"); consegne di esecuzioni nuove $(awk -v ru=$RU 'NR==FNR{n[$1]=1; next} ($1 in n) && $4>ru && $4<=ru+2000000' out/new-ids.txt out/work.log | wc -l)"
+    logcheck_loop ;;
   bkill)
     # Blocco B, caso 2: crash di Iggy (docker kill = SIGKILL del processo; non è uno spegnimento dell'host), riavvio dopo 5 s
     $L rate=${ERATE:-300} kind=0 n=3 size=1024 work_ms=500 secs=40 warm=1 stats=0 tenants=ab ledger=out/ledger.txt > out/load.txt &
@@ -389,5 +423,5 @@ fi
 # blocco D, parte terza: occorrenze di database bloccato nei registri del motore (prima e dopo un eventuale crash)
 echo "busy_hits_engine_log: $(cat out/engine.log out/engine-pre.log 2>/dev/null | grep -ciE 'database is locked|sqlite_busy')"
 stop_all
-rm -rf out/archive; [ -n "$SPIKE_ARCHIVE" ] && rm -rf "$SPIKE_ARCHIVE"
+rm -rf out/archive out/logs; [ -n "$SPIKE_ARCHIVE" ] && rm -rf "$SPIKE_ARCHIVE"
 if [ "$SC" = dfull-iggy ]; then docker compose -p ttspikebus down -t 1 >/dev/null 2>&1; docker volume rm ttspikebus-iggycap >/dev/null; fi

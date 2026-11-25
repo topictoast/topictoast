@@ -34,7 +34,11 @@ message Delivery {
   uint32 attempt = 11;  // numero del tentativo (0 il primo)
   bool fail = 12;       // il worker deve far fallire questo tentativo (kind 3, primo tentativo)
   uint32 lease_ms = 13; // se diverso da 0: il worker manda un battito ogni lease_ms/3 e la scadenza è lease_ms dall ultimo battito
+  bytes secret = 14;     // blocco D (log dei task): segreto sintetico consegnato al tentativo (la prova della sostituzione col segnaposto)
+  uint64 log_ack = 15;   // se diverso da 0 non è una consegna: le righe del tentativo (exec, step, attempt) fino a questo numero sono durevoli
 }
+// Una riga di log: il numero progressivo nel tentativo lo dà il worker (verità di base per perdite e doppioni).
+message LogLine { uint64 seq = 1; bytes text = 2; }
 message FromWorker {
   bytes exec = 1;
   uint32 step = 2;
@@ -46,6 +50,9 @@ message FromWorker {
   bytes credential = 8; // credenziale del worker (C-11), solo nel saluto: controllata a ogni collegamento
   bool failed = 9;      // il tentativo è fallito: il motore programma l attesa e ritenta
   bool heartbeat = 10;  // battito: il tentativo è ancora in corso, il motore sposta in avanti la sua scadenza (timer durevole)
+  bytes tenant = 11;          // log dei task: tenant del tentativo (la spike si fida; in produzione si ricava dal tentativo, C-2)
+  uint32 attempt = 12;        // log dei task: tentativo che ha scritto le righe
+  repeated LogLine lines = 13; // log dei task: righe con numero progressivo per tentativo, assegnato dal worker
 }
 service Worker {
   rpc Session(stream FromWorker) returns (stream Delivery);

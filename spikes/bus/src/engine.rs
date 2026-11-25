@@ -62,6 +62,9 @@ pub struct M {
     pub accepted: u64,
     pub refused: u64,
     pub done: u64,
+    /// Blocco D: attività concluse per tenant e istruzioni SQL per tenant a inizio finestra.
+    pub done_t: [u64; 2],
+    pub stmts0_t: [u64; 2],
     pub rejected: u64,
     pub expired: u64,
     pub late_ok: u64,
@@ -105,6 +108,8 @@ impl M {
             accepted: 0,
             refused: 0,
             done: 0,
+            done_t: [0; 2],
+            stmts0_t: [0; 2],
             rejected: 0,
             expired: 0,
             late_ok: 0,
@@ -173,6 +178,9 @@ pub struct Shared {
     /// Attività pronte ma trattenute dal tetto per tenant: ultimo valore e massimo del minuto (riga `MIN`).
     pub held: AtomicU64,
     pub held_max: AtomicU64,
+    /// Blocco D (log dei task): valore del segreto sintetico consegnato ai worker (vuoto = nessuno) e contatori del log.
+    pub secret: Vec<u8>,
+    pub logs: Arc<crate::tasklog::Counters>,
 }
 
 impl Shared {
@@ -569,6 +577,8 @@ impl Engine {
                     // kind 3: il primo tentativo di ogni passo fallisce
                     fail: kind == 3 && attempt == 0,
                     lease_ms: self.sh.lease_ms as u32,
+                    secret: self.sh.secret.clone(),
+                    log_ack: 0,
                 };
                 // Blocco D, seconda parte: «invia prima, registra dopo». L'attività è già durevolmente pronta (il gruppo di
                 // `Ready` o di un timer di ritentativo/scadenza che l'ha messa in coda è durevole: AD-2 vale per quella
@@ -841,7 +851,11 @@ impl Engine {
         e.done[step as usize] = Some(h);
         let (tenant, last) = (e.tenant, step + 1 == e.steps());
         self.sh.put_cache(tenant, h, output.clone(), ts);
-        self.sh.m.lock().unwrap().done += 1;
+        {
+            let mut m = self.sh.m.lock().unwrap();
+            m.done += 1;
+            m.done_t[ti] += 1;
+        }
         evs.push((
             ti,
             Ev::Done {
@@ -1477,7 +1491,10 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
         // transazione; con il database giù si ritenta per sempre, rifiutando lavoro nuovo (AD-2)
         let td = Instant::now();
         loop {
-            match sh.db.apply(&topic, next, &evs, &locs).await {
+            match crate::db::TENANT
+                .scope(ti, sh.db.apply(&topic, next, &evs, &locs))
+                .await
+            {
                 Ok(()) => break,
                 Err(e) => {
                     storage_fail(
@@ -1633,12 +1650,26 @@ impl pb::control_server::Control for Ctl {
             cpu_s() - m.cpu0,
             self.sh.cache.lock().unwrap().len(),
         );
+        // blocco D: istruzioni SQL per attività di ciascun tenant (il proiettore di ognuno conta le proprie) e contatori del log
+        let st_t = [0, 1].map(|i| self.sh.db.stmts_t[i].load(Relaxed) - m.stmts0_t[i]);
+        let text = format!(
+            "{text}\nsql_per_activity_tenant_a={:.4} stmts_a={} done_a={}\nsql_per_activity_tenant_b={:.4} stmts_b={} done_b={}\n{}",
+            st_t[0] as f64 / m.done_t[0].max(1) as f64,
+            st_t[0],
+            m.done_t[0],
+            st_t[1] as f64 / m.done_t[1].max(1) as f64,
+            st_t[1],
+            m.done_t[1],
+            self.sh.logs.text()
+        );
         if r.into_inner().reset {
             let (stmts, rows) = (
                 self.sh.db.stmts.load(Relaxed),
                 self.sh.db.rows.load(Relaxed),
             );
+            let stmts_t = [0, 1].map(|i| self.sh.db.stmts_t[i].load(Relaxed));
             *m = M::new();
+            m.stmts0_t = stmts_t;
             m.stmts0 = stmts;
             m.rows0 = rows;
             m.wal0 = wal;
@@ -1648,6 +1679,8 @@ impl pb::control_server::Control for Ctl {
 }
 
 struct Wrk {
+    /// Righe di log dei worker: vanno al task del log, non passano dal ciclo del motore.
+    logs: mpsc::UnboundedSender<crate::tasklog::LogIn>,
     tx: mpsc::Sender<Msg>,
     next: AtomicU64,
     /// Impronte delle credenziali dei worker note al motore (C-11).
@@ -1674,6 +1707,7 @@ impl pb::worker_server::Worker for Wrk {
         }
         let sess = self.next.fetch_add(1, Relaxed);
         let (dtx, drx) = mpsc::channel(8192);
+        let (ltx, dtx2) = (self.logs.clone(), dtx.clone());
         self.tx
             .send(Msg::Register { sess, tx: dtx })
             .await
@@ -1681,7 +1715,22 @@ impl pb::worker_server::Worker for Wrk {
         let tx = self.tx.clone();
         tokio::spawn(async move {
             while let Ok(Some(m)) = inb.message().await {
-                if !m.hello {
+                if !m.lines.is_empty() {
+                    // righe di log: tenant dichiarato dal worker (la spike si fida, v. proto), esecuzione e tentativo suoi
+                    let (Ok(tenant), Ok(exec)) =
+                        (m.tenant.as_slice().try_into(), m.exec.as_slice().try_into())
+                    else {
+                        continue;
+                    };
+                    let _ = ltx.send(crate::tasklog::LogIn {
+                        tenant,
+                        exec,
+                        step: m.step,
+                        attempt: m.attempt,
+                        lines: m.lines.into_iter().map(|l| (l.seq, l.text)).collect(),
+                        tx: dtx2.clone(),
+                    });
+                } else if !m.hello {
                     let _ = tx.send(Msg::Result { sess, r: m }).await;
                 }
             }
@@ -1869,7 +1918,12 @@ pub async fn main(
     let bus = Bus::connect(bus_kind).await.unwrap();
     for t in &TENANTS {
         bus.ensure_topic(&topic_of(t)).await.unwrap();
+        // blocco D: un topic per tenant con i soli riferimenti ai pezzi del log (il proiettore non lo legge)
+        bus.ensure_topic(&crate::tasklog::log_topic(t))
+            .await
+            .unwrap();
     }
+    crate::tasklog::prepare(dir);
     let db = Arc::new(Db::open(db_url).await.unwrap());
     // Generazione del bus (fase 4): gli offset ripartono da zero a ogni bus nuovo, quindi la posizione salvata
     // vale solo con la generazione del bus su cui è stata presa. Bus vuoto: nasce con `busgen`.
@@ -1935,6 +1989,11 @@ pub async fn main(
         undurable_max: 0.into(),
         held: 0.into(),
         held_max: 0.into(),
+        // il segreto sintetico viene dall'ambiente (generato per corsa dallo script), mai da un file né da `.env`
+        secret: std::env::var("SPIKE_SECRET")
+            .unwrap_or_default()
+            .into_bytes(),
+        logs: Arc::new(Default::default()),
     });
     // Sonda del bus (blocco B): una connessione propria chiede il topic ogni 500 ms con tempo massimo di 1,5 s; il client
     // non torna con un errore a bus giù (aspetta), quindi è il tempo massimo a dire «giù». Con il bus giù le accettazioni
@@ -1975,6 +2034,23 @@ pub async fn main(
         rewrite_live(&sh, bus_gen).await;
     }
     let (tx, rx) = mpsc::channel(65536);
+    // Log dei task (blocco D): valori scelti dalla spike (il PRD non fissa il tetto, NFR-14 lo rimanda alla spec della storia)
+    let (ltx, lrx) = mpsc::unbounded_channel();
+    tokio::spawn(crate::tasklog::run(
+        crate::tasklog::Cfg {
+            dir: dir.into(),
+            max_lines: crate::arg("log_lines", "100").parse().unwrap(),
+            max_bytes: crate::arg("log_bytes", "16384").parse().unwrap(),
+            close_ms: crate::arg("log_close_ms", "500").parse().unwrap(),
+            ack_hold_ms: crate::arg("log_ack_hold_ms", "0").parse().unwrap(),
+            secret: sh.secret.clone(),
+            redact: crate::arg("redact", "1") == "1",
+        },
+        sh.keys.clone(),
+        sh.bus.name(),
+        sh.logs.clone(),
+        lrx,
+    ));
     let (execs, timers, redeliver) = recover(&sh).await;
     let pos = sh.db.positions().await.unwrap();
     for ti in 0..2 {
@@ -2170,6 +2246,7 @@ pub async fn main(
         )
         .add_optional_service((link == "grpc").then(|| {
             pb::worker_server::WorkerServer::new(Wrk {
+                logs: ltx.clone(),
                 tx: tx.clone(),
                 next: 1.into(),
                 creds: cred_hashes.clone(),
