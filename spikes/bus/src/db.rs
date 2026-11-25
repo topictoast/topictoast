@@ -379,9 +379,11 @@ impl Db {
         Ok(m)
     }
 
-    /// Timer in sospeso delle esecuzioni vive: (esecuzione, passo) -> (tipo, tentativo, scadenza in microsecondi).
+    /// Timer in sospeso: (esecuzione, passo) -> (tipo, tentativo, scadenza in microsecondi). Nessun collegamento con
+    /// `execution` (H3): il record di consegna è durevole prima che il proiettore scriva l'esecuzione, e dopo un crash l'esecuzione
+    /// può esistere solo nella coda del bus; chi legge scarta i timer delle esecuzioni concluse (`recover`, `rewrite_live`).
     pub async fn timers(&self) -> Res<HashMap<(Uid, u32), (u8, u32, u64)>> {
-        let r = sqlx::query("SELECT t.exec_id, t.step, t.kind, t.attempt, t.due_us FROM timer t JOIN execution e ON e.id = t.exec_id WHERE e.done_us IS NULL")
+        let r = sqlx::query("SELECT exec_id, step, kind, attempt, due_us FROM timer")
             .fetch_all(&self.pool)
             .await?;
         Ok(r.iter()
@@ -490,6 +492,8 @@ mod tests {
         let n = |id: &Uid| format!("SELECT count(*) FROM timer WHERE exec_id={}", db.lit(id));
         assert_eq!(db.count(&n(&a)).await.unwrap(), 0);
         assert_eq!(db.count(&n(&b)).await.unwrap(), 1);
+        // la lettura della ripresa vede anche il record senza riga `execution` (non ancora proiettata)
+        assert!(db.timers().await.unwrap().contains_key(&(b, 0)));
         let att = format!("SELECT attempt FROM timer WHERE exec_id={}", db.lit(&c));
         assert_eq!(db.count(&att).await.unwrap(), 1);
         let _ = std::fs::remove_file(&path);

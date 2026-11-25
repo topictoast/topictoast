@@ -2,7 +2,9 @@
 //!
 //! Regola d'oro (AD-2): ogni decisione si scrive in modo durevole sul bus PRIMA di qualunque
 //! effetto (risposta all'accettazione, consegna al worker). Il motore è l'unico scrittore del bus;
-//! il proiettore è l'unico scrittore del database e salva la posizione applicata nella stessa transazione.
+//! il proiettore è lo scrittore del database e salva la posizione applicata nella stessa transazione. Eccezione di H3
+//! (blocco D, terza parte): il task `rec_writer` scrive nella tabella `timer` i record di consegna di tipo 0, che non
+//! passano dal bus (AD-2 vale per la decisione «pronta», non per la scadenza del tentativo).
 
 use crate::bus::Bus;
 use crate::crypto::{Keys, Uid, hex, sha};
@@ -1294,7 +1296,14 @@ async fn recover(
                         due_us,
                         ..
                     } => {
-                        timers.insert((exec, step), (kind, attempt, due_us));
+                        // stessa regola d'ordine del proiettore (`Db::apply`): un evento non ancora proiettato non sostituisce
+                        // il record di consegna del database (H3) se ha un tentativo più vecchio, o lo stesso con un tipo più alto
+                        if timers
+                            .get(&(exec, step))
+                            .is_none_or(|&(k, a, _)| attempt > a || (attempt == a && kind <= k))
+                        {
+                            timers.insert((exec, step), (kind, attempt, due_us));
+                        }
                     }
                     Ev::Ready { exec, step, .. } => {
                         if let Some(e) = execs.get_mut(&exec) {

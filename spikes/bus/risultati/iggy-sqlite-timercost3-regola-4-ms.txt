@@ -32,6 +32,10 @@ I file grezzi si chiamano `iggy-sqlite-timercost3-<riga>-4-ms-r<n>.txt`; una cor
    - Doppione provocato: ekill (ERATE=334 CAP=4096) con rec_delay_ms=500, cosi' che ci siano record in attesa al kill. Soglia: tentativi iniziati due volte
      > 0 E <= record in attesa al kill (`undurable_deliveries` campionato subito prima del kill); 0 accettate perse. Poi 2 corse ekill normali (ritardo 0)
      con gli iniziati due volte riportati.
+     Lettura della soglia, fissata prima di ogni corsa: si confronta il numero letterale con il campione di `undurable_deliveries` preso subito
+     prima del kill (il campione precede il segnale di qualche decina di ms e le consegne continuano a circa 1.000/s, quindi i record in attesa
+     al kill possono superarlo di poco). Se la soglia letterale fallisce, si riporta come FALLITA con tutti e tre i numeri: iniziati due volte,
+     campione, `undurable_max` della corsa; accanto si riporta la riga `ripresa: ... da consegnare subito` della ripresa. Nessuna rilettura dopo.
    - Aggiornamento semplice (up-run.sh n=3 rate=334, CAP=4096) e con 100.000 timer (PRE100K=1 CAP=4096): 0 accettate perse; 0 timer persi o doppi;
      attivita' rifatte riportate; pausa riportata (limite di Marco: 30 s).
    - In OGNI corsa di H3 di tutto il blocco: zero occorrenze di «database is locked» / SQLITE_BUSY (si conta nel registro del motore e nel file grezzo e
