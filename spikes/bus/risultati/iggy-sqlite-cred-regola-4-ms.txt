@@ -41,3 +41,15 @@ Controlli (atteso):
 
 Cosa il blocco NON copre: rotazione o scadenza delle password, token personali di accesso, TLS verso Iggy, il permesso per un topic di un tenant creato dopo l'utente `ro-a` (i
 permessi di topic sono per numero: andrebbero concessi alla creazione del topic), scritture del sentinella (non ne ha), piu' utenti di sola lettura, Valkey.
+
+Aggiunta del 2026-11-25 (dopo la prima serie, scritta PRIMA delle ripetizioni; nessuna soglia ne' atteso cambia):
+  La prima serie (binario 1bfe5d3f2bce205b, commit 45e4663) ha mostrato due difetti dello STRUMENTO, non dei permessi:
+  (1) subito dopo l'unione a un gruppo il server risponde 5009 «rebalance in progress» anche a root: la lettura da gruppo del controllo `control` (9 PASS, 1 FAIL) e le due letture
+      da gruppo di `ro-sent` (10 PASS, 2 FAIL) cadevano su quel transitorio. Come il sentinella, lo strumento ora riprova dopo 200 ms con una nuova unione, fino a 25 volte, stampando
+      ogni errore intermedio;
+  (2) `busauth case=setup-sent` scriveva tre eventi non sigillati nei topic di stato del motore (prima di creare l'utente), facendo cadere il proiettore: le due corse `sentinel` della
+      prima serie hanno `verify FALLITA` (0 attivita' concluse), quindi non sono valide.
+  Per la regola «chiamata rotta, corsa non valida, si rifa' una volta» si rifanno control, ro-sent e sentinel (r1, r2) con il binario corretto, bin/busspike-cred-818fa0d,
+  sha256 che inizia con d07c64fc7d46873e, nei file iggy-sqlite-cred-<caso>-4-ms-r<n>-ripetizione.txt; la prima serie resta nel rapporto. ro-a e ro-a-s non sono toccati dai
+  difetti (nessuna lettura da gruppo, nessun setup-sent) e restano validi; il giudizio su di loro e' quello della prima serie. Un `[stato prima]` delle ripetizioni e' piu' tardi
+  di questa aggiunta.

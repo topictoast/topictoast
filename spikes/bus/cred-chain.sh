@@ -14,17 +14,22 @@ if [ "$1" = wait ]; then
   i=0; until grep -q ALLDONE $L 2>/dev/null; do i=$((i+1)); [ $i -gt $(( ${2:-500} / 5 )) ] && { echo "ANCORA IN CORSA"; tail -3 $L; exit 0; }; sleep 5; done
   echo FINITA; tail -3 $L; exit 0
 fi
-export ARM_BIN=${ARM_BIN:-$HOME/ttspikebus/bin/busspike-cred-45e4663}
+# `rows`: prima serie (binario 45e4663); `redo`: ripetizione di control, ro-sent e sentinel con il binario corretto 818fa0d (v. l'aggiunta alle regole)
+if [ "$1" = redo ]; then
+  export ARM_BIN=$HOME/ttspikebus/bin/busspike-cred-818fa0d; CASES="control ro-sent"; SUF=-ripetizione
+else
+  export ARM_BIN=$HOME/ttspikebus/bin/busspike-cred-45e4663; CASES="control ro-a ro-a-s ro-sent"; SUF=
+fi
 . ./env.sh
 : > $L
 for n in 1 2; do
-  for c in control ro-a ro-a-s ro-sent; do
-    f=iggy-sqlite-cred-$c-4-ms-r$n.txt
+  for c in $CASES; do
+    f=iggy-sqlite-cred-$c-4-ms-r$n$SUF.txt
     echo "$(date +%T) INIZIO $f" >> $L
     env ARM=CRED-$c ./ms-run.sh risultati/$f ./cred-chain.sh case $c > /dev/null 2>&1
     echo "$(date +%T) FINE $f: $(grep -c ' PASS ' risultati/$f) PASS, $(grep -c ' FAIL ' risultati/$f) FAIL" >> $L
   done
-  f=iggy-sqlite-cred-sentinel-4-ms-r$n.txt
+  f=iggy-sqlite-cred-sentinel-4-ms-r$n$SUF.txt
   echo "$(date +%T) INIZIO $f" >> $L
   env ARM=CRED-sentinel SENT=1 META=1 SENTUSER=1 ./ms-run.sh risultati/$f ./scen.sh iggy sqlite newtenant rate=100 n=10 secs=15 > /dev/null 2>&1
   echo "$(date +%T) FINE $f: $(grep -E '^(sentinel_stats|newtenant:)' risultati/$f | tr '\n' ' ' | cut -c1-250)" >> $L
