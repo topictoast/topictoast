@@ -1050,3 +1050,59 @@ Su minisheep, in `~/ttspikebus` (`env.sh` dal repository, `.env` da `./gen-env.s
 | C2 / C3.4 | `[PRE100K=1] SPIKE_OLD=$HOME/ttspikebus/bin/busspike-h2-old CAP=4096 ARM_BIN=$HOME/ttspikebus/bin/busspike-h2 ARM=H2-c2ac38a BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost2-upgrade-rerun-h2-4-ms-r1.txt ./up-run.sh n=3 rate=334` |
 | D2.1 | `ARM_BIN=$HOME/ttspikebus/bin/busspike-bB ARM=B-blockB-7f156ba BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost2-start1k-B-4-ms-r1.txt ./scen.sh iggy sqlite start1k` (H2: `busspike-h2`, `ARM=H2-c2ac38a`) |
 | D2.2 | `GATE60=1 VTRIES=100 ARM_BIN=… ARM=… BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost2-thr10k-H2-4-ms-r1.txt ./with-sampler.sh risultati/iggy-sqlite-timercost2-thr10k-H2-4-ms-r1.io ./scen.sh iggy sqlite thr10k secs=600`, poi `./brun.sh wait` |
+
+
+## Blocco D, terza parte
+
+Record di consegna asincrono nel database (braccio **H3**, decisione di Marco, 2026-11-25), al posto dell'evento `Timer` di tipo 0 sul bus. **Fermata ai controlli di correttezza: un controllo ha fallito la soglia letterale scritta prima delle corse (doppione provocato), come chiede il compito si è fermata la serie e nessuna misura (`start1k`, `thr10k`, Postgres) è stata fatta.** Il log dei task (FR-59) non è stato costruito. Minisheep, stessi 4 CPU (motore e Iggy su `1-4`, carico su `8-11`), `ms-run.sh` con pavimento di `fdatasync` prima e dopo; ogni file grezzo porta le righe `braccio:` e `binario sha256:`. File grezzi `risultati/iggy-sqlite-timercost3-<riga>-4-ms-r<n>.txt`. La regola di lettura è stata scritta e committata **prima** della prima corsa, in `risultati/iggy-sqlite-timercost3-regola-4-ms.txt` (commit `944fb3a`, 11:48; prima corsa 11:55:52); una riga sulla lettura della soglia del doppione è stata aggiunta nel commit `01cf3bc`, sempre prima di ogni corsa.
+
+| Binario (sha256, primi 16) | Braccio | Righe |
+| --- | --- | --- |
+| `d730b1a73111ca79` | `B`: blocco B, commit `7f156ba` (non usato in questa parte: nessuna misura fatta) | — |
+| `1a1348abf3bea374` (+ `4478461c59299ba9`, `--features old`) | `H2`: commit `c2ac38a` (non usato) | — |
+| `25c97a9e69512b9a` (+ `a1c840e200df4736`, `--features old`) | `H3`: commit `01cf3bc` (codice `b60b001` più la correzione della ripresa) | controlli di correttezza |
+
+### Sintesi
+
+1. **Retry attraverso un crash (`tretry`): superato.** 300 ritentativi su 300 iniziati una volta sola, 0 prima della scadenza, i 156 già scaduti a `READY` partono 65,9 ms (p50, p99 68,1) dopo `READY` (soglia 1 s), gli altri 11,1 ms (p50) dopo la scadenza; accettate perse 0; righe `timer` per concluse 0; «database bloccato» 0 (registro del motore e file grezzo). Misurata (`…-timer-retry-h3-4-ms-r1.txt`).
+2. **Scadenza attraverso un crash (`tdead`): superato.** 99 su 99 rifatti una volta sola, 0 prima della scadenza, inizio 10,3 ms (p50), 20,3 ms (p99) dopo la scadenza; accettate perse 0; righe `timer` per concluse 0; «database bloccato» 0. Una differenza dal braccio H2: **un tentativo 0 è partito due volte** (H2: 0), il doppione accettato (alla ripresa 2 «da consegnare subito»); misurata (`…-timer-deadline-h3-4-ms-r1.txt`).
+3. **Doppione provocato (`ekill`, `ERATE=334 CAP=4096`, `rec_delay_ms=500`): soglia letterale NON superata, di poco.** Attività iniziate due volte **379**; campione di `undurable_deliveries` subito prima del kill **371**; massimo della corsa (`undurable_max`) **546**; alla ripresa 387 «da consegnare subito» (2.633 in volo con scadenza ripristinata, `rejected` 387 nel motore nuovo). Soglia scritta prima: iniziati due volte > 0 e ≤ campione: 379 > 371, **fallita** (e > 0 soddisfatta). Accettate perse 0 (quarta verifica `OK`), righe `timer` per concluse 0, «database bloccato» 0, `late_ok` 2.633. Il percorso del doppione è dunque esercitato per la prima volta (in H2 nessuna corsa lo ha provocato). Lettura (ipotesi, non verificata): il campione precede il kill di qualche decina di ms e le consegne continuano a circa 1.000/s, quindi i record in attesa al kill superano il campione di poco; 387 − 371 = 16 sarebbe un intervallo di circa 16 ms a quel ritmo. Il numero 387 (ripresi) è un'altra misura dello stesso insieme e supera il campione di 16; 387 − 379 = 8 attività «da consegnare subito» non risultano partite due volte (consegne non ancora partite o scartate: non verificato). Non rilette dopo avere visto il numero, come scritto nella regola. Misurata (`…-ekill-delay500-h3-4-ms-r1.txt`).
+4. **Numeri sul blocco, solo riportati (kill con `rec_delay_ms=500`).** kill → `READY` 108 ms con 3.012 attività in volo (`timers_pending`) e 371 consegne con record non durevole; la **prima accettazione nuova** dopo `READY` 3,7 ms, la **prima consegna di un'esecuzione nuova** 106 ms dopo `READY`; nei 2 s dopo `READY` 667 accettate nuove e 664 consegne di esecuzioni nuove. Derivati da `accepted_us` nel database e dal registro dei worker, nessun meccanismo nuovo (misurati, stesso file grezzo). Primo `FIRST_DONE` dopo 216 ms dal kill.
+5. **Invarianti, in tutte e tre le corse H3:** zero righe `timer` per attività concluse (controllo SQL scritto nel file grezzo) e zero occorrenze di «database bloccato» nel registro del motore e nel file grezzo.
+6. **Non eseguiti (fermata):** due `ekill` con ritardo 0, i due aggiornamenti (semplice e con 100.000 timer), `start1k` a sei triple, `thr10k`, Postgres. Le soglie di criterio di H3 (p99 ≤ 25 ms, rapporto H3/B ≤ 1,20, lettura dell'ipotesi della coda di scrittura) non hanno numeri.
+
+### Cosa è cambiato nel codice dello spike (commit `b60b001` e `01cf3bc`)
+
+- **`dispatch`** (`engine.rs`): invia subito, arma la scadenza in memoria e manda `(esecuzione, passo, tentativo, scadenza)` a un canale; nessun gruppo di bus per il tipo 0 (tipi 1, 2 e battiti invariati sul bus). `undurable_deliveries` = record inviati e non ancora confermati dal commit (incrementato all'invio, decrementato dal task scrittore).
+- **Task `rec_writer`:** un solo task asincrono, raccoglie i record in lotti ogni 20 ms al più (`REC_WINDOW_MS`, scelta mia: il gestore di blocco di SQLite non è equo e un commit continuo potrebbe far aspettare il proiettore oltre `busy_timeout`) e li scrive con `Db::write_delivery_records` (stesso `Db`, istruzioni e righe contate: `BEGIN`, un `INSERT … ON CONFLICT` per 500 righe, un `DELETE` di guardia, `COMMIT`). Un errore si riprova ogni 100 ms (riga `REC_ERR` una volta).
+- **Durabilità:** la stessa dei commit del proiettore, `PRAGMA journal_mode=WAL` e `PRAGMA synchronous=FULL` (impostati in `Db::open` per ogni connessione): un commit confermato sopravvive al `kill -9` del processo (provato dalle corse di kill) e, con `FULL` in WAL, alla perdita di corrente dell'host nel modello di SQLite; non provato qui (uno spegnimento dell'host non è un `kill`). Il record è durevole circa 20-30 ms dopo l'invio, non prima.
+- **Nessuna chiave verso righe non proiettate:** l'inserimento non legge né richiede `activity` (il record si scrive 150-380 ms prima della proiezione). La lettura della ripresa (`Db::timers`) non ha più il collegamento con `execution` (era nel codice precedente e avrebbe nascosto i record di esecuzioni non ancora proiettate: errore trovato leggendo il codice prima di costruire, corretto nel commit `01cf3bc`).
+- **Guardia contro le righe vecchie (`write_delivery_records`):** dopo l'inserimento, nella stessa transazione, cancella le righe del lotto la cui attività risulta conclusa (`done_us` non nullo); se la riga `activity` non c'è ancora, l'esito non è stato proiettato (`Done` segue `Ready`) e la riga resta. La corsa (il proiettore cancella la riga all'esito e un record committato dopo la ricreerebbe) è commentata nel codice. Con SQLite le scritture si serializzano, la guardia è esatta; con Postgres a livello READ COMMITTED una transazione del proiettore ancora aperta può sfuggire (`ponytail:` nel codice). Due regole d'ordine in più, nella stessa riga di `INSERT`: un record non sostituisce una riga con un tentativo più nuovo (o lo stesso con un tipo più alto: un'attesa di ritentativo non cancella una consegna), uguale nell'upsert del proiettore e nella rilettura del bus alla ripresa.
+- **Aggiornamento:** il ciclo del motore vecchio esce dallo svuotamento solo con `undurable == 0` (coda del task scrittore vuota e confermata) oltre a nessun gruppo in volo e posizione applicata uguale alla testa, quindi prima di `rewrite_live`. Non provato in questa serie (aggiornamenti non eseguiti).
+- **Stato che ora vive solo nel database** (kind 0): numero del tentativo e scadenza (`due_us`) di ogni consegna in corso; sul bus restano `Ready`, `Done`, `Accepted` e i `Timer` di tipo 1, 2 e i battiti. **Ripresa:** un'attività emessa e non conclusa con una riga `timer` di tipo 0 è «in volo» (scadenza originale, spostata di `grace_ms` se già passata); senza riga, o con la sola riga di un ritentativo, è «mai consegnata» e si consegna subito: il doppione accettato. Misurato: `tdead` 1 doppio, `ekill` con ritardo 500 ms 379 doppi.
+- **Gancio di guasto solo per lo spike:** opzione del motore `rec_delay_ms` (predefinito 0, variabile `REC_DELAY` in `scen.sh`): ritarda i commit del task scrittore; usata solo nella corsa del doppione provocato.
+- **Script:** `scen.sh` (campione di `undurable_deliveries` e `timers_pending` subito prima del kill, numeri del blocco dopo `READY` da `accepted_us` e registro dei worker, controllo SQL delle righe `timer` anche per Postgres, conteggio di «database bloccato») e `up-run.sh` (gli stessi controlli, non eseguiti).
+
+### Deviazioni dal piano (blocco D, terza parte)
+
+- **Fermata a metà dei controlli** per la soglia del doppione provocato (regola del compito: se un controllo fallisce ci si ferma e si riporta); 3 controlli su 7 eseguiti, nessuna misura.
+- **Il campione del kill** è preso dalla chiamata `stats` (un processo) subito prima del segnale, non al suo istante; la soglia letterale è sensibile a questo (v. sintesi 3).
+- **Correzione prima delle corse:** la prima versione del codice (`b60b001`) leggeva i timer con il collegamento a `execution`; trovata prima di costruire, corretta in `01cf3bc`; i binari misurati sono costruiti da `01cf3bc`.
+- **`REC_WINDOW_MS` di 20 ms:** parametro mio, non chiesto; allunga di fino a 20 ms la finestra in cui un record non è durevole (e quindi il numero di doppioni possibili a un crash).
+- **Worktree:** partito da `main`, portato a `e07f79f` con `git reset --hard` (pulito, nessun commit mio prima).
+
+### Non coperto
+
+- Tutte le misure (`start1k`, `thr10k`, Postgres) e i controlli rimasti: `ekill` con ritardo 0 (due corse), aggiornamento semplice e con 100.000 timer, e quindi il tempo di pausa e l'attesa dello svuotamento del task scrittore.
+- Se la soglia del doppione, riletta con un campione preso nello stesso processo del motore, è rispettata: non provato.
+- Postgres per la guardia delle righe vecchie.
+
+### Comandi per rifare (blocco D, terza parte)
+
+Su minisheep, in `~/ttspikebus` (`env.sh` dal repository, `.env` da `./gen-env.sh`, binari `bin/busspike-bB`, `bin/busspike-h2`, `bin/busspike-h2-old`, `bin/busspike-h3`, `bin/busspike-h3-old`). Una corsa alla volta, una chiamata per volta.
+
+| Misura | Comando |
+| --- | --- |
+| Retry / scadenza su H3 | `ARM_BIN=$HOME/ttspikebus/bin/busspike-h3 ARM=H3-01cf3bc BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost3-timer-retry-h3-4-ms-r1.txt ./scen.sh iggy sqlite tretry` (`tdead`) |
+| Doppione provocato | `REC_DELAY=500 ERATE=334 CAP=4096 ARM_BIN=… ARM=H3-01cf3bc BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost3-ekill-delay500-h3-4-ms-r1.txt ./scen.sh iggy sqlite ekill` (ritardo 0: senza `REC_DELAY`) |
+| Aggiornamenti | `[PRE100K=1] SPIKE_OLD=$HOME/ttspikebus/bin/busspike-h3-old CAP=4096 ARM_BIN=$HOME/ttspikebus/bin/busspike-h3 ARM=H3-01cf3bc BRUN_ITERS=30 ./brun.sh … ./up-run.sh n=3 rate=334` |
