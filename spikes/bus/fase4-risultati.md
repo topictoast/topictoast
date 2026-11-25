@@ -1524,3 +1524,45 @@ Come nelle regole: conservazione che aspetta il sentinella (e se la posizione de
 ### Comandi per rifare
 
 Su minisheep, in `~/ttspikebus` (`.env` da `./gen-env.sh`, binario `bin/busspike-sent-116e57c`): `./sent-chain.sh rows` staccato e `./sent-chain.sh wait`; singole corse con `env ARM_BIN=… ARM=<braccio> <variabili> ./ms-run.sh risultati/<file> ./scen.sh iggy sqlite <scena>`, variabili e scene nella regola di lettura (`SENT=1 META=1`, `DOWN=20`).
+
+## Blocco E, credenziale di sola lettura del bus
+
+Credenziale Iggy di sola lettura (riga del blocco E del piano) e, dalla decisione di Marco sul sentinella, cancello del sentinella: i metadati degli eventi di stato sono in chiaro per chiunque legga il bus. Misurata contro il server vero (`apache/iggy:0.10.0`, versione scritta in ogni file grezzo), con `busspike busauth case=<caso>` (client Iggy 0.12.0 già nel crate, nessuna dipendenza nuova). Regole di lettura: `risultati/iggy-sqlite-cred-regola-4-ms.txt` (commit `339a350`, 20:17:15, scritte prima della prima corsa; la prima corsa ha `[stato prima 20:17:18]`), con un'aggiunta del 2026-11-25 (commit `8d9d753`, 20:27:49) scritta prima delle ripetizioni. Due serie, due corse per caso, bus pulito prima di ogni corsa:
+- prima serie, binario `1bfe5d3f2bce205b` (commit `45e4663`): control, ro-a, ro-a-s, ro-sent, sentinel;
+- ripetizione di control, ro-sent e sentinel con il binario corretto `d07c64fc7d46873e` (commit `818fa0d`), file `…-ripetizione.txt`, dopo due difetti dello strumento (sotto). ro-a e ro-a-s non erano toccati dai difetti e restano quelli della prima serie. File grezzi `risultati/iggy-sqlite-cred-<caso>-4-ms-r<n>[-ripetizione].txt` (16).
+Password degli utenti di prova generate a ogni corsa (64 cifre esadecimali), mai stampate né scritte nei file grezzi o nei commit; le uniche copie vivono in `out/ro-sent.pw` (modo 600) durante la corsa del sentinella.
+
+### Sintesi
+
+1. **Utente di sola lettura sul solo tenant A (`ro-a`): superato, 2 corse su 2.** Permessi: nessun permesso globale, sullo stream `tt` solo `read_topic` + `poll_messages` sul topic `state-<A>`. Lettura di A riesce (3 messaggi); lettura di B rifiutata con **codice 41 `Unauthorized`**; invio a A, creazione di un topic e cancellazione di un topic rifiutati con **41 `Unauthorized`**; anche l'elenco dei topic è rifiutato (41). (misurata)
+2. **Aggiungere `read_stream` apre B (`ro-a-s`): FAIL atteso, 2 corse su 2.** Con `read_stream` sullo stream l'utente legge anche B (3 messaggi) e vede l'elenco dei topic; invio, creazione e cancellazione restano rifiutati (41). Reperto per l'ADR: per il tenant A non si concede `read_stream`, solo i permessi sul topic. (misurata)
+3. **Sentinella (`ro-sent`): superato, 2 corse su 2 (ripetizione, 12 PASS su 12 ciascuna).** Permessi: nessun permesso globale, sullo stream `tt` (livello di stream) `read_stream` + `read_topics` + `poll_messages`; nessun `send_messages`, nessun `manage_*`. Con quel set l'utente: elenca i topic; vede un topic `state-*` creato da root dopo il suo accesso; **crea il gruppo `sentinel`** sul topic nuovo; si unisce al gruppo; legge da gruppo salvando la posizione (3 messaggi, posizione salvata presente); legge da un gruppo creato da root. Invio a `state-<A>`, creazione e cancellazione di un topic: **41 `Unauthorized`**. (misurata)
+4. **Che cosa serve al sentinella (reperto per l'ADR).** Creare e unirsi al gruppo non richiede nulla oltre la lettura: nel set provato bastano `read_topics` (che per la documentazione del server include la gestione dei gruppi) e `poll_messages`, quindi per un tenant nuovo **non serve che root crei il gruppo**; il sentinella lo crea da sé. Il set provato non è stato ridotto (non si è provato senza `read_stream`): è «sufficiente», non «minimo». (misurata per «sufficiente»; «minimo» non misurato)
+5. **Il vero sentinella con l'utente `ro-sent`: superato, 2 corse su 2 (ripetizione).** `SENT=1 META=1 SENTUSER=1 … newtenant rate=100 n=10 secs=15` (circa 1.000 att./s per 15 s, a 4 s un topic nuovo creato da root): `verify OK`; `events` 49.601 in entrambe, `topics=3` (due tenant più il nuovo, scoperti con quell'utente), `gaps=0`, 0 allarmi; primo evento del topic nuovo letto **288 e 137 ms** dopo la creazione (limite 2.000); posizione salvata del gruppo `sentinel` su `state-<A>` presente (`Some(49599)`, letta con root). Righe `SENTINEL_ERR`: 3 e 2, tutte «5009 rebalance in progress» all'avvio, nessun errore di permesso. (misurata)
+6. **Controllo con root: superato, 10 PASS su 10 in entrambe le corse della ripetizione.** Le stesse operazioni riescono, quindi i rifiuti 41 vengono dai permessi e non da chiamate rotte. (misurata)
+7. **Non c'è un permesso per modello di nome.** Iggy chiede i permessi per numero di stream e di topic (`streams: BTreeMap<id, StreamPermissions>`, `topics: BTreeMap<id, TopicPermissions>`): un modello `state-*` non esiste. Il sentinella usa il permesso a livello di stream, che copre anche i topic nati dopo (visto: «nuovo visto: true») ma non permette di escludere un tenant; l'utente di un solo tenant (`ro-a`) invece è legato al numero del topic, quindi i permessi di un topic nuovo vanno concessi alla sua creazione. (misurata per la copertura dei topic nuovi; il resto dalla struttura dei permessi)
+
+### Per caso
+
+| Caso | Prima serie (r1 / r2) | Ripetizione (r1 / r2) | Note |
+| --- | --- | --- | --- |
+| control (root) | 9 PASS 1 FAIL / 9 PASS 1 FAIL | **10 PASS 0 FAIL / 10 PASS 0 FAIL** | il FAIL era la lettura da gruppo subito dopo l'unione (5009, difetto dello strumento) |
+| ro-a | 6 PASS 0 FAIL / 6 PASS 0 FAIL | (non rifatta) | 41 `Unauthorized` su B, invio, creazione, cancellazione, elenco |
+| ro-a-s | 4 PASS 2 FAIL / 4 PASS 2 FAIL | (non rifatta) | `read_stream` apre la lettura di B e l'elenco dei topic |
+| ro-sent | 10 PASS 2 FAIL / 10 PASS 2 FAIL | **12 PASS 0 FAIL / 12 PASS 0 FAIL** | i 2 FAIL erano le letture da gruppo (5009) |
+| sentinel (vero sentinella, utente ro-sent) | non valida (verify FALLITA, 0 attività concluse) | **superata / superata** | v. sintesi 5 |
+
+Primi `[stato prima]`: prima serie 20:17:18 (control r1), ripetizione 20:27:58. Pavimento di `fdatasync` nei file grezzi, macchina tranquilla (carico 1 min 0,5-0,9).
+
+### Reperti dello strumento (due difetti, trovati dal controllo e dalla verifica)
+
+- **5009 «rebalance in progress».** Subito dopo l'unione a un gruppo, la prima lettura da gruppo dà il codice 5009 («Consumer group member … does not own partition: 0 at the current generation (rebalance in progress)») anche a root; si risolve riprovando dopo 200 ms con una nuova unione (come fa il sentinella: da qui i `SENTINEL_ERR` di avvio). Nelle ripetizioni la lettura da gruppo riesce al secondo tentativo. Non è un errore di permessi. (misurata)
+- **Un evento non sigillato in un topic di stato fa cadere il proiettore.** Nella prima serie `setup-sent` scriveva tre eventi di prova nei topic di stato: il proiettore non li decifra e non conclude nessuna attività (0 concluse, `verify FALLITA` per tutte e 12 le verifiche). Corretto (`setup-sent` e `offsets` non creano topic né scrivono). Osservazione per l'ADR, non verdetto: **chiunque possa scrivere sul topic di stato può fermare il motore**, quindi il permesso `send_messages` sui topic `state-*` va riservato al motore. (misurata come effetto; la prova era involontaria)
+
+### Non coperto
+
+Rotazione o scadenza delle password, token personali di accesso, TLS verso Iggy, piu' utenti di sola lettura, riduzione del set di `ro-sent` al minimo (per esempio senza `read_stream`), il permesso per un topic di tenant creato dopo l'utente `ro-a`, Valkey.
+
+### Comandi per rifare
+
+Su minisheep, in `~/ttspikebus` (`.env` da `./gen-env.sh`, binari `bin/busspike-cred-45e4663` e `bin/busspike-cred-818fa0d`): `./cred-chain.sh rows` (prima serie) e `./cred-chain.sh redo` (ripetizione), staccati, con `./cred-chain.sh wait`; un caso solo: `./cred-chain.sh case <control|ro-a|ro-a-s|ro-sent>` dopo `. ./env.sh`; il sentinella: `SENT=1 META=1 SENTUSER=1 ./scen.sh iggy sqlite newtenant rate=100 n=10 secs=15`.
