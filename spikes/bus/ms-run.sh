@@ -15,7 +15,11 @@ state() {
   [ -n "$SPIKE_BIN" ] && echo "[stato $1] binario sha256:$(sha256sum "$SPIKE_BIN" | cut -c1-16)"
   [ -n "$SPIKE_BIN" ] && echo "[stato $1] pavimento fdatasync: $("$SPIKE_BIN" fsync-floor dir="$HOME/.cache" n=300)"
   # CPU dei container dei runner: oltre il 20 % di un core = job attivo
-  echo "[stato $1] cpu runner max: $(docker stats --no-stream --format '{{.Name}} {{.CPUPerc}}' 2>/dev/null | grep -v '^ttspikebus' | tr -d '%' | sort -k2 -n -r | head -1)"
+  st=$(docker stats --no-stream --format '{{.Name}} {{.CPUPerc}}' 2>/dev/null | grep -v '^ttspikebus')
+  echo "[stato $1] cpu runner max: $(echo "$st" | tr -d '%' | sort -k2 -n -r | head -1)"
+  # bigsheep: CPU di ogni container non nostro (quelli di Marco) e governor della CPU (non si cambia, si registra)
+  echo "[stato $1] container non nostri, CPU: $(echo "$st" | tr '\n' ';')"
+  echo "[stato $1] governor cpu1: $(cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor 2>/dev/null)"
 }
 i=0
 while :; do
