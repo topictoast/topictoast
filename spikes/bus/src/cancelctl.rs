@@ -4,7 +4,7 @@
 //! conta: concluse o annullate). Lo stato in cui si trovava ogni esecuzione alla richiesta lo scrive il motore (`CANCEL_RECV … state=`).
 //!
 //! Fasi: `never` (senza worker collegato: passi in coda mai consegnati), `rest` (con il worker: tetto, in volo, ritentativo in attesa,
-//! fan-out, già concluse, annullamento ripetuto, tutte insieme), `crash` (per la scena del crash: 100 esecuzioni lunghe annullate
+//! fan-out, già concluse, annullamento ripetuto, tutte insieme), `load` (annullamenti con il motore carico), `crash` (per la scena del crash: 100 esecuzioni lunghe annullate
 //! tutte insieme, poi altre 100 non annullate).
 
 use crate::engine::TENANTS;
@@ -26,6 +26,26 @@ fn input() -> Vec<u8> {
     v
 }
 
+/// Intero da un argomento `nome=valore` (con valore di riserva).
+fn arg_u(name: &str, default: u64) -> u64 {
+    arg(name, &default.to_string()).parse().unwrap()
+}
+
+/// Numero pseudo-casuale (xorshift su un seme preso dall'orologio): basta per scegliere gli istanti, nessuna dipendenza.
+fn rnd() -> u64 {
+    static S: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    use std::sync::atomic::Ordering::Relaxed;
+    let mut x = S.load(Relaxed);
+    if x == 0 {
+        x = now_us() | 1;
+    }
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    S.store(x, Relaxed);
+    x
+}
+
 async fn accept(
     c: &mut Client,
     tenant: usize,
@@ -34,6 +54,19 @@ async fn accept(
     work_ms: u32,
     retry_ms: u32,
 ) -> Vec<u8> {
+    try_accept(c, tenant, kind, n, work_ms, retry_ms)
+        .await
+        .expect("accettazione")
+}
+
+async fn try_accept(
+    c: &mut Client,
+    tenant: usize,
+    kind: u32,
+    n: u32,
+    work_ms: u32,
+    retry_ms: u32,
+) -> Result<Vec<u8>, tonic::Status> {
     let r = c
         .accept(pb::AcceptReq {
             tenant: TENANTS[tenant].to_vec(),
@@ -44,9 +77,8 @@ async fn accept(
             input: input(),
             retry_ms,
         })
-        .await
-        .expect("accettazione");
-    r.into_inner().exec
+        .await;
+    r.map(|r| r.into_inner().exec)
 }
 
 async fn cancel(mut c: Client, phase: &str, exec: Vec<u8>, role: &str, name: &str) -> String {
@@ -199,7 +231,52 @@ pub async fn run(url: &str, dir: &str) {
             }
             all = ids;
         }
-        p => println!("fasi: never rest crash (ricevuto {p})"),
+        // blocco E4, `cancel-load`: tenant A a `rate` esecuzioni/s (aperto: le accettazioni non aspettano gli annullamenti), ognuna annullata in un
+        // istante casuale tra l'accettazione e la fine attesa (`n * work_ms`); il 5 % riceve due annullamenti nello stesso istante
+        "load" => {
+            let (rate, n, work_ms) = (
+                arg_u("rate", 20),
+                arg_u("n", 10) as u32,
+                arg_u("work_ms", 400) as u32,
+            );
+            let (secs, warm) = (arg_u("secs", 60), arg_u("warm", 5));
+            let t0 = now_us();
+            println!(
+                "CANCELCTL load t0_us={t0} measure_from_us={}",
+                t0 + warm * 1_000_000
+            );
+            let mut tick =
+                tokio::time::interval(std::time::Duration::from_micros(1_000_000 / rate));
+            let mut hs = vec![];
+            while now_us() < t0 + (warm + secs) * 1_000_000 {
+                tick.tick().await;
+                let c = c.clone();
+                hs.push(tokio::spawn(async move {
+                    let mut c2 = c.clone();
+                    let id = try_accept(&mut c2, 0, 0, n, work_ms, 0).await.ok()?;
+                    let after = rnd() % (n as u64 * work_ms as u64 * 1000);
+                    tokio::time::sleep(std::time::Duration::from_micros(after)).await;
+                    if rnd() % 100 < 5 {
+                        tokio::join!(
+                            cancel(c.clone(), "load-twin", id.clone(), "tenant", ""),
+                            cancel(c.clone(), "load-twin", id.clone(), "integrator", "Gemello")
+                        );
+                    } else {
+                        cancel(c.clone(), "load", id.clone(), "tenant", "").await;
+                    }
+                    Some(id)
+                }));
+            }
+            let mut errors = 0;
+            for h in hs {
+                match h.await.unwrap() {
+                    Some(id) => all.push(id),
+                    None => errors += 1,
+                }
+            }
+            println!("CANCELCTL load accettazioni_fallite={errors}");
+        }
+        p => println!("fasi: never rest crash load (ricevuto {p})"),
     }
     ledger(dir, &all);
     println!("CANCELCTL phase={phase} accettate={}", all.len());

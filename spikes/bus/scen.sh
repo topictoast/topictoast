@@ -20,6 +20,7 @@ WDEF=1; [ "$BUS" = valkey ] && WDEF=4
 WL=; ENGPFX=
 case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db|tretry|tdead|theart|retry) TRIM=0; WL="worklog=out/work.log" ;; t100k) TRIM=0 ;; logrun|aux1k|auxneg|auxrss) TRIM=0 ;; esac
 case $SC in cancel|cancel-crash|exectimeout) TRIM=0; WL="worklog=out/work.log stoplog=out/stop.log" ;; esac
+[ "$SC" = cancel-load ] && WL="worklog=out/work.log stoplog=out/stop.log"
 [ "$SC" = cancel ] && { NOWORKER=1; CAP=4; FANSLOW=1; }
 [ "$SC" = cancel-crash ] && { CAP=4096; STOP_DELAY=${STOP_DELAY:-4000}; }
 [ "$SC" = exectimeout ] && { EXEC_TIMEOUT=${EXEC_TIMEOUT:-3000}; CAP=4096; }
@@ -85,22 +86,61 @@ logcheck_loop() {
 cancel_report() {
   ELOG=$(cat out/engine-pre.log out/engine.log 2>/dev/null)
   echo "$ELOG" | grep '^CANCEL_DURABLE' | awk '{print $2, $NF}' > out/durable.txt
+  J() { echo "JUDGE $1 valore=$2 atteso=$3 $([ "$2" = "$3" ] && echo PASS || echo FAIL)"; }
   echo "-- annullamenti e scadenze durevoli: $(wc -l < out/durable.txt); per stato alla richiesta: $(echo "$ELOG" | grep '^CANCEL_RECV' | sed -E 's/.*status=([0-9]).*state=([a-z]+).*/status\1:\2/' | sort | uniq -c | tr -s ' ' | tr '\n' ';')"
   echo "-- risposte del pilota: $(grep -h '^CANCELCTL' out/cancelctl.txt 2>/dev/null | grep -oE 'code=[A-Z_:a-z]+' | sort | uniq -c | tr -s ' ' | tr '\n' ';')"
-  echo "-- consegne per un'esecuzione annullata DOPO l'evento durevole (registro dei worker, devono essere 0): $(awk 'NR==FNR{d[$1]=$2; next} ($1 in d) && $4>d[$1]' out/durable.txt out/work.log | wc -l)"
-  echo "-- Stop spediti PRIMA dell'evento durevole (devono essere 0): $(echo "$ELOG" | grep '^STOP_SENT' | awk 'NR==FNR{d[$1]=$2; next} ($2 in d) && $5<d[$2]' out/durable.txt - | wc -l)"
-  echo "-- Stop spediti: $(echo "$ELOG" | grep -c '^STOP_SENT'); tentativi in volo all'evento durevole: $(echo "$ELOG" | grep '^CANCEL_DURABLE' | sed -E 's/.*inflight=([0-9]+).*/\1/' | awk '{s+=$1} END{print s+0}'); Stop ricevuti dai worker: $(wc -l < out/stop.log 2>/dev/null || echo 0), di cui con il tentativo ancora in corso: $(awk '$5==1' out/stop.log 2>/dev/null | wc -l)"
-  echo "-- dall'evento durevole allo Stop ricevuto dal worker (ms, p50/p99/max): $(awk 'NR==FNR{d[$1]=$2; next} ($1 in d){print ($4-d[$1])/1000}' out/durable.txt out/stop.log 2>/dev/null | sort -n | awk '{a[NR]=$1} END{if (NR==0) {print "nessuno"} else {i=int(NR*0.99); if (i<1) i=1; printf "n=%d p50=%.1f p99=%.1f max=%.1f", NR, a[int((NR+1)/2)], a[i], a[NR]}}')"
-  echo "-- tentativi iniziati dopo la ripartenza per esecuzioni annullate: vedi consegne dopo l'evento durevole"
+  # punto 1 (emendamento A2): si giudica sull'istante di invio del motore (campo 6 del registro dei worker, stesso orologio di CANCEL_DURABLE); la ricezione si riporta accanto
+  J "1 consegne partite dopo l'evento durevole (invio_us)" "$(awk 'NR==FNR{d[$1]=$2; next} ($1 in d) && $6>d[$1]{n++} END{print n+0}' out/durable.txt out/work.log)" 0
+  echo "-- (riportato) consegne ricevute dal worker dopo l'evento durevole (ricezione_us): $(awk 'NR==FNR{d[$1]=$2; next} ($1 in d) && $4>d[$1]{n++} END{print n+0}' out/durable.txt out/work.log)"
+  J "2 Stop spediti prima dell'evento durevole" "$(echo "$ELOG" | grep '^STOP_SENT' | awk 'NR==FNR{d[$1]=$2; next} ($2 in d) && $5<d[$2]{n++} END{print n+0}' out/durable.txt -)" 0
   if [ $DB = sqlite ]; then
-    echo "sql storico: $(sqlite3 out/spike.db "SELECT status, count(*) FROM execution WHERE status IS NOT NULL GROUP BY status" | tr '\n' ';') ruoli: $(sqlite3 out/spike.db "SELECT status||':'||end_role||':'||end_name, count(*) FROM execution WHERE status IS NOT NULL GROUP BY 1" | tr '\n' ';')"
-    echo "sql timer rimasti per esecuzioni annullate o scadute (devono essere 0): $(sqlite3 out/spike.db "SELECT count(*) FROM timer t JOIN execution e ON e.id=t.exec_id WHERE e.status IS NOT NULL")"
-    echo "sql attivita' aperte nelle esecuzioni annullate: $(sqlite3 out/spike.db "SELECT count(*) FROM activity a JOIN execution e ON e.id=a.exec_id WHERE e.status IS NOT NULL AND a.done_us IS NULL") (ammesse: restano ferme)"
+    J "3 attivita' rese pronte dopo l'evento durevole" "$(sqlite3 out/spike.db "SELECT lower(hex(a.exec_id)), a.ready_us FROM activity a JOIN execution e ON e.id=a.exec_id WHERE e.status IS NOT NULL AND a.ready_us IS NOT NULL" | tr '|' ' ' | awk 'NR==FNR{d[$1]=$2; next} ($1 in d) && $2>d[$1]{n++} END{print n+0}' out/durable.txt -)" 0
+    J "4 timer rimasti per esecuzioni annullate o scadute" "$(sqlite3 out/spike.db "SELECT count(*) FROM timer t JOIN execution e ON e.id=t.exec_id WHERE e.status IS NOT NULL")" 0
   fi
   if [ -f out/sentinel.log ]; then
-    awk 'NR==FNR{d[$1]=$2; next} $2=="ALARM" && ($3=="overdue"||$3=="retry") && ($4 in d){t++; if ($1>d[$4]) dopo++} END{print "-- allarmi del sentinella per esecuzioni annullate: totali " t+0 ", DOPO l\x27evento durevole (devono essere 0) " dopo+0}' out/durable.txt out/sentinel.log
+    J "5 allarmi overdue/retry del sentinella per esecuzioni annullate dopo l'evento durevole" "$(awk 'NR==FNR{d[$1]=$2; next} $2=="ALARM" && ($3=="overdue"||$3=="retry") && ($4 in d) && $1>d[$4]{n++} END{print n+0}' out/durable.txt out/sentinel.log)" 0
+    echo "-- (riportato) allarmi overdue/retry per esecuzioni annullate PRIMA dell'evento durevole (ammessi): $(awk 'NR==FNR{d[$1]=$2; next} $2=="ALARM" && ($3=="overdue"||$3=="retry") && ($4 in d) && $1<=d[$4]{n++} END{print n+0}' out/durable.txt out/sentinel.log)"
   fi
-  echo "-- contatori del motore (post-ripartenza se c'e' stato un crash): $("$BIN" stats dir=out | grep -E '^(cancel |cancel_durable_latency|exec_timeout_fire_delay)' | tr '\n' ' ')"
+  # punto 7 (emendamento A1): annullate = risposte CANCELLED del pilota = annullamenti durevoli del motore (registro, vale anche dopo un crash)
+  SQLC=$(sqlite3 out/spike.db "SELECT count(*) FROM execution WHERE status=1")
+  DRVC=$(grep -h '^CANCELCTL' out/cancelctl.txt 2>/dev/null | grep -c 'code=CANCELLED')
+  ENGC=$(echo "$ELOG" | grep '^CANCEL_DURABLE' | grep -c 'status=1')
+  if [ $SC != exectimeout ]; then
+    J "7a righe 'annullata' = risposte CANCELLED del pilota" "$SQLC" "$DRVC"
+    J "7b annullamenti durevoli del motore = risposte CANCELLED del pilota" "$ENGC" "$DRVC"
+  fi
+  if [ $SC = exectimeout ]; then
+    # scadute attese: esecuzioni del tenant A (work_ms=2000) non concluse in tempo (concluse = senza stato e con done_us entro la scadenza)
+    T=$((EXEC_TIMEOUT * 1000))
+    J "7c righe 'scaduta' = esecuzioni A non concluse entro la scadenza" "$(sqlite3 out/spike.db "SELECT count(*) FROM execution WHERE status=2")" "$(sqlite3 out/spike.db "SELECT count(*) FROM execution WHERE work_ms=2000 AND NOT (status IS NULL AND done_us IS NOT NULL AND done_us <= accepted_us + $T)")"
+    J "7d esecuzioni 'scaduta' prima della scadenza (end_us < accepted_us + T)" "$(sqlite3 out/spike.db "SELECT count(*) FROM execution WHERE status=2 AND end_us < accepted_us + $T")" 0
+    J "7e righe 'annullata' in una scena di sole scadenze" "$SQLC" 0
+  fi
+  if [ $SC = cancel ]; then
+    for s in never held inflight fanout retrywait; do
+      J "6 stato '$s' raggiunto (1 = almeno una richiesta)" "$([ $(echo "$ELOG" | grep '^CANCEL_RECV' | grep -c "state=$s") -gt 0 ] && echo 1 || echo 0)" 1
+    done
+    for c in E_NOT_LIVE ALREADY_CANCELLED; do
+      J "6 codice $c ottenuto (1 = almeno una risposta)" "$([ $(grep -h '^CANCELCTL' out/cancelctl.txt | grep -c "code=$c") -gt 0 ] && echo 1 || echo 0)" 1
+    done
+  fi
+  INFL=$(echo "$ELOG" | grep '^CANCEL_DURABLE' | sed -E 's/.*inflight=([0-9]+).*/\1/' | awk '{s+=$1} END{print s+0}')
+  STP=$(echo "$ELOG" | grep -c '^STOP_SENT')
+  if [ $SC = cancel-crash ]; then
+    echo "-- punto 8 non vale in cancel-crash (Stop attesi dal ritardo, motore ucciso): Stop spediti $STP, tentativi in volo all'evento durevole $INFL"
+  else
+    J "8 Stop spediti = tentativi in volo all'evento durevole" "$STP" "$INFL"
+  fi
+  echo "-- Stop ricevuti dai worker: $(wc -l < out/stop.log 2>/dev/null || echo 0), di cui con il tentativo ancora in corso: $(awk '$5==1' out/stop.log 2>/dev/null | wc -l)"
+  echo "-- dall'evento durevole allo Stop ricevuto dal worker (ms, p50/p99/max): $(awk 'NR==FNR{d[$1]=$2; next} ($1 in d){print ($4-d[$1])/1000}' out/durable.txt out/stop.log 2>/dev/null | sort -n | awk '{a[NR]=$1} END{if (NR==0) {print "nessuno"} else {i=int(NR*0.99); if (i<1) i=1; printf "n=%d p50=%.1f p99=%.1f max=%.1f", NR, a[int((NR+1)/2)], a[i], a[NR]}}')"
+  if [ $DB = sqlite ]; then
+    echo "-- storico: $(sqlite3 out/spike.db "SELECT status||':'||end_role||':'||end_name, count(*) FROM execution WHERE status IS NOT NULL GROUP BY 1" | tr '\n' ';')"
+    echo "-- attivita' aperte nelle esecuzioni annullate (ammesse, restano ferme): $(sqlite3 out/spike.db "SELECT count(*) FROM activity a JOIN execution e ON e.id=a.exec_id WHERE e.status IS NOT NULL AND a.done_us IS NULL")"
+  fi
+  # latenza dal comando alla risposta vista dal pilota, sulle sole richieste del periodo misurato (dopo `measure_from_us` se la scena lo scrive)
+  MF=$(grep -h '^CANCELCTL load t0_us' out/cancelctl.txt 2>/dev/null | sed -E 's/.*measure_from_us=([0-9]+).*/\1/')
+  grep -h '^CANCELCTL' out/cancelctl.txt 2>/dev/null | grep 'code=CANCELLED' | sed -E 's/.*latency_us=([0-9]+) at_us=([0-9]+).*/\1 \2/' | awk -v mf="${MF:-0}" '$2>=mf{print $1/1000}' | sort -n | awk '{a[NR]=$1} END{if (NR) {i=int(NR*0.99); if (i<1) i=1; printf "-- latenza del comando CANCELLED vista dal pilota (ms, periodo misurato): n=%d p50=%.1f p99=%.1f max=%.1f\n", NR, a[int((NR+1)/2)], a[i], a[NR]}}'
+  echo "-- contatori del motore (dopo un crash ripartono da zero): $("$BIN" stats dir=out | grep -E '^(cancel |cancel_durable_latency|exec_timeout_fire_delay|start_ready_tenant_b)' | tr '\n' ' ')"
 }
 
 # blocco E2: contatori finali dell'ausiliario e latenza del passo (dopo lo svuotamento: le chiamate si confrontano con le attività concluse)
@@ -118,7 +158,7 @@ rm -rf out/archive out/logs out/spike.db* out/master.key out/ledger.txt
 [ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
 # CAPDBONLY=1: solo il database nel tmpfs (l archivio resta sul disco vero), per provare il disco pieno del database da solo
 [ "$SC" = dfull-db ] && [ -z "$CAPDBONLY" ] && ln -s "$PWD/out/capmnt/archive" out/archive
-rm -f out/sentinel.log out/sentinel.stop out/sentinel.txt out/newtopic.txt out/work.log out/stop.log out/cancel-recv.txt out/engine-pre.log out/kind0-dump.txt out/log-written.txt out/logcheck.txt out/logtail.txt out/noisy-a.txt
+rm -f out/sentinel.log out/sentinel.stop out/sentinel.txt out/newtopic.txt out/work.log out/stop.log out/cancelctl.txt out/ledger-b.txt out/cancel-recv.txt out/engine-pre.log out/kind0-dump.txt out/log-written.txt out/logcheck.txt out/logtail.txt out/noisy-a.txt
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
 [ -f out/worker.cred ] || "$BIN" gen-cred dir=out
 echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64}"
@@ -198,6 +238,19 @@ case $SC in
     "$BIN" cancelctl dir=out phase=rest | tee -a out/cancelctl.txt
     for i in $(seq 1 ${VTRIES:-12}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
     sleep 2; sentinel_stop
+    cancel_report ;;
+  cancel-load)
+    # Blocco E4, annullamenti con il motore carico (emendamento A5): tenant B a 1.000 att./s (100 esec./s da 10 passi), tetto 512; tenant A a 20 esec./s da
+    # 10 passi da 400 ms (circa 4 s l'una), ognuna annullata in un istante casuale tra l'accettazione e la fine attesa, il 5 % due volte insieme.
+    # 5 s di riscaldamento e 60 s misurati (circa 1.200 annullamenti misurati).
+    $L rate=100 kind=0 n=10 size=1024 tenants=b secs=60 warm=5 ledger=out/ledger-b.txt > out/load-b.txt &
+    LB=$!
+    "$BIN" cancelctl dir=out phase=load rate=20 n=10 work_ms=400 secs=60 warm=5 > out/cancelctl.txt
+    wait $LB; grep -E '^(load|offered|activities_per_s|start_ready_tenant_b)' out/load-b.txt
+    cat out/ledger-b.txt >> out/ledger.txt
+    for i in $(seq 1 ${VTRIES:-12}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
+    sleep 2; sentinel_stop
+    grep -h '^CANCELCTL load' out/cancelctl.txt
     cancel_report ;;
   cancel-crash)
     # Blocco E4: 100 esecuzioni lunghe (5 s) annullate tutte insieme, poi altre 100; `stop_delay_ms=4000` ritarda gli Stop dopo l'evento durevole:

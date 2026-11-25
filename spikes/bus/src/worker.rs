@@ -343,7 +343,7 @@ pub(crate) type Slot = std::sync::Arc<std::sync::Mutex<Option<mpsc::Sender<pb::F
 type Outbox =
     std::sync::Arc<std::sync::Mutex<std::collections::HashMap<u64, (usize, pb::FromWorker)>>>;
 
-/// Registro degli inizi di tentativo (argomento `worklog=`): una riga `esecuzione passo consegna istante_us tentativo` per
+/// Registro degli inizi di tentativo (argomento `worklog=`): una riga `esecuzione passo consegna ricezione_us tentativo invio_us` (invio_us = istante di invio del motore, stesso orologio) per
 /// tentativo, scritta subito (sopravvive a `kill -9`). Serve a contare i tentativi eseguiti due volte.
 fn log_start(d: &pb::Delivery) {
     use std::io::Write;
@@ -365,12 +365,13 @@ fn log_start(d: &pb::Delivery) {
         // una sola write per riga: due worker scrivono nello stesso file in append e le righe non devono mescolarsi
         let _ = f.lock().unwrap().write_all(
             format!(
-                "{} {} {} {} {}\n",
+                "{} {} {} {} {} {}\n",
                 crate::crypto::hex(&d.exec),
                 d.step,
                 d.delivery_id,
                 now_us(),
-                d.attempt
+                d.attempt,
+                d.sent_us
             )
             .as_bytes(),
         );
