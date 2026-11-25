@@ -13,6 +13,19 @@ use std::io::Write;
 
 type Client = pb::control_client::ControlClient<tonic::transport::Channel>;
 
+/// Ingresso di 64 byte diverso a ogni chiamata: il motore indirizza i payload per impronta, due esecuzioni con lo stesso ingresso
+/// si contendono la stessa voce della cache (come il generatore di carico, il primo byte cambia a ogni esecuzione).
+fn input() -> Vec<u8> {
+    static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let mut v = vec![7u8; 64];
+    v[..8].copy_from_slice(
+        &N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            .to_le_bytes(),
+    );
+    v[8..16].copy_from_slice(&now_us().to_le_bytes());
+    v
+}
+
 async fn accept(
     c: &mut Client,
     tenant: usize,
@@ -28,7 +41,7 @@ async fn accept(
             n,
             work_ms,
             out_size: 64,
-            input: vec![7u8; 64],
+            input: input(),
             retry_ms,
         })
         .await
@@ -150,7 +163,15 @@ pub async fn run(url: &str, dir: &str) {
                     ids
                 }
             };
-            let (a, b, f, g) = tokio::join!(cap, retry, fan, fin);
+            // le tre fasi del tenant B girano una dopo l'altra (il tetto di 4 è per tenant: insieme si trattengono a vicenda e lo stato
+            // alla richiesta non sarebbe quello voluto); il tenant A (tetto) gira insieme
+            let tenant_b = async move {
+                let g = fin.await;
+                let b = retry.await;
+                let f = fan.await;
+                (b, f, g)
+            };
+            let (a, (b, f, g)) = tokio::join!(cap, tenant_b);
             all = [a, b, f, g].concat();
         }
         // 100 esecuzioni lunghe annullate tutte insieme (con consegne in volo), poi altre 100 non annullate
