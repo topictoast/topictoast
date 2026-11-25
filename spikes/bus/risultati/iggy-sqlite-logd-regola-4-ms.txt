@@ -42,27 +42,28 @@ Riga 1. VISIBILITA' (riga `vis`, braccio `LOG-vis`)
   Validita' aggiuntiva: il numero di pezzi della riga `log_visibility` (`chunks=`) e' uguale al numero di pezzi della riga `logcheck` (`chunks=`); se no il lettore
   ha perso eventi e la corsa e' non valida (si rifa' una volta).
 
-Riga 2. WORKER RUMOROSO (riga `noisy`, bracci `withA` e `noA`)
-  Comandi, uguali per i due bracci tranne NOISY:
-    withA: `NOISY=1 LOGA=100x80 LOGB=3x80 ./scen.sh iggy sqlite lognoisy`
-    noA:   `LOGA=100x80 LOGB=3x80 ./scen.sh iggy sqlite lognoisy`
-  Tenant B: 1.000 att./s (100 esecuzioni/s da 10 passi), 3 righe da 80 byte per attivita', 40 s misurati dopo 5 s. Tenant A (solo nel braccio withA): 500 att./s
-  (50 esecuzioni/s da 10 passi, 50 s, parte 3 s prima di B), 100 righe da 80 byte per attivita' = il tetto in righe, su OGNI attivita'. Il carico di A comprende
-  quindi anche le sue 500 att./s (non solo le righe): il confronto misura «presenza di A con il suo log fino al tetto», non separa la parte di log da quella di
-  attivita'; un terzo braccio «A senza righe» non e' in questo blocco.
-  6 coppie (r1-r6), un braccio per volta; ordine alternato, ogni braccio per primo 3 volte: coppie 1, 3, 5 con withA per primo, coppie 2, 4, 6 con noA per primo
+Riga 2. WORKER RUMOROSO (riga `noisy`, bracci `withA` e `Anolines`; decisione del coordinatore dopo la prima revisione: il braccio di confronto ha A attivo senza righe)
+  Comandi, uguali per i due bracci tranne il profilo di A:
+    withA:    `NOISY=1 LOGA=100x80 LOGB=3x80 ./scen.sh iggy sqlite lognoisy`
+    Anolines: `NOISY=1 LOGA=0x0 LOGB=3x80 ./scen.sh iggy sqlite lognoisy`
+  Tenant B: 1.000 att./s (100 esecuzioni/s da 10 passi), 3 righe da 80 byte per attivita', 40 s misurati dopo 5 s. Tenant A, in ENTRAMBI i bracci: 500 att./s
+  (50 esecuzioni/s da 10 passi, 50 s, parte 3 s prima di B); nel braccio withA scrive 100 righe da 80 byte per attivita' = il tetto in righe, su OGNI attivita';
+  nel braccio Anolines non scrive nessuna riga. La differenza tra i bracci e' quindi solo il log di A fino al tetto.
+  Validita' del braccio Anolines: `logcheck` deve dire `lines_written` = 3 * `attempts_written` (scrivono righe solo i tentativi di B, 3 ciascuno: A non ne scrive)
+  e A deve avere ~500 att./s (`done_a` nel conteggio di fine corsa >= 19.000 nei 40 s di finestra di B); se no la corsa e' non valida.
+  6 coppie (r1-r6), un braccio per volta; ordine alternato, ogni braccio per primo 3 volte: coppie 1, 3, 5 con withA per primo, coppie 2, 4, 6 con Anolines per primo
   (r<n> = n-esima coppia). Metrica per corsa: `start_ready_tenant_b` p99 (e p50) dalle statistiche a fine finestra.
-  Aggregazione (come nella terza parte): mediana per braccio sulle 6 corse; differenza di una coppia d = p99(withA) - p99(noA); X = mediana delle d nelle coppie
-  con withA per primo, Y = mediana delle d nelle coppie con noA per primo; la differenza si DICHIARA solo se X e Y hanno lo stesso segno (entrambi > 0 oppure
-  entrambi < 0). R = mediana(withA) / mediana(noA).
+  Aggregazione (come nella terza parte): mediana per braccio sulle 6 corse; differenza di una coppia d = p99(withA) - p99(Anolines); X = mediana delle d nelle coppie
+  con withA per primo, Y = mediana delle d nelle coppie con Anolines per primo; la differenza si DICHIARA solo se X e Y hanno lo stesso segno (entrambi > 0 oppure
+  entrambi < 0). R = mediana(withA) / mediana(Anolines).
   Criteri:
     a. limite di NFR-2, assoluto: mediana del p99 di B <= 25 ms, valutata per ciascun braccio (il p50 <= 5 ms si riporta accanto, non si giudica: nelle fasi
        precedenti e' sopra in ogni braccio);
     b. non peggioramento: R <= 1,20 = rispettato. R > 1,20 con differenza dichiarata positiva (X e Y > 0) = NON rispettato. R > 1,20 con X e Y di segno
        opposto = «non dichiarabile (effetto d'ordine)», riportato con i numeri, ne' superato ne' non superato;
-    c. NFR-4 per ciascun tenant: `sql_per_activity_tenant_b` e (braccio withA) `_a` <= 5 in ogni corsa; «invariate» per B = la mediana di B nel braccio withA
-       differisce dalla mediana di B nel braccio noA di non piu' del 10 % (relativo). Si riportano i valori di A, di B e globali di tutte le corse.
-  Validita' aggiuntiva: nel braccio withA il generatore di A riporta `errors=0` e accettate >= 99 % delle offerte; tenant A `logcheck` con 0 scartate (il profilo
+    c. NFR-4 per ciascun tenant: `sql_per_activity_tenant_a` e `_b` <= 5 in ogni corsa di ogni braccio; «invariate» per B = la mediana di B nel braccio withA differisce dalla
+       mediana di B nel braccio Anolines di non piu' del 10 % (relativo). Si riportano i valori di A in tutti e due i bracci, di B e globali di tutte le corse.
+  Validita' aggiuntiva: in entrambi i bracci il generatore di A riporta `errors=0` e accettate >= 99 % delle offerte; `logcheck` con 0 scartate nel braccio withA (il profilo
   sta nel tetto) si riporta ma non si giudica.
 
 Riga 3. SEGRETO (riga `secret`, bracci `on` e `off`)
