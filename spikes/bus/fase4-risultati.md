@@ -1301,3 +1301,72 @@ Su minisheep, in `~/ttspikebus` (`env.sh` e gli script dal repository, `.env` da
 | --- | --- |
 | `thr10k` | `GATE60=1 VTRIES=100 CAP=512 ARM_BIN=$HOME/ttspikebus/bin/busspike-h3 ARM=H3-01cf3bc BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost4-thr10k-H3-4-ms-r1.txt ./with-sampler.sh risultati/iggy-sqlite-timercost4-thr10k-H3-4-ms-r1.io ./scen.sh iggy sqlite thr10k secs=600`, poi `BRUN_ITERS=32 ./brun.sh wait` finché stampa `FINITA` |
 | Conteggi della regola 5 | prima che `out/` si cancelli: «database is locked» / `SQLITE_BUSY` in `out/engine.log`, righe `REC_ERR` e «proiezione ferma» per minuto (le righe fra `MIN t=k-1` e `MIN t=k` appartengono al minuto k), righe `MIN` dei minuti 2-10 sotto 9.900, da aggiungere in fondo al file grezzo |
+
+## Blocco D, log dei task
+
+Log dei task (FR-59) costruito sul motore H2 (decisione di Marco, 2026-11-25) e misurato su minisheep (stessi 4 CPU: motore, worker e Iggy su `1-4`, carico e lettore di visibilità su `8-11`), SQLite, `ms-run.sh` con pavimento di `fdatasync` prima e dopo; ogni file grezzo porta `braccio:` e `binario sha256:`. Regole di lettura scritte e committate **prima** della prima corsa misurata: `risultati/iggy-sqlite-logd-regola-4-ms.txt` (commit `2d05dd9`, poi la riga 2 riscritta per decisione del coordinatore nel commit `a43f308`, 16:00:03; la prima corsa misurata parte alle 16:00:40). Nessuna soglia è cambiata dopo una corsa; nessuna corsa è stata scartata o rifatta (nessuna condizione di non validità è scattata). File grezzi `risultati/iggy-sqlite-logd-<riga>-<braccio>-4-ms-r<n>.txt`; le corse di prova (`-smoke-`, non misurate) sono accanto.
+
+| Binario (sha256, primi 16) | Cosa |
+| --- | --- |
+| `ab0c12d5d6a4aa81` | H2 ricostruito da `69f496f` (non ha lo stesso hash del vecchio `1a1348abf3bea374`: i controlli di H2 non si riportano); solo la corsa di prova `ekill` (accettate perse 0, iniziate due volte 0) |
+| `fd04efcdeefe0425` | H2 + log dei task, commit `7c1dfcd` (`bin/busspike-logd-7c1dfcd`): tutte le corse misurate di questo blocco |
+
+### Sintesi
+
+1. **Riga 1, visibilità: superata.** p99 dalla riga scritta nel worker al pezzo leggibile e decifrato nell'archivio: 557,57 / 557,57 / 557,05 ms nelle tre corse (limite 1.000 ms), `over1s` 0, 45.000 pezzi e 225.000 righe per corsa, il lettore ha visto tutti i pezzi (`chunks` uguale a quelli di `logcheck`). Il p50 è 530 ms: circa 500 ms sono la chiusura del pezzo (misurata come ordine di grandezza dal p50); il resto, 30-60 ms, è il ciclo di scrittura di 50 ms più fsync (ipotesi, non isolata).
+2. **Riga 2, worker rumoroso: criterio del rapporto rispettato, limite assoluto di NFR-2 NON rispettato nel braccio con le righe di A, per 0,25 ms.** Mediana del p99 di B: `withA` **25,25 ms**, `Anolines` **23,70 ms**; R = 1,066 (soglia 1,20); differenza dichiarata positiva (X +0,71 ms con `withA` per primo, Y +1,20 ms con `Anolines` per primo). Il limite di 25 ms: `Anolines` lo rispetta, `withA` no (quattro corse su sei sopra: 25,49 / 25,92 / 25,68 / 25,01). Istruzioni SQL per attività invariate (B 0,0412 in tutte le 12 corse; A 0,083 in tutti e due i bracci; globale 0,055, limite 5).
+3. **Riga 3, segreto: superata.** Con la sostituzione: 0 occorrenze del segreto nei pezzi, 0 negli eventi del bus (stato e riferimenti), 0 nel registro del motore, in tutte e due le corse; 4.800 segnaposto nei pezzi, uguali al contatore `redacted` del motore. Controllo con la sostituzione spenta: 4.800 occorrenze trovate nei pezzi, 0 segnaposto (la ricerca sa trovare il valore). Il bus ha 0 anche nel controllo, come previsto: le righe non passano dal bus.
+4. **Riga 4, crash del motore con righe in volo: superata in tutte e tre le corse, e il caso del pezzo riscritto con contenuto diverso è esercitato in tutte e tre.** Dopo la decifrazione di tutti i pezzi ogni (tentativo, numero) scritto dal worker compare una sola volta: salvate + scartate = scritte (616.980 / 616.200 / 616.320), `missing=0`, `overlap=0`, `stored_twice=0`, `refs_without_chunk=0`; accettate perse 0; tentativi iniziati due volte 0 / 0 / 0. `conflicts` (chiave già esistente) 2.993 / 3.002 / 3.003 e `conflicts_differ` (il pezzo esistente copriva meno righe di quelle da riscrivere) **1.492 / 1.509 / 1.489**.
+5. **Riga 5, tetto: superata.** 800 tentativi, 80.000 righe scritte: salvate 56.000 e scartate 24.000, esattamente le attese (A: 40 salvate e 10 scartate per il tetto in byte, B: 100 e 50 per il tetto in righe); ogni pezzo dichiara le sue scartate (`header_inconsistent=0`), nessun tentativo oltre il tetto.
+6. **Riga 6, RustFS `If-None-Match: *`: superata in tutte e due le corse.** `rustfs/rustfs:1.0.4` (Apache-2.0): primo PUT 200, secondo PUT sulla stessa chiave **412** (`PreconditionFailed`), l'oggetto letto ha l'impronta del primo contenuto; il PUT di controllo senza l'intestazione torna 200 e sovrascrive. Bastano due PUT firmati con `curl --aws-sigv4` (nessuna libreria nuova).
+7. **Il riferimento al pezzo non è proiettato nel database**: sta nel topic `log-<tenant>`, che il proiettore non legge. NFR-4 col log attivo: B 0,0412 istruzioni per attività con 3 righe per attività; A 0,083 sia con 100 righe per attività sia senza righe (misurata: nessuna differenza dovuta alle righe).
+
+### Disegno e deviazioni (il codice sta nel commit `7c1dfcd`)
+
+- **Numero del pezzo = primo numero di riga del pezzo**, mai un contatore del motore (`<esecuzione>-<passo>-<tentativo>-<primo numero>`). Se la chiave esiste si legge il pezzo esistente: le righe fino al suo ultimo numero sono già salvate e si scartano, le altre si scrivono sotto `ultimo + 1`. Così un pezzo riscritto dopo un riavvio con un raggruppamento diverso non può cadere su una chiave già presa da contenuto diverso e perdere righe; la riga 4 lo esercita davvero (`conflicts_differ`).
+- **Scrittura su disco** (approvata dal coordinatore): file temporaneo con `create_new` + `fdatasync`, poi `std::fs::hard_link` sulla chiave. È creazione solo se assente (il collegamento fallisce con `AlreadyExists` se la chiave esiste), atomica, e la chiave compare solo completa: con una `create_new` diretta sulla chiave un crash a metà scrittura lascerebbe un pezzo troncato che una riscrittura troverebbe «esistente». Un `fsync` della directory per tenant a ogni ciclo, prima del riferimento e della conferma.
+- **Conferma al worker** dopo pezzo durevole E riferimento durevole sul bus; cumulativa («fino al numero N», per tentativo); un ciclo di scrittura per volta, quindi N vale per tutte le righe sotto N. I doppioni di righe già durevoli si riconfermano.
+- **Tetto**: valori scelti dalla spike (NFR-14 non li fissa): 100 righe e 16.384 byte per tentativo, pezzo chiuso al più dopo 500 ms. Il tetto in righe è per numero di riga (uguale dopo un riavvio); quello in byte conta in memoria e riparte da zero dopo un riavvio (`ponytail:` nel codice).
+- **Segnaposto** `[REDACTED]`, sostituzione del valore esatto prima del bus e dell'archivio; il worker di prova non lo applica all'origine (lo fa solo il motore).
+- **Manopola della prova di crash**: `ACKHOLD=1500` ritarda di 1,5 s la conferma dopo il pezzo durevole, per avere pezzi scritti con la conferma non ancora partita al kill (come `REC_DELAY` in H3). Senza di essa la finestra è di pochi ms.
+- **Riga 2, decisione del coordinatore dopo la prima revisione**: il braccio di confronto è `Anolines` (A a 500 att./s senza righe), non «senza A», così il rapporto isola il costo del log; verificato con una corsa di prova (`-smoke-anolines-`: `lines_written` = 3 × tentativi, A a circa 20.000 attività in 40 s).
+- **Nessuna modifica del binario** dopo `7c1dfcd`; gli script (`scen.sh`, `compose.yaml`, `rustfs-proof.sh`, `logd-chain.sh`) sono nei commit successivi.
+
+### Righe, con i numeri
+
+**Riga 1** (`iggy-sqlite-logd-vis-LOG-vis-4-ms-r{1,2,3}.txt`, `LOGA=5x80 TAIL=1`, 1.000 att./s, SQLite): pavimento prima 7,09 / 2,85 / 2,91 ms (p50); 999 / 1.001 / 1.000 att./s; accettate perse 0; `log_visibility` p50 530,43 ms, p99 557,57 / 557,57 / 557,05, p99.9 592 / 591 / 582, max 640 / 649 / 614 ms.
+
+**Riga 2** (`iggy-sqlite-logd-noisy-{withA,Anolines}-4-ms-r{1..6}.txt`). Ordine in tempo: r1 withA, Anolines; r2 Anolines, withA; r3 withA, Anolines; r4 Anolines, withA; r5 withA, Anolines; r6 Anolines, withA. `start_ready_tenant_b` p99 (p50) in ms:
+
+| Coppia | withA | Anolines | d = withA − Anolines |
+| --- | --- | --- | --- |
+| 1 (withA prima) | 25,49 (17,42) | 23,17 (17,71) | +2,32 |
+| 2 (Anolines prima) | 25,92 (17,21) | 24,72 (17,45) | +1,20 |
+| 3 (withA prima) | 22,93 (17,41) | 22,61 (17,63) | +0,32 |
+| 4 (Anolines prima) | 25,68 (17,17) | 22,40 (17,71) | +3,28 |
+| 5 (withA prima) | 25,01 (17,21) | 24,30 (17,76) | +0,71 |
+| 6 (Anolines prima) | 23,20 (17,34) | 24,22 (17,57) | −1,02 |
+| **Mediana** | **25,25 (17,28)** | **23,70 (17,67)** | |
+
+- R = 25,25 / 23,70 = **1,066** (soglia 1,20). X (mediana delle d con withA prima: 2,32, 0,32, 0,71) = +0,71 ms; Y (con Anolines prima: 1,20, 3,28, −1,02) = +1,20 ms: stesso segno, la differenza si dichiara: il log di A fino al tetto costa circa +1,6 ms sul p99 di B (misurata), dentro il 20 %. Criterio b **rispettato**.
+- Criterio a (mediana del p99 di B ≤ 25 ms): `Anolines` **rispettato** (23,70), `withA` **non rispettato** (25,25, 0,25 ms sopra). Il p50 (17 ms) resta sopra i 5 ms di NFR-2 in tutti e due i bracci, riportato non giudicato. Quanto di quei 23,7 ms venga dai 500 att./s di A e quanto dalle 3 righe di B non è isolato (in questo blocco non c'è un braccio senza A; il blocco D, seconda parte, misurò 19,7 ms per H2 a 1.000 att./s senza A e senza righe): **ipotesi** che il resto sia il carico di A.
+- Criterio c: B 0,0412 istruzioni per attività in tutte le 12 corse (invariate, scarto 0 %); A 0,0828-0,0837 nei due bracci (le righe di A non cambiano le istruzioni); globale 0,0550-0,0554; tutte molto sotto il limite 5 (misurata).
+- Validità: `errors=0` e 2.500 accettate su 2.500 nel generatore di A in tutte le 12 corse; `Anolines`: `lines_written` = 3 × `attempts_written` (134.970 = 3 × 44.990) e A tra 19.990 e 20.026 attività; `withA`: 100 righe per attività di A, 0 scartate. `verify OK` e `logcheck OK` ovunque. Pavimento di `fdatasync` prima di ogni corsa nei file (p50 1,93-7,15 ms, in sette corse con p99.9 sopra 60 ms): nessuna corsa porta la riga «macchina non ferma».
+
+**Riga 3** (`iggy-sqlite-logd-secret-{on-4-ms-r1,on-4-ms-r2,off-4-ms-r1}.txt`, `tenants=ab rate=40 n=5 secs=10 warm=2`, 2.400 tentativi e 48.000 righe per corsa): vedi sintesi 3. Segreto sintetico di 31 caratteri per corsa, mai stampato. Il controllo `off` ha `marker_in_chunks=4.800`.
+
+**Riga 4** (`iggy-sqlite-logd-crash-LOG-crash-4-ms-r{1,2,3}.txt`, `LOGSPLIT=1000 ACKHOLD=1500 ERATE=334 CAP=4096`): kill a 12 s con circa 3.000 tentativi in volo; ripresa «in volo (scadenza ripristinata)» 3.031 / 3.031 / 3.014 (16 «da consegnare subito» in r3). Dopo il riavvio il motore ha ricevuto `lines_in` 488.420 / 487.190 / 487.520 righe (quelle rimandate dai worker più le nuove), `dups` 130 / 0 / 0, e ha scritto 44.953 / 45.175 / 45.089 pezzi; i riferimenti sul bus (`refs`) sono più dei pezzi distinti (63.808 contro 60.815 in r1) perché nel conflitto il riferimento al pezzo esistente si riscrive: innocuo, chi legge deduplica per chiave. Ciclo di scrittura del motore ripartito: p50 24-25 ms, p99 57-62 ms, massimo 679-724 ms (osservazione dai file: la coda dopo il riavvio, causa non isolata). Pavimento prima: 2,93 / 2,85 / 7,20 ms.
+
+**Riga 5** (`iggy-sqlite-logd-cap-LOG-cap-4-ms-r1.txt`): vedi sintesi 5.
+
+**Riga 6** (`iggy-sqlite-logd-rustfs-cond-4-ms-r{1,2}.txt`): vedi sintesi 6. Immagine `rustfs/rustfs:1.0.4` (id `2755bcf766f7…`, creata il 2026-10-25), credenziali generate da `gen-env.sh`; il `rustfsadmin` predefinito non è usato.
+
+### Non coperto
+
+- Il tetto in byte dopo un riavvio (riparte da zero); il tenant ricavato dal tentativo e il rifiuto delle righe di un tentativo concluso o non più corrente (C-2, AD-17): la spike si fida del tenant dichiarato dal worker e accetta righe anche dopo l'esito, per non perdere righe non confermate; il pezzo finale che chiude il log; il tempo reale verso il client (AD-18); il motore che scrive i pezzi su RustFS (solo la prova dei due PUT); il segnaposto lato SDK; segreti molto corti o spezzati su più righe; Postgres; 10.000 att./s (nessuna riga di questo blocco, per il pavimento del disco).
+- Una corsa senza A (né attività né righe) con le 3 righe di B, per dire quanto del p99 di 23,7 ms viene dal log e quanto da A.
+- La conservazione del topic `log-<tenant>` (nessuno lo legge né lo taglia nella spike).
+
+### Comandi per rifare (blocco D, log dei task)
+
+Su minisheep, in `~/ttspikebus` (`env.sh` dal repository, `.env` da `./gen-env.sh`, binario `bin/busspike-logd-7c1dfcd`); tutte le righe 1-5 in sequenza con `./logd-chain.sh rows` (staccato) e `./logd-chain.sh wait`. Una corsa: `env ARM_BIN=$HOME/ttspikebus/bin/busspike-logd-7c1dfcd ARM=<braccio> <variabili> ./ms-run.sh risultati/<file> ./scen.sh iggy sqlite <scena> [chiave=valore]`. Variabili e scene delle righe: nella regola di lettura. RustFS: `./reset.sh rustfs` poi `./ms-run.sh risultati/<file> ./rustfs-proof.sh`.

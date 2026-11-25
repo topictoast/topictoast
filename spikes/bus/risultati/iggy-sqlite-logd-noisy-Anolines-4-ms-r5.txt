@@ -1,0 +1,64 @@
+[stato prima 16:31:27] load: 1.43 4.08 3.64
+[stato prima] io: some avg10=0.18 avg60=2.25 avg300=9.35 total=19383941370
+[stato prima] cpu: some avg10=0.00 avg60=0.35 avg300=1.38 total=2101949721
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: LOG-noisy-Anolines
+[stato prima] binario sha256:fd04efcdeefe0425
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.76ms p99=4.08ms p99.9=4.51ms max=4.51ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.01
+[attesa] 135 s
+### iggy + sqlite: lognoisy 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2149764 READY recovered_ms=479 now_us=1795620695862064 gen=1
+load tenants=b rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=40s
+offered=4499 accepted=4499 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+errors_by_type {}
+accept_rtt_open_loop n=4000 p50=26.43ms p99=42.27ms p99.9=105.86ms max=116.03ms over100ms=8
+accept_max_gap_ms=105 from_us=1795620715589392 to_us=1795620715694791
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=40.0 accepted=6000 refused=0 done=59977 rejected=0 groups=369 expired=0 late_ok=0
+activities_per_s=1499 accepted_per_s=150
+accept_engine n=6000 p50=26.03ms p99=41.95ms p99.9=112.77ms max=117.44ms over100ms=12
+append n=4585 p50=11.96ms p99=22.25ms p99.9=30.91ms max=105.22ms over100ms=2
+append_sub n=9162 p50=8.31ms p99=11.94ms p99.9=15.28ms max=96.64ms over100ms=0
+sub_events_p50=18 sub_events_p99=51
+start_ready n=59977 p50=17.76ms p99=24.29ms p99.9=37.22ms max=105.86ms over100ms=52
+start_sent n=59977 p50=0.23ms p99=0.78ms p99.9=1.45ms max=2.98ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=39984 p50=17.76ms p99=24.30ms p99.9=37.22ms max=105.86ms over100ms=36
+archive_read n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+proj_lag n=186273 p50=135.68ms p99=246.40ms p99.9=290.30ms max=342.01ms over100ms=123704
+timer_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 timers_pending=29 heartbeats=0
+undurable_deliveries=29 undurable_max=59 held=0
+sql_stmts=3321 sql_rows=252732 sql_per_activity=0.0554 rows_per_activity=4.214 wal_bytes_per_activity=0.0
+engine_cpu_s=13.34 cache_entries=205
+sql_per_activity_tenant_a=0.0837 stmts_a=1674 done_a=19993
+sql_per_activity_tenant_b=0.0412 stmts_b=1647 done_b=39984
+tasklog lines_in=134367 dups=0 stored=134367 discarded=0 redacted=0 chunks=44296 conflicts=0 conflicts_differ=0 refs=44296 acks=44252 write_errors=0 flush_cycle n=883 p50=18.96ms p99=26.22ms p99.9=95.61ms max=95.61ms over100ms=0
+worker_cpu_s=1.51 cpu_per_1000_att engine=0.222 worker=0.025
+-- tenant A (rumoroso)
+load tenants=a rate=50/s kind=0 n=10 size=1024 work_ms=0 warm=0s measured=50s
+offered=2500 accepted=2500 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=2500 p50=26.22ms p99=42.46ms p99.9=117.50ms max=118.91ms over100ms=4
+verify: accettate=4499 concluse_nella_proiezione=6977 accettate_perse=0 attivita_concluse=69846 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=120 payload_illeggibili=0 light=true
+verify OK
+logcheck: attempts_written=44990 lines_written=134970 chunks=44990 lines_stored=134970 lines_discarded=0 stored_plus_discarded=134970 missing=0 overlap=0 beyond_written=0 stored_twice=0 header_inconsistent=0 attempts_over_cap=0
+logcheck: bus_events_scanned=261959 marker_in_bus_events=0 marker_in_chunks=0 placeholder_in_chunks=0 refs=44990 refs_distinct=44990 refs_without_chunk=0 bus_scan_incomplete=0
+logcheck OK
+-- log dei task a fine corsa (contatori del motore, SQL per attività dei due tenant): sql_per_activity_tenant_a=0.0844 stmts_a=1780 done_a=21099 sql_per_activity_tenant_b=0.0416 stmts_b=1672 done_b=40185 tasklog lines_in=134970 dups=0 stored=134970 discarded=0 redacted=0 chunks=44990 conflicts=0 conflicts_differ=0 refs=44990 acks=44990 write_errors=0 flush_cycle n=901 p50=18.96ms p99=25.63ms p99.9=95.61ms max=95.61ms over100ms=0 
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 103540 kB
+rss pid=2149764 56612 kB
+rss pid=2149857 16564 kB
+-- conteggio file archivio: 89
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 16:32:29] load: 3.30 4.12 3.68
+[stato dopo] io: some avg10=40.34 avg60=24.41 avg300=14.23 total=19405261960
+[stato dopo] cpu: some avg10=4.31 avg60=2.81 avg300=1.88 total=2104621395
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: LOG-noisy-Anolines
+[stato dopo] binario sha256:fd04efcdeefe0425
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.69ms p99=3.87ms p99.9=4.02ms max=4.02ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
