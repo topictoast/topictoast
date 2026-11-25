@@ -112,7 +112,6 @@ async fn main() {
                 arg("grace_ms", "2000").parse().unwrap(),
                 arg("append_ms", "5000").parse().unwrap(),
                 arg("lease_ms", "0").parse().unwrap(),
-                arg("rec_delay_ms", "0").parse().unwrap(),
             )
             .await
         }

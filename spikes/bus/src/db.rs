@@ -220,10 +220,7 @@ impl Db {
         }
         let tm: Vec<String> = tm.into_values().collect();
         for ch in tm.chunks(CHUNK) {
-            // H3: i record di consegna del task scrittore e questi eventi arrivano da due strade e in ordine non garantito
-            // (il proiettore ha 150-380 ms di ritardo): una riga con un tentativo più vecchio, o con lo stesso tentativo ma
-            // un'attesa di ritentativo (tipo 1) al posto della consegna (tipo 0), non sostituisce quella più nuova.
-            self.run(c, &format!("INSERT INTO timer(exec_id,step,kind,attempt,due_us) VALUES {} ON CONFLICT(exec_id,step) DO UPDATE SET kind=excluded.kind, attempt=excluded.attempt, due_us=excluded.due_us WHERE excluded.attempt > timer.attempt OR (excluded.attempt = timer.attempt AND excluded.kind <= timer.kind)", ch.join(","))).await?;
+            self.run(c, &format!("INSERT INTO timer(exec_id,step,kind,attempt,due_us) VALUES {} ON CONFLICT(exec_id,step) DO UPDATE SET kind=excluded.kind, attempt=excluded.attempt, due_us=excluded.due_us", ch.join(","))).await?;
         }
         for ch in dl.chunks(CHUNK) {
             self.run(
@@ -247,55 +244,6 @@ impl Db {
             .await?;
         }
         self.run(c, &format!("INSERT INTO projection_pos(topic,pos,gen) VALUES ('{topic}',{next_pos},{}) ON CONFLICT(topic) DO UPDATE SET pos=excluded.pos, gen=excluded.gen", self.generation.load(Relaxed))).await
-    }
-
-    /// Scrive un lotto di record di consegna di tipo 0 (esecuzione, passo, tentativo, scadenza) nella tabella `timer`, in una
-    /// transazione e senza toccare `projection_pos`. Non richiede che la riga `activity` esista: il record si scrive quando
-    /// l'evento `Ready` è durevole sul bus, 150-380 ms prima che il proiettore scriva l'attività.
-    ///
-    /// Guardia contro le righe vecchie, in due parti nella stessa transazione. (1) Un record non sostituisce una riga con un
-    /// tentativo più nuovo (o con lo stesso tentativo e scadenza più lontana). (2) La corsa da evitare: il proiettore cancella
-    /// la riga `timer` all'esito `Done` e il record, committato dopo, la ricreerebbe per sempre. Dopo l'inserimento si
-    /// cancellano le righe del lotto la cui attività risulta già conclusa; se la riga `activity` non esiste ancora, l'esito
-    /// non è ancora stato proiettato (`Done` segue `Ready` sul topic) e la riga resta, cancellata poi dal proiettore.
-    /// Con SQLite le due scritture si serializzano (un solo scrittore alla volta), quindi la guardia è esatta.
-    // ponytail: con Postgres (READ COMMITTED) una transazione del proiettore non ancora committata a metà di questa può
-    // sfuggire alla guardia; serve un blocco sulla chiave per chiuderla. Per la misura, i due eventi distano centinaia di ms.
-    pub async fn write_delivery_records(&self, recs: &[(Uid, u32, u32, u64)]) -> Res<()> {
-        // l'ultimo record di ogni passo nel lotto vince (Postgres rifiuta due upsert della stessa riga in un solo INSERT)
-        let last: HashMap<(Uid, u32), (u32, u64)> = recs
-            .iter()
-            .map(|&(exec, step, attempt, due)| ((exec, step), (attempt, due)))
-            .collect();
-        let rows: Vec<String> = last
-            .iter()
-            .map(|((exec, step), (attempt, due))| {
-                format!("({},{},0,{},{})", self.lit(exec), step, attempt, due)
-            })
-            .collect();
-        let keys: Vec<String> = last
-            .keys()
-            .map(|(exec, step)| format!("({},{})", self.lit(exec), step))
-            .collect();
-        let mut c = self.pool.acquire().await?;
-        self.run(&mut c, "BEGIN").await?;
-        let r = async {
-            for ch in rows.chunks(CHUNK) {
-                self.run(&mut c, &format!("INSERT INTO timer(exec_id,step,kind,attempt,due_us) VALUES {} ON CONFLICT(exec_id,step) DO UPDATE SET kind=excluded.kind, attempt=excluded.attempt, due_us=excluded.due_us WHERE excluded.attempt > timer.attempt OR (excluded.attempt = timer.attempt AND excluded.kind <= timer.kind AND excluded.due_us >= timer.due_us)", ch.join(","))).await?;
-            }
-            for ch in keys.chunks(CHUNK) {
-                self.run(&mut c, &format!("DELETE FROM timer WHERE (exec_id, step) IN ({}) AND EXISTS (SELECT 1 FROM activity a WHERE a.exec_id = timer.exec_id AND a.step = timer.step AND a.done_us IS NOT NULL)", ch.join(","))).await?;
-            }
-            Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
-        }
-        .await;
-        match r {
-            Ok(()) => self.run(&mut c, "COMMIT").await,
-            Err(e) => {
-                let _ = c.execute("ROLLBACK").await;
-                Err(e)
-            }
-        }
     }
 
     /// Generazione del bus a cui si riferiscono le posizioni salvate (`None` se non ce n'è nessuna).
@@ -379,11 +327,9 @@ impl Db {
         Ok(m)
     }
 
-    /// Timer in sospeso: (esecuzione, passo) -> (tipo, tentativo, scadenza in microsecondi). Nessun collegamento con
-    /// `execution` (H3): il record di consegna è durevole prima che il proiettore scriva l'esecuzione, e dopo un crash l'esecuzione
-    /// può esistere solo nella coda del bus; chi legge scarta i timer delle esecuzioni concluse (`recover`, `rewrite_live`).
+    /// Timer in sospeso delle esecuzioni vive: (esecuzione, passo) -> (tipo, tentativo, scadenza in microsecondi).
     pub async fn timers(&self) -> Res<HashMap<(Uid, u32), (u8, u32, u64)>> {
-        let r = sqlx::query("SELECT exec_id, step, kind, attempt, due_us FROM timer")
+        let r = sqlx::query("SELECT t.exec_id, t.step, t.kind, t.attempt, t.due_us FROM timer t JOIN execution e ON e.id = t.exec_id WHERE e.done_us IS NULL")
             .fetch_all(&self.pool)
             .await?;
         Ok(r.iter()
@@ -457,45 +403,5 @@ impl Db {
         Ok(r.iter()
             .map(|x| x.get::<Vec<u8>, _>(0).try_into().unwrap())
             .collect())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Guardia dei record di consegna (H3): attività conclusa = nessuna riga; attività assente = riga; tentativo più
-    /// vecchio = non sostituisce.
-    #[tokio::test]
-    async fn delivery_record_guard() {
-        let dir = format!("{}/.cache/ttspike-d6-work", std::env::var("HOME").unwrap());
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = format!("{dir}/guard-test.db");
-        let _ = std::fs::remove_file(&path);
-        let db = Db::open(&format!("sqlite://{path}?mode=rwc"))
-            .await
-            .unwrap();
-        let (a, b, c) = ([1u8; 16], [2u8; 16], [3u8; 16]);
-        // a: attività conclusa, b: nessuna riga activity, c: due record con tentativi in ordine inverso
-        let mut conn = db.pool.acquire().await.unwrap();
-        let ins = format!(
-            "INSERT INTO activity(exec_id,step,tenant,is_last,ready_us,done_us) VALUES ({},0,{},0,1,2)",
-            db.lit(&a),
-            db.lit(&a)
-        );
-        conn.execute(sqlx::AssertSqlSafe(ins)).await.unwrap();
-        drop(conn);
-        db.write_delivery_records(&[(a, 0, 0, 10), (b, 0, 0, 10), (c, 0, 1, 20)])
-            .await
-            .unwrap();
-        db.write_delivery_records(&[(c, 0, 0, 30)]).await.unwrap();
-        let n = |id: &Uid| format!("SELECT count(*) FROM timer WHERE exec_id={}", db.lit(id));
-        assert_eq!(db.count(&n(&a)).await.unwrap(), 0);
-        assert_eq!(db.count(&n(&b)).await.unwrap(), 1);
-        // la lettura della ripresa vede anche il record senza riga `execution` (non ancora proiettata)
-        assert!(db.timers().await.unwrap().contains_key(&(b, 0)));
-        let att = format!("SELECT attempt FROM timer WHERE exec_id={}", db.lit(&c));
-        assert_eq!(db.count(&att).await.unwrap(), 1);
-        let _ = std::fs::remove_file(&path);
     }
 }
