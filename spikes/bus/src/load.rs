@@ -158,6 +158,7 @@ pub async fn load(url: &str, dir: &str) {
                         if matches!(
                             e.message(),
                             "E_PROJECTION_DOWN"
+                                | "E_PROJECTION_LAG"
                                 | "E_UPGRADE_DRAIN"
                                 | "E_BUS_DOWN"
                                 | "E_STORAGE_FULL"

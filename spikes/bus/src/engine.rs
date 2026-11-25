@@ -197,6 +197,11 @@ pub struct Shared {
     pub stop_delay_ms: u64,
     pub fan_slow: bool,
     pub canc: Canc,
+    /// Blocco E4c: soglia del guardiano del ritardo (ms, 0 = spento), timestamp del più vecchio evento letto dal proiettore e non ancora
+    /// applicato (µs, 0 = nessuno; per topic) e misura del ritardo.
+    pub lag_max_ms: u64,
+    pub unapplied_ts: [AtomicU64; 2],
+    pub lag: Lag,
 }
 
 /// Contatori di annullamento e scadenza dell'esecuzione (blocco E4).
@@ -251,6 +256,30 @@ impl Canc {
             f(&self.timeout_delay)
         )
     }
+}
+
+/// Ritardo della proiezione misurato a intervalli (blocco E4c): età del più vecchio evento durevole non ancora applicato, valutata ogni
+/// 100 ms (con una transazione ferma il ritardo registrato all'applicazione tace, questo no), e contatori del guardiano.
+#[derive(Default)]
+pub struct Lag {
+    /// Ritardo corrente (µs), massimo della finestra di 10 s e massimo assoluto.
+    pub now_us: AtomicU64,
+    pub win_max_us: AtomicU64,
+    pub max_us: AtomicU64,
+    /// Campionamenti (da 100 ms) con ritardo sopra 1 s, nella finestra e in tutto.
+    pub win_over: AtomicU64,
+    pub over: AtomicU64,
+    /// Guardiano inserito: le accettazioni si rifiutano con `E_PROJECTION_LAG`.
+    pub guard: AtomicBool,
+    pub refused: AtomicU64,
+    /// Errori «database is locked» o busy arrivati fino al proiettore (solo riportati: il criterio busy è della tappa successiva).
+    pub busy_hits: AtomicU64,
+}
+
+/// Il guardiano deve essere inserito? Sì sopra `max_us`; si rilascia a `max_us` o meno (stesso livello per inserire e rilasciare: IPOTESI,
+/// riportata e non giudicata); `max_us` = 0 spento.
+fn guard_wanted(lag_us: u64, max_us: u64) -> bool {
+    max_us > 0 && lag_us > max_us
 }
 
 impl Shared {
@@ -1074,6 +1103,17 @@ impl Engine {
                         let _ = reply.send(Err(Status::unavailable("E_PROJECTION_DOWN")));
                         continue;
                     }
+                    // blocco E4c: proiezione troppo indietro (guardiano acceso con `lag_max_ms`): codice proprio, stesso percorso di rifiuto
+                    if self.sh.lag.guard.load(Relaxed) {
+                        self.sh.m.lock().unwrap().refused += 1;
+                        self.sh.lag.refused.fetch_add(1, Relaxed);
+                        let _ = reply.send(Err(Status::unavailable("E_PROJECTION_LAG")));
+                        continue;
+                    }
+                    if self.sh.lag_max_ms > 0 {
+                        // istante di ricezione di ogni accettazione riuscita: la corsa verifica che nessuna cada tra inserimento e rilascio
+                        eprintln!("ACC {}", now_us());
+                    }
                     let ts = self.bts;
                     let exec = *uuid::Uuid::now_v7().as_bytes();
                     let input = Bytes::from(req.input);
@@ -1833,6 +1873,9 @@ async fn recover(
 /// `E_PROJECTION_DOWN`) e, se il testo dice spazio finito, anche `full` (`E_STORAGE_FULL`). Il log riporta ogni passaggio una volta.
 fn storage_fail(sh: &Shared, failing: &mut bool, full: &mut bool, topic: &str, e: &str) {
     let lower = e.to_lowercase();
+    if lower.contains("locked") || lower.contains("busy") {
+        sh.lag.busy_hits.fetch_add(1, Relaxed);
+    }
     let is_full = lower.contains("no space")
         || lower.contains("disk is full")
         || lower.contains("could not extend");
@@ -1897,6 +1940,9 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
             .iter()
             .map(|(_, b)| Ev::decode(&sh.keys.open(&format!("bus/{topic}"), b).2))
             .collect();
+        // blocco E4c: età del più vecchio evento durevole non ancora applicato (si azzera a gruppo applicato; nel breve intervallo fino alla
+        // lettura successiva gli eventi arrivati nel frattempo non sono ancora noti, quindi il campionamento a 100 ms può sottostimare)
+        sh.unapplied_ts[ti].store(evs.iter().map(|e| e.ts()).min().unwrap().max(1), Relaxed);
         // payload nel segmento del tenant e un solo fdatasync PRIMA della transazione (la posizione fa scartare il bus)
         let noarc = std::env::var("DIAG_NOARCHIVE").is_ok();
         let ta = Instant::now();
@@ -2012,6 +2058,7 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
             }
         }
         sh.applied_ts[ti].store(evs.iter().map(|e| e.ts()).max().unwrap(), Relaxed);
+        sh.unapplied_ts[ti].store(0, Relaxed);
         // la cache si svuota con i payload appena proiettati (non per istante: con più connessioni l'ordine sul bus non segue gli istanti)
         if !noarc_flag() {
             let mut c = sh.cache.lock().unwrap();
@@ -2173,8 +2220,14 @@ impl pb::control_server::Control for Ctl {
         // blocco E2: latenza del passo e contatori dell'ausiliario (CPU della finestra: dall'ultimo `reset`)
         let aux_cpu = self.sh.aux.as_ref().map(|a| a.cpu_rss().0).unwrap_or(0.0);
         let text = format!(
-            "{text}\n{}\nstep_latency {}{}\naux_cpu_s_window={:.3} aux_cpu_per_1000_att={:.3}",
+            "{text}\n{}\nlag tick_lag_now_ms={} tick_lag_max_ms={} over1s_ms={} busy_hits={} refused_lag={} pending_locs={}\nstep_latency {}{}\naux_cpu_s_window={:.3} aux_cpu_per_1000_att={:.3}",
             self.sh.canc.text(),
+            self.sh.lag.now_us.load(Relaxed) / 1000,
+            self.sh.lag.max_us.load(Relaxed) / 1000,
+            self.sh.lag.over.load(Relaxed) * 100,
+            self.sh.lag.busy_hits.load(Relaxed),
+            self.sh.lag.refused.load(Relaxed),
+            self.sh.pending_locs.lock().unwrap().len(),
             f(&m.step_done),
             self.sh
                 .aux
@@ -2522,6 +2575,9 @@ pub async fn main(
         stop_delay_ms: crate::arg("stop_delay_ms", "0").parse().unwrap(),
         fan_slow: crate::arg("fan_slow", "0") == "1",
         canc: Default::default(),
+        lag_max_ms: crate::arg("lag_max_ms", "0").parse().unwrap(),
+        unapplied_ts: [0.into(), 0.into()],
+        lag: Default::default(),
         aux: if crate::arg("aux", "0") == "1" {
             Some(Arc::new(crate::auxp::Client::spawn().await))
         } else {
@@ -2594,6 +2650,74 @@ pub async fn main(
             tx.clone(),
         ));
     }
+    // blocco E4c: ritardo della proiezione a intervalli di 100 ms, guardiano (`lag_max_ms`) e una riga `LAG10` ogni 10 s
+    let sh4 = sh.clone();
+    tokio::spawn(async move {
+        let (mut over1s, mut ticks) = (false, 0u64);
+        let max_us = sh4.lag_max_ms * 1000;
+        loop {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            let now = now_us();
+            let lag = sh4
+                .unapplied_ts
+                .iter()
+                .map(|u| match u.load(Relaxed) {
+                    0 => 0,
+                    t => now.saturating_sub(t),
+                })
+                .max()
+                .unwrap();
+            let l = &sh4.lag;
+            l.now_us.store(lag, Relaxed);
+            l.win_max_us.fetch_max(lag, Relaxed);
+            l.max_us.fetch_max(lag, Relaxed);
+            if lag > 1_000_000 {
+                l.win_over.fetch_add(1, Relaxed);
+                l.over.fetch_add(1, Relaxed);
+            }
+            if (lag > 1_000_000) != over1s {
+                over1s = !over1s;
+                eprintln!(
+                    "{} {now}",
+                    if over1s { "LAG_OVER1S" } else { "LAG_UNDER1S" }
+                );
+            }
+            let want = guard_wanted(lag, max_us);
+            if want != l.guard.load(Relaxed) {
+                if want {
+                    // prima il segno, poi l'istante: un'accettazione con istante >= quello scritto ha già visto il guardiano
+                    l.guard.store(true, Relaxed);
+                    eprintln!("PROJECTION_LAG_ENGAGE lag_ms={} {}", lag / 1000, now_us());
+                } else {
+                    // prima l'istante, poi il segno: nessuna accettazione riuscita può cadere prima di questo istante col guardiano acceso
+                    let t = now_us();
+                    l.guard.store(false, Relaxed);
+                    eprintln!("PROJECTION_LAG_RELEASE lag_ms={} {t}", lag / 1000);
+                }
+            }
+            ticks += 1;
+            if ticks % 100 == 0 {
+                let rss_kb = std::fs::read_to_string("/proc/self/status")
+                    .ok()
+                    .and_then(|s| {
+                        s.lines()
+                            .find(|x| x.starts_with("VmRSS:"))
+                            .and_then(|x| x.split_whitespace().nth(1).map(String::from))
+                    })
+                    .unwrap_or_default();
+                eprintln!(
+                    "LAG10 t={} tick_lag_max_ms={} over1s_ms={} rss_kb={rss_kb} pending_locs={} busy_hits={} refused_lag={} guard={}",
+                    ticks / 10,
+                    l.win_max_us.swap(0, Relaxed) / 1000,
+                    l.win_over.swap(0, Relaxed) * 100,
+                    sh4.pending_locs.lock().unwrap().len(),
+                    l.busy_hits.load(Relaxed),
+                    l.refused.load(Relaxed),
+                    l.guard.load(Relaxed) as u8
+                );
+            }
+        }
+    });
     // riga al minuto per la diagnosi (fase 2d): attività/s, scrittura sul bus, ritardo del proiettore, pressione I/O
     let sh3 = sh.clone();
     tokio::spawn(async move {
@@ -2610,7 +2734,7 @@ pub async fn main(
             last_done = m.done;
             let ms = |h: &Histogram<u64>, q: f64| h.value_at_quantile(q) as f64 / 1e3;
             eprintln!(
-                "MIN t={t} act_s={:.0} append_p50_ms={:.1} sub_p50_ms={:.1} lag_p50_ms={:.0} lag_p99_ms={:.0} proj_read_p50_ms={:.1} proj_arch_p50_ms={:.1} proj_db_p50_ms={:.1} proj_groups={} held_max={} io=[{io}]",
+                "MIN t={t} act_s={:.0} append_p50_ms={:.1} sub_p50_ms={:.1} lag_p50_ms={:.0} lag_p99_ms={:.0} proj_read_p50_ms={:.1} proj_arch_p50_ms={:.1} proj_db_p50_ms={:.1} proj_groups={} held_max={} tick_lag_max_ms={} pending_locs={} io=[{io}]",
                 d as f64 / 60.0,
                 ms(&m.min_append, 0.5),
                 ms(&m.min_sub, 0.5),
@@ -2620,7 +2744,9 @@ pub async fn main(
                 ms(&m.min_parc, 0.5),
                 ms(&m.min_pdb, 0.5),
                 m.min_pdb.len(),
-                sh3.held_max.swap(0, Relaxed)
+                sh3.held_max.swap(0, Relaxed),
+                sh3.lag.max_us.load(Relaxed) / 1000,
+                sh3.pending_locs.lock().unwrap().len()
             );
             m.min_append.reset();
             m.min_sub.reset();
@@ -2801,4 +2927,18 @@ pub async fn main(
         .serve(listen.parse().unwrap())
         .await
         .unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::guard_wanted;
+
+    /// Il guardiano (blocco E4c) è spento con soglia 0, si inserisce solo sopra la soglia e a soglia esatta o sotto non è voluto.
+    #[test]
+    fn guard_levels() {
+        assert!(!guard_wanted(10_000_000, 0));
+        assert!(!guard_wanted(1_000_000, 1_000_000));
+        assert!(guard_wanted(1_000_001, 1_000_000));
+        assert!(!guard_wanted(0, 1_000_000));
+    }
 }

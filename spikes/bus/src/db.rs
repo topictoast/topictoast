@@ -31,6 +31,11 @@ pub struct Db {
     /// Blocco E4: visto almeno un annullamento / un timer di scadenza dell'esecuzione. Finché sono falsi la proiezione non fa istruzioni in più.
     pub cancelled_any: AtomicBool,
     pub exec_timers: AtomicBool,
+    /// Blocco E4c: ritardo dentro la transazione di scrittura del proiettore, prima del `COMMIT` (SQLite tiene il lock di scrittura per tutto il
+    /// ritardo). `(ms, inizio_s, durata_s)`, con `inizio_s` contato dalla prima applicazione; `(0, ..)` = nessun ritardo.
+    delay: (u64, u64, u64),
+    t0: std::sync::OnceLock<std::time::Instant>,
+    delay_on: AtomicBool,
 }
 
 const CHUNK: usize = 500;
@@ -65,6 +70,13 @@ impl Db {
             generation: 1.into(),
             cancelled_any: false.into(),
             exec_timers: false.into(),
+            delay: (
+                crate::arg("proj_delay_ms", "0").parse().unwrap(),
+                crate::arg("proj_delay_from_s", "0").parse().unwrap(),
+                crate::arg("proj_delay_secs", "0").parse().unwrap(),
+            ),
+            t0: Default::default(),
+            delay_on: false.into(),
         };
         let b = if pg { "BYTEA" } else { "BLOB" };
         for ddl in [
@@ -106,6 +118,13 @@ impl Db {
         let mut c = self.pool.acquire().await?;
         self.run(&mut c, "BEGIN").await?;
         let r = self.apply_in_tx(&mut c, topic, next_pos, evs, locs).await;
+        // blocco E4c: database lento ma attivo: scritture fatte (lock di scrittura preso), commit rimandato
+        if r.is_ok() {
+            let d = self.delay_now();
+            if d > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(d)).await;
+            }
+        }
         match r {
             Ok(()) => self.run(&mut c, "COMMIT").await,
             Err(e) => {
@@ -113,6 +132,29 @@ impl Db {
                 Err(e)
             }
         }
+    }
+
+    /// Ritardo da applicare ora (ms): `delay.0` tra `inizio_s` e `inizio_s + durata_s` dalla prima applicazione, altrimenti 0. Scrive una riga
+    /// `PROJ_DELAY_ON` / `PROJ_DELAY_OFF` all'inizio e alla fine (istante in µs).
+    fn delay_now(&self) -> u64 {
+        let (ms, from, secs) = self.delay;
+        if ms == 0 {
+            return 0;
+        }
+        let t = self
+            .t0
+            .get_or_init(std::time::Instant::now)
+            .elapsed()
+            .as_secs_f64();
+        let on = t >= from as f64 && t < (from + secs) as f64;
+        if on != self.delay_on.swap(on, std::sync::atomic::Ordering::Relaxed) {
+            eprintln!(
+                "PROJ_DELAY_{} {}",
+                if on { "ON" } else { "OFF" },
+                crate::now_us()
+            );
+        }
+        if on { ms } else { 0 }
     }
 
     async fn apply_in_tx(
