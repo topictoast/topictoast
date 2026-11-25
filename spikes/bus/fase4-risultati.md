@@ -1,6 +1,6 @@
 # Spike S-1, fase 4: risultati
 
-Segue PIANO.md, sezione «Fase 4». Qui ci sono i **blocchi A** (Iggy sotto carico, conservazione, aggiornamento), **B** (guasti e ripresa) e **C** (percorso dei dati di Iggy, aggiornamento rifatto, timer durevoli); i blocchi D-E non sono fatti.
+Segue PIANO.md, sezione «Fase 4». Qui ci sono i **blocchi A** (Iggy sotto carico, conservazione, aggiornamento), **B** (guasti e ripresa) e **C** (percorso dei dati di Iggy, aggiornamento rifatto, timer durevoli); il **blocco D** è fermo dopo la riga del costo dei timer (criterio non superato, log dei task non costruito); il blocco E non è fatto.
 Base: Iggy `server-0.10.0` (immagine `apache/iggy:0.10.0`), collegamento dei worker gRPC con TLS, motore della 2d (4 gruppi in volo, 1.024 messaggi, soglia 64), SQLite, minisheep con gli stessi 4 CPU delle fasi 2c-3
 (motore e Iggy su `1-4`, carico su `8-11`). Numeri grezzi in `risultati/*-4-ms-*`; ogni file porta il pavimento di `fdatasync` prima e dopo la corsa (300 scritture da 4 KB, come nella fase 3).
 Ogni causa citata è segnata **misurata** (con il file grezzo) o **ipotesi**.
@@ -783,3 +783,120 @@ Su minisheep, in `~/ttspikebus` (`env.sh`, `.env` da `./gen-env.sh`, binari `bin
 | C3.4 aggiornamento con i timer | `PRE100K=1 CAP=4096 ./brun.sh risultati/iggy-sqlite-timer-upgrade-4-ms-r1.txt ./up-run.sh n=3 rate=334` |
 | C3.5 battiti | `./brun.sh risultati/iggy-sqlite-timer-heartbeat-4-ms-r1.txt ./scen.sh iggy sqlite theart` (`LEASE`, `GRACE`, `HWORK`) |
 | Scarto di scatto da registri | `./tstat.sh <retry\|deadline> out/engine-pre.log out/engine.log out/work.log <READY us>` |
+
+## Blocco D
+
+Costo dei timer sul percorso caldo, prima del log dei task. **Il criterio non è superato: il log dei task (FR-59) non è stato costruito** (regola del piano e del compito: se il costo dei timer peggiora oltre il 20 %, ci si ferma con i numeri). Minisheep, stessi 4 CPU (motore e Iggy su `1-4`, carico su `8-11`), `ms-run.sh` con pavimento di `fdatasync` prima e dopo; ogni file grezzo porta le righe `braccio:` e `binario sha256:`. File grezzi `risultati/iggy-sqlite-<riga>-4-ms-r<n>.txt`; la regola (metrica, aggregazione, soglie) è stata scritta e committata prima delle corse a coppie, in `risultati/iggy-sqlite-timercost-regola-4-ms.txt` (commit `b58975e`).
+Due binari, ognuno per una serie intera (nessuna sostituzione a metà serie):
+
+| Binario (sha256, primi 16) | Braccio | Righe |
+| --- | --- | --- |
+| `ef60a7e23befacd0` | `d0` e `H`: sorgente del commit `5117575` (HEAD del blocco C; nessun commit sul sorgente dopo) | retry e scadenza (passo 0), braccio H del costo dei timer |
+| `d730b1a73111ca79` | `B`: sorgente del commit `7f156ba` (blocco B, senza timer), da `git archive 7f156ba spikes/bus` in una cartella a parte | braccio B del costo dei timer |
+
+Gli hash dei binari del blocco C (`2d0fda73…` per il «codice committato») non coincidono con `ef60a7e2…`. Il sorgente è lo stesso (nessun commit su `spikes/bus/src` dopo `5117575`); che la differenza venga dai percorsi della costruzione è **ipotesi**, non verificata.
+
+### Sintesi
+
+1. **Retry e scadenza sul codice committato: superati** (una corsa ciascuna, come chiesto). Retry: 300 ritentativi su 300 partiti una volta sola, 0 prima della scadenza, i già scaduti a fine ripresa 157 ms dopo `READY` (soglia 1 s). Scadenza: 100 su 100 rifatti una volta sola, 0 prima della scadenza, inizio 18,7 ms (p50) e 32,3 ms (p99) dopo la scadenza.
+2. **Costo dei timer a 1.000 att./s: l'avvio peggiora di 2,9 volte, con segno coerente nelle due posizioni.** Mediana del p99 dell'avvio (`start_ready`) 10,5 ms (B) contro 30,3 ms (H); p50 7,8 contro 22,3 ms. Criterio (rapporto ≤ 1,20) **non superato**.
+3. **A 10.000 att./s con i timer il motore non regge il ritmo:** 4.518 e 5.354 att./s (45 e 54 %) contro 9.982 e 9.987 (99,8 %) senza i timer; la soglia del 99 % non è raggiunta in nessuna delle due corse H. Con i timer l'avvio p50 arriva a 41-42 s (la coda del lavoro cresce), senza 67-68 ms.
+4. **Istruzioni SQL per attività (NFR-4):** 0,0324 (B) contro 0,0412 (H) a 1.000 att./s; 0,0155-0,0157 contro 0,0318-0,0326 a 10.000 att./s (nelle corse H le attività concluse nella finestra sono meno della metà, quindi il rapporto per attività sale anche per questo). Restano due ordini di grandezza sotto il limite di 5; le righe toccate per attività passano da 2,2 a 4,2-4,4. **Il costo dei timer non è nel database: è nella latenza e nel ritmo del percorso del bus.**
+
+### Passo 0. Retry e scadenza sul binario committato (`iggy-sqlite-timer-{retry,deadline}-d0-4-ms-r1.txt`, binario `ef60a7e23befacd0`)
+
+Stesse scene e stessi criteri del blocco C (`./scen.sh iggy sqlite tretry` e `tdead`, una corsa ciascuna, 2 s di pausa voluta nella riga retry).
+
+| Misura | Retry (C3.1) | Scadenza (C3.2) |
+| --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,74 > 2,85 | 6,08 > 2,79 (nel «prima» un campione a 111 ms, `over100ms=1`) |
+| kill del motore → `READY` (ms) | 2.092 (di cui 2.000 voluti) | 76 |
+| Ripresa: in attesa di un timer / in volo con scadenza ripristinata / da consegnare subito | 300 / 0 / 0 | 0 / 250 / 1 |
+| Tentativo 1 iniziato: totale / più di una volta / prima della scadenza | 300 / **0** / **0** | 100 / **0** / **0** |
+| Già scaduti a `READY`: inizio − `READY` p50 / p99 / max (ms) | 146: 157,0 / 157,3 / 157,3 | — |
+| Inizio − scadenza p50 / p99 / max (ms) | non scaduti a `READY` (154): 24,6 / 134,6 / 150,0 | 99 con timer noto: 18,7 / 32,3 / 33,5 |
+| Presa in carico − scadenza, solo motore, p50 / p99 (ms) | 20,0 / 1.411,6 (per i timer scaduti comprende i 2 s di pausa voluta: non è un ritardo di scatto) | 9,4 / 19,7 |
+| Tentativo 0 eseguito più di una volta; accettate perse | 0; 0 (verifica OK al secondo tentativo) | 0; 0 (verifica OK al quarto tentativo) |
+
+Criterio **superato** per entrambe. Le righe `verify FALLITA` che precedono l'`OK` sono i tentativi del ciclo di attesa dello script (le attività non sono ancora concluse), come nel blocco C. Differenze dai numeri del blocco C, riportate senza spiegazione: nei ritentativi non scaduti a `READY` il p99 è 134,6 ms (blocco C: 44-61 ms) e il max 150,0 ms (62-73 ms); i già scaduti partono 157 ms dopo `READY` (73-92 ms). **La causa non è stata indagata** (una corsa per riga, nessuna ipotesi misurata). Nella scadenza 1 tentativo su 100 non ha un timer di scadenza noto nel registro (`senza timer 1`), come in 3 delle 6 corse del blocco C (ipotesi di C3.2 invariata, non provata).
+
+### D1. Costo dei timer sul percorso caldo
+
+Bracci: **B** (blocco B, senza timer) e **H** (commit `5117575`: evento `Timer` scritto sul bus prima di ogni consegna, `INSERT … ON CONFLICT` e `DELETE` nel proiettore). Ogni braccio ha il suo binario per motore, worker e carico. Metrica: `start_ready` p99 (dalla decisione «pronta» alla ricezione nel worker).
+
+#### D1.1 `start1k` a 1.000 att./s, 6 coppie (`iggy-sqlite-timercost-start1k-{B,H}-4-ms-r{1..6}.txt`)
+
+Ordine: coppie 1, 3, 5 con B per prima; coppie 2, 4, 6 con H per prima (in ordine di tempo B1 H1, H2 B2, B3 H3, H4 B4, B5 H5, H6 B6).
+
+| Coppia | B: pavimento prima > dopo (ms) | B: accettazione p99 / `start_ready` p50 / p99 (ms) | H: pavimento prima > dopo (ms) | H: accettazione p99 / `start_ready` p50 / p99 (ms) | H − B, p99 dell'avvio (ms) |
+| --- | --- | --- | --- | --- | --- |
+| 1 (B prima) | 2,75 > 2,67 | 17,92 / 7,68 / 10,01 | 3,11 > 2,79 | 35,26 / 23,73 / 30,30 | +20,29 |
+| 2 (H prima) | 1,90 > 2,79 | 18,91 / 8,21 / 11,03 | 2,93 > 2,75 | 35,94 / 23,82 / 30,78 | +19,75 |
+| 3 (B prima) | 7,05 > 2,74 | 17,84 / 7,64 / 9,80 | 7,17 > 1,93 | 34,72 / 22,54 / 29,95 | +20,15 |
+| 4 (H prima) | 2,76 > 2,83 | 18,13 / 8,12 / 10,54 | 6,09 > 2,83 | 34,81 / 21,86 / 30,37 | +19,83 |
+| 5 (B prima) | 2,90 > 2,86 | 18,83 / 8,00 / 11,28 | 6,90 > 2,88 | 34,85 / 22,05 / 30,34 | +19,06 |
+| 6 (H prima) | 2,79 > 2,66 | 18,30 / 7,53 / 10,53 | 7,52 > 2,54 | 34,43 / 22,05 / 27,54 | +17,01 |
+| **Mediana per braccio** | | **18,22 / 7,84 / 10,54** | | **34,83 / 22,30 / 30,32** | |
+
+- **Rapporto H/B delle mediane del p99 dell'avvio: 2,88** (soglia 1,20). Accettazione p99: 1,91; `start_ready` p50: 2,84. Tutte le corse H sono più lente di tutte le corse B (il p99 migliore di H, 27,54 ms, è 2,4 volte il peggiore di B, 11,28 ms).
+- **Segno coerente nelle due posizioni** (misurata): mediana delle differenze con B prima +20,15 ms (coppie 1, 3, 5), con H prima +19,75 ms (coppie 2, 4, 6). La differenza si dichiara. **Criterio non superato.**
+- L'alternanza lenta e veloce di 200 e 1.000 att./s del blocco C non si vede qui in nessuno dei due bracci: B resta tra 7,53 e 8,21 ms di p50, H tra 21,86 e 23,82 ms. Cinque corse hanno un pavimento «prima» di 6,1-7,5 ms (una B, quattro H) e non si distinguono dalle altre dello stesso braccio. Il cancello di quiete non controlla il pavimento (solo carico e pressione I/O).
+- **Istruzioni SQL per attività** (misurata): B 0,0322-0,0324, H 0,0411-0,0412; righe toccate per attività 2,20-2,22 contro 4,20-4,21, cioè +2,0 righe, coerente con una riga `timer` inserita e una cancellata per ogni consegna (la differenza è misurata, la spiegazione viene dal codice del proiettore).
+
+#### D1.2 `thr10k` a 10.000 att./s per 10 minuti, 2 coppie (`iggy-sqlite-timercost-thr10k-{B,H}-4-ms-r{1,2}.txt`, più i campioni di I/O `.io.names`)
+
+Come B5: 1.000 esecuzioni/s da 10 passi, due tenant, `trim=1`, registro delle accettate, `verify light`, `GATE60=1`. Ordine in tempo: B r1, H r1, H r2, B r2 (una coppia per ordine). Soglia scritta prima: almeno il 99 % (9.900 att./s) sull'intera finestra misurata, accettate perse 0.
+
+| Misura | B r1 | H r1 | H r2 | B r2 |
+| --- | --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 2,46 > 10,76 | 9,73 > 4,60 | 4,89 > 4,51 | 2,94 > 4,66 |
+| Attesa di quiete (s) | 165 | 190 | 140 | 165 |
+| Offerte / accettate | 605.000 / 603.932 | 605.001 / 598.898 | 605.001 / 600.582 | 605.000 / 604.135 |
+| Rifiutate `E_PROJECTION_DOWN` / errori del client | 745 / 323 | 1.254 / 4.849 | 0 / 4.419 | 799 / 66 |
+| **Attività concluse al secondo** (finestra misurata) | **9.982** | **4.518** | **5.354** | **9.987** |
+| Minuti 2-10 sotto 9.900 att./s | 3 (9.891, 9.870, 9.788) | 9 su 9 | 9 su 9 | 0 |
+| Intervallo più lungo senza accettazioni (ms) | 1.255 | 3.203 | 3.973 | 905 |
+| `start_ready` p50 / p99 | 66,8 ms / 1,37 s | 42,3 s / 128 s | 41,2 s / 70,6 s | 68,0 ms / 0,89 s |
+| Ritardo di proiezione p99, massimo per minuto nei 10 minuti (ms) | 3.357 | 4.112 | 1.335 | 2.249 |
+| Append p50 per gruppo, per minuto (min-max, ms) | 23,9-66,3 | 124,1-414,0 | 123,8-282,9 | 65,3-66,6 |
+| Istruzioni SQL per attività (finestra) | 0,0157 | 0,0326 | 0,0318 | 0,0155 |
+| **Accettate perse** (registro contro database) | 0 (verifica OK) | **non determinabile**: 462.770 accettate non ancora concluse dopo 36 s | **non determinabile**: 56.110 non ancora concluse dopo 5 minuti (in calo) | 0 (verifica OK) |
+
+Il minuto 1 di avvio è sotto 9.900 in B r1 (8.961) e B r2 (8.255) e non conta per la soglia, che è sull'intera finestra.
+
+- **Il braccio H non supera il 99 % in nessuna delle due corse** (45 % e 54 %), nelle due posizioni (misurata). Il braccio B lo supera in entrambe (99,8 %), con zero accettate perse.
+- **Il ritmo massimo del braccio H è circa 5.500-6.000 att./s anche senza carico nuovo** (misurata: righe `MIN` t=11-18 di H r2, dopo la fine del carico, 4.782-6.119 att./s mentre il motore smaltisce la coda). Non è una pausa di Iggy: il motore H satura.
+- **«Accettate perse» in H non determinabile, non «perse»:** il carico finisce con il motore ancora in coda; la verifica attende 36 s (r1) e 5 minuti (r2, `VTRIES=100`, aggiunto per questo) e le accettate non concluse calano senza arrivare a zero; poi lo script ferma il motore. Nessuna perdita osservata e nessuna prova che non ce ne siano.
+- **Causa del dimezzamento: ipotesi, non provata.** È misurato: un evento in più per attività (righe toccate 2,2 → 4,4); l'avvio a 1.000 att./s sale da 7,8 a 22,3 ms di p50, circa +15 ms, cioè una scrittura durevole in più prima di ogni consegna; a 10.000 att./s l'append p50 per gruppo sale da 66 a 124-129 ms mentre la durata della singola richiesta resta uguale nei minuti non disturbati (`sub_p50` 16,6-17,1 ms nei minuti 4-10 di tutte le corse, tranne i minuti 8 e 9 di H r1 con 28,0 e 48,3 ms). Ipotesi: con il tetto di `cap=512` consegne in volo per tenant (`scen.sh`, `CAP`) il tempo di ciclo di ogni attività raddoppia per l'attesa del timer e, per la legge di Little, il ritmo massimo si dimezza (1.024 in volo / 10.000 att./s ≈ 100 ms contro 1.024 / 5.500 att./s ≈ 186 ms). Nessuna corsa con `CAP` più alto: il piano chiede di fermarsi dopo la riga.
+
+### Cosa è cambiato nel codice dello spike
+
+Nessuna modifica al motore. Solo script: `env.sh` (nuovo nel repository: `ARM_BIN` sceglie il binario dopo la lettura di `env.sh`; prima `brun.sh` lo sovrascriveva sempre con `bin/busspike`), `ms-run.sh` (riga `braccio:` accanto all'hash), `scen.sh` (`VTRIES`, predefinito 12 = 36 s come prima, per l'attesa della verifica di `thr10k`).
+
+### Deviazioni dal piano (blocco D)
+
+- **Il blocco si ferma dopo la riga del costo dei timer**: log dei task, RustFS, `If-None-Match`, visibilità, worker rumoroso, segreto, crash con righe in volo e tetto per tentativo **non sono stati fatti** (regola del compito e del piano). Nessun codice del log scritto.
+- **Braccio B** costruito da `git archive 7f156ba spikes/bus` in `~/.cache/ttspike-d4-blockB`, con la sua cartella di destinazione di `cargo`; non è il binario `d51b36de…` del blocco B (l'hash dipende dai percorsi).
+- **`thr10k` H r1 con verifica di 36 s, H r2 e B r2 con `VTRIES=100`:** H r1 è stata fatta prima di avere `VTRIES`; le accettate perse di H r1 e H r2 restano non determinabili. B r2 ha usato la stessa impostazione (esce al primo `OK`).
+- **`start1k` senza `GATE60`** (cancello di quiete come nel blocco C); `thr10k` con `GATE60=1` come B5.
+- **Ordine a 10.000/s:** B r1, H r1, H r2, B r2 (una coppia per ordine, come chiesto).
+- **Passo 0:** una sola corsa per riga, come chiesto; le tre del blocco C non sono rifatte.
+- **File temporanei fuori dalla mia cartella:** due file di somme md5 degli script scritti per errore in `/tmp/claude-1000/` e tolti subito per nome; il lavoro temporaneo sta in `~/.cache/ttspike-d4-work` e `~/.cache/ttspike-d4-blockB`.
+- **Il worktree** era partito da `main` e l'ho portato a `9ba2b5f` con `git reset --hard` (pulito, nessun commit mio prima).
+- **Tempo:** circa un'ora e mezza di corse su minisheep (12 da 1,5 minuti, 4 da 10 minuti con attese), più la lettura del codice.
+
+### Non coperto
+
+- Tutto il log dei task (FR-59): v. sopra.
+- **Una correzione del costo dei timer** (per esempio un tetto di consegne in volo più alto, scrivere il timer di scadenza nello stesso gruppo del `Ready`, o nessun timer durevole per le attività brevi): non provata. È la decisione per Marco: con il timer scritto prima della consegna (AD-2) il percorso caldo ha una scrittura durevole in più; o il 99 % a 10.000 att./s si ottiene in un altro modo, o la consegna senza timer durevole per le attività brevi va nell'ADR.
+- Postgres per i timer (come nel blocco C); le accettate perse di H a 10.000/s; i limiti del blocco C (spegnimento dell'host, orologio, battiti a scala).
+
+### Comandi per rifare (blocco D)
+
+Su minisheep, in `~/ttspikebus` (`env.sh` dal repository, `.env` da `./gen-env.sh`, binari `bin/busspike-bB` e `bin/busspike-d0`). Una corsa alla volta; `ARM_BIN` e `ARM` nell'ambiente scelgono il binario e il nome del braccio.
+
+| Misura | Comando |
+| --- | --- |
+| Passo 0 | `ARM_BIN=$HOME/ttspikebus/bin/busspike-d0 ARM=HEAD-5117575 BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timer-retry-d0-4-ms-r1.txt ./scen.sh iggy sqlite tretry` (`tdead` per la scadenza) |
+| D1.1 | `ARM_BIN=$HOME/ttspikebus/bin/busspike-bB ARM=B-blockB-7f156ba BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost-start1k-B-4-ms-r1.txt ./scen.sh iggy sqlite start1k` (H: `busspike-d0`, `ARM=H-head-5117575`) |
+| D1.2 | `GATE60=1 VTRIES=100 ARM_BIN=… ARM=… BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost-thr10k-H-4-ms-r2.txt ./with-sampler.sh risultati/iggy-sqlite-timercost-thr10k-H-4-ms-r2.io ./scen.sh iggy sqlite thr10k secs=600`, poi `./brun.sh wait` finché non finisce |

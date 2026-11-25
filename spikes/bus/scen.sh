@@ -86,7 +86,8 @@ case $SC in
     echo "criterio di stallo: minuto con act_s < 9000, oppure accept_max_gap_ms > 5000, oppure lag_p99_ms > 1000"
     $L rate=1000 kind=0 n=10 size=1024 secs=60 warm=5 tenants=ab ledger=out/ledger.txt "$@"
     echo "-- righe di errore del motore"; grep -vE "^(MIN|READY|ripresa|capns|FIRST_DONE)" out/engine.log | head -40
-    for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done ;;
+    # blocco D: VTRIES (predefinito 12 = 36 s) allunga l'attesa quando il motore ha una coda di lavoro da smaltire a fine carico
+    for i in $(seq 1 ${VTRIES:-12}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done ;;
   thrmax) $L rate=2500 kind=0 n=10 size=1024 secs=30 warm=5 tenants=ab "$@" ;;
   size64k) $L rate=100 kind=0 n=5 size=65536 secs=30 warm=5 tenants=ab "$@" ;;
   size1m) $L rate=${RATE1M:-10} kind=0 n=5 size=1048576 secs=30 warm=5 tenants=ab "$@" ;;

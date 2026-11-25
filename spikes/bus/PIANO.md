@@ -11,7 +11,7 @@ Fonte dei criteri: spine, sezione «S-1 — Bus». Approccio a fasi deciso da Ma
 | 2c | Correttivi comuni ai due bus (archivio a segmenti, scritture in parallelo), misura finale a 4 CPU su minisheep | chiusa senza vincitore (`fase2c-risultati.md`) |
 | 2d | Ultimo giro sulle 10.000 attività/s: scritture parallele del motore corrette, perdita di Iggy nei 10 minuti | chiusa senza vincitore (`fase2d-risultati.md`), Marco sceglie Iggy (2026-11-24) |
 | 3 | gRPC contro iroh, solo sul bus vincitore | chiusa (`fase3-risultati.md`): iroh peggiore in consegna e CPU, pari nel ritmo massimo, una corsa da 10 minuti sotto il 99 %: resta gRPC con TLS |
-| 4 | Ripresa, guasti, aggiornamento senza perdite, log dei task, timer durevoli, ADR e Update della spine | blocchi A-C fatti (`fase4-risultati.md`, sezioni «Blocco A», «Blocco B» e «Blocco C»); blocchi D-E da fare |
+| 4 | Ripresa, guasti, aggiornamento senza perdite, log dei task, timer durevoli, ADR e Update della spine | blocchi A-C fatti (`fase4-risultati.md`, sezioni «Blocco A», «Blocco B» e «Blocco C»); blocco D fermo dopo la riga del costo dei timer: criterio non superato (avvio p99 2,9 volte, 10.000 att./s al 45-54 % con i timer), log dei task non costruito (sezione «Blocco D»); blocco E da fare |
 
 ## Fase 2: Iggy contro Valkey
 
