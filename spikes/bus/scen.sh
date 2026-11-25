@@ -199,11 +199,12 @@ case $SC in
     sleep 60
     ./rss.sh $EP $WP ;;
   auxrss)
-    # Blocco E2, riga 3: RSS a riposo (10 s dopo l'avvio) e sotto carico (a 1.000 att./s per 30 s, campione a 25 s) di motore, ausiliario
+    # Blocco E2, riga 3: RSS a riposo (60 s dopo l'avvio, come NFR-1) e sotto carico (a 1.000 att./s per 30 s, campione a 25 s) di motore, ausiliario
     # (figlio del motore), worker e Iggy; somma motore + ausiliario + Iggy (il worker non conta nel conto della piattaforma).
-    sleep 10
+    sleep ${IDLE:-60}
     AP=$(pgrep -P $EP | head -1)
-    echo "== a riposo"; ./rss.sh $EP $AP $WP
+    echo "== a riposo"; ./rss.sh $EP $AP $WP | tee out/rss-idle.txt
+    echo "rss somma a riposo (motore + ausiliario + iggy; pid motore=$EP ausiliario=$AP worker=$WP): $(awk '/^rss iggy/{s+=$3} /^rss pid='$EP' /{s+=$3} /^rss pid='${AP:-0}' /{s+=$3} END{print s}' out/rss-idle.txt) kB (80 MB = 81920 kB)"
     $L rate=100 kind=0 n=10 size=1024 secs=30 warm=2 stats=0 ledger=out/ledger.txt "$@" > out/load.txt &
     LP=$!
     sleep 27
