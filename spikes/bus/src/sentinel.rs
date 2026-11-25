@@ -265,6 +265,7 @@ mod run {
         st: Mutex<State>,
         stats: Mutex<Stats>,
         lag: Mutex<Histogram<u64>>,
+        delay: Mutex<Histogram<u64>>,
         log: Mutex<std::fs::File>,
     }
 
@@ -327,7 +328,16 @@ mod run {
                 continue;
             }
             let now = now_us();
-            let last = r.messages.last().unwrap().header.offset;
+            let (last, last_ts) = {
+                let h = &r.messages.last().unwrap().header;
+                (h.offset, h.timestamp)
+            };
+            // ritardo di lettura: ora di lettura meno ora di append dell'ultimo messaggio del gruppo (criterio di 1 s delle regole)
+            sh.delay
+                .lock()
+                .unwrap()
+                .record(now.saturating_sub(last_ts).max(1))
+                .ok();
             sh.lag
                 .lock()
                 .unwrap()
@@ -373,6 +383,7 @@ mod run {
             st: Mutex::new(State::new(start)),
             stats: Mutex::new(Stats::default()),
             lag: Mutex::new(hist()),
+            delay: Mutex::new(hist()),
             log: Mutex::new(
                 std::fs::OpenOptions::new()
                     .create(true)
@@ -422,6 +433,10 @@ mod run {
             st.recovered,
             stats.hdr_bytes,
             cpu_s() - cpu0
+        );
+        println!(
+            "sentinel_read_delay {}",
+            crate::fmt(&sh.delay.lock().unwrap())
         );
         println!("sentinel_retry_latency {}", crate::fmt(&st.retry_lat));
         println!(
