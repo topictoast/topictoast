@@ -1673,7 +1673,7 @@ Nessuna corsa porta `[macchina non ferma]`; attesa di quiete 0-30 s. (misurata)
 - **Costo.** ON contro OFF: CPU del motore per 1.000 attività 0,043 contro 0,041 (circa +5 %) più 0,024-0,025 s per 1.000 attività nell'ausiliario; andata e ritorno p50 0,26 ms e p99 2,0 ms; RSS dell'ausiliario circa 14,4-14,6 MB; istruzioni SQL per attività uguali. Questi valori non si confrontano con quelli di minisheep (altra CPU, altro disco).
 - **`start_ready` in ON è più basso che in OFF** (p50 156 contro 162-165 ms, p99 206-214 contro 242-252 ms) in entrambe le coppie. La causa è **ipotesi**, non isolata: il motore tiene il tetto di 512 attività in volo per tenant e a 10.000/s la coda di avvio dipende dal ritmo con cui le attività escono dal tetto, che con l'ausiliario cambia (la rilevazione `held_max` per minuto è 0 in tutte e due le corse ON e 276-741 in OFF). Non è un vantaggio dell'ausiliario da dichiarare: nessun criterio lo usa.
 - **Cancello del disco.** Il pavimento di questo disco (4,9 ms, stabile) è sopra il limite di 4,0 ms in tutte le misure: il cancello non ha mai potuto passare e ha solo aggiunto 15 minuti di attesa prima di ogni corsa (nessun effetto sul pavimento: 4,92-4,96 ms prima e dopo). Il pavimento misurato all'inizio di ON r1 (6,56 ms) è un picco isolato, subito rientrato (4,92 ms dopo).
-- **Scritture sul disco.** Il campionatore mostra una pressione I/O `some` di circa 53-62 % durante le corse, in tutti e quattro i casi (stessa forma di minisheep: il disco lavora quanto basta a sostenere il ritmo).
+- **Scritture sul disco.** Il campionatore mostra una pressione I/O `some` di circa 53-62 % durante le corse, in tutti e quattro i casi (osservata; nessun confronto con minisheep, come da regole).
 
 ### Non coperto
 
