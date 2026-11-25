@@ -45,6 +45,14 @@ services:
     cpuset: "${SPIKE_CPUSET:-}"
     ports: ["127.0.0.1:47003:5432"]
     volumes: ["${PG_DATA:-${SPIKE_DATA:-/home/white_sheep/.cache/ttspikebus-data}/postgres}:/var/lib/postgresql"]
+  # fase 4, blocco D: solo per la prova della creazione solo se assente (`If-None-Match: *`); versione fissata dalla spine, credenziali generate
+  rustfs:
+    image: rustfs/rustfs:${RUSTFS_IMAGE:-1.0.4}
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:?genera .env}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:?genera .env}
+    ports: ["127.0.0.1:47004:9000"]
+    volumes: ["${SPIKE_DATA:-/home/white_sheep/.cache/ttspikebus-data}/rustfs:/data"]
 # volumi con limite di dimensione (tmpfs di docker) per le prove di disco pieno (fase 4, blocco B):
 # creati da scen.sh, usati solo con IGGY_DATA=iggycap o PG_DATA=pgcap
 volumes:

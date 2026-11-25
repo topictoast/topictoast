@@ -71,6 +71,8 @@ logcheck_loop() {
     sleep 2
   done
   cat out/logcheck.txt
+  # le righe non entrano nei log del motore (FR-52): occorrenze del segreto sintetico nel registro del motore (solo il conteggio)
+  [ -n "$SPIKE_SECRET" ] && echo "marker_in_engine_log: $(cat out/engine.log out/engine-pre.log 2>/dev/null | grep -cF "$SPIKE_SECRET")"
   echo "-- log dei task a fine corsa (contatori del motore, SQL per attività dei due tenant): $("$BIN" stats dir=out | grep -E '^(tasklog|sql_per_activity_tenant)' | tr '\n' ' ')"
 }
 

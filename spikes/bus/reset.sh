@@ -8,6 +8,6 @@ D=${SPIKE_DATA:-/home/white_sheep/.cache/ttspikebus-data}
 S="${*:-iggy valkey}"
 docker compose -p ttspikebus down >/dev/null 2>&1
 mkdir -p "$D"
-docker run --rm -v "$D:/d" --entrypoint sh valkey/valkey:9.1.4 -c 'rm -rf /d/* /d/.[!.]*; mkdir -p /d/iggy /d/valkey /d/postgres; chown 999:999 /d/valkey /d/postgres'
+docker run --rm -v "$D:/d" --entrypoint sh valkey/valkey:9.1.4 -c 'rm -rf /d/* /d/.[!.]*; mkdir -p /d/iggy /d/valkey /d/postgres /d/rustfs; chown 999:999 /d/valkey /d/postgres; chown 10001:10001 /d/rustfs'
 docker compose -p ttspikebus up -d $S >/dev/null 2>&1
 [ -n "$NOSLEEP" ] || sleep 3
