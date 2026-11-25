@@ -222,6 +222,19 @@ async fn session(
             outbox.lock().unwrap().remove(&d.ack);
             continue;
         }
+        if d.stop {
+            // blocco E4: il motore chiede di fermare il tentativo (annullamento o scadenza dell'esecuzione): si interrompe l'attesa
+            // del lavoro e si registra l'istante di arrivo; `active` dice se il tentativo era ancora in corso
+            let h = running()
+                .lock()
+                .unwrap()
+                .remove(&(d.exec.clone(), d.step, d.attempt));
+            log_stop(&d, h.is_some());
+            if let Some(h) = h {
+                h.abort();
+            }
+            continue;
+        }
         let recv = now_us();
         let (slot, outbox) = (slot.clone(), outbox.clone());
         tokio::spawn(crate::worklog::task(
@@ -230,7 +243,9 @@ async fn session(
             slot.clone(),
             logbox.clone(),
         ));
-        tokio::spawn(async move {
+        let key = (d.exec.clone(), d.step, d.attempt);
+        let k2 = key.clone();
+        let h = tokio::spawn(async move {
             log_start(&d);
             // battiti (blocco C): con `lease_ms` il worker segnala ogni lease_ms/3 che il tentativo è vivo
             let hb = (d.lease_ms > 0).then(|| {
@@ -271,9 +286,55 @@ async fn session(
             if let Some(tx) = tx {
                 let _ = tx.send(r).await;
             }
+            running().lock().unwrap().remove(&k2);
         });
+        running().lock().unwrap().insert(key, h.abort_handle());
     }
     *slot.lock().unwrap() = None;
+}
+
+/// Tentativi in corso (esecuzione, passo, tentativo) con il modo di interromperli quando arriva uno `Stop`.
+// ponytail: con `lease_ms` > 0 il battito del tentativo interrotto non si ferma (task staccato); le scene dell'annullamento non lo usano
+fn running() -> &'static std::sync::Mutex<
+    std::collections::HashMap<(Vec<u8>, u32, u32), tokio::task::AbortHandle>,
+> {
+    static R: std::sync::OnceLock<
+        std::sync::Mutex<std::collections::HashMap<(Vec<u8>, u32, u32), tokio::task::AbortHandle>>,
+    > = std::sync::OnceLock::new();
+    R.get_or_init(Default::default)
+}
+
+/// Registro degli `Stop` ricevuti (argomento `stoplog=`): una riga `esecuzione passo tentativo istante_us attivo` (attivo = 1 se il
+/// tentativo era ancora in corso). Scritta subito, come `log_start`.
+fn log_stop(d: &pb::Delivery, active: bool) {
+    use std::io::Write;
+    static LOG: std::sync::OnceLock<Option<std::sync::Mutex<std::fs::File>>> =
+        std::sync::OnceLock::new();
+    let log = LOG.get_or_init(|| {
+        let p = arg("stoplog", "");
+        (!p.is_empty()).then(|| {
+            std::sync::Mutex::new(
+                std::fs::OpenOptions::new()
+                    .append(true)
+                    .create(true)
+                    .open(p)
+                    .unwrap(),
+            )
+        })
+    });
+    if let Some(f) = log {
+        let _ = f.lock().unwrap().write_all(
+            format!(
+                "{} {} {} {} {}\n",
+                crate::crypto::hex(&d.exec),
+                d.step,
+                d.attempt,
+                now_us(),
+                active as u8
+            )
+            .as_bytes(),
+        );
+    }
 }
 
 /// Sessione di un collegamento: il suo mittente corrente (vuoto tra un collegamento e il successivo).

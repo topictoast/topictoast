@@ -7,10 +7,10 @@
 
 use crate::bus::Res;
 use crate::crypto::{Uid, hex};
-use crate::ev::{Ev, Exec, Hash, Loc};
+use crate::ev::{EXEC_STEP, Ev, Exec, Hash, Loc};
 use sqlx::{AnyPool, Executor, Row, any::AnyPoolOptions};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
 
 tokio::task_local! {
     /// Indice del tenant il cui proiettore sta applicando (solo per contare le istruzioni per tenant).
@@ -28,6 +28,9 @@ pub struct Db {
     pub rows: AtomicU64,
     /// Generazione del bus corrente, scritta con ogni posizione applicata (fase 4).
     pub generation: AtomicU64,
+    /// Blocco E4: visto almeno un annullamento / un timer di scadenza dell'esecuzione. Finché sono falsi la proiezione non fa istruzioni in più.
+    pub cancelled_any: AtomicBool,
+    pub exec_timers: AtomicBool,
 }
 
 const CHUNK: usize = 500;
@@ -60,11 +63,13 @@ impl Db {
             stmts_t: [0.into(), 0.into()],
             rows: 0.into(),
             generation: 1.into(),
+            cancelled_any: false.into(),
+            exec_timers: false.into(),
         };
         let b = if pg { "BYTEA" } else { "BLOB" };
         for ddl in [
             "CREATE TABLE IF NOT EXISTS projection_pos(topic TEXT PRIMARY KEY, pos BIGINT NOT NULL, gen BIGINT NOT NULL DEFAULT 1)".to_string(),
-            format!("CREATE TABLE IF NOT EXISTS execution(id {b} PRIMARY KEY, tenant {b} NOT NULL, kind BIGINT NOT NULL, n BIGINT NOT NULL, work_ms BIGINT NOT NULL, out_size BIGINT NOT NULL, retry_ms BIGINT NOT NULL DEFAULT 0, input_hash {b} NOT NULL, input_seg BIGINT NOT NULL DEFAULT 0, input_off BIGINT NOT NULL DEFAULT 0, input_len BIGINT NOT NULL DEFAULT 0, accepted_us BIGINT NOT NULL, done_us BIGINT)"),
+            format!("CREATE TABLE IF NOT EXISTS execution(id {b} PRIMARY KEY, tenant {b} NOT NULL, kind BIGINT NOT NULL, n BIGINT NOT NULL, work_ms BIGINT NOT NULL, out_size BIGINT NOT NULL, retry_ms BIGINT NOT NULL DEFAULT 0, input_hash {b} NOT NULL, input_seg BIGINT NOT NULL DEFAULT 0, input_off BIGINT NOT NULL DEFAULT 0, input_len BIGINT NOT NULL DEFAULT 0, accepted_us BIGINT NOT NULL, done_us BIGINT, status BIGINT, end_role TEXT, end_name TEXT, end_us BIGINT)"),
             format!("CREATE TABLE IF NOT EXISTS activity(exec_id {b} NOT NULL, step BIGINT NOT NULL, tenant {b} NOT NULL, is_last BIGINT NOT NULL, ready_us BIGINT, done_us BIGINT, out_hash {b}, done_events BIGINT NOT NULL DEFAULT 0, out_seg BIGINT, out_off BIGINT, out_len BIGINT, PRIMARY KEY(exec_id, step))"),
             format!("CREATE TABLE IF NOT EXISTS timer(exec_id {b} NOT NULL, step BIGINT NOT NULL, kind BIGINT NOT NULL, attempt BIGINT NOT NULL, due_us BIGINT NOT NULL, PRIMARY KEY(exec_id, step))"),
             "CREATE INDEX IF NOT EXISTS execution_live ON execution(id) WHERE done_us IS NULL".to_string(),
@@ -123,6 +128,7 @@ impl Db {
         // solo INSERT); gli esiti cancellano il timer del loro passo
         let mut tm: HashMap<(Uid, u32), String> = HashMap::new();
         let mut dl = vec![];
+        let mut cn: Vec<(String, String)> = vec![];
         let mut fin_ts = 0;
         for e in evs {
             match e {
@@ -204,6 +210,9 @@ impl Db {
                     due_us,
                     ..
                 } => {
+                    if *step == EXEC_STEP {
+                        self.exec_timers.store(true, Relaxed);
+                    }
                     tm.insert(
                         (*exec, *step),
                         format!(
@@ -216,6 +225,27 @@ impl Db {
                         ),
                     );
                 }
+                Ev::Cancelled {
+                    exec,
+                    status,
+                    role,
+                    name,
+                    ts,
+                    ..
+                } => {
+                    self.cancelled_any.store(true, Relaxed);
+                    // storico (FR-10): stato, chi (ruolo e nome visualizzato) e quando; l'esecuzione esce dalle vive
+                    let q = |s: &str| s.replace('\'', "''");
+                    cn.push((
+                        self.lit(exec),
+                        format!(
+                            "UPDATE execution SET done_us={ts}, status={status}, end_role='{}', end_name='{}', end_us={ts} WHERE id={}",
+                            q(role),
+                            q(name),
+                            self.lit(exec)
+                        ),
+                    ));
+                }
             }
         }
         for ch in ex.chunks(CHUNK) {
@@ -227,6 +257,14 @@ impl Db {
         for ch in dn.chunks(CHUNK) {
             self.run(c, &format!("INSERT INTO activity(exec_id,step,tenant,is_last,ready_us,done_us,out_hash,done_events,out_seg,out_off,out_len) VALUES {} ON CONFLICT(exec_id,step) DO UPDATE SET done_us=excluded.done_us, out_hash=excluded.out_hash, out_seg=excluded.out_seg, out_off=excluded.out_off, out_len=excluded.out_len, done_events=activity.done_events+1", ch.join(","))).await?;
         }
+        let tm_ids: Vec<String> = if self.cancelled_any.load(Relaxed) {
+            let mut ids: Vec<Uid> = tm.keys().map(|k| k.0).collect();
+            ids.sort();
+            ids.dedup();
+            ids.iter().map(|e| self.lit(e)).collect()
+        } else {
+            vec![]
+        };
         let tm: Vec<String> = tm.into_values().collect();
         for ch in tm.chunks(CHUNK) {
             self.run(c, &format!("INSERT INTO timer(exec_id,step,kind,attempt,due_us) VALUES {} ON CONFLICT(exec_id,step) DO UPDATE SET kind=excluded.kind, attempt=excluded.attempt, due_us=excluded.due_us", ch.join(","))).await?;
@@ -249,6 +287,25 @@ impl Db {
                     fin_ts,
                     ch.join(",")
                 ),
+            )
+            .await?;
+        }
+        // Blocco E4. Annullamenti: storico e uscita dalle vive, poi via tutti i timer dell'esecuzione (anche quello di scadenza).
+        for (id, upd) in &cn {
+            self.run(c, upd).await?;
+            self.run(c, &format!("DELETE FROM timer WHERE exec_id={id}"))
+                .await?;
+        }
+        // Un `Timer` può arrivare dopo `Cancelled` (consegne fatte tra la richiesta e l'evento durevole: il loro timer segue nel bus):
+        // si toglie, per non lasciare righe di timer di esecuzioni annullate. Solo se si è visto un annullamento: nessun costo prima.
+        if self.cancelled_any.load(Relaxed) && !tm_ids.is_empty() {
+            self.run(c, &format!("DELETE FROM timer WHERE exec_id IN (SELECT id FROM execution WHERE status IS NOT NULL AND id IN ({}))", tm_ids.join(","))).await?;
+        }
+        // con timer di scadenza dell'esecuzione in uso, la sua riga si toglie quando l'esecuzione conclude
+        if self.exec_timers.load(Relaxed) && !fin.is_empty() {
+            self.run(
+                c,
+                &format!("DELETE FROM timer WHERE exec_id IN ({})", fin.join(",")),
             )
             .await?;
         }
@@ -280,6 +337,16 @@ impl Db {
             .await?;
         Ok(r.iter()
             .map(|x| (x.get::<String, _>(0), x.get::<i64, _>(1) as u64))
+            .collect())
+    }
+
+    /// Esecuzioni annullate o scadute già proiettate (blocco E4): servono a contare gli esiti tardivi dopo una ripresa.
+    pub async fn cancelled_ids(&self) -> Res<std::collections::HashSet<Uid>> {
+        let r = sqlx::query("SELECT id FROM execution WHERE status IS NOT NULL")
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(r.into_iter()
+            .map(|x| x.get::<Vec<u8>, _>(0).try_into().unwrap())
             .collect())
     }
 

@@ -12,6 +12,7 @@ mod bench;
 mod bus;
 #[cfg(not(feature = "old"))]
 mod busauth;
+mod cancelctl;
 mod crypto;
 mod db;
 mod engine;
@@ -130,6 +131,7 @@ async fn main() {
         ),
         "verify" => load::verify(&arg("db", ""), &arg("bus", "valkey"), &dir).await,
         "logcheck" => logchk::check(&dir, &arg("bus", "iggy")).await,
+        "cancelctl" => cancelctl::run(&url, &dir).await,
         // processo ausiliario (AD-6): lo avvia il motore con l'ambiente vuoto
         "aux" => auxp::serve(),
         #[cfg(not(feature = "old"))]

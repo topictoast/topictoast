@@ -12,11 +12,15 @@ message AcceptReq {
   uint32 retry_ms = 7; // kind 3: attesa tra il tentativo fallito e il successivo
 }
 message AcceptResp { bytes exec = 1; }
+// Blocco E4: annullamento di un'esecuzione (FR-10): ruolo di chi annulla e nome visualizzato se presente; la risposta arriva a evento durevole.
+message CancelReq { bytes exec = 1; string role = 2; string name = 3; }
+message CancelResp { string code = 1; }
 message StatsReq { bool reset = 1; }
 message StatsResp { string text = 1; }
 service Control {
   rpc Accept(AcceptReq) returns (AcceptResp);
   rpc Stats(StatsReq) returns (StatsResp);
+  rpc Cancel(CancelReq) returns (CancelResp);
 }
 
 // Worker: il worker apre la sessione, il motore consegna le attività e riceve gli esiti (C-2).
@@ -36,6 +40,7 @@ message Delivery {
   uint32 lease_ms = 13; // se diverso da 0: il worker manda un battito ogni lease_ms/3 e la scadenza è lease_ms dall ultimo battito
   bytes secret = 14;     // blocco D (log dei task): segreto sintetico consegnato al tentativo (la prova della sostituzione col segnaposto)
   uint64 log_ack = 15;   // se diverso da 0 non è una consegna: le righe del tentativo (exec, step, attempt) fino a questo numero sono durevoli
+  bool stop = 16;        // blocco E4: non è una consegna: il motore chiede di fermare il tentativo (exec, step, attempt) per annullamento o scadenza
 }
 // Una riga di log: il numero progressivo nel tentativo lo dà il worker (verità di base per perdite e doppioni).
 message LogLine { uint64 seq = 1; bytes text = 2; }

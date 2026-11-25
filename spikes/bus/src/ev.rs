@@ -56,7 +56,20 @@ pub enum Ev {
         out_hash: Hash,
         output: Bytes,
     },
+    /// Annullamento (FR-10) o scadenza dell'esecuzione (FR-8): l'esecuzione termina qui. `status` 1 = annullata, 2 = scaduta;
+    /// `role` è il ruolo di chi ha annullato (`timeout` per la scadenza), `name` il nome visualizzato se presente.
+    Cancelled {
+        exec: Uid,
+        tenant: Uid,
+        status: u8,
+        role: String,
+        name: String,
+        ts: u64,
+    },
 }
+
+/// Passo «virtuale» del timer di scadenza dell'esecuzione (tipo 3): non è un passo del DAG.
+pub const EXEC_STEP: u32 = u32::MAX;
 
 impl Ev {
     /// Parte dell'id (casuale in UUIDv7) per scegliere la connessione di scrittura.
@@ -64,6 +77,7 @@ impl Ev {
         let (Ev::Accepted { exec, .. }
         | Ev::Ready { exec, .. }
         | Ev::Done { exec, .. }
+        | Ev::Cancelled { exec, .. }
         | Ev::Timer { exec, .. }) = self;
         u64::from_le_bytes(exec[8..16].try_into().unwrap())
     }
@@ -73,6 +87,7 @@ impl Ev {
             Ev::Accepted { ts, .. }
             | Ev::Ready { ts, .. }
             | Ev::Done { ts, .. }
+            | Ev::Cancelled { ts, .. }
             | Ev::Timer { ts, .. } => *ts,
         }
     }
@@ -156,6 +171,24 @@ impl Ev {
                 v.extend_from_slice(out_hash);
                 v.extend_from_slice(output);
             }
+            Ev::Cancelled {
+                exec,
+                tenant,
+                status,
+                role,
+                name,
+                ts,
+            } => {
+                v.push(5);
+                v.extend_from_slice(exec);
+                v.extend_from_slice(tenant);
+                v.push(*status);
+                u64w(&mut v, *ts);
+                v.push(role.len() as u8);
+                v.extend_from_slice(role.as_bytes());
+                v.push(name.len() as u8);
+                v.extend_from_slice(name.as_bytes());
+            }
         }
         v
     }
@@ -203,6 +236,18 @@ impl Ev {
                 out_hash: b[46..78].try_into().unwrap(),
                 output: Bytes::copy_from_slice(&b[78..]),
             },
+            5 => {
+                let (rl, nl) = (b[42] as usize, 43 + b[42] as usize);
+                let text = |s: usize, l: usize| String::from_utf8_lossy(&b[s..s + l]).into_owned();
+                Ev::Cancelled {
+                    exec,
+                    tenant,
+                    status: b[33],
+                    ts: u64r(34),
+                    role: text(43, rl),
+                    name: text(nl + 1, b[nl] as usize),
+                }
+            }
             t => panic!("evento sconosciuto {t}"),
         }
     }
@@ -292,6 +337,44 @@ impl Exec {
                 .iter()
                 .map(|d| d.unwrap())
                 .collect()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `Cancelled` (blocco E4) passa da codifica e decodifica con ruolo e nome visualizzato, anche vuoti o con apice.
+    #[test]
+    fn cancelled_round_trip() {
+        for (role, name) in [
+            ("tenant", "Maria D'Angelo"),
+            ("timeout", ""),
+            ("integrator", "è ü 漢"),
+        ] {
+            let e = Ev::Cancelled {
+                exec: [3; 16],
+                tenant: [4; 16],
+                status: 1,
+                role: role.into(),
+                name: name.into(),
+                ts: 99,
+            };
+            match Ev::decode(&e.encode()) {
+                Ev::Cancelled {
+                    exec,
+                    tenant,
+                    status,
+                    role: r,
+                    name: n,
+                    ts,
+                } => {
+                    assert_eq!((exec, tenant, status, ts), ([3; 16], [4; 16], 1, 99));
+                    assert_eq!((r.as_str(), n.as_str()), (role, name));
+                }
+                _ => panic!("tipo sbagliato"),
+            }
         }
     }
 }

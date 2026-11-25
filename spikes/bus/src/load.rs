@@ -251,7 +251,7 @@ pub async fn verify(db_url: &str, bus_kind: &str, dir: &str) {
         .count("SELECT count(*) FROM activity WHERE done_us IS NOT NULL AND done_events <> 1")
         .await
         .unwrap();
-    let open = db.count("SELECT count(*) FROM activity a JOIN execution e ON e.id = a.exec_id WHERE e.done_us IS NOT NULL AND a.done_us IS NULL").await.unwrap();
+    let open = db.count("SELECT count(*) FROM activity a JOIN execution e ON e.id = a.exec_id WHERE e.done_us IS NOT NULL AND e.status IS NULL AND a.done_us IS NULL").await.unwrap();
     let tot = db
         .count("SELECT count(*) FROM activity WHERE done_us IS NOT NULL")
         .await

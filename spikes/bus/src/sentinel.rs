@@ -82,6 +82,16 @@ pub fn encode(e: &Ev) -> [u8; crate::bus::META_LEN] {
             due: 0,
             last: *last,
         },
+        // annullamento o scadenza (blocco E4): lo stato (1 annullata, 2 scaduta) viaggia nel campo `tkind`
+        Ev::Cancelled { exec, status, .. } => Meta {
+            kind: 5,
+            exec: *exec,
+            step: 0,
+            attempt: 0,
+            tkind: *status,
+            due: 0,
+            last: false,
+        },
     };
     let mut v = [0u8; crate::bus::META_LEN];
     v[0] = m.kind;
@@ -113,6 +123,9 @@ pub struct State {
     /// Ultimo timer per (esecuzione, passo): tipo, tentativo, scadenza.
     timers: HashMap<(Uid, u32), (u8, u32, u64)>,
     alarmed: HashSet<(Uid, u32, u32, u8)>,
+    /// Esecuzioni annullate o scadute viste (blocco E4).
+    // ponytail: l'insieme non si restringe mai (come `alarmed`); da potare alla chiusura dell'esecuzione in un servizio lungo
+    cancelled: HashSet<Uid>,
     last_event: u64,
     silent: bool,
     /// Allarmi per tipo: `overdue`, `retry`, `engine-silent`; ripartenze del motore viste.
@@ -132,6 +145,7 @@ impl State {
             open: HashSet::new(),
             timers: HashMap::new(),
             alarmed: HashSet::new(),
+            cancelled: HashSet::new(),
             last_event: now,
             silent: false,
             counts: [0; 3],
@@ -162,7 +176,17 @@ impl State {
             self.recovered += 1;
             out.push("RECOVERED engine".into());
         }
+        // esecuzione annullata o scaduta: niente più timer né allarmi; gli eventi che le arrivano dopo (il timer di una consegna
+        // fatta prima dell'evento durevole) si ignorano
+        if m.kind != 5 && self.cancelled.contains(&m.exec) {
+            return out;
+        }
         match m.kind {
+            5 => {
+                self.cancelled.insert(m.exec);
+                self.open.remove(&m.exec);
+                self.timers.retain(|(e, _), _| *e != m.exec);
+            }
             1 => {
                 self.open.insert(m.exec);
             }
@@ -516,6 +540,37 @@ mod tests {
                 .is_empty()
         );
         assert_eq!(s.counts[1], 1);
+    }
+
+    /// Annullamento (blocco E4): i timer dell'esecuzione spariscono e non danno allarmi; un timer arrivato dopo (consegna fatta prima
+    /// dell'evento durevole) si ignora; l'esecuzione non è più aperta, quindi il silenzio non è un allarme.
+    #[test]
+    fn cancel_clears_timers_and_alarms() {
+        let mut s = State::new(0);
+        s.event(&meta(1, 0, 0, 0, false), 2_000_000, 1);
+        s.event(&meta(2, 0, 0, 1_000_000, false), 2_000_100, 1);
+        s.event(&meta(2, 1, 1, 9_000_000, false), 2_000_200, 1);
+        let c = Ev::Cancelled {
+            exec: E,
+            tenant: TENANTS[0],
+            status: 2,
+            role: "timeout".into(),
+            name: String::new(),
+            ts: 5,
+        };
+        let m = decode(&encode(&c)).unwrap();
+        assert_eq!((m.kind, m.tkind), (5, 2));
+        s.event(&m, 2_500_000, 1);
+        s.event(&meta(2, 0, 3, 1_000_000, false), 2_600_000, 1);
+        assert!(
+            s.tick(30_000_000).is_empty(),
+            "niente overdue, retry né silenzio"
+        );
+        assert_eq!(
+            s.counts,
+            [0, 1, 0],
+            "il solo allarme è il `retry` visto prima dell'annullamento"
+        );
     }
 
     /// Silenzio con un'esecuzione aperta: allarme, poi `RECOVERED` al primo evento; senza esecuzioni aperte nessun allarme.

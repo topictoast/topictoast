@@ -19,6 +19,10 @@ EP=; WP=
 WDEF=1; [ "$BUS" = valkey ] && WDEF=4
 WL=; ENGPFX=
 case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db|tretry|tdead|theart|retry) TRIM=0; WL="worklog=out/work.log" ;; t100k) TRIM=0 ;; logrun|aux1k|auxneg|auxrss) TRIM=0 ;; esac
+case $SC in cancel|cancel-crash|exectimeout) TRIM=0; WL="worklog=out/work.log stoplog=out/stop.log" ;; esac
+[ "$SC" = cancel ] && { NOWORKER=1; CAP=4; FANSLOW=1; }
+[ "$SC" = cancel-crash ] && { CAP=4096; STOP_DELAY=${STOP_DELAY:-4000}; }
+[ "$SC" = exectimeout ] && { EXEC_TIMEOUT=${EXEC_TIMEOUT:-3000}; CAP=4096; }
 # blocco D (log dei task): profilo delle righe dei worker (LOGA, LOGB = NxL: N righe da L byte per tentativo, tenant A e B),
 # pausa tra le due metà (LOGSPLIT), tetto (LOGLINES, LOGBYTES), ritardo della conferma (ACKHOLD), sostituzione del segreto
 # (REDACT=0 la spegne: corsa di controllo), LOGMARK=1 genera un segreto sintetico per corsa (mai da .env, mai stampato)
@@ -55,7 +59,7 @@ NSE() { nsenter -U --preserve-credentials -m -t $EP "$@"; }
 
 start_engine() {
   : > out/engine.log
-  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} meta=${META:-0} aux=${AUX:-0} >> out/engine.log 2>&1 &
+  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} meta=${META:-0} aux=${AUX:-0} exec_timeout_ms=${EXEC_TIMEOUT:-0} stop_delay_ms=${STOP_DELAY:-0} fan_slow=${FANSLOW:-0} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
@@ -76,6 +80,29 @@ logcheck_loop() {
   echo "-- log dei task a fine corsa (contatori del motore, SQL per attività dei due tenant): $("$BIN" stats dir=out | grep -E '^(tasklog|sql_per_activity_tenant)' | tr '\n' ' ')"
 }
 
+# blocco E4: rapporto dell'annullamento e della scadenza dell'esecuzione, dai registri (motore, worker, sentinella) e dal database.
+# Gli istanti sono microsecondi della stessa macchina. `durable.txt` = esecuzione e istante dell'evento `Cancelled` durevole.
+cancel_report() {
+  ELOG=$(cat out/engine-pre.log out/engine.log 2>/dev/null)
+  echo "$ELOG" | grep '^CANCEL_DURABLE' | awk '{print $2, $NF}' > out/durable.txt
+  echo "-- annullamenti e scadenze durevoli: $(wc -l < out/durable.txt); per stato alla richiesta: $(echo "$ELOG" | grep '^CANCEL_RECV' | sed -E 's/.*status=([0-9]).*state=([a-z]+).*/status\1:\2/' | sort | uniq -c | tr -s ' ' | tr '\n' ';')"
+  echo "-- risposte del pilota: $(grep -h '^CANCELCTL' out/cancelctl.txt 2>/dev/null | grep -oE 'code=[A-Z_:a-z]+' | sort | uniq -c | tr -s ' ' | tr '\n' ';')"
+  echo "-- consegne per un'esecuzione annullata DOPO l'evento durevole (registro dei worker, devono essere 0): $(awk 'NR==FNR{d[$1]=$2; next} ($1 in d) && $4>d[$1]' out/durable.txt out/work.log | wc -l)"
+  echo "-- Stop spediti PRIMA dell'evento durevole (devono essere 0): $(echo "$ELOG" | grep '^STOP_SENT' | awk 'NR==FNR{d[$1]=$2; next} ($2 in d) && $5<d[$2]' out/durable.txt - | wc -l)"
+  echo "-- Stop spediti: $(echo "$ELOG" | grep -c '^STOP_SENT'); tentativi in volo all'evento durevole: $(echo "$ELOG" | grep '^CANCEL_DURABLE' | sed -E 's/.*inflight=([0-9]+).*/\1/' | awk '{s+=$1} END{print s+0}'); Stop ricevuti dai worker: $(wc -l < out/stop.log 2>/dev/null || echo 0), di cui con il tentativo ancora in corso: $(awk '$5==1' out/stop.log 2>/dev/null | wc -l)"
+  echo "-- dall'evento durevole allo Stop ricevuto dal worker (ms, p50/p99/max): $(awk 'NR==FNR{d[$1]=$2; next} ($1 in d){print ($4-d[$1])/1000}' out/durable.txt out/stop.log 2>/dev/null | sort -n | awk '{a[NR]=$1} END{if(NR) printf "n=%d p50=%.1f p99=%.1f max=%.1f", NR, a[int((NR+1)/2)], a[int(NR*0.99)>0?int(NR*0.99):1], a[NR]; else print "nessuno"}')"
+  echo "-- tentativi iniziati dopo la ripartenza per esecuzioni annullate: vedi consegne dopo l'evento durevole"
+  if [ $DB = sqlite ]; then
+    echo "sql storico: $(sqlite3 out/spike.db "SELECT status, count(*) FROM execution WHERE status IS NOT NULL GROUP BY status" | tr '\n' ';') ruoli: $(sqlite3 out/spike.db "SELECT status||':'||end_role||':'||end_name, count(*) FROM execution WHERE status IS NOT NULL GROUP BY 1" | tr '\n' ';')"
+    echo "sql timer rimasti per esecuzioni annullate o scadute (devono essere 0): $(sqlite3 out/spike.db "SELECT count(*) FROM timer t JOIN execution e ON e.id=t.exec_id WHERE e.status IS NOT NULL")"
+    echo "sql attivita' aperte nelle esecuzioni annullate: $(sqlite3 out/spike.db "SELECT count(*) FROM activity a JOIN execution e ON e.id=a.exec_id WHERE e.status IS NOT NULL AND a.done_us IS NULL") (ammesse: restano ferme)"
+  fi
+  if [ -f out/sentinel.log ]; then
+    awk 'NR==FNR{d[$1]=$2; next} $2=="ALARM" && ($3=="overdue"||$3=="retry") && ($4 in d){t++; if ($1>d[$4]) dopo++} END{print "-- allarmi del sentinella per esecuzioni annullate: totali " t+0 ", DOPO l\x27evento durevole (devono essere 0) " dopo+0}' out/durable.txt out/sentinel.log
+  fi
+  echo "-- contatori del motore (post-ripartenza se c'e' stato un crash): $("$BIN" stats dir=out | grep -E '^(cancel |cancel_durable_latency|exec_timeout_fire_delay)' | tr '\n' ' ')"
+}
+
 # blocco E2: contatori finali dell'ausiliario e latenza del passo (dopo lo svuotamento: le chiamate si confrontano con le attività concluse)
 aux_final() {
   echo "-- ausiliario a fine corsa: $("$BIN" stats dir=out | grep -E '^(aux|step_latency)' | tr '\n' ' ')"
@@ -91,7 +118,7 @@ rm -rf out/archive out/logs out/spike.db* out/master.key out/ledger.txt
 [ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
 # CAPDBONLY=1: solo il database nel tmpfs (l archivio resta sul disco vero), per provare il disco pieno del database da solo
 [ "$SC" = dfull-db ] && [ -z "$CAPDBONLY" ] && ln -s "$PWD/out/capmnt/archive" out/archive
-rm -f out/sentinel.log out/sentinel.stop out/sentinel.txt out/newtopic.txt out/work.log out/engine-pre.log out/kind0-dump.txt out/log-written.txt out/logcheck.txt out/logtail.txt out/noisy-a.txt
+rm -f out/sentinel.log out/sentinel.stop out/sentinel.txt out/newtopic.txt out/work.log out/stop.log out/cancel-recv.txt out/engine-pre.log out/kind0-dump.txt out/log-written.txt out/logcheck.txt out/logtail.txt out/noisy-a.txt
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
 [ -f out/worker.cred ] || "$BIN" gen-cred dir=out
 echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64}"
@@ -116,9 +143,9 @@ sentinel_stop() {
   echo "sentinel allarmi: overdue=$(grep -c 'ALARM overdue' out/sentinel.log) retry=$(grep -c 'ALARM retry' out/sentinel.log) engine-silent=$(grep -c 'ALARM engine-silent' out/sentinel.log) recovered=$(grep -c 'RECOVERED engine' out/sentinel.log)"
   echo "sentinel prime righe: $(grep -m1 'ALARM overdue' out/sentinel.log) | $(grep -m1 'ALARM engine-silent' out/sentinel.log) | $(grep -m1 'RECOVERED engine' out/sentinel.log) | $(grep -m1 'ALARM retry' out/sentinel.log)"
 }
-$TS_ENG "$BIN" worker dir=out link=${LINK:-grpc} sessions=${WSESS:-4} $WL > out/worker.log 2>&1 &
-WP=$!
-sleep 1
+start_worker() { $TS_ENG "$BIN" worker dir=out link=${LINK:-grpc} sessions=${WSESS:-4} $WL > out/worker.log 2>&1 & WP=$!; }
+# blocco E4: NOWORKER=1 lascia la scena avviare il worker (per avere passi in coda mai consegnati)
+[ -n "$NOWORKER" ] || { start_worker; sleep 1; }
 L="$TS_LOAD $BIN load dir=out ${PAYLOAD:+payload=$PAYLOAD} ${INBAD:+inbad=$INBAD} ${INFLAG:+inflag=$INFLAG}"
 
 case $SC in
@@ -163,6 +190,49 @@ case $SC in
     [ -n "$NOISY" ] && { wait $LA; echo "-- tenant A (rumoroso)"; grep -E "^(load|offered|accept_rtt|activities)" out/noisy-a.txt; }
     for i in $(seq 1 12); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
     logcheck_loop ;;
+  cancel)
+    # Blocco E4, annullamento (FR-10): engine con `cap=4` e rami del fan-out tutti lenti, worker NON ancora collegato. Fase `never`: passi in coda
+    # mai consegnati; poi il worker e la fase `rest`: in volo, trattenuti dal tetto, ritentativo in attesa, fan-out, già concluse, ripetuti.
+    "$BIN" cancelctl dir=out phase=never | tee out/cancelctl.txt
+    start_worker; sleep 1
+    "$BIN" cancelctl dir=out phase=rest | tee -a out/cancelctl.txt
+    for i in $(seq 1 ${VTRIES:-12}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
+    sleep 2; sentinel_stop
+    cancel_report ;;
+  cancel-crash)
+    # Blocco E4: 100 esecuzioni lunghe (5 s) annullate tutte insieme, poi altre 100; `stop_delay_ms=4000` ritarda gli Stop dopo l'evento durevole:
+    # `kill -9` del motore dopo gli annullamenti durevoli e prima degli Stop, riavvio. Si registra se il worker riceve uno Stop o solo un esito rifiutato.
+    "$BIN" cancelctl dir=out phase=crash | tee out/cancelctl.txt
+    echo "prima del kill: $("$BIN" stats dir=out | grep -E '^(cancel |undurable_deliveries)' | tr '\n' ' ')"
+    cp out/engine.log out/engine-pre.log
+    T0=$(us); kill -9 $EP; wait $EP 2>/dev/null; echo "kill T0_us=$T0 (Stop spediti prima del kill: $(grep -c '^STOP_SENT' out/engine-pre.log))"
+    start_engine
+    RU=$(sed -n 's/^READY .*now_us=\([0-9]*\).*/\1/p' out/engine.log)
+    echo "kill -> READY: $(ms $T0 $RU) ms; READY_us=$RU"; grep -E "ripresa" out/engine.log
+    sleep 7
+    for i in $(seq 1 ${VTRIES:-12}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
+    echo "Stop ricevuti dai worker dopo la ripartenza (righe di stop.log): $(wc -l < out/stop.log 2>/dev/null || echo 0); esiti rifiutati e contati come tardivi: $("$BIN" stats dir=out | grep -oE 'late_after_cancel=[0-9]+')"
+    sleep 1; sentinel_stop
+    cancel_report ;;
+  exectimeout)
+    # Blocco E4, scadenza dell'esecuzione (FR-8): `exec_timeout_ms=3000` dall'accettazione. Tenant A: esecuzioni da 3 passi da 2 s (scadono a metà),
+    # tenant B: esecuzioni da un passo da 100 ms (concludono prima). Con TCRASH=1 `kill -9` del motore a 1,5 s, prima che la prima scadenza sia dovuta.
+    $L rate=20 kind=0 n=3 size=64 work_ms=2000 tenants=a secs=5 warm=0 stats=0 ledger=out/ledger-a.txt > out/load-a.txt &
+    LA=$!
+    $L rate=20 kind=0 n=1 size=64 work_ms=100 tenants=b secs=5 warm=0 stats=0 ledger=out/ledger-b.txt > out/load-b.txt &
+    LB=$!
+    if [ -n "$TCRASH" ]; then
+      sleep 1.5; cp out/engine.log out/engine-pre.log
+      echo "prima del kill: $("$BIN" stats dir=out | grep -E '^(timers_pending|secs)' | tr '\n' ' ')"
+      T0=$(us); kill -9 $EP; wait $EP 2>/dev/null; echo "kill T0_us=$T0"
+      start_engine; grep -E "ripresa" out/engine.log
+    fi
+    wait $LA $LB; cat out/load-a.txt out/load-b.txt | grep -E '^(load|offered)'
+    cat out/ledger-a.txt out/ledger-b.txt > out/ledger.txt
+    sleep 4
+    for i in $(seq 1 ${VTRIES:-12}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
+    sleep 2; sentinel_stop
+    cancel_report ;;
   retry)
     # Blocco sentinella, riga 3: errori senza kill. kind 3: il primo tentativo di ogni passo fallisce, attesa di ${RETRY_MS:-300} ms,
     # secondo tentativo. 100 esecuzioni/s per 5 s; i tentativi falliti sono i primi tentativi iniziati (registro dei worker).

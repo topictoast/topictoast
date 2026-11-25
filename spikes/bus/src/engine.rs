@@ -7,13 +7,13 @@
 use crate::bus::Bus;
 use crate::crypto::{Keys, Uid, hex, sha};
 use crate::db::Db;
-use crate::ev::{Ev, Exec, Hash, Loc};
+use crate::ev::{EXEC_STEP, Ev, Exec, Hash, Loc};
 use crate::pb;
 use crate::{hist, now_us};
 use bytes::Bytes;
 use hdrhistogram::Histogram;
 use sha2::Digest;
-use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -191,6 +191,66 @@ pub struct Shared {
     pub meta: bool,
     /// Blocco E2: processo ausiliario (argomento `aux=1`); `None` = niente cambia.
     pub aux: Option<Arc<crate::auxp::Client>>,
+    /// Blocco E4: scadenza dell'esecuzione (ms dall'accettazione, 0 = nessuna), ritardo dell'invio degli `Stop` dopo l'evento durevole
+    /// (solo per la scena del crash), rami del fan-out tutti lenti (per avere più passi in volo) e contatori.
+    pub exec_timeout_ms: u64,
+    pub stop_delay_ms: u64,
+    pub fan_slow: bool,
+    pub canc: Canc,
+}
+
+/// Contatori di annullamento e scadenza dell'esecuzione (blocco E4).
+#[derive(Default)]
+pub struct Canc {
+    pub cancelled: AtomicU64,
+    pub expired: AtomicU64,
+    /// Richieste senza effetto: esecuzione già conclusa o sconosciuta, già annullata, annullamento già in corso.
+    pub noop_not_live: AtomicU64,
+    pub noop_again: AtomicU64,
+    pub noop_cancelling: AtomicU64,
+    pub stops_sent: AtomicU64,
+    pub stops_no_session: AtomicU64,
+    /// Attività in volo al momento dell'evento durevole (quelle a cui si manda `Stop`).
+    pub inflight_at_durable: AtomicU64,
+    /// Consegne fatte tra la ricezione della richiesta e l'evento durevole (consentite: l'evento non è ancora durevole).
+    pub window_deliveries: AtomicU64,
+    /// Esiti arrivati dopo l'annullamento: contati, rifiutati, confermati; non creano nulla.
+    pub late_after_cancel: AtomicU64,
+    /// Dalla ricezione della richiesta all'evento durevole, e ritardo di scatto del timer di scadenza dell'esecuzione (µs).
+    pub durable_lat: Mutex<Option<Histogram<u64>>>,
+    pub timeout_delay: Mutex<Option<Histogram<u64>>>,
+}
+
+impl Canc {
+    fn rec(h: &Mutex<Option<Histogram<u64>>>, us: u64) {
+        h.lock()
+            .unwrap()
+            .get_or_insert_with(hist)
+            .record(us.max(1))
+            .ok();
+    }
+
+    pub fn text(&self) -> String {
+        let g = |a: &AtomicU64| a.load(Relaxed);
+        let f = |h: &Mutex<Option<Histogram<u64>>>| {
+            crate::fmt(h.lock().unwrap().get_or_insert_with(hist))
+        };
+        format!(
+            "cancel cancelled={} expired={} noop_not_live={} noop_again={} noop_cancelling={} stops_sent={} stops_no_session={} inflight_at_durable={} window_deliveries={} late_after_cancel={}\ncancel_durable_latency {}\nexec_timeout_fire_delay {}",
+            g(&self.cancelled),
+            g(&self.expired),
+            g(&self.noop_not_live),
+            g(&self.noop_again),
+            g(&self.noop_cancelling),
+            g(&self.stops_sent),
+            g(&self.stops_no_session),
+            g(&self.inflight_at_durable),
+            g(&self.window_deliveries),
+            g(&self.late_after_cancel),
+            f(&self.durable_lat),
+            f(&self.timeout_delay)
+        )
+    }
 }
 
 impl Shared {
@@ -306,6 +366,7 @@ impl Shared {
             Ev::Accepted { tenant, .. }
             | Ev::Ready { tenant, .. }
             | Ev::Done { tenant, .. }
+            | Ev::Cancelled { tenant, .. }
             | Ev::Timer { tenant, .. } => tenant,
         };
         let id = *uuid::Uuid::now_v7().as_bytes();
@@ -348,6 +409,29 @@ pub enum Msg {
         exec: Uid,
         step: u32,
     },
+    /// Annullamento di un'esecuzione (blocco E4, FR-10); la risposta parte a evento durevole.
+    Cancel {
+        exec: Uid,
+        role: String,
+        name: String,
+        reply: oneshot::Sender<Result<String, Status>>,
+    },
+    /// Interno: il timer di scadenza dell'esecuzione è scattato (FR-8), `due` è la sua scadenza.
+    ExecTimeout {
+        exec: Uid,
+        due: u64,
+    },
+}
+
+/// Annullamento accolto nel gruppo di eventi in preparazione: gli effetti partono solo quando l'evento è durevole (AD-2).
+struct CancelAcc {
+    exec: Uid,
+    status: u8,
+    role: String,
+    /// Come si presentava l'esecuzione alla richiesta: `never`, `held`, `inflight`, `fanout`, `retrywait`, `between`.
+    state: &'static str,
+    recv_us: u64,
+    reply: Option<oneshot::Sender<Result<String, Status>>>,
 }
 
 /// Attività scelta da `dispatch` e in attesa della risposta di `PREPARE` (blocco E2).
@@ -373,9 +457,16 @@ struct Infl {
     attempt: u32,
     /// Istante di «pronta» dell'attività (0 dopo una ripresa): serve alla latenza del passo.
     ready_us: u64,
+    /// Sessione del worker che ha ricevuto la consegna (0 dopo una ripresa): a lei va lo `Stop`.
+    sess: u64,
 }
 
 struct Engine {
+    /// Blocco E4: esecuzioni annullate o scadute (la richiesta di un'esecuzione già annullata non ha effetto), richieste in
+    /// attesa dell'evento durevole (ricezione, consegne fatte nel frattempo) e annullamenti del gruppo in preparazione.
+    cancelled: HashSet<Uid>,
+    cancelling: HashMap<Uid, (u64, u64)>,
+    cancel_acc: Vec<CancelAcc>,
     sh: Arc<Shared>,
     execs: HashMap<Uid, Exec>,
     sessions: Vec<(u64, mpsc::Sender<Result<pb::Delivery, Status>>)>,
@@ -455,6 +546,168 @@ impl Engine {
         }
     }
 
+    /// Accoglie un annullamento (`status` 1, FR-10) o una scadenza (`status` 2, FR-8): torna l'evento `Cancelled` da scrivere, oppure
+    /// risponde subito con un codice se non c'è nulla da fare (già conclusa o sconosciuta, già annullata, annullamento in corso).
+    /// Nessun effetto qui (AD-2): consegne, `Stop`, code e timer cambiano solo a evento durevole, in `apply_cancel`.
+    fn begin_cancel(
+        &mut self,
+        exec: Uid,
+        status: u8,
+        role: String,
+        name: String,
+        reply: Option<oneshot::Sender<Result<String, Status>>>,
+    ) -> Option<(usize, Ev)> {
+        let noop =
+            |reply: Option<oneshot::Sender<Result<String, Status>>>, c: &AtomicU64, code: &str| {
+                c.fetch_add(1, Relaxed);
+                if let Some(r) = reply {
+                    let _ = r.send(Ok(code.into()));
+                }
+            };
+        let canc = &self.sh.canc;
+        if self.cancelling.contains_key(&exec) {
+            noop(reply, &canc.noop_cancelling, "E_CANCELLING");
+            return None;
+        }
+        if self.cancelled.contains(&exec) {
+            noop(reply, &canc.noop_again, "ALREADY_CANCELLED");
+            return None;
+        }
+        let Some(e) = self.execs.get(&exec).filter(|e| !e.finished()) else {
+            noop(reply, &canc.noop_not_live, "E_NOT_LIVE");
+            return None;
+        };
+        let (ti, tenant) = (tenant_idx(&e.tenant).unwrap(), e.tenant);
+        // come si presenta l'esecuzione alla richiesta (solo per il rapporto)
+        let k = (0..e.steps())
+            .filter(|s| self.inflight.contains_key(&(exec, *s)))
+            .count();
+        let retry = (0..e.steps()).any(|s| self.tmap.get(&(exec, s)).is_some_and(|t| t.0 == 1));
+        let queued = self.pending.iter().any(|q| q.iter().any(|p| p.0 == exec));
+        let state = match (k, retry, queued) {
+            (k, _, _) if k >= 2 => "fanout",
+            (1, _, _) => "inflight",
+            (_, true, _) => "retrywait",
+            (_, _, true) if self.tenant_inflight[ti] >= self.cap => "held",
+            (_, _, true) => "never",
+            _ => "between",
+        };
+        let now = now_us();
+        eprintln!(
+            "CANCEL_RECV {} status={status} role={role} state={state} inflight={k} {now}",
+            hex(&exec)
+        );
+        self.cancelling.insert(exec, (now, 0));
+        self.cancel_acc.push(CancelAcc {
+            exec,
+            status,
+            role: role.clone(),
+            state,
+            recv_us: now,
+            reply,
+        });
+        Some((
+            ti,
+            Ev::Cancelled {
+                exec,
+                tenant,
+                status,
+                role,
+                name,
+                ts: self.bts,
+            },
+        ))
+    }
+
+    /// Effetti di un annullamento a evento durevole: l'esecuzione esce dallo stato (nessuna attività nuova: code, passi pronti e
+    /// ritentativi spariscono), i timer si cancellano come fa un esito, a ogni tentativo in volo va uno `Stop` e solo ora risponde il
+    /// chiamante. Un esito che arriva dopo trova l'esecuzione annullata: contato, rifiutato e confermato, non crea nulla.
+    async fn apply_cancel(&mut self, c: CancelAcc) {
+        let now = now_us();
+        let shared = self.sh.clone();
+        let canc = &shared.canc;
+        let win = self.cancelling.remove(&c.exec).map_or(0, |w| w.1);
+        self.cancelled.insert(c.exec);
+        let (steps, ti) = self
+            .execs
+            .remove(&c.exec)
+            .map_or((0, 0), |e| (e.steps(), tenant_idx(&e.tenant).unwrap()));
+        for q in self.pending.iter_mut() {
+            q.retain(|p| p.0 != c.exec);
+        }
+        let mut stops = vec![];
+        for s in 0..steps {
+            if let Some(f) = self.inflight.remove(&(c.exec, s)) {
+                self.tenant_inflight[ti] -= 1;
+                stops.push((s, f));
+            }
+            self.cancel_timer(c.exec, s);
+        }
+        self.cancel_timer(c.exec, EXEC_STEP);
+        if c.status == 1 {
+            canc.cancelled.fetch_add(1, Relaxed);
+        } else {
+            canc.expired.fetch_add(1, Relaxed);
+        }
+        canc.window_deliveries.fetch_add(win, Relaxed);
+        canc.inflight_at_durable
+            .fetch_add(stops.len() as u64, Relaxed);
+        Canc::rec(&canc.durable_lat, now.saturating_sub(c.recv_us));
+        eprintln!(
+            "CANCEL_DURABLE {} status={} role={} state={} inflight={} window_deliveries={win} latency_us={} {now}",
+            hex(&c.exec),
+            c.status,
+            c.role,
+            c.state,
+            stops.len(),
+            now.saturating_sub(c.recv_us)
+        );
+        // `Stop` ai worker: a ognuno la sessione che ha ricevuto la consegna; con `stop_delay_ms` l'invio si ritarda (scena del crash)
+        let mut out = vec![];
+        for (s, f) in stops {
+            let tx = self
+                .sessions
+                .iter()
+                .find(|x| x.0 == f.sess)
+                .map(|x| x.1.clone());
+            out.push((tx, s, f.attempt));
+        }
+        let (sh, exec, delay) = (self.sh.clone(), c.exec, self.sh.stop_delay_ms);
+        let send = async move {
+            if delay > 0 {
+                tokio::time::sleep(Duration::from_millis(delay)).await;
+            }
+            for (tx, step, attempt) in out {
+                match tx {
+                    Some(tx) => {
+                        let d = pb::Delivery {
+                            exec: exec.to_vec(),
+                            step,
+                            attempt,
+                            stop: true,
+                            ..Default::default()
+                        };
+                        let _ = tx.try_send(Ok(d));
+                        sh.canc.stops_sent.fetch_add(1, Relaxed);
+                        eprintln!("STOP_SENT {} {step} {attempt} {}", hex(&exec), now_us());
+                    }
+                    None => {
+                        sh.canc.stops_no_session.fetch_add(1, Relaxed);
+                    }
+                }
+            }
+        };
+        if delay > 0 {
+            tokio::spawn(send);
+        } else {
+            // senza ritardo si invia qui: `try_send` non attende
+            send.await;
+        }
+        if let Some(r) = c.reply {
+            let _ = r.send(Ok("CANCELLED".into()));
+        }
+    }
+
     /// Programma (o sostituisce) il timer di un passo: al più uno per attività.
     fn set_timer(&mut self, exec: Uid, step: u32, kind: u8, attempt: u32, due: u64) {
         if let Some((_, _, old)) = self.tmap.insert((exec, step), (kind, attempt, due)) {
@@ -520,6 +773,8 @@ impl Engine {
                         queued = true;
                     }
                 }
+                // scadenza dell'esecuzione (FR-8): segue lo stesso percorso di un annullamento, con ruolo `timeout`
+                3 => waits.push(Msg::ExecTimeout { exec, due }),
                 _ => waits.push(Msg::WaitDone { exec, step }),
             }
         }
@@ -572,7 +827,7 @@ impl Engine {
                     // fan-out: solo il ramo 0 è lento, così le uscite degli altri rami sono già proiettate quando serve il join
                     let (tenant, work_ms, out_size) = (
                         e.tenant,
-                        if e.kind == 1 && step != 0 {
+                        if e.kind == 1 && step != 0 && !self.sh.fan_slow {
                             0
                         } else {
                             e.work_ms
@@ -678,7 +933,7 @@ impl Engine {
                     _ => input,
                 };
                 self.rr = (self.rr + 1) % self.sessions.len();
-                let (_, tx) = self.sessions[self.rr].clone();
+                let (sess_id, tx) = self.sessions[self.rr].clone();
                 self.next_delivery += 1;
                 let mut d = pb::Delivery {
                     exec: exec.to_vec(),
@@ -697,6 +952,7 @@ impl Engine {
                     lease_ms: self.sh.lease_ms as u32,
                     secret: self.sh.secret.clone(),
                     log_ack: 0,
+                    stop: false,
                 };
                 // Blocco D, seconda parte: «invia prima, registra dopo». L'attività è già durevolmente pronta (il gruppo di
                 // `Ready` o di un timer di ritentativo/scadenza che l'ha messa in coda è durevole: AD-2 vale per quella
@@ -733,12 +989,17 @@ impl Engine {
                 d.sent_us = now_us();
                 let _ = tx.try_send(Ok(d));
                 n_sent += 1;
+                // annullamento in attesa dell'evento durevole: le consegne di questa finestra si contano (sono consentite)
+                if let Some(w) = self.cancelling.get_mut(&exec) {
+                    w.1 += 1;
+                }
                 self.inflight.insert(
                     (exec, step),
                     Infl {
                         delivery_id: self.next_delivery,
                         attempt,
                         ready_us,
+                        sess: sess_id,
                     },
                 );
                 self.tenant_inflight[ti] += 1;
@@ -846,8 +1107,44 @@ impl Engine {
                             input,
                         },
                     ));
+                    // FR-8: timer di scadenza dell'esecuzione (tipo 3), scritto nel gruppo dell'accettazione e armato a gruppo durevole
+                    // (assunzione delle regole: l'orologio parte dall'accettazione, la coda conta)
+                    if self.sh.exec_timeout_ms > 0 {
+                        let due = ts + self.sh.exec_timeout_ms * 1000;
+                        evs.push((
+                            tenant,
+                            Ev::Timer {
+                                exec,
+                                tenant: t,
+                                step: EXEC_STEP,
+                                kind: 3,
+                                attempt: 0,
+                                due_us: due,
+                                ts,
+                            },
+                        ));
+                        self.arm.push((exec, EXEC_STEP, 3, 0, due));
+                    }
                     self.decide(exec, &mut evs, &mut newly);
                     replies.push((reply, exec, t0));
+                }
+                Msg::Cancel {
+                    exec,
+                    role,
+                    name,
+                    reply,
+                } => {
+                    if let Some(ev) = self.begin_cancel(exec, 1, role, name, Some(reply)) {
+                        evs.push(ev);
+                    }
+                }
+                Msg::ExecTimeout { exec, due } => {
+                    Canc::rec(&self.sh.canc.timeout_delay, self.bts.saturating_sub(due));
+                    if let Some(ev) =
+                        self.begin_cancel(exec, 2, "timeout".into(), String::new(), None)
+                    {
+                        evs.push(ev);
+                    }
                 }
                 Msg::Result { sess, r } => {
                     let exec: Uid = r.exec.as_slice().try_into().unwrap();
@@ -891,6 +1188,10 @@ impl Engine {
                         }
                         _ => {
                             self.sh.m.lock().unwrap().rejected += 1;
+                            // blocco E4: un esito che arriva per un'esecuzione annullata o scaduta si conta, non crea nulla
+                            if self.cancelled.contains(&exec) {
+                                self.sh.canc.late_after_cancel.fetch_add(1, Relaxed);
+                            }
                             self.ack_now(sess, r.delivery_id);
                             continue;
                         }
@@ -998,6 +1299,9 @@ impl Engine {
         ));
         if !last {
             self.decide(exec, evs, newly);
+        } else {
+            // l'esecuzione è conclusa: la sua scadenza non serve più
+            self.cancel_timer(exec, EXEC_STEP);
         }
     }
 
@@ -1048,6 +1352,10 @@ impl Engine {
         for (reply, exec, _) in g.replies {
             let _ = reply.send(Ok(exec));
         }
+        // blocco E4: l'evento `Cancelled` è durevole, ora partono gli effetti e la risposta al chiamante
+        for c in g.cancels {
+            self.apply_cancel(c).await;
+        }
         // esiti durevoli: conferma ai worker; il primo dopo l'avvio o dopo il ritorno del bus si scrive nel log
         if !g.acks.is_empty() && self.sh.log_first.swap(false, Relaxed) {
             eprintln!("FIRST_DONE {}", now_us());
@@ -1056,12 +1364,17 @@ impl Engine {
             self.ack_now(sess, id);
         }
         for (ti, exec, step, ts) in g.newly {
-            self.pending[ti].push_back((exec, step, ts, 0));
+            // un'esecuzione annullata nel frattempo non ha più passi da consegnare
+            if !self.cancelled.contains(&exec) {
+                self.pending[ti].push_back((exec, step, ts, 0));
+            }
         }
         // timer durevoli: ora che i loro eventi sono sul bus si armano in memoria, e solo dopo parte la consegna che li usa
         for (exec, step, kind, attempt, due) in g.arm {
             // solo se il timer serve ancora: il tentativo è ancora in volo (scadenza) o il passo non è concluso (attese)
-            let live = if kind == 0 {
+            let live = if step == EXEC_STEP {
+                self.execs.contains_key(&exec)
+            } else if kind == 0 {
                 self.inflight.get(&(exec, step)).map(|f| f.attempt) == Some(attempt)
             } else {
                 self.execs
@@ -1109,6 +1422,7 @@ impl Engine {
             arm: std::mem::take(&mut self.arm),
             deliveries: 0,
             intake,
+            cancels: std::mem::take(&mut self.cancel_acc),
         };
         self.groups.insert(self.gid, g);
     }
@@ -1174,6 +1488,7 @@ impl Engine {
                 arm: vec![],
                 deliveries: 0,
                 intake: false,
+                cancels: vec![],
             };
             self.finalize(g).await;
         } else {
@@ -1254,6 +1569,8 @@ struct Group {
     deliveries: u64,
     /// Gruppo nato da messaggi in ingresso (conta per il limite `k`), non da una consegna o da un timer.
     intake: bool,
+    /// Annullamenti accolti in questo gruppo (effetti a gruppo durevole).
+    cancels: Vec<CancelAcc>,
 }
 
 /// Richiesta di scrittura per una coda (tenant, connessione).
@@ -1397,6 +1714,7 @@ async fn recover(
     HashMap<Uid, Exec>,
     HashMap<(Uid, u32), (u8, u32, u64)>,
     Vec<(usize, Uid, u32)>,
+    HashSet<Uid>,
 ) {
     let mut execs = sh
         .db
@@ -1409,6 +1727,12 @@ async fn recover(
         .await
         .expect("lettura dei timer dal database");
     let pos = sh.db.positions().await.unwrap();
+    // blocco E4: esecuzioni annullate o scadute (dal database e dagli eventi riletti): non si riconsegna nulla e un esito tardivo si conta
+    let mut cancelled: HashSet<Uid> = sh
+        .db
+        .cancelled_ids()
+        .await
+        .expect("lettura delle esecuzioni annullate");
     let mut replayed = 0u64;
     for (ti, t) in TENANTS.iter().enumerate() {
         let topic = topic_of(t);
@@ -1457,6 +1781,9 @@ async fn recover(
                             e.issued[step as usize] = true;
                         }
                     }
+                    Ev::Cancelled { exec, .. } => {
+                        cancelled.insert(exec);
+                    }
                     Ev::Done {
                         exec,
                         tenant,
@@ -1480,7 +1807,7 @@ async fn recover(
         }
         let _ = ti;
     }
-    execs.retain(|_, e| !e.finished());
+    execs.retain(|id, e| !e.finished() && !cancelled.contains(id));
     timers.retain(|(id, _), _| execs.contains_key(id));
     // attività emesse e non concluse: la ripresa le classifica con il loro timer (v. `main`)
     let redeliver: Vec<(usize, Uid, u32)> = execs
@@ -1497,7 +1824,7 @@ async fn recover(
         redeliver.len(),
         timers.len()
     );
-    (execs, timers, redeliver)
+    (execs, timers, redeliver, cancelled)
 }
 
 // ---------------------------------------------------------------- proiettore
@@ -1748,6 +2075,35 @@ impl pb::control_server::Control for Ctl {
         }))
     }
 
+    /// Annullamento (FR-10): stessa porta dell'accettazione. La risposta arriva a evento `Cancelled` durevole, con un codice:
+    /// `CANCELLED`, oppure senza effetto `E_NOT_LIVE` (conclusa o sconosciuta), `ALREADY_CANCELLED`, `E_CANCELLING`.
+    async fn cancel(
+        &self,
+        r: tonic::Request<pb::CancelReq>,
+    ) -> Result<tonic::Response<pb::CancelResp>, Status> {
+        let req = r.into_inner();
+        let exec: Uid = req
+            .exec
+            .as_slice()
+            .try_into()
+            .map_err(|_| Status::invalid_argument("E_EXEC"))?;
+        if req.role.is_empty() || req.role.len() > 32 || req.name.len() > 64 {
+            return Err(Status::invalid_argument("E_ACTOR"));
+        }
+        let (reply, rx) = oneshot::channel();
+        self.tx
+            .send(Msg::Cancel {
+                exec,
+                role: req.role,
+                name: req.name,
+                reply,
+            })
+            .await
+            .map_err(|_| Status::unavailable("E_ENGINE"))?;
+        let code = rx.await.map_err(|_| Status::unavailable("E_ENGINE"))??;
+        Ok(tonic::Response::new(pb::CancelResp { code }))
+    }
+
     async fn stats(
         &self,
         r: tonic::Request<pb::StatsReq>,
@@ -1817,7 +2173,8 @@ impl pb::control_server::Control for Ctl {
         // blocco E2: latenza del passo e contatori dell'ausiliario (CPU della finestra: dall'ultimo `reset`)
         let aux_cpu = self.sh.aux.as_ref().map(|a| a.cpu_rss().0).unwrap_or(0.0);
         let text = format!(
-            "{text}\nstep_latency {}{}\naux_cpu_s_window={:.3} aux_cpu_per_1000_att={:.3}",
+            "{text}\n{}\nstep_latency {}{}\naux_cpu_s_window={:.3} aux_cpu_per_1000_att={:.3}",
+            self.sh.canc.text(),
             f(&m.step_done),
             self.sh
                 .aux
@@ -2161,6 +2518,10 @@ pub async fn main(
             .into_bytes(),
         logs: Arc::new(Default::default()),
         meta: crate::arg("meta", "0") == "1",
+        exec_timeout_ms: crate::arg("exec_timeout_ms", "0").parse().unwrap(),
+        stop_delay_ms: crate::arg("stop_delay_ms", "0").parse().unwrap(),
+        fan_slow: crate::arg("fan_slow", "0") == "1",
+        canc: Default::default(),
         aux: if crate::arg("aux", "0") == "1" {
             Some(Arc::new(crate::auxp::Client::spawn().await))
         } else {
@@ -2223,7 +2584,7 @@ pub async fn main(
         sh.logs.clone(),
         lrx,
     ));
-    let (execs, timers, redeliver) = recover(&sh).await;
+    let (execs, timers, redeliver, cancelled) = recover(&sh).await;
     let pos = sh.db.positions().await.unwrap();
     for ti in 0..2 {
         tokio::spawn(projector(
@@ -2279,6 +2640,9 @@ pub async fn main(
     }
     let mut eng = Engine {
         sh: sh.clone(),
+        cancelled,
+        cancelling: HashMap::new(),
+        cancel_acc: vec![],
         execs,
         sessions: vec![],
         rr: 0,
@@ -2315,6 +2679,7 @@ pub async fn main(
                         delivery_id: 0,
                         attempt,
                         ready_us: 0,
+                        sess: 0,
                     },
                 );
                 eng.tenant_inflight[ti] += 1;
@@ -2356,6 +2721,12 @@ pub async fn main(
     }
     for (exec, step, kind, attempt, due) in std::mem::take(&mut eng.arm) {
         eng.set_timer(exec, step, kind, attempt, due);
+    }
+    // blocco E4: timer di scadenza dell'esecuzione ripristinati (una scadenza già passata scatta alla prima passata del ciclo)
+    for ((exec, step), (kind, _, due)) in &timers {
+        if *step == EXEC_STEP && *kind == 3 {
+            eng.set_timer(*exec, EXEC_STEP, 3, 0, *due);
+        }
     }
     tokio::spawn(eng.run(rx, drx));
 
