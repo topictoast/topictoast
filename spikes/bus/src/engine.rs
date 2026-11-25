@@ -350,6 +350,21 @@ pub enum Msg {
     },
 }
 
+/// Attività scelta da `dispatch` e in attesa della risposta di `PREPARE` (blocco E2).
+struct Staged {
+    ti: usize,
+    exec: Uid,
+    step: u32,
+    ready_us: u64,
+    attempt: u32,
+    kind: u8,
+    tenant: Uid,
+    work_ms: u32,
+    out_size: u32,
+    input: Bytes,
+    rx: Option<oneshot::Receiver<Vec<u8>>>,
+}
+
 struct Infl {
     /// 0 = consegna di un'incarnazione precedente del motore (ripresa): vale l'esito con qualunque `delivery_id`.
     delivery_id: u64,
@@ -529,65 +544,113 @@ impl Engine {
         let mut progress = true;
         while progress {
             progress = false;
-            for ti in 0..2 {
-                if self.tenant_inflight[ti] >= self.cap {
-                    continue;
-                }
-                let Some((exec, step, ready_us, attempt)) = self.pending[ti].pop_front() else {
-                    continue;
-                };
-                let Some(e) = self.execs.get(&exec) else {
-                    continue;
-                };
-                // già concluso o già in volo (una ripresa e una scadenza possono accodare lo stesso passo): niente doppia consegna
-                if e.done[step as usize].is_some() || self.inflight.contains_key(&(exec, step)) {
-                    continue;
-                }
-                let kind = e.kind;
-                // fan-out: solo il ramo 0 è lento, così le uscite degli altri rami sono già proiettate quando serve il join
-                let (tenant, work_ms, out_size) = (
-                    e.tenant,
-                    if e.kind == 1 && step != 0 {
-                        0
-                    } else {
-                        e.work_ms
-                    },
-                    e.out_size,
-                );
-                let refs: Vec<(Hash, Option<Loc>)> = e
-                    .input_refs(step)
-                    .into_iter()
-                    .map(|h| {
-                        (
-                            h,
-                            e.locs.get(&h).copied().or_else(|| {
-                                self.sh
-                                    .pending_locs
-                                    .lock()
-                                    .unwrap()
-                                    .get(&(tenant, h))
-                                    .copied()
-                            }),
-                        )
-                    })
-                    .collect();
-                let input = if refs.len() == 1 {
-                    self.sh.payload(&tenant, &refs[0].0, refs[0].1).await
-                } else {
-                    let mut v = Vec::new();
-                    for (h, l) in &refs {
-                        v.extend_from_slice(&self.sh.payload(&tenant, h, *l).await);
+            // Blocco E2, fase 1: si scelgono le attività da consegnare (stesso giro a turno tra i tenant e stesso tetto di prima: le già
+            // scelte si sommano alle in volo) e per ognuna parte subito la richiesta `PREPARE` all'ausiliario, senza aspettarla.
+            let mut staged: Vec<Staged> = vec![];
+            let mut picked = [0usize; 2];
+            let mut more = true;
+            while more {
+                more = false;
+                for ti in 0..2 {
+                    if self.tenant_inflight[ti] + picked[ti] >= self.cap {
+                        continue;
                     }
-                    Bytes::from(v)
-                };
-                // Blocco E2, andata e ritorno 1 (AD-6): tra «dipendenze soddisfatte» e l'invio al worker, quindi dentro
-                // `start_ready`: `if`, mappatura jq e schema d'ingresso nel processo ausiliario.
-                let input = match self.sh.aux.clone() {
-                    None => input,
-                    Some(aux) => match aux.prepare(input.to_vec()).await {
+                    let Some((exec, step, ready_us, attempt)) = self.pending[ti].pop_front() else {
+                        continue;
+                    };
+                    let Some(e) = self.execs.get(&exec) else {
+                        continue;
+                    };
+                    // già concluso o già in volo (una ripresa e una scadenza possono accodare lo stesso passo): niente doppia consegna
+                    if e.done[step as usize].is_some()
+                        || self.inflight.contains_key(&(exec, step))
+                        || staged.iter().any(|s| s.exec == exec && s.step == step)
+                    {
+                        continue;
+                    }
+                    let kind = e.kind;
+                    // fan-out: solo il ramo 0 è lento, così le uscite degli altri rami sono già proiettate quando serve il join
+                    let (tenant, work_ms, out_size) = (
+                        e.tenant,
+                        if e.kind == 1 && step != 0 {
+                            0
+                        } else {
+                            e.work_ms
+                        },
+                        e.out_size,
+                    );
+                    let refs: Vec<(Hash, Option<Loc>)> = e
+                        .input_refs(step)
+                        .into_iter()
+                        .map(|h| {
+                            (
+                                h,
+                                e.locs.get(&h).copied().or_else(|| {
+                                    self.sh
+                                        .pending_locs
+                                        .lock()
+                                        .unwrap()
+                                        .get(&(tenant, h))
+                                        .copied()
+                                }),
+                            )
+                        })
+                        .collect();
+                    let input = if refs.len() == 1 {
+                        self.sh.payload(&tenant, &refs[0].0, refs[0].1).await
+                    } else {
+                        let mut v = Vec::new();
+                        for (h, l) in &refs {
+                            v.extend_from_slice(&self.sh.payload(&tenant, h, *l).await);
+                        }
+                        Bytes::from(v)
+                    };
+                    // andata e ritorno 1 (AD-6): `if`, mappatura jq e schema d'ingresso nel processo ausiliario
+                    let rx = self
+                        .sh
+                        .aux
+                        .as_ref()
+                        .map(|a| a.prepare_start(input.to_vec()));
+                    staged.push(Staged {
+                        ti,
+                        exec,
+                        step,
+                        ready_us,
+                        attempt,
+                        kind,
+                        tenant,
+                        work_ms,
+                        out_size,
+                        input,
+                        rx,
+                    });
+                    picked[ti] += 1;
+                    more = true;
+                }
+            }
+            // fase 2: si attendono le risposte nell'ordine di scelta e si consegna come prima (tra «dipendenze soddisfatte» e l'invio
+            // al worker, quindi dentro `start_ready`)
+            let mut it = staged.into_iter();
+            while let Some(Staged {
+                ti,
+                exec,
+                step,
+                ready_us,
+                attempt,
+                kind,
+                tenant,
+                work_ms,
+                out_size,
+                input,
+                rx,
+            }) = it.next()
+            {
+                let input = match (self.sh.aux.clone(), rx) {
+                    (Some(aux), Some(rx)) => match aux.prepare_finish(rx).await {
                         crate::auxp::Prepared::Mapped(m) => Bytes::from(m),
                         crate::auxp::Prepared::Skip => {
-                            // `if` falso: il passo si conclude senza uscita e senza consegna
+                            // `if` falso: il passo si conclude senza uscita e senza consegna; i passi che ne dipendono
+                            // diventano pronti e il giro successivo li trova
                             self.complete(exec, step, Bytes::new(), &mut evs, &mut newly);
                             progress = true;
                             continue;
@@ -600,11 +663,19 @@ impl Engine {
                             continue;
                         }
                         crate::auxp::Prepared::Down => {
-                            // ausiliario caduto: l'attività resta da consegnare, niente si perde e niente avanza
-                            self.pending[ti].push_front((exec, step, ready_us, attempt));
+                            // ausiliario caduto: questa e le altre scelte tornano in testa alla coda, nello stesso ordine; niente si perde
+                            let mut back = vec![(ti, exec, step, ready_us, attempt)];
+                            back.extend(
+                                it.by_ref()
+                                    .map(|s| (s.ti, s.exec, s.step, s.ready_us, s.attempt)),
+                            );
+                            for (t, x, s, r, a) in back.into_iter().rev() {
+                                self.pending[t].push_front((x, s, r, a));
+                            }
                             break;
                         }
                     },
+                    _ => input,
                 };
                 self.rr = (self.rr + 1) % self.sessions.len();
                 let (_, tx) = self.sessions[self.rr].clone();

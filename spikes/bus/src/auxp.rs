@@ -370,10 +370,15 @@ impl Client {
         rx
     }
 
-    /// `PREPARE` di un ingresso.
-    pub async fn prepare(&self, input: Vec<u8>) -> Prepared {
+    /// Lancia `PREPARE` di un ingresso (conta la chiamata) e torna l'attesa: come `CHECK`, in pipeline.
+    pub fn prepare_start(&self, input: Vec<u8>) -> oneshot::Receiver<Vec<u8>> {
         self.ctr.prepare.fetch_add(1, Relaxed);
-        match self.call(T_PREPARE, input).await {
+        self.call(T_PREPARE, input)
+    }
+
+    /// Attende la risposta di un `PREPARE` lanciato con `prepare_start`.
+    pub async fn prepare_finish(&self, rx: oneshot::Receiver<Vec<u8>>) -> Prepared {
+        match rx.await {
             Ok(b) if b.first() == Some(&0) => Prepared::Mapped(b[1..].to_vec()),
             Ok(b) if b.first() == Some(&1) => {
                 self.ctr.skipped.fetch_add(1, Relaxed);
