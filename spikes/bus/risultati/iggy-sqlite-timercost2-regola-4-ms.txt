@@ -1,0 +1,31 @@
+Blocco D, seconda parte: regole di lettura scritte PRIMA di ogni corsa (decisione di Marco, 2026-11-25: prima si misura, il disegno non cambia finche' non ci sono numeri).
+
+Bracci:
+  B  = motore del blocco B, commit 7f156ba (senza timer), binario bin/busspike-bB, sha256 che inizia con d730b1a73111ca79
+  H  = motore al commit 5117575 (evento Timer durevole prima di ogni consegna), binario bin/busspike-d0, sha256 che inizia con ef60a7e23befacd0
+  H2 = H con la modifica «invia prima, registra dopo» (solo la consegna del tentativo, timer di scadenza di tipo 0); costruito dal commit della modifica
+Ogni braccio ha il suo binario per una serie intera, mai sostituito a meta'. Ogni file grezzo porta le righe `braccio:` e `binario sha256:`.
+
+1. Lettura della corsa col tetto alto (nessun codice): braccio H a CAP=2048, thr10k, 10 minuti, GATE60=1 VTRIES=100, una corsa.
+   - Se H raggiunge almeno 9.900 att./s sulla finestra misurata (minuto 1 escluso come in B5) con 0 accettate perse: l'ipotesi
+     «tetto per tenant + ciclo allungato» e' SUPPORTATA.
+   - Altrimenti il limite e' altrove (sospetto: l'evento in piu' sul bus per attivita', che la modifica «invia prima, registra dopo»
+     mantiene), e la modifica puo' sistemare 1.000 att./s ma non 10.000 att./s.
+   - In ogni caso la velocita' e' «misurata»; la causa resta «ipotesi» salvo il caso supportato qui sopra.
+
+2. Coppie B contro H2, entrambi i bracci con CAP=512 (predefinito).
+   - start1k (1.000 att./s): 6 coppie, ordine alternato (B prima nelle coppie 1, 3, 5; H2 prima nelle 2, 4, 6). Regola di
+     iggy-sqlite-timercost-regola-4-ms.txt invariata: mediana per braccio del p99 di `start_ready`; rapporto H2/B <= 1,20; la differenza
+     si dichiara solo se il segno e' lo stesso nelle due posizioni (mediana delle differenze delle 3 coppie per posizione).
+     PIU' il limite assoluto del prodotto: mediana del p99 di `start_ready` di H2 <= 25 ms.
+   - thr10k (10.000 att./s, 10 minuti, GATE60=1, VTRIES=100): 2 coppie, una per ordine; superato = in tutte e 4 le corse almeno 9.900 att./s
+     (minuto 1 escluso) e 0 accettate perse.
+   - Dopo OGNI corsa start1k e thr10k di H2: zero righe nella tabella `timer` per attivita' concluse (SQL e conteggio nel file grezzo).
+
+3. Controlli di correttezza su H2 (prima delle coppie; una corsa ciascuno; se uno fallisce ci si ferma e si riporta):
+   - Retry attraverso un crash (tretry) e scadenza attraverso un crash (tdead): stessi criteri del blocco C (ogni ritentativo/scadenza
+     parte una volta, mai prima; i gia' scaduti entro 1 s da READY; 0 accettate perse).
+   - Kill del motore sotto carico a 1.000 att./s: conteggio dei tentativi iniziati due volte; soglia: iniziati due volte <= consegne
+     dell'ultimo gruppo non durevole (si riportano entrambi i numeri); 0 accettate perse.
+   - Aggiornamento semplice (C2, up-run.sh, CAP=4096) e aggiornamento con 100.000 timer (C3.4, PRE100K=1 CAP=4096): 0 accettate perse,
+     0 timer persi o doppi, attivita' rifatte riportate (blocco C: 0), pausa riportata (limite di Marco: 30 s).
