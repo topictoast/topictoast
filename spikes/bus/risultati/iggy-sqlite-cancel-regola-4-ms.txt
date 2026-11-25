@@ -56,3 +56,30 @@ sequenze di 64 cifre esadecimali fuori dalle righe `CG`.
 
 Cosa il blocco NON copre: il database lento (blocco a parte), piu' motori, l'annullamento di un'esecuzione in attesa del tetto per colpa di un altro tenant (lo stato «trattenuto dal tetto» e' coperto), l'`Stop` verso worker
 dietro iroh o dietro il motore su gRPC (qui il worker e' diretto), l'annullamento di una singola attivita' (solo dell'intera esecuzione), l'orologio di FR-8 con ammissione ritardata dal tetto, retention dello storico.
+
+Emendamento del 2026-11-26, prima delle corse misurate (richiesta del coordinatore dopo la revisione; nessuna soglia esistente si allenta, due controlli si aggiungono):
+  A1. Il punto 7 per le scadenze non confronta piu' le righe `scaduta` con il contatore `expired` del motore (circolare: non vede una scadenza mai scattata). Si confronta con la proiezione:
+      righe `scaduta` = esecuzioni del tenant A (nella scena `exectimeout` sono quelle con work_ms=2000) durevoli nella proiezione la cui scadenza (accepted_us + exec_timeout_ms) e' passata e che
+      non erano concluse entro la scadenza (senza stato e con done_us <= scadenza); si giudica anche che 0 esecuzioni finiscano `scaduta` prima della scadenza (end_us >= accepted_us + T, cioe' ritardo
+      di scatto >= 0) e che non ci siano righe `annullata` in una scena di sole scadenze. Per gli annullamenti: righe `annullata` = risposte CANCELLED viste dal pilota = annullamenti durevoli del motore
+      (letti dal registro, non dal contatore: valgono anche dopo un crash). Le righe del rapporto sono `JUDGE 7a`..`7e`.
+  A2. Il punto 1 si giudica sull'istante di INVIO scritto dal motore (`sent_us` nella consegna, stesso orologio di `CANCEL_DURABLE`), non sulla ricezione del worker: una consegna spedita un attimo prima
+      dell'istante durevole e ricevuta un attimo dopo non e' un FAIL. Il registro d'inizio del worker ha ora un sesto campo `sent_us`; la ricezione si riporta accanto (non giudicata).
+  A3. Verificato sul codice (commit 97b79f0, invariato in 75ab6cc): ogni evento di un'esecuzione passa da `submit`, che lo instrada alla stessa coda FIFO di connessione con `exec_hash() % n`, anche
+      `Cancelled` (la richiesta e la scadenza finiscono nell'elenco `evs` del gruppo, poi `launch` -> `submit`). Quindi `Cancelled` non puo' diventare durevole prima del `Timer` di scadenza di una consegna
+      GIA' spedita: `dispatch` lancia il proprio gruppo con il `Timer` subito dopo l'invio, nello stesso ciclo e prima di ogni gruppo successivo. Nessuna manopola e nessuna scena. Resta, per costruzione,
+      la finestra tra la ricezione e l'evento durevole: `dispatch` puo' ancora consegnare un passo pronto di quell'esecuzione e il suo `Timer` segue `Cancelled` sul bus (proiettore e sentinella lo
+      ignorano); queste consegne si contano (`window_deliveries`, solo riportato).
+  A4. Verificato sul codice (`load.rs`, `verify`): ignora solo le attivita' aperte delle esecuzioni con `status` in proiezione (annullate o scadute); un'esecuzione la cui richiesta ha avuto risposta
+      `E_NOT_LIVE` non ha stato ed e' verificata per intero (tutte le attivita' concluse, un solo Done, nessun duplicato).
+  A5. Nuova scena `cancel-load` (annullamenti con il motore carico): sfondo tenant B a 1.000 att./s (100 esec./s da 10 passi, size 1024), tetto 512; tenant A a 20 esec./s da 10 passi da 400 ms (circa 4 s),
+      ogni esecuzione annullata in un istante casuale tra l'accettazione e la fine attesa, il 5 % con due annullamenti insieme (ruoli diversi, per `E_CANCELLING` e `ALREADY_CANCELLED`); 5 s di riscaldamento e 60 s misurati,
+      circa 1.200 annullamenti misurati. Giudicati: punti 1-5 zero esatto, uguaglianze 7 e 8, `verify OK` (tenant B e le esecuzioni A concluse prima dell'annullamento). Solo riportati: latenza del comando,
+      dall'evento durevole allo Stop, `start_ready_tenant_b` p99 accanto al limite NFR-2 di 25 ms (nessuna soglia qui), `late_after_cancel`, `window_deliveries`, `stops_no_session`. 2 corse (r1, r2).
+  Piano delle corse misurate (E4b), 5 scene x 2 corse: `cancel`, `cancel-load`, `cancel-crash`, `exectimeout`, `exectimeout` con `TCRASH=1`; una alla volta con ms-run.sh. Binario delle corse misurate:
+  bin/busspike-cancel-75ab6cc, sha256 che inizia con 4686b30b01664b38 (sostituisce c91dfbfb...; cambia il solo registro d'inizio del worker, la scena `cancel-load` e il rapporto). Una corsa vale solo se il
+  suo `[stato prima]` e' piu' tardi del commit di questo emendamento. Il rapporto stampa le righe `JUDGE <punto> valore=.. atteso=.. PASS|FAIL`; il punto 8 non vale in `cancel-crash` (si riporta).
+  Nota sulla corsa di prova `iggy-sqlite-cancel-smoke-exectimeoutcrash-4-ms-r1.txt` (2026-11-26): le 96 scadenze su 100 del tenant A non sono 4 scadenze perse. Il pilota di quel tenant ha `accepted=95 errors=5`
+  e `verify` ha `accettate=190 concluse_nella_proiezione=192`: 2 accettazioni (1 per tenant) sono durevoli con un errore visto dal client, 95 + 1 = 96 = righe `scaduta`. Il conteggio diretto dei tenant A nella
+  proiezione non e' piu' ripetibile (database ripulito a fine corsa); lo rifa' ogni corsa misurata con `JUDGE 7c`. Nota (2026-11-26) sulla prova `cancel-load`: tutti i punti giudicati PASS e le uguaglianze 7a, 7b, 8
+  rispettate (file iggy-sqlite-cancel-smoke-cancelload-4-ms-r1.txt, binario 4686b30b01664b38).
