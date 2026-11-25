@@ -1,0 +1,55 @@
+[stato prima 00:15:46] load: 0.70 1.18 1.56
+[stato prima] io: some avg10=0.94 avg60=3.44 avg300=2.93 total=21272012521
+[stato prima] cpu: some avg10=0.00 avg60=0.02 avg300=0.19 total=2326120942
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: EXECTIMEOUT-smoke
+[stato prima] binario sha256:c91dfbfbe5f5444b
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=6.32ms p99=10.01ms p99.9=181.76ms max=181.76ms over100ms=1
+[stato prima] cpu runner max: github-runner-etruria-runner-front-3 0.08
+[attesa] 55 s
+### iggy + sqlite: exectimeout 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=3931428 READY recovered_ms=1496 now_us=1795648556649364 gen=1
+load tenants=a rate=20/s kind=0 n=3 size=64 work_ms=2000 warm=0s measured=5s
+offered=100 accepted=100 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+load tenants=b rate=20/s kind=0 n=1 size=64 work_ms=100 warm=0s measured=5s
+offered=100 accepted=100 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+verify: accettate=200 concluse_nella_proiezione=200 accettate_perse=0 attivita_concluse=200 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=6 payload_illeggibili=0 light=true
+verify OK
+sentinel pronto (now_us=1795648556801642)
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+sentinel_stats events=1300 topics=2 lag_events p50=1 p99=1 max=1 gaps=0 gap_events=0 alarms overdue=0 retry=0 engine_silent=0 recovered=0 header_bytes=46 cpu_s=0.16
+sentinel_read_delay n=446 p50=21.52ms p99=57.60ms p99.9=82.43ms max=82.43ms over100ms=0
+sentinel_retry_latency n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel_deadlines_resolved_after_due=0 margin_lt_1s=0 margin_to_grace_end n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel allarmi: overdue=0 retry=0 engine-silent=0 recovered=0
+sentinel prime righe:  |  |  | 
+-- annullamenti e scadenze durevoli: 100; per stato alla richiesta:  100 status2:inflight;
+-- risposte del pilota:  100 code=CANCELLED;
+-- consegne per un'esecuzione annullata DOPO l'evento durevole (registro dei worker, devono essere 0): 0
+-- Stop spediti PRIMA dell'evento durevole (devono essere 0): 0
+-- Stop spediti: 100; tentativi in volo all'evento durevole: 100; Stop ricevuti dai worker: 100, di cui con il tentativo ancora in corso: 100
+-- dall'evento durevole allo Stop ricevuto dal worker (ms, p50/p99/max): n=100 p50=0.2 p99=0.3 max=0.3
+-- tentativi iniziati dopo la ripartenza per esecuzioni annullate: vedi consegne dopo l'evento durevole
+sql storico: 2|100; ruoli: 2:timeout:|100;
+sql timer rimasti per esecuzioni annullate o scadute (devono essere 0): 0
+sql attivita' aperte nelle esecuzioni annullate: 100 (ammesse: restano ferme)
+-- allarmi del sentinella per esecuzioni annullate: totali 0, DOPO l'evento durevole (devono essere 0) 0
+-- contatori del motore (post-ripartenza se c'e' stato un crash): cancel cancelled=0 expired=100 noop_not_live=0 noop_again=0 noop_cancelling=0 stops_sent=100 stops_no_session=0 inflight_at_durable=100 window_deliveries=0 late_after_cancel=0 cancel_durable_latency n=100 p50=8.65ms p99=20.86ms p99.9=21.21ms max=21.21ms over100ms=0 exec_timeout_fire_delay n=100 p50=9.69ms p99=19.44ms p99.9=19.66ms max=19.66ms over100ms=0 
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 76124 kB
+rss pid=3931428 29064 kB
+rss pid=3931582 15908 kB
+-- conteggio file archivio: 12
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 00:16:10] load: 1.07 1.24 1.57
+[stato dopo] io: some avg10=15.92 avg60=8.13 avg300=4.08 total=21276289539
+[stato dopo] cpu: some avg10=0.54 avg60=0.19 avg300=0.22 total=2326329903
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: EXECTIMEOUT-smoke
+[stato dopo] binario sha256:c91dfbfbe5f5444b
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=8.92ms p99=11.62ms p99.9=11.96ms max=11.96ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-2 0.07

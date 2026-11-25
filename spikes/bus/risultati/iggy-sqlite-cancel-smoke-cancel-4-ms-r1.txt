@@ -1,0 +1,72 @@
+[stato prima 00:11:00] load: 0.24 1.84 1.84
+[stato prima] io: some avg10=0.35 avg60=0.58 avg300=0.77 total=21259131661
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.51 total=2325280630
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: CANCEL-smoke
+[stato prima] binario sha256:095cf531e902672e
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.88ms p99=3.96ms p99.9=6.28ms max=6.28ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.03
+[attesa] 0 s
+### iggy + sqlite: cancel 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=3912324 READY recovered_ms=461 now_us=1795648267745208 gen=1
+CANCELCTL phase=never exec=01a214fa2a67756db9830361f5167e78 code=CANCELLED role=integrator latency_us=10622 at_us=1795648268970745
+CANCELCTL phase=never exec=01a214fa2a787604a65d2142c8416b79 code=CANCELLED role=integrator latency_us=8257 at_us=1795648268981381
+CANCELCTL phase=never exec=01a214fa2a83733796ed04b1bdc68b3b code=CANCELLED role=integrator latency_us=9047 at_us=1795648268989644
+CANCELCTL phase=never accettate=6
+CANCELCTL phase=inflight exec=01a214fa2ebb73529f37f5f48244a7d9 code=CANCELLED role=tenant latency_us=13977 at_us=1795648270654031
+CANCELCTL phase=held exec=01a214fa2fa576ba97c25011531d9d97 code=CANCELLED role=tenant latency_us=19278 at_us=1795648270668023
+CANCELCTL phase=held exec=01a214fa2f9d76829eefe5e486051e8a code=CANCELLED role=integrator latency_us=8808 at_us=1795648270687308
+CANCELCTL phase=twice exec=01a214fa2ebb73529f37f5f48244a7d9 code=ALREADY_CANCELLED role=tenant latency_us=487 at_us=1795648270696123
+CANCELCTL phase=twice exec=01a214fa2fa576ba97c25011531d9d97 code=ALREADY_CANCELLED role=integrator latency_us=499 at_us=1795648270696616
+CANCELCTL phase=finished exec=01a214fa2ebb73529f37f5f54695d6a8 code=E_NOT_LIVE role=tenant latency_us=9624 at_us=1795648271595268
+CANCELCTL phase=finished exec=01a214fa2ee574e5af8d5edef5c25be2 code=E_NOT_LIVE role=tenant latency_us=619 at_us=1795648271604902
+CANCELCTL phase=finished exec=01a214fa2f0375d3b7908cbfba823dfe code=E_NOT_LIVE role=tenant latency_us=594 at_us=1795648271605528
+CANCELCTL phase=retrywait exec=01a214fa34f676afb449f242b8b53597 code=CANCELLED role=tenant latency_us=10421 at_us=1795648272258208
+CANCELCTL phase=retrywait exec=01a214fa350c7127b3fcd95b42bec132 code=CANCELLED role=tenant latency_us=6161 at_us=1795648272268639
+CANCELCTL phase=retrywait exec=01a214fa3514724793fe7df6d0a7c9b9 code=CANCELLED role=tenant latency_us=7085 at_us=1795648272274806
+CANCELCTL phase=fanout exec=01a214fa379a72e7ade983cccb02a0c2 code=CANCELLED role=tenant latency_us=13174 at_us=1795648272806083
+CANCELCTL phase=rest accettate=28
+verify: accettate=34 concluse_nella_proiezione=19 accettate_perse=15 attivita_concluse=13 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=1 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=34 concluse_nella_proiezione=28 accettate_perse=6 attivita_concluse=25 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=4 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=34 concluse_nella_proiezione=34 accettate_perse=0 attivita_concluse=31 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify OK
+sentinel pronto (now_us=1795648267914384)
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+sentinel_stats events=161 topics=2 lag_events p50=1 p99=1 max=1 gaps=0 gap_events=0 alarms overdue=0 retry=3 engine_silent=0 recovered=0 header_bytes=46 cpu_s=0.16
+sentinel_read_delay n=64 p50=15.80ms p99=31.84ms p99.9=31.84ms max=31.84ms over100ms=0
+sentinel_retry_latency n=3 p50=19.50ms p99=19.82ms p99.9=19.82ms max=19.82ms over100ms=0
+sentinel_deadlines_resolved_after_due=0 margin_lt_1s=0 margin_to_grace_end n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel allarmi: overdue=0 retry=3 engine-silent=0 recovered=0
+sentinel prime righe:  |  |  | 1795648271684867 ALARM retry 01a214fa34f676afb449f242b8b53597 0 0
+-- annullamenti e scadenze durevoli: 10; per stato alla richiesta:  1 status1:fanout; 2 status1:held; 1 status1:inflight; 3 status1:never; 3 status1:retrywait;
+-- risposte del pilota:  2 code=ALREADY_CANCELLED; 10 code=CANCELLED; 3 code=E_NOT_LIVE;
+-- consegne per un'esecuzione annullata DOPO l'evento durevole (registro dei worker, devono essere 0): 0
+-- Stop spediti PRIMA dell'evento durevole (devono essere 0): 0
+-- Stop spediti: 5; tentativi in volo all'evento durevole: 5; Stop ricevuti dai worker: 5, di cui con il tentativo ancora in corso: 5
+-- dall'evento durevole allo Stop ricevuto dal worker (ms, p50/p99/max): n=5 p50=0.2 p99=0.3 max=0.3
+-- tentativi iniziati dopo la ripartenza per esecuzioni annullate: vedi consegne dopo l'evento durevole
+sql storico: 1|10; ruoli: 1:integrator:Luca Bianchi|1;1:integrator:Maria Rossi|3;1:tenant:|3;1:tenant:Anna Verdi|3;
+sql timer rimasti per esecuzioni annullate o scadute (devono essere 0): 0
+sql attivita' aperte nelle esecuzioni annullate: 13 (ammesse: restano ferme)
+-- allarmi del sentinella per esecuzioni annullate: totali 3, DOPO l'evento durevole (devono essere 0) 0
+-- contatori del motore (post-ripartenza se c'e' stato un crash): cancel cancelled=10 expired=0 noop_not_live=3 noop_again=2 noop_cancelling=0 stops_sent=5 stops_no_session=0 inflight_at_durable=5 window_deliveries=0 late_after_cancel=0 cancel_durable_latency n=10 p50=8.43ms p99=18.62ms p99.9=18.62ms max=18.62ms over100ms=0 exec_timeout_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 75972 kB
+rss pid=3912324 28428 kB
+rss pid=3912453 16052 kB
+-- conteggio file archivio: 12
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 00:11:21] load: 0.62 1.81 1.83
+[stato dopo] io: some avg10=2.45 avg60=1.38 avg300=0.95 total=21259920467
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.47 total=2325387163
+[stato dopo] container non nostri non in esecuzione stabile: 6; in esecuzione: 12
+[stato dopo] braccio: CANCEL-smoke
+[stato dopo] binario sha256:095cf531e902672e
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.85ms p99=4.13ms p99.9=5.15ms max=5.15ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.01
