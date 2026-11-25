@@ -184,9 +184,8 @@ pub async fn run(case: &str) {
             .map(|s| s.iggy_server_version)
             .unwrap_or_default()
     );
-    for t in [&a, &b, &"scratch".to_string()] {
-        bus.ensure_topic(t).await.unwrap();
-    }
+    // `offsets` e `setup-sent` girano dentro una corsa del motore: non creano topic e non scrivono eventi (un evento
+    // non sigillato nei topic di stato farebbe cadere il proiettore)
     if case == "offsets" {
         check(
             "offset del gruppo sentinel su state-A (root)",
@@ -195,6 +194,44 @@ pub async fn run(case: &str) {
             |o| format!("{o:?}"),
         );
         return;
+    }
+    if case == "setup-sent" {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let s = root
+            .get_stream(&id(STREAM))
+            .await
+            .unwrap()
+            .expect("stream")
+            .id as usize;
+        let perms = Permissions {
+            global: GlobalPermissions::default(),
+            streams: Some(BTreeMap::from([(
+                s,
+                StreamPermissions {
+                    read_stream: true,
+                    read_topics: true,
+                    poll_messages: true,
+                    ..StreamPermissions::default()
+                },
+            )])),
+        };
+        let pw = user(&root, "ro-sent", Some(perms)).await;
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open("out/ro-sent.pw")
+            .unwrap();
+        f.write_all(pw.as_bytes()).unwrap();
+        println!(
+            "utente ro-sent creato (lettura e poll di tutto lo stream `{STREAM}`, nessun invio)"
+        );
+        return;
+    }
+    for t in [&a, &b, &"scratch".to_string()] {
+        bus.ensure_topic(t).await.unwrap();
     }
     for t in [&a, &b] {
         for _ in 0..3 {
@@ -295,25 +332,9 @@ pub async fn run(case: &str) {
             );
             let _ = root.delete_user(&id("ro-a")).await;
         }
-        "ro-sent" | "setup-sent" => {
+        "ro-sent" => {
             let perms = stream_read(None, true, true);
             let pw = user(&root, "ro-sent", Some(perms)).await;
-            if case == "setup-sent" {
-                use std::io::Write;
-                use std::os::unix::fs::OpenOptionsExt;
-                let mut f = std::fs::OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .truncate(true)
-                    .mode(0o600)
-                    .open("out/ro-sent.pw")
-                    .unwrap();
-                f.write_all(pw.as_bytes()).unwrap();
-                println!(
-                    "utente ro-sent creato (lettura e poll di tutto lo stream `{STREAM}`, nessun invio)"
-                );
-                return;
-            }
             let c = login("ro-sent", &pw).await;
             check(
                 "ro-sent: elenco dei topic",
