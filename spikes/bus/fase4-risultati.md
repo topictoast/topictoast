@@ -1188,3 +1188,116 @@ Su minisheep, in `~/ttspikebus` (`env.sh` dal repository, `.env` da `./gen-env.s
 | Aggiornamenti | `[PRE100K=1] SPIKE_OLD=$HOME/ttspikebus/bin/busspike-h3-old CAP=4096 ARM_BIN=$HOME/ttspikebus/bin/busspike-h3 ARM=H3-01cf3bc BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost3-upgrade-rerun-h3-4-ms-r1.txt ./up-run.sh n=3 rate=334` |
 | `start1k` | `ARM_BIN=… ARM=… BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost3-start1k-H3-4-ms-r1.txt ./scen.sh iggy sqlite start1k` (Postgres: `iggy pg start1k`) |
 | `thr10k` | `GATE60=1 VTRIES=100 ARM_BIN=… ARM=… BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost3-thr10k-H3-4-ms-r1.txt ./with-sampler.sh risultati/iggy-sqlite-timercost3-thr10k-H3-4-ms-r1.io ./scen.sh iggy sqlite thr10k secs=600`, poi `./brun.sh wait` |
+
+## Blocco D, ripetizione di `thr10k`
+
+**Perché.** Nella terza parte H3 ha superato 9.900 att./s in una corsa su due (r1 9.887, r2 9.998 sulla media dei minuti 2-10). La causa della corsa sotto soglia era aperta: il pavimento del disco prima di H3 r1 (4,79 / 68,7 ms) era simile a quello di H2 r2 (4,50 / 84,5 ms), che era passata, e nella stessa corsa il task scrittore aveva avuto 4 raffiche `REC_ERR`. Marco ha deciso (2026-11-25) di ripetere i 10.000 att./s prima di scegliere quale registro di consegna va nell'ADR. Le regole di lettura sono in `risultati/iggy-sqlite-timercost4-regola-4-ms.txt`, committate alle 14:31:33 (commit `e955b3d`) **prima** di ogni corsa; sono state applicate alla lettera, senza cambiare soglie. Nessun codice nuovo, nessun binario nuovo, `REC_WINDOW_MS` resta 20 ms. Ordine fisso: H3 r1, B r1, H3 r2. Minisheep, stesso `ms-run.sh`, `GATE60=1 VTRIES=100 CAP=512`, 10 minuti, SQLite, campionatore di I/O. File grezzi `risultati/iggy-sqlite-timercost4-thr10k-{H3,B}-4-ms-r<n>.txt` (+ `.io.names`); ogni file grezzo porta in fondo i conteggi della regola 5, presi dal registro del motore prima che `out/` fosse cancellata.
+
+| Binario (sha256, primi 16) | Braccio | Controllato prima di |
+| --- | --- | --- |
+| `25c97a9e69512b9a` | `H3`: commit `01cf3bc` (`ARM=H3-01cf3bc`) | H3 r1 (14:37), H3 r2 (15:07) |
+| `d730b1a73111ca79` | `B`: blocco B, commit `7f156ba` (`ARM=B-blockB-7f156ba`) | B r1 (14:49) |
+
+Lo stesso `sha256` è anche riga `[stato prima] binario sha256:` di ogni file grezzo.
+
+### Pavimento del disco prima di ogni corsa (regola 2)
+
+Soglia: p50 ≤ 4,0 ms e p99.9 ≤ 100 ms (`fsync-floor dir=$HOME/.cache n=300`). Conta la riga `[stato prima] pavimento fdatasync` del file grezzo della corsa, presa da `ms-run.sh` dopo la sua attesa di macchina ferma.
+
+| Ora | Misura | p50 / p99.9 ms | Entro soglia |
+| --- | --- | --- | --- |
+| 14:32:31 | mia, prima di H3 r1 | 8,00 / 12,65 | no (attesa di 5 minuti) |
+| 14:37:40 | mia, seconda per H3 r1 | 2,94 / 76,29 | sì |
+| 14:37:51 | **file grezzo H3 r1** | **2,97 / 68,03** | **sì** |
+| 14:49:11 | mia, prima di B r1 | 2,88 / 8,28 | sì |
+| 14:51:38 | **file grezzo B r1** (dopo 140 s di attesa di `ms-run.sh`) | **7,73 / 182,14** | **no** |
+| 15:02:30 | mia, prima di H3 r2 | 9,65 / 14,92 | no (attesa di 5 minuti) |
+| 15:07:39 | mia, seconda per H3 r2 | 3,06 / 68,42 | sì |
+| 15:07:55 | **file grezzo H3 r2** | **5,09 / 88,45** | **no** |
+
+Dopo la corsa (riga `[stato dopo]`): H3 r1 4,80 / 6,74; B r1 4,36 / 6,92; H3 r2 4,77 / 73,53. Il pavimento cambia in pochi secondi: tra la mia misura e quella del file grezzo passano 11 s (H3 r1), 147 s (B r1) e 16 s (H3 r2), e in due casi su tre il valore è passato da dentro a fuori soglia (misurato). Una sola attesa di 5 minuti per H3 r1 e per H3 r2, nessuna per B r1; mai si è arrivati alle tre.
+
+### `thr10k` a 10.000 att./s per 10 minuti, SQLite, `CAP=512`
+
+| Misura | H3 r1 | B r1 | H3 r2 |
+| --- | --- | --- | --- |
+| Pavimento prima (p50 / p99.9 ms), dal file grezzo | 2,97 / 68,03 | 7,73 / 182,14 | 5,09 / 88,45 |
+| **Pavimento prima entro soglia** | **sì** | **no** | **no** |
+| Offerte / accettate | 605.001 / 585.913 | 586.068 / 511.024 | 605.000 / 591.724 |
+| Rifiutate `E_PROJECTION_DOWN` / errori | 18.917 / 171 | 52.097 / 22.947 (più 18.932 offerte saltate per sovraccarico del generatore) | 12.773 / 503 |
+| **Concluse al secondo** (intera corsa) | **9.675** | **8.856** | **9.788** |
+| Media dei minuti 2-10 | **9.648** | **9.036** | **9.890** |
+| Minuti 2-10 sotto 9.900 | 5 su 9: t3 9.744, t4 4.908, t5 7.166, t7 5.110, t9 9.849 | 3 su 9: t2 3.660, t6 7.493, t7 4.009 | 1 su 9: t6 5.435 |
+| Intervallo più lungo senza accettazioni (ms) | 3.135 | 20.485 | 2.578 |
+| `start_ready` p50 / p99 | 72,6 ms / 15,81 s | 107,2 ms / 52,53 s | 68,6 ms / 9,04 s |
+| «Database bloccato», registro del motore / file grezzo | **77** / 27 | 4 / 4 | **39** / 29 |
+| `REC_ERR` (raffiche del task scrittore, registro del motore) | **43** | 0 (B non ha il task) | **22** |
+| Accettate perse (dopo le verifiche, quarta o prima riuscita) | 0 | 0 | 0 |
+| Righe `timer` per attività concluse | 0 | non applicabile (B senza tabella `timer`) | 0 |
+| Pressione I/O `some avg10` per minuto (min-max, righe `MIN`) | 21,8-42,5 % | 15,6-69,9 % | 25,6-41,9 % |
+
+«Accettate perse»: in tutte e tre le corse la prima verifica è FALLITA (999, 703 e 610 accettate non ancora concluse nella proiezione) e la verifica con i tentativi di `VTRIES=100` è poi riuscita con 0 perse, come nella terza parte. Il numero finale è 0 e il criterio della regola 3 («0 accettate perse alla fine delle verifiche») è rispettato nelle tre corse (misurato).
+
+### Esito di ogni corsa (regola 3: media dei minuti 2-10 ≥ 9.900 e 0 accettate perse)
+
+- **H3 r1: NON SUPERATA** (media 9.648). Su disco tranquillo (pavimento prima entro soglia).
+- **B r1: NON SUPERATA** (media 9.036). Su disco non tranquillo (pavimento prima fuori soglia).
+- **H3 r2: NON SUPERATA** (media 9.890, 10 att./s sotto la soglia). Su disco non tranquillo (pavimento prima 5,09 ms p50, fuori soglia).
+
+### Lettura per l'ADR (regola 4): **c, NON CONCLUSIVO**
+
+Una sola lettura: B non è stata superata (regola 4c), quindi la serie nuova non separa H3 da B a 10.000 att./s. Per la stessa regola, nessuna corsa aggiuntiva senza il coordinatore. Misurato, da riportare accanto: nessuna delle tre corse supera 9.900; l'unica corsa H3 su disco tranquillo (r1) è sotto soglia (9.648) e, per la regola 4b, avrebbe bastato a leggere «H3 non regge» **se** B fosse stata superata, ma B non lo è. La r2 di H3 è sotto soglia di soli 10 att./s su disco non tranquillo. La r1 della terza parte (9.887) e questa r2 (9.890) sono entrambe sotto, la r2 della terza parte (9.998) è sopra: tre corse H3 su quattro sotto 9.900. La corsa sopra (r2 della terza parte) aveva un pavimento prima di 3,85 / 77,1 ms, entro la soglia di questa serie (misurato), e la r1 di questa serie, entro soglia, è sotto: due corse H3 su disco tranquillo, una sopra e una sotto, e il confronto con B manca. Non traggo dal quadro nessuna conclusione sul braccio oltre quella detta.
+
+### Conteggi della regola 5 (tutti dal registro del motore, copiati nei file grezzi prima della cancellazione di `out/`)
+
+«Database bloccato» / `SQLITE_BUSY` (il criterio di H3 resta zero; **violato nelle due corse H3**): H3 r1 **77** nel registro del motore (43 `REC_ERR` + 34 «proiezione ferma») e 27 nel file grezzo (che riporta solo un estratto); H3 r2 **39** (22 + 17) e 29 nel file grezzo; B r1 4 (tutte «proiezione ferma») e 4 nel file grezzo. Nei registri dei worker 0 in tutte e tre.
+
+Righe `timer` per attività concluse: H3 r1 0, H3 r2 0 (criterio rispettato). B: la tabella non esiste.
+
+Raffiche `REC_ERR` e «proiezione ferma» per minuto (righe del registro tra `MIN t=k-1` e `MIN t=k` attribuite al minuto k; il minuto 11 è dopo l'ultima riga `MIN`):
+
+| Minuto | H3 r1 `REC_ERR` / ferma | H3 r2 `REC_ERR` / ferma | B r1 ferma |
+| --- | --- | --- | --- |
+| 1 | 0 / 0 | 3 / 1 | 0 |
+| 2 | 0 / 0 | 5 / 3 | 0 |
+| 3 | 0 / 0 | 0 / 0 | 2 |
+| 4 | 13 / 10 | 0 / 0 | 1 |
+| 5 | 11 / 8 | 0 / 0 | 0 |
+| 6 | 2 / 4 | 6 / 3 | 0 |
+| 7 | 9 / 6 | 6 / 10 | 1 |
+| 8 | 6 / 4 | 1 / 0 | 0 |
+| 9 | 1 / 2 | 0 / 0 | 0 |
+| 10 | 0 / 0 | 1 / 0 | 0 |
+| 11 | 1 / 0 | 0 / 0 | 0 |
+
+**Coincidenze nello stesso minuto per i minuti 2-10 sotto 9.900** (osservate; la causa resta ipotesi, mai dedotta dalla coincidenza):
+
+- **H3 r1.** Minuto 4 (4.908): 13 `REC_ERR`, 10 arresti del proiettore, `held_max` 38.278, `lag_p99` 20,2 s. Minuto 5 (7.166): 11 / 8, `held_max` 77.564. Minuto 7 (5.110): 9 / 6, `held_max` 32.385. Minuto 9 (9.849): 1 / 2, `held_max` 102. Minuto 3 (9.744): **nessuna** raffica, nessun arresto, 0 righe «bloccato»; `held_max` 628, `lag_p99` 786 ms. I minuti 6 (16.221) e 8 (13.851) sono sopra soglia con 2 / 4 e 6 / 4 (recupero del ritardo accumulato).
+- **B r1.** Minuto 2 (3.660): 0 / 0 / 0 «bloccato»; pressione I/O `avg10` 69,9 % (il valore più alto delle tre corse), `lag_p99` 14,4 s. Minuto 6 (7.493): nessun «bloccato»; `lag_p99` 4,4 s. Minuto 7 (4.009): 1 arresto, `lag_p99` 52,8 s. Gli arresti per «bloccato» di B stanno nei minuti 3, 4 e 7; i minuti 3 (12.697) e 4 (12.916) sono sopra soglia.
+- **H3 r2.** Minuto 6 (5.435): 6 `REC_ERR`, 3 arresti, `held_max` 30.370, `lag_p99` 20,1 s; il minuto 7 recupera a 13.036 con 6 `REC_ERR` e 10 arresti.
+
+Dalle coincidenze: nelle due corse H3 i minuti con produttività più bassa coincidono con raffiche `REC_ERR` e arresti del proiettore (osservato); in B r1 due dei tre minuti sotto soglia non hanno alcun «bloccato» (osservato), per cui un blocco del database non basta a spiegare il calo di B. Il minuto 3 di H3 r1 (9.744) non ha né raffiche né arresti. La pressione I/O `avg10` in tutte le corse è tra 16 e 70 % durante la corsa: il carico stesso scrive sul disco, quindi il valore dice poco da solo. Il tempo prima del calo (H3 r1 dal minuto 4, H3 r2 dal minuto 6, B r1 dal minuto 1) è osservato, la causa (disco condiviso, contesa sul lock di SQLite, task scrittore) è **ipotesi** per tutte.
+
+### Deviazioni
+
+- **Il pavimento entro soglia nel file grezzo non coincide con la mia misura precedente** in B r1 e in H3 r2 (v. tabella): ho seguito la regola 2 come scritta (conta la riga del file grezzo), quindi B r1 e H3 r2 contano come «non su disco tranquillo». Nessuna corsa è stata scartata o rifatta.
+- **B r1: attesa di 140 s di `ms-run.sh`** (soglia macchina ferma con `GATE60=1`), tra la mia misura delle 14:49 e lo stato prima delle 14:51:38. Le altre due: 5 s e 10 s.
+- **Nessuna corsa aggiuntiva** dopo la lettura c, come chiede la regola 4.
+- **Il conteggio dei «bloccato» e delle `REC_ERR` per minuto** usa un piccolo script locale (non committato) per attribuire le righe del registro ai minuti; il suo output è copiato nel file grezzo. Il file grezzo H3 riporta solo un estratto del registro del motore (14 e 17 `REC_ERR`): i numeri 43 e 22 vengono dal registro intero, copiati in fondo al file grezzo.
+- **Worktree:** portato a `e955b3d` con `git reset --hard` (pulito, nessun commit mio prima). Una sola chiamata `ssh` alla volta; le attese lunghe a passi da circa 2,5 minuti.
+
+### Non coperto
+
+- **La causa delle corse sotto soglia** (disco condiviso con i runner, contesa sul lock di SQLite con il task scrittore, altro): non isolata; nessuna corsa la separa.
+- **Il confronto tra H3 e B su due dischi tranquilli**: B r1 e H3 r2 sono partite con il pavimento fuori soglia, quindi la serie non misura il caso per cui è stata pensata; serve una nuova decisione del coordinatore.
+- Il pavimento del disco *durante* la corsa (si conosce solo prima e dopo, e la pressione I/O del carico stesso).
+- Postgres a 10.000 att./s; `REC_WINDOW_MS` diverso da 20 ms.
+
+### Comandi per rifare (blocco D, ripetizione di `thr10k`)
+
+Su minisheep, in `~/ttspikebus` (`env.sh` e gli script dal repository, `.env` da `./gen-env.sh`, binari `bin/busspike-h3` e `bin/busspike-bB`). Una corsa alla volta, una chiamata per volta. Prima di ogni corsa: `bin/busspike-h3 fsync-floor dir=$HOME/.cache n=300`; se p50 > 4,0 o p99.9 > 100 ms attendere 5 minuti e rimisurare, al più tre volte. Poi, per H3 (per B: `ARM_BIN=$HOME/ttspikebus/bin/busspike-bB ARM=B-blockB-7f156ba` e `-B-` nel nome):
+
+| Misura | Comando |
+| --- | --- |
+| `thr10k` | `GATE60=1 VTRIES=100 CAP=512 ARM_BIN=$HOME/ttspikebus/bin/busspike-h3 ARM=H3-01cf3bc BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost4-thr10k-H3-4-ms-r1.txt ./with-sampler.sh risultati/iggy-sqlite-timercost4-thr10k-H3-4-ms-r1.io ./scen.sh iggy sqlite thr10k secs=600`, poi `BRUN_ITERS=32 ./brun.sh wait` finché stampa `FINITA` |
+| Conteggi della regola 5 | prima che `out/` si cancelli: «database is locked» / `SQLITE_BUSY` in `out/engine.log`, righe `REC_ERR` e «proiezione ferma» per minuto (le righe fra `MIN t=k-1` e `MIN t=k` appartengono al minuto k), righe `MIN` dei minuti 2-10 sotto 9.900, da aggiungere in fondo al file grezzo |
