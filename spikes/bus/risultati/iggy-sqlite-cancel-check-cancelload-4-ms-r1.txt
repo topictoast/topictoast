@@ -1,0 +1,69 @@
+[stato prima 00:46:59] load: 0.32 0.55 0.89
+[stato prima] io: some avg10=0.08 avg60=0.04 avg300=2.18 total=21418662145
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.08 total=2338117652
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: CANCEL-check-fuori-dalle-regole
+[stato prima] binario sha256:4686b30b01664b38
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.70ms p99=4.03ms p99.9=4.88ms max=4.88ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.04
+[attesa] 0 s
+### iggy + sqlite: cancel-load 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=4041815 READY recovered_ms=779 now_us=1795650426799177 gen=1
+load tenants=b rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=60s
+offered=6499 accepted=6499 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+activities_per_s=1087 accepted_per_s=120
+start_ready_tenant_b n=59970 p50=17.38ms p99=22.86ms p99.9=39.90ms max=145.79ms over100ms=17
+verify: accettate=7800 concluse_nella_proiezione=7798 accettate_perse=2 attivita_concluse=70650 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=159 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=7800 concluse_nella_proiezione=7800 accettate_perse=0 attivita_concluse=70650 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=159 payload_illeggibili=0 light=true
+verify OK
+sentinel pronto (now_us=1795650426853610)
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+sentinel_stats events=223604 topics=2 lag_events p50=1 p99=1 max=1 gaps=0 gap_events=0 alarms overdue=0 retry=0 engine_silent=0 recovered=0 header_bytes=46 cpu_s=0.85
+sentinel_read_delay n=6293 p50=12.16ms p99=24.34ms p99.9=28.93ms max=136.32ms over100ms=1
+sentinel_retry_latency n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel_deadlines_resolved_after_due=0 margin_lt_1s=0 margin_to_grace_end n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel allarmi: overdue=0 retry=0 engine-silent=0 recovered=0
+sentinel prime righe:  |  |  | 
+CANCELCTL load t0_us=1795650428839222 measure_from_us=1795650433839222
+CANCELCTL load accettazioni_fallite=0
+-- annullamenti e scadenze durevoli: 1301; per stato alla richiesta:  22 status1:between; 1279 status1:inflight;
+-- risposte del pilota:  1 code=ALREADY_CANCELLED; 1301 code=CANCELLED; 65 code=E_CANCELLING;
+JUDGE 1 consegne partite dopo l'evento durevole (invio_us) valore=0 atteso=0 PASS
+-- (riportato) consegne ricevute dal worker dopo l'evento durevole (ricezione_us): 0
+JUDGE 2 Stop spediti prima dell'evento durevole valore=0 atteso=0 PASS
+-- (controllo join) consegne con invio_us <= evento durevole: 6912
+-- (controllo join) STOP_SENT con istante >= evento durevole: 1252
+-- (controllo join) attivita' rese pronte con ready_us <= evento durevole: 6961
+JUDGE 3 attivita' rese pronte dopo l'evento durevole valore=0 atteso=0 PASS
+JUDGE 4 timer rimasti per esecuzioni annullate o scadute valore=0 atteso=0 PASS
+JUDGE 5 allarmi overdue/retry del sentinella per esecuzioni annullate dopo l'evento durevole valore=0 atteso=0 PASS
+-- (riportato) allarmi overdue/retry per esecuzioni annullate PRIMA dell'evento durevole (ammessi): 0
+JUDGE 7a righe 'annullata' = risposte CANCELLED del pilota valore=1301 atteso=1301 PASS
+JUDGE 7b annullamenti durevoli del motore = risposte CANCELLED del pilota valore=1301 atteso=1301 PASS
+JUDGE 8 Stop spediti = tentativi in volo all'evento durevole valore=1252 atteso=1252 PASS
+-- Stop ricevuti dai worker: 1252, di cui con il tentativo ancora in corso: 1201
+-- dall'evento durevole allo Stop ricevuto dal worker (ms, p50/p99/max): n=1252 p50=0.2 p99=0.5 max=0.9
+-- storico: 1:integrator:Gemello|42;1:tenant:|1259;
+-- attivita' aperte nelle esecuzioni annullate (ammesse, restano ferme): 1301
+-- latenza del comando CANCELLED vista dal pilota (ms, periodo misurato): n=1236 p50=25.5 p99=46.2 max=152.1
+-- contatori del motore (dopo un crash ripartono da zero): start_ready_tenant_b n=60176 p50=17.38ms p99=22.86ms p99.9=39.90ms max=145.79ms over100ms=17 cancel cancelled=1301 expired=0 noop_not_live=0 noop_again=1 noop_cancelling=65 stops_sent=1252 stops_no_session=0 inflight_at_durable=1252 window_deliveries=0 late_after_cancel=51 cancel_durable_latency n=1301 p50=17.18ms p99=23.42ms p99.9=145.02ms max=145.02ms over100ms=2 exec_timeout_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 
+MIN t=1 act_s=960 append_p50_ms=11.3 sub_p50_ms=8.2 lag_p50_ms=137 lag_p99_ms=249 proj_read_p50_ms=0.3 proj_arch_p50_ms=4.8 proj_db_p50_ms=6.2 proj_groups=488 held_max=0 io=[some avg10=55.09 avg60=32.96 avg300=11.20 total=21450165130]
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 85900 kB
+rss pid=4041815 37420 kB
+rss pid=4041920 17280 kB
+-- conteggio file archivio: 124
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 00:48:22] load: 2.29 1.14 1.07
+[stato dopo] io: some avg10=31.93 avg60=33.34 avg300=12.52 total=21455113967
+[stato dopo] cpu: some avg10=1.95 avg60=2.03 avg300=0.73 total=2340806101
+[stato dopo] container non nostri non in esecuzione stabile: 5; in esecuzione: 12
+[stato dopo] braccio: CANCEL-check-fuori-dalle-regole
+[stato dopo] binario sha256:4686b30b01664b38
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.80ms p99=3.73ms p99.9=4.92ms max=4.92ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.07

@@ -93,6 +93,10 @@ cancel_report() {
   J "1 consegne partite dopo l'evento durevole (invio_us)" "$(awk 'NR==FNR{d[$1]=$2; next} ($1 in d) && $6>d[$1]{n++} END{print n+0}' out/durable.txt out/work.log)" 0
   echo "-- (riportato) consegne ricevute dal worker dopo l'evento durevole (ricezione_us): $(awk 'NR==FNR{d[$1]=$2; next} ($1 in d) && $4>d[$1]{n++} END{print n+0}' out/durable.txt out/work.log)"
   J "2 Stop spediti prima dell'evento durevole" "$(echo "$ELOG" | grep '^STOP_SENT' | awk 'NR==FNR{d[$1]=$2; next} ($2 in d) && $5<d[$2]{n++} END{print n+0}' out/durable.txt -)" 0
+  # controllo positivo dei join (E4c): gli stessi join con il confronto invertito, solo riportati; devono essere > 0 (1: almeno `inflight_at_durable`, 2: = `stops_sent`)
+  echo "-- (controllo join) consegne con invio_us <= evento durevole: $(awk 'NR==FNR{d[$1]=$2; next} ($1 in d) && $6<=d[$1]{n++} END{print n+0}' out/durable.txt out/work.log)"
+  echo "-- (controllo join) STOP_SENT con istante >= evento durevole: $(echo "$ELOG" | grep '^STOP_SENT' | awk 'NR==FNR{d[$1]=$2; next} ($2 in d) && $5>=d[$2]{n++} END{print n+0}' out/durable.txt -)"
+  [ $DB = sqlite ] && echo "-- (controllo join) attivita' rese pronte con ready_us <= evento durevole: $(sqlite3 out/spike.db "SELECT lower(hex(a.exec_id)), a.ready_us FROM activity a JOIN execution e ON e.id=a.exec_id WHERE e.status IS NOT NULL AND a.ready_us IS NOT NULL" | tr '|' ' ' | awk 'NR==FNR{d[$1]=$2; next} ($1 in d) && $2<=d[$1]{n++} END{print n+0}' out/durable.txt -)"
   if [ $DB = sqlite ]; then
     J "3 attivita' rese pronte dopo l'evento durevole" "$(sqlite3 out/spike.db "SELECT lower(hex(a.exec_id)), a.ready_us FROM activity a JOIN execution e ON e.id=a.exec_id WHERE e.status IS NOT NULL AND a.ready_us IS NOT NULL" | tr '|' ' ' | awk 'NR==FNR{d[$1]=$2; next} ($1 in d) && $2>d[$1]{n++} END{print n+0}' out/durable.txt -)" 0
     J "4 timer rimasti per esecuzioni annullate o scadute" "$(sqlite3 out/spike.db "SELECT count(*) FROM timer t JOIN execution e ON e.id=t.exec_id WHERE e.status IS NOT NULL")" 0
