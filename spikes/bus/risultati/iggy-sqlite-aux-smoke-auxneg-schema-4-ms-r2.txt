@@ -1,0 +1,86 @@
+[stato prima 21:04:08] load: 0.97 0.81 0.74
+[stato prima] io: some avg10=0.87 avg60=6.65 avg300=6.73 total=20896431717
+[stato prima] cpu: some avg10=0.01 avg60=0.27 avg300=0.24 total=2287390423
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: AUX-neg-schema-smoke
+[stato prima] binario sha256:f2152947f38633cf
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.86ms p99=4.08ms p99.9=63.52ms max=63.52ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 40 s
+### iggy + sqlite: auxneg rate=50 n=1 secs=10 warm=2
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=3283035 READY recovered_ms=516 now_us=1795637056360223 gen=1
+load tenants=a rate=50/s kind=0 n=1 size=1024 work_ms=0 warm=2s measured=10s
+offered=600 accepted=600 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+errors_by_type {}
+accept_rtt_open_loop n=501 p50=17.15ms p99=27.49ms p99.9=34.21ms max=34.21ms over100ms=0
+accept_max_gap_ms=0 from_us=0 to_us=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=10.0 accepted=500 refused=0 done=451 rejected=0 groups=47 expired=0 late_ok=0
+activities_per_s=45 accepted_per_s=50
+accept_engine n=500 p50=16.72ms p99=26.98ms p99.9=33.85ms max=33.85ms over100ms=0
+append n=1296 p50=8.39ms p99=17.92ms p99.9=23.82ms max=26.06ms over100ms=0
+append_sub n=1296 p50=7.73ms p99=10.53ms p99.9=13.58ms max=20.62ms over100ms=0
+sub_events_p50=1 sub_events_p99=3
+start_ready n=451 p50=8.46ms p99=18.80ms p99.9=26.41ms max=26.41ms over100ms=0
+start_sent n=451 p50=0.08ms p99=0.23ms p99.9=0.30ms max=0.30ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+archive_read n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+proj_lag n=1884 p50=124.61ms p99=228.09ms p99.9=237.69ms max=237.69ms over100ms=1172
+timer_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 timers_pending=0 heartbeats=0
+undurable_deliveries=0 undurable_max=2 held=0
+sql_stmts=423 sql_rows=2823 sql_per_activity=0.9379 rows_per_activity=6.259 wal_bytes_per_activity=0.0
+engine_cpu_s=0.52 cache_entries=16
+sql_per_activity_tenant_a=0.9379 stmts_a=423 done_a=451
+sql_per_activity_tenant_b=0.0000 stmts_b=0 done_b=0
+tasklog lines_in=0 dups=0 stored=0 discarded=0 redacted=0 chunks=0 conflicts=0 conflicts_differ=0 refs=0 acks=0 write_errors=0 flush_cycle n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+step_latency n=451 p50=8.90ms p99=36.06ms p99.9=47.74ms max=47.74ms over100ms=0
+aux calls_prepare=599 calls_check=540 skipped=0 input_invalid=59 output_invalid=0 errors=0 cpu_s=0.08 rss_kb=14652
+aux_rtt n=1139 p50=0.09ms p99=0.36ms p99.9=0.39ms max=1.99ms over100ms=0
+aux_cpu_s_window=0.070 aux_cpu_per_1000_att=0.155
+worker_cpu_s=0.06 cpu_per_1000_att engine=1.153 worker=0.124
+verify: accettate=600 concluse_nella_proiezione=532 accettate_perse=68 attivita_concluse=532 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=600 concluse_nella_proiezione=540 accettate_perse=60 attivita_concluse=540 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify FALLITA
+-- ausiliario a fine corsa: step_latency n=451 p50=8.90ms p99=36.06ms p99.9=47.74ms max=47.74ms over100ms=0 aux calls_prepare=600 calls_check=540 skipped=0 input_invalid=60 output_invalid=0 errors=0 cpu_s=0.08 rss_kb=14652 aux_rtt n=1140 p50=0.09ms p99=0.36ms p99.9=0.39ms max=1.99ms over100ms=0 aux_cpu_s_window=0.070 aux_cpu_per_1000_att=0.155 
+AUX_INPUT_INVALID nel registro del motore: 60; AUX_OUTPUT_INVALID: 0; panic: 0
+AUX_INPUT_INVALID 01a2144f187d73fe9c51a64067fbf527 0 0: /name: null is not of type "string"
+AUX_INPUT_INVALID 01a2144f194a7546a0364075f2a2bf5c 0 0: /name: null is not of type "string"
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 74920 kB
+rss pid=3283035 28080 kB
+rss pid=3283118 16392 kB
+-- conteggio file archivio: 12
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 21:05:06] load: 0.73 0.78 0.73
+[stato dopo] io: some avg10=1.07 avg60=7.79 avg300=7.43 total=20903179792
+[stato dopo] cpu: some avg10=0.10 avg60=0.32 avg300=0.27 total=2287815631
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: AUX-neg-schema-smoke
+[stato dopo] binario sha256:f2152947f38633cf
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.85ms p99=4.25ms p99.9=67.39ms max=67.39ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.04

@@ -22,7 +22,11 @@ Cosa e':
   - Contatori (riga `aux` delle statistiche): chiamate per tipo, errori, CPU (da `/proc`), RSS, andata e ritorno del motore (`aux_rtt`); CPU dell'ausiliario per 1.000 attivita' nella finestra
     (`aux_cpu_per_1000_att`); latenza del passo (`step_latency`: da «pronta» al giudizio di `Done`, comprende il controllo dell'uscita) per ogni passo.
 
-Binario: bin/busspike-aux-440cc63, costruito dal commit 440cc63, sha256 che inizia con e37c40ab04ef30a5; lo stesso per ogni riga e ogni braccio. Ogni file grezzo ha le righe `[stato prima HH:MM:SS]`
+Binario: bin/busspike-aux-af23e79, costruito dal commit af23e79, sha256 che inizia con f2152947f38633cf; lo stesso per ogni riga e ogni braccio.
+  Aggiunta del 2026-11-25, dopo la revisione e PRIMA di ogni corsa misurata (nessuna soglia ne' atteso cambia): il percorso `PREPARE` e' stato messo in pipeline. Nel primo binario
+  (440cc63, solo corse di prova) `dispatch` aspettava la risposta di ogni attivita' prima di preparare la successiva (circa 0,1 ms di ciclo del motore per attivita'); ora, in ogni giro,
+  sceglie le attivita' (stesso giro a turno tra i tenant e stesso tetto: le gia' scelte si sommano alle in volo), lancia un `PREPARE` per ciascuna senza aspettare e poi attende le
+  risposte nell'ordine di scelta. Le corse di prova con il primo binario non contano. Ogni file grezzo ha le righe `[stato prima HH:MM:SS]`
 (pavimento di fdatasync, `braccio:`, `binario sha256:`); una corsa vale solo se il suo `[stato prima]` e' piu' tardi del commit di questo file. Minisheep, SQLite, CAP=512, una corsa alla volta,
 `ms-run.sh`. Raw: iggy-sqlite-aux-<riga>-<braccio>-4-ms-r<n>.txt.
 
