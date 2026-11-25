@@ -1,0 +1,65 @@
+[stato prima 08:41:40] load: 1.39 1.97 2.15
+[stato prima] io: some avg10=0.57 avg60=17.20 avg300=20.90 total=14764355472
+[stato prima] cpu: some avg10=0.03 avg60=1.11 avg300=1.45 total=1628591004
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: H2-c2ac38a
+[stato prima] binario sha256:1a1348abf3bea374
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=5.21ms p99=9.05ms p99.9=48.67ms max=48.67ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 20 s
+iggy: apache/iggy:0.9.0 Up 3 seconds
+### aggiornamento Iggy 0.9.0 -> 0.10.0: carico n=3 rate=334
+motore vecchio pid=498513 READY recovered_ms=220 now_us=1795592508880970 gen=1
+-- timer di attesa: offered=100000 accepted=100000 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0; in sospeso nel motore vecchio: timer_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 timers_pending=100000 heartbeats=0 
+prima: secs=41.4 accepted=106626 refused=0 done=13874 rejected=0 groups=503 expired=0 late_ok=0 activities_per_s=335 accepted_per_s=2575 
+T0 segnale=1795592550281140  T1 motore vecchio uscito=1795592550949303 (rc=0)
+DRAIN_START 1795592550281686
+DRAINED 1795592550905079 accepted=106678 in_flight_deliveries=2921
+iggy: apache/iggy:0.10.0 Up Less than a second
+T2 nuovo Iggy avviato=1795592552084956
+timer subito dopo READY: timer_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 timers_pending=102921 heartbeats=0 ; RSS: rss iggy 75512 kB rss pid=501347 245028 kB 
+T3 motore nuovo READY (script)=1795592557304185 tentativi di avvio=1
+RIVERSAMENTO gen=2: 103077 esecuzioni vive, 106148 Ready, 3071 Done, 102921 timer riscritti in 3916 ms, posizioni [("state-0000000000007000800000000000000a", 157611), ("state-0000000000007000800000000000000b", 157606)]
+ripresa: 103077 esecuzioni vive, 0 eventi riletti dal bus, 103077 attività emesse e non concluse, 102921 timer
+ripresa: 103077 attività emesse e non concluse: 2921 in volo (scadenza ripristinata), 100000 in attesa di un timer, 156 da consegnare subito
+READY recovered_ms=5196 now_us=1795592557284312 gen=2
+T4 prima attività conclusa dopo la ripresa=1795592557485470
+pausa: svuotamento 668 ms; nuovo Iggy 1136 ms; motore nuovo fino a READY 5219 ms; prima attività conclusa 181 ms dopo READY; totale segnale -> READY 7023 ms, segnale -> prima conclusa 7204 ms
+load tenants=ab rate=334/s kind=0 n=3 size=1024 work_ms=3000 warm=2s measured=70s
+offered=24048 accepted=21704 refused_E_PROJECTION_DOWN=208 errors=2136 overload_skipped=0
+errors_by_type {"Unavailable:E_UPGRADE_DRAIN": 208, "Unavailable:tcp connect error": 2129, "Unknown:transport error": 7}
+accept_rtt_open_loop n=21036 p50=31.14ms p99=156.54ms p99.9=175.49ms max=185.34ms over100ms=2682
+accept_max_gap_ms=6907 from_us=1795592550393894 to_us=1795592557300612
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=1.90 cpu_per_1000_att engine=0.000 worker=1895.000
+-- tempi del generatore di carico: segnale T0=1795592550281140 READY T3=1795592557304185
+timer in sospeso dopo l'attesa: timer_fire_delay n=100000 p50=10.21ms p99=20.11ms p99.9=20.72ms max=20.72ms over100ms=0 timers_pending=0 heartbeats=0  (dopo 80 s dalla fine del carico)
+wait_delay: n=100000 scattati_prima_della_scadenza=0 p50=10.3ms p99=20.2ms max=20.8ms
+verify: accettate=100000 concluse_nella_proiezione=121704 accettate_perse=0 attivita_concluse=165112 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=154309 duplicati_sul_bus=0 payload_decifrati=165112 payload_illeggibili=0 light=false
+verify OK
+wait_delay: n=100000 scattati_prima_della_scadenza=0 p50=10.3ms p99=20.2ms max=20.8ms
+verify: accettate=21704 concluse_nella_proiezione=121704 accettate_perse=0 attivita_concluse=165112 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=154309 duplicati_sul_bus=0 payload_decifrati=165112 payload_illeggibili=0 light=false
+verify OK
+tentativi iniziati: 65112, attività distinte: 65112, eseguite più di una volta: 0, tentativi con numero 1 o più: 0
+contatori del motore nuovo: secs=134.9 accepted=15026 refused=0 done=151238 rejected=0 groups=686 expired=0 late_ok=2921
+-- bus nuovo: bus-info state-0000000000007000800000000000000a: testa=288984 primo_offset_leggibile=Some(0) segmenti=1 messaggi=288984 byte=89449536 soglia_consumatore=None bus-info state-0000000000007000800000000000000b: testa=288975 primo_offset_leggibile=Some(0) segmenti=1 messaggi=288975 byte=89440652 soglia_consumatore=None 
+-- posizioni: state-0000000000007000800000000000000a|288984|2 state-0000000000007000800000000000000b|288975|2 
+-- log del motore vecchio (eventi): 2 righe; nuovo:
+RIVERSAMENTO gen=2: 103077 esecuzioni vive, 106148 Ready, 3071 Done, 102921 timer riscritti in 3916 ms, posizioni [("state-0000000000007000800000000000000a", 157611), ("state-0000000000007000800000000000000b", 157606)]
+ripresa: 103077 esecuzioni vive, 0 eventi riletti dal bus, 103077 attività emesse e non concluse, 102921 timer
+ripresa: 103077 attività emesse e non concluse: 2921 in volo (scadenza ripristinata), 100000 in attesa di un timer, 156 da consegnare subito
+-- RSS dopo la corsa (motore, worker)
+rss iggy 104348 kB
+rss pid=501347 254180 kB
+rss pid=498564 24672 kB
+rifiuto 1 (bus nuovo generazione 3, database alla 2, senza upgrade=1): rc=5 E_BUS_GENERATION: posizioni del database di generazione 2, bus di generazione 3 (upgrade=false): il motore non parte
+rifiuto 2 (bus vuoto di generazione 1 con upgrade=1, database alla 2: generazione più vecchia): rc=5 E_BUS_GENERATION: posizioni del database di generazione 2, bus di generazione 1 (upgrade=true): il motore non parte
+[stato dopo 08:44:58] load: 1.45 1.81 2.06
+[stato dopo] io: some avg10=2.13 avg60=9.29 avg300=17.19 total=14793451235
+[stato dopo] cpu: some avg10=0.19 avg60=0.88 avg300=1.39 total=1632323566
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: H2-c2ac38a
+[stato dopo] binario sha256:1a1348abf3bea374
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.75ms p99=4.70ms p99.9=5.32ms max=5.32ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-3 0.00

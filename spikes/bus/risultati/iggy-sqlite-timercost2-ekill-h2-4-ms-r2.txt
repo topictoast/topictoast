@@ -1,0 +1,52 @@
+[stato prima 08:35:56] load: 1.18 2.45 2.31
+[stato prima] io: some avg10=0.73 avg60=11.24 avg300=18.90 total=14685944403
+[stato prima] cpu: some avg10=0.00 avg60=0.61 avg300=1.57 total=1622303897
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: H2-c2ac38a
+[stato prima] binario sha256:1a1348abf3bea374
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=6.75ms p99=10.86ms p99.9=13.51ms max=13.51ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 40 s
+### iggy + sqlite: ekill 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=475833 READY recovered_ms=507 now_us=1795592166122263 gen=1
+prima del kill: secs=13.1 accepted=4000 refused=0 done=5945 rejected=0 groups=112 expired=0 late_ok=0
+prima del kill: undurable_deliveries=0 undurable_max=31 held=0
+engine pid=476597 READY recovered_ms=104 now_us=1795592179350464 gen=1
+kill -9 -> READY: 107 ms (READY recovered_ms=104 now_us=1795592179350464 gen=1)
+ripresa: 3038 esecuzioni vive, 295 eventi riletti dal bus, 3038 attività emesse e non concluse, 3020 timer
+ripresa: 3038 attività emesse e non concluse: 3020 in volo (scadenza ripristinata), 0 in attesa di un timer, 18 da consegnare subito
+kill -9 -> prima attività conclusa: 217 ms
+load tenants=ab rate=334/s kind=0 n=3 size=1024 work_ms=3000 warm=1s measured=30s
+offered=10354 accepted=10306 refused_E_PROJECTION_DOWN=0 errors=48 overload_skipped=0
+errors_by_type {"Unavailable:tcp connect error": 35, "Unknown:transport error": 13}
+accept_rtt_open_loop n=9972 p50=26.08ms p99=41.98ms p99.9=104.64ms max=124.16ms over100ms=11
+accept_max_gap_ms=159 from_us=1795592179229087 to_us=1795592179387939
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.80 cpu_per_1000_att engine=0.000 worker=804.000
+motore dopo la corsa: secs=19.0 accepted=6306 refused=0 done=18951 rejected=18 groups=174 expired=0 late_ok=3020
+verify: accettate=10306 concluse_nella_proiezione=7232 accettate_perse=3081 attivita_concluse=24732 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=25236 duplicati_sul_bus=0 payload_decifrati=24732 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10306 concluse_nella_proiezione=8383 accettate_perse=1930 attivita_concluse=28092 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=28424 duplicati_sul_bus=0 payload_decifrati=28092 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10306 concluse_nella_proiezione=9525 accettate_perse=788 attivita_concluse=30151 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=30320 duplicati_sul_bus=0 payload_decifrati=30151 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10306 concluse_nella_proiezione=10313 accettate_perse=0 attivita_concluse=30939 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=30939 duplicati_sul_bus=0 payload_decifrati=30939 payload_illeggibili=0 light=false
+verify OK
+tentativi iniziati: 30939, attività distinte: 30939, eseguite più di una volta: 0
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 103340 kB
+rss pid=476597 42452 kB
+rss pid=475908 22880 kB
+-- conteggio file archivio: 77
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+[stato dopo 08:36:49] load: 2.62 2.59 2.37
+[stato dopo] io: some avg10=37.06 avg60=28.50 avg300=22.33 total=14707063236
+[stato dopo] cpu: some avg10=2.87 avg60=1.91 avg300=1.75 total=1623964592
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: H2-c2ac38a
+[stato dopo] binario sha256:1a1348abf3bea374
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.80ms p99=4.12ms p99.9=4.47ms max=4.47ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

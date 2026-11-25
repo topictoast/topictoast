@@ -1,0 +1,52 @@
+[stato prima 08:37:46] load: 1.17 2.19 2.24
+[stato prima] io: some avg10=0.90 avg60=11.75 avg300=18.58 total=14707691593
+[stato prima] cpu: some avg10=0.00 avg60=0.75 avg300=1.44 total=1624067010
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: H2-c2ac38a
+[stato prima] binario sha256:1a1348abf3bea374
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.53ms p99=4.76ms p99.9=68.09ms max=68.09ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-3 0.05
+[attesa] 50 s
+### iggy + sqlite: ekill 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=482718 READY recovered_ms=504 now_us=1795592274386578 gen=1
+prima del kill: secs=13.1 accepted=4002 refused=0 done=5955 rejected=0 groups=112 expired=0 late_ok=0
+prima del kill: undurable_deliveries=0 undurable_max=64 held=0
+engine pid=483509 READY recovered_ms=105 now_us=1795592287625032 gen=1
+kill -9 -> READY: 109 ms (READY recovered_ms=105 now_us=1795592287625032 gen=1)
+ripresa: 3036 esecuzioni vive, 208 eventi riletti dal bus, 3036 attività emesse e non concluse, 3016 timer
+ripresa: 3036 attività emesse e non concluse: 3016 in volo (scadenza ripristinata), 0 in attesa di un timer, 20 da consegnare subito
+kill -9 -> prima attività conclusa: 218 ms
+load tenants=ab rate=334/s kind=0 n=3 size=1024 work_ms=3000 warm=1s measured=30s
+offered=10354 accepted=10306 refused_E_PROJECTION_DOWN=0 errors=48 overload_skipped=0
+errors_by_type {"Unavailable:tcp connect error": 36, "Unknown:transport error": 12}
+accept_rtt_open_loop n=9973 p50=25.95ms p99=39.94ms p99.9=51.01ms max=65.79ms over100ms=0
+accept_max_gap_ms=159 from_us=1795592287499634 to_us=1795592287659009
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.79 cpu_per_1000_att engine=0.000 worker=791.000
+motore dopo la corsa: secs=19.0 accepted=6304 refused=0 done=18936 rejected=19 groups=174 expired=0 late_ok=3016
+verify: accettate=10306 concluse_nella_proiezione=7242 accettate_perse=3071 attivita_concluse=24760 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=25219 duplicati_sul_bus=0 payload_decifrati=24760 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10306 concluse_nella_proiezione=8380 accettate_perse=1933 attivita_concluse=28087 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=28387 duplicati_sul_bus=0 payload_decifrati=28087 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10306 concluse_nella_proiezione=9468 accettate_perse=845 attivita_concluse=30138 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=30307 duplicati_sul_bus=0 payload_decifrati=30186 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10306 concluse_nella_proiezione=10313 accettate_perse=0 attivita_concluse=30939 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=30939 duplicati_sul_bus=0 payload_decifrati=30939 payload_illeggibili=0 light=false
+verify OK
+tentativi iniziati: 30939, attività distinte: 30939, eseguite più di una volta: 0
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 99832 kB
+rss pid=483509 41304 kB
+rss pid=482799 22624 kB
+-- conteggio file archivio: 76
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+[stato dopo 08:38:37] load: 2.40 2.38 2.30
+[stato dopo] io: some avg10=43.04 avg60=29.98 avg300=22.33 total=14729295403
+[stato dopo] cpu: some avg10=2.57 avg60=1.90 avg300=1.64 total=1625690676
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: H2-c2ac38a
+[stato dopo] binario sha256:1a1348abf3bea374
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=1.93ms p99=3.73ms p99.9=4.14ms max=4.14ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.06

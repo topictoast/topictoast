@@ -900,3 +900,153 @@ Su minisheep, in `~/ttspikebus` (`env.sh` dal repository, `.env` da `./gen-env.s
 | Passo 0 | `ARM_BIN=$HOME/ttspikebus/bin/busspike-d0 ARM=HEAD-5117575 BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timer-retry-d0-4-ms-r1.txt ./scen.sh iggy sqlite tretry` (`tdead` per la scadenza) |
 | D1.1 | `ARM_BIN=$HOME/ttspikebus/bin/busspike-bB ARM=B-blockB-7f156ba BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost-start1k-B-4-ms-r1.txt ./scen.sh iggy sqlite start1k` (H: `busspike-d0`, `ARM=H-head-5117575`) |
 | D1.2 | `GATE60=1 VTRIES=100 ARM_BIN=… ARM=… BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost-thr10k-H-4-ms-r2.txt ./with-sampler.sh risultati/iggy-sqlite-timercost-thr10k-H-4-ms-r2.io ./scen.sh iggy sqlite thr10k secs=600`, poi `./brun.sh wait` finché non finisce |
+
+## Blocco D, seconda parte
+
+Misura prima, il disegno non cambia finché non ci sono numeri (decisione di Marco, 2026-11-25). Due prove sul costo dei timer del blocco D: (a) tetto di consegne in volo più alto sul binario H esistente, senza codice; (b) una modifica del motore, «invia prima, registra dopo» (braccio **H2**). Minisheep, stessi 4 CPU (motore e Iggy su `1-4`, carico su `8-11`), `ms-run.sh` con pavimento di `fdatasync` prima e dopo; ogni file grezzo porta le righe `braccio:` e `binario sha256:`. File grezzi `risultati/iggy-sqlite-timercost2-<riga>-4-ms-r<n>.txt`. La regola di lettura (metrica, soglie, controlli) è stata scritta e committata **prima** della prima corsa, in `risultati/iggy-sqlite-timercost2-regola-4-ms.txt` (commit `c5df9fa`, 08:17; la prima corsa parte alle 08:20:31). Il log dei task (FR-59) non è stato costruito.
+
+| Binario (sha256, primi 16) | Braccio | Righe |
+| --- | --- | --- |
+| `d730b1a73111ca79` | `B`: blocco B, commit `7f156ba` (senza timer) | coppie `start1k` e `thr10k` |
+| `ef60a7e23befacd0` | `H`: commit `5117575` (blocco C, timer durevole prima della consegna) | corsa a `CAP=2048` |
+| `1a1348abf3bea374` (+ `4478461c59299ba9`, `--features old`) | `H2`: commit `c2ac38a` (la modifica); il commit dopo di lui (`ef33d90`) tocca solo gli script | controlli di correttezza, coppie, aggiornamenti (il binario `--features old` è il «motore vecchio» degli aggiornamenti, dallo stesso sorgente) |
+
+### Sintesi
+
+1. **Tetto di consegne a 2.048 (braccio H, nessun codice): l'ipotesi «tetto per tenant e ciclo allungato» è supportata dalla regola, con riserve.** 9.953 att./s sull'intera corsa, 9.968 att./s di media dei minuti 2-10 (soglia 9.900), accettate perse 0 (verifica `OK` al secondo tentativo). Nel blocco D, con `CAP=512`, la stessa riga dava 4.518 e 5.354 att./s. Riserve (tutte misurate): tre minuti su nove sotto 9.900 (9.877, 9.433 e **5.116** nel minuto 7, con 15,8 s di ritardo di proiezione e due «database is locked»), 6.554 errori del client (`ResourceExhausted`, h2), `start_ready` p50 250,6 ms e p99 7,59 s, e **12.364 scadenze di tentativo** (`expired=12.364`, `rejected=12.364`: i tentativi che aspettano nel worker più di 2 s, il margine `grace_ms`, scadono e si rifanno). L'append per gruppo resta a 125 ms (p50, minuti 4-10) invece dei 66 ms del braccio B: la velocità si recupera con più consegne in volo, non con un percorso più corto. Una corsa sola: è la riga del piano.
+2. **H2 a 1.000 att./s: il peggioramento rispetto a B scende da 2,9 a 1,83 volte, il rapporto di 1,20 resta non superato, il limite assoluto del prodotto è rispettato.** Mediana del p99 di `start_ready`: B 10,81 ms, **H2 19,83 ms** (H del blocco D: 30,32 ms); p50 7,99 contro 14,84 ms (H: 22,30). Rapporto H2/B 1,83 (soglia 1,20), segno coerente nelle due posizioni (+8,32 ms con B prima, +10,19 ms con H2 prima): la differenza si dichiara, criterio del rapporto **non superato**. Limite assoluto (p99 ≤ 25 ms): **superato** in tutte e sei le corse H2 (19,05-21,10 ms) e nella mediana. L'avvio p50 ≤ 5 ms resta sopra in tutti i bracci, riportato non giudicato.
+3. **H2 a 10.000 att./s con `CAP=512`: superato.** Quattro corse su quattro sopra 9.900 att./s, accettate perse 0: H2 9.983 e 9.993 (medie dei minuti 2-10: 9.962 e 10.000), B 9.994 e 10.000. Nel blocco D il braccio H faceva 4.518 e 5.354. Le attività trattenute dal tetto (`held_max` per minuto) arrivano a 930 e 1.011: il tetto morde ancora, ma non limita più la portata (misurata). L'avvio a 10.000/s resta più lento di B (p50 136,6 / 137,2 ms contro 66,2 / 67,8 ms; p99 405,5 / 399,4 ms contro 144,5 / 153,0 ms).
+4. **Invarianti di H2 (misurate).** Zero righe `timer` per attività concluse in tutte le corse `start1k` e `thr10k` di H2 e nelle tre di kill sotto carico; zero timer persi o doppi e zero attività rifatte negli aggiornamenti (pausa 3.352 ms senza timer in attesa, 7.023 ms con 100.000); retry e scadenza attraverso un crash come nel blocco C.
+5. **Regola della specifica (AD-2): l'invio di H2 aspetta ancora il gruppo durevole che rende pronta l'attività, non quello del suo timer di scadenza.** `file:line` sotto, in «Regola della specifica». La modifica è compatibile con la regola se questa chiede la scrittura durevole della decisione che causa l'effetto (la prontezza); non lo è se chiede anche la scadenza durevole prima dell'invio. La scelta è di Marco.
+6. **Dove stia il costo che resta (H2 contro B a 1.000/s, +6,9 ms di p50) è ipotesi.** Il gruppo di scrittura del `Timer` non si aspetta più, ma occupa ancora la coda di scrittura dell'esecuzione (una connessione, `wconn=1`): un gruppo `Done`/`Ready` successivo della stessa catena aspetta dietro di lui. Non isolato: nessuna corsa con il `Timer` fuori dalla coda o con più connessioni.
+
+### Passo 1. Tetto alto, nessun codice (`iggy-sqlite-timercost2-thr10k-H-cap2048-4-ms-r1.txt`, binario `ef60a7e23befacd0`, `CAP=2048`)
+
+`GATE60=1 VTRIES=100`, 10 minuti, due tenant, `trim=1`, registro delle accettate, `verify light`. Pavimento prima > dopo (p50): 2,85 > 4,37 ms; attesa di quiete 0 s (macchina già ferma).
+
+| Misura | Valore |
+| --- | --- |
+| Attività concluse al secondo: statistiche dell'intera corsa / media dei minuti 2-10 | **9.953 / 9.968** |
+| Minuti 2-10 sotto 9.900 att./s | 3 su 9 (t3 9.877, t6 9.433, t7 5.116) |
+| Offerte / accettate / rifiutate `E_PROJECTION_DOWN` / errori del client | 605.001 / 597.542 / 905 / 6.554 |
+| Intervallo più lungo senza accettazioni (ms) | 3.138 |
+| `start_ready` p50 / p99 | 250,6 ms / 7,59 s |
+| Append p50 per gruppo, per minuto (min-max, ms) | 63,0-644,1 (125 ms nei minuti 4-10 non disturbati) |
+| Ritardo di proiezione p99 | 14,99 s (minuti 7-8 fino a 15,8 s) |
+| Scadenze di tentativo / esiti scartati | 12.364 / 12.364 |
+| Istruzioni SQL per attività / righe | 0,0293 / 4,205 |
+| Accettate perse | **0** (la prima verifica a fine carico `FALLITA` con 4.476 non ancora concluse, la seconda `OK`) |
+| Righe `timer` per attività concluse | 0 (totale 0) |
+
+Lettura secondo la regola: ≥ 9.900 att./s con 0 accettate perse, quindi **ipotesi supportata**. La velocità è misurata; la spiegazione «tetto e ciclo» è supportata dal fatto che con quattro volte i tentativi in volo la portata torna al valore senza timer (il binario H è lo stesso, cambia solo `CAP`), non è isolata. Il costo non sparisce: stessa durata dell'append per gruppo (125 ms contro 66 ms di B), una coda di avvio di secondi (`start_ready` p99 7,59 s) e scadenze di tentativo (12.364) che rifanno attività già consegnate. La riga `MIN` di H non ha `held_max` (binario del blocco D).
+
+### Passo 2. La modifica «invia prima, registra dopo» (commit `c2ac38a`, `spikes/bus/src/engine.rs`)
+
+- **Cosa cambia in `dispatch`** (unico punto in cui un tentativo si consegna, quindi il primo tentativo, i ritentativi dopo l'attesa e le riconsegne dopo una scadenza): la consegna al worker parte subito, la scadenza di tipo 0 si arma in memoria nello stesso momento (`set_timer`), e l'evento `Timer` si scrive nel gruppo lanciato in fondo a `dispatch`, **senza aspettarlo** (`Group::sends` tolta; `Group::arm` resta per i tipi 1 e 2 e per i battiti). Tipi 1 e 2 non cambiati. La ripresa non cambia: un'attività senza timer durevole conta come mai consegnata e si consegna subito; ora questo copre anche una consegna il cui `Timer` non era durevole al crash: il **doppione accettato e contato**.
+- **Invariante 1, ordine nel log (per costruzione e misurata).** Il gruppo con il `Timer` parte dentro `dispatch`, nello stesso ciclo del motore che non può elaborare l'esito del worker prima di averlo lanciato; le code di scrittura sono FIFO per esecuzione (stessa connessione scelta dall'`exec_id`, `submit`), quindi il `Timer` di un tentativo precede sempre il suo `Done` o il suo fallimento sul bus. Nel proiettore (`db.rs`) gli `INSERT … ON CONFLICT` dei timer precedono i `DELETE` dello stesso gruppo. Controllo dopo ogni corsa `start1k` e `thr10k` di H2: `SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL` (scritta nel file grezzo con il conteggio): **0 nelle 6 corse `start1k` e nelle 2 `thr10k`**, e in tutte le altre di H2.
+- **Invariante 2, consegna dell'aggiornamento (per costruzione e misurata).** I gruppi con i `Timer` stanno in `Engine::groups` (non contano per `k`); lo svuotamento del motore vecchio esce solo con `groups` vuoto e posizione applicata uguale alla testa (`run`), quindi i `Timer` in sospeso sono sul bus e nel database prima di `rewrite_live`. Misurata: timer riscritti 2.894 (= tentativi in volo allo svuotamento) e 102.921 (= 100.000 + 2.921), zero persi, zero attività rifatte.
+- **Aggiunte di strumentazione** (poche righe): `held` e `held_max` (attività pronte trattenute dal tetto, `held_max` nella riga `MIN`), `undurable_deliveries` e `undurable_max` (consegne inviate il cui `Timer` non è ancora durevole, nelle statistiche), `TSET 0` scritto al momento dell'invio (con `TIMER_LOG`).
+- Costruito da `c2ac38a` con `cargo build --release` (e `--features old` per il motore vecchio degli aggiornamenti); `cargo fmt` e `cargo clippy --all-targets -- -D warnings` puliti.
+
+#### Regola della specifica (AD-2: nessun effetto esterno prima della scrittura durevole della decisione che lo causa)
+
+- **Blocco B (commit `7f156ba`, `spikes/bus/src/engine.rs`):** `finalize` (riga 627) mette le attività nuove in `pending` solo quando il gruppo che porta il loro `Ready` è durevole (righe 651-653) e poi chiama `dispatch` (656); l'invio al worker è alla riga 432 di `dispatch`. L'invio aspetta quindi il gruppo durevole che rende pronta l'attività.
+- **H2 (commit `c2ac38a`, `spikes/bus/src/engine.rs`):** stessa catena: `finalize` (891) mette in `pending` le attività nuove a gruppo durevole (916-918) e chiama `dispatch` (942); l'invio è alla riga 606 di `dispatch`. Anche le riconsegne vengono da timer già durevoli (`fire_due`, 440-490, chiama `dispatch` alla 487) o dalla ripresa (2086, 2106). **L'invio aspetta ancora il gruppo che rende pronta l'attività; NON aspetta il gruppo del `Timer` di scadenza del tentativo che si sta consegnando.** Se la regola chiede anche la scadenza durevole prima dell'invio, H2 non è conforme; se chiede la decisione che causa l'effetto (la prontezza), sì.
+
+### Passo 3. Controlli di correttezza su H2 (una corsa ciascuno, `-h2-4-ms-r1.txt`; tutti superati)
+
+| Controllo | Esito (misurato) |
+| --- | --- |
+| C3.1 retry attraverso un crash (`tretry`, attesa 5 s, giù 2 s) | 299 ritentativi su 299 iniziati una volta sola, 0 prima della scadenza; i 154 già scaduti a `READY` partono 53,8 ms (p50, p99 56,4) dopo `READY` (soglia 1 s), gli altri 10,1 ms (p50) dopo la scadenza; tentativo 0 eseguito più di una volta 0; accettate perse 0; righe `timer` per concluse 0 |
+| C3.2 scadenza attraverso un crash (`tdead`) | 99 su 99 rifatti una volta sola, 0 prima della scadenza, inizio 11,0 ms (p50), 20,8 (p99) dopo la scadenza; tentativo 0 eseguito più di una volta 0; accettate perse 0; timer noto 99 su 99 |
+| Kill del motore sotto carico (`ekill`, `ERATE=334 CAP=4096`, 3 s di lavoro, circa 1.000 att./s e 3.000 in volo) | r1 / r2 / r3: attività iniziate due volte **0 / 0 / 0**; riprese «da consegnare subito» 15 / 18 / 20; `undurable_deliveries` subito prima del kill 0 / 0 / 0, massimo della corsa 37 / 31 / 64; accettate perse 0; `late_ok` 3.019 in r1; righe `timer` per concluse 0 |
+| C2 aggiornamento rifatto (`up-run.sh n=3 rate=334`, `CAP=4096`) | pausa **3.352 ms**; accettate perse 0; attività iniziate due volte 0; `late_ok` 2.894, `expired` 0; timer riscritti 2.894 |
+| C3.4 aggiornamento con 100.000 timer (`PRE100K=1 CAP=4096`) | pausa **7.023 ms** (limite 30 s); accettate perse 0 (due verifiche); 100.000 timer scattati una volta, 0 prima della scadenza (scarto p50 10,3 / p99 20,2 ms); attività iniziate due volte 0; `late_ok` 2.921, `expired` 0; timer riscritti 102.921 |
+
+Soglia del kill sotto carico: «iniziate due volte ≤ consegne dell'ultimo gruppo non durevole»: 0 ≤ qualunque valore, **soddisfatta, ma il percorso del doppione non è stato esercitato**: in tre corse il campione prima del kill vedeva 0 consegne non durevoli (il massimo della corsa 31-64: finestre brevi) e nessuna attività è partita due volte. Non c'è una prova che il doppione accadrà o non accadrà; c'è il limite superiore (il gruppo non durevole) e la ripresa che lo conta. Le 15-20 «da consegnare subito» alla ripresa sono attività pronte non consegnate al kill (nessuna è partita due volte), non doppioni.
+
+### Passo 4. Coppie B contro H2, entrambi i bracci con `CAP=512`
+
+#### D2.1 `start1k` a 1.000 att./s, 6 coppie (`iggy-sqlite-timercost2-start1k-{B,H2}-4-ms-r{1..6}.txt`)
+
+Ordine in tempo: B1 H2-1, H2-2 B2, B3 H2-3, H2-4 B4, B5 H2-5, H2-6 B6 (coppie 1, 3, 5 con B per prima).
+
+| Coppia | B: pavimento prima > dopo (ms) | B: accettazione p99 / `start_ready` p50 / p99 (ms) | H2: pavimento prima > dopo (ms) | H2: accettazione p99 / `start_ready` p50 / p99 (ms) | H2 − B, p99 dell'avvio (ms) |
+| --- | --- | --- | --- | --- | --- |
+| 1 (B prima) | 1,94 > 2,51 | 18,41 / 7,59 / 11,01 | 2,76 > 2,78 | 33,98 / 14,59 / 19,33 | +8,32 |
+| 2 (H2 prima) | 7,13 > 2,88 | 17,95 / 8,06 / 10,86 | 7,13 > 2,85 | 35,68 / 14,88 / 21,10 | +10,24 |
+| 3 (B prima) | 1,90 > 2,92 | 17,57 / 8,02 / 10,46 | 2,82 > 2,76 | 34,24 / 14,80 / 20,32 | +9,86 |
+| 4 (H2 prima) | 2,84 > 2,74 | 17,98 / 8,05 / 10,81 | 3,35 > 2,81 | 33,92 / 14,91 / 19,20 | +8,39 |
+| 5 (B prima) | 2,98 > 2,77 | 17,70 / 7,91 / 10,81 | 2,72 > 2,77 | 33,79 / 14,76 / 19,05 | +8,24 |
+| 6 (H2 prima) | 6,00 > 2,78 | 18,18 / 7,95 / 10,80 | 7,18 > 2,92 | 34,46 / 14,95 / 20,99 | +10,19 |
+| **Mediana per braccio** | | **17,97 / 7,99 / 10,81** | | **34,11 / 14,84 / 19,83** | |
+
+- **Rapporto H2/B delle mediane del p99 dell'avvio: 1,83** (soglia 1,20). Segno coerente nelle due posizioni: mediana delle differenze con B prima +8,32 ms (coppie 1, 3, 5), con H2 prima +10,19 ms (coppie 2, 4, 6): la differenza si dichiara, **criterio del rapporto non superato**. Tutte le corse H2 sono più lente di tutte le corse B (il p99 migliore di H2, 19,05 ms, è 1,7 volte il peggiore di B, 11,01 ms).
+- **Limite assoluto del prodotto (p99 ≤ 25 ms): superato**, mediana 19,83 ms (sei corse tra 19,05 e 21,10 ms). Blocco D, braccio H: 30,32 ms.
+- p50: rapporto 1,86 (H2 14,84 ms contro B 7,99 ms; H 22,30 ms). Accettazione p99: B 17,97 contro H2 34,11 ms (H: 34,83 ms): la modifica non cambia la latenza di accettazione.
+- Istruzioni SQL per attività (misurata): B 0,0322-0,0324, H2 0,0411-0,0412; righe toccate per attività 2,20-2,21 contro 4,20-4,22: come in H, le due righe `timer` per attività restano (una inserita, una cancellata).
+- Righe `timer` per attività concluse dopo ogni corsa H2: **0 / 0 / 0 / 0 / 0 / 0**; righe `timer` totali a fine corsa 25 / 21 / 11 / 11 / 15 / 9 (attività ancora in volo allo spegnimento, non concluse).
+
+#### D2.2 `thr10k` a 10.000 att./s per 10 minuti, 2 coppie (`iggy-sqlite-timercost2-thr10k-{B,H2}-4-ms-r{1,2}.txt`, più i campioni di I/O `.io.names`)
+
+Come B5 e D1.2: 1.000 esecuzioni/s da 10 passi, due tenant, `trim=1`, registro delle accettate, `verify light`, `GATE60=1 VTRIES=100`. Ordine in tempo: B r1, H2 r1, H2 r2, B r2. Soglia scritta prima: almeno 9.900 att./s sulla finestra misurata (minuto 1 escluso), accettate perse 0.
+
+| Misura | B r1 | H2 r1 | H2 r2 | B r2 |
+| --- | --- | --- | --- | --- |
+| Pavimento prima > dopo (ms, p50) | 1,90 > 7,27 | 4,46 > 4,32 | 4,39 > 4,87 | 2,69 > 3,77 |
+| Attesa di quiete (s) | 165 | 175 | 165 | 170 |
+| Offerte / accettate | 605.000 / 605.000 | 605.000 / 604.339 | 605.001 / 605.001 | 605.000 / 605.000 |
+| Rifiutate `E_PROJECTION_DOWN` / errori del client | 0 / 0 | 661 / 0 | 0 / 0 | 0 / 0 |
+| **Attività concluse al secondo** (intera corsa / media dei minuti 2-10) | **9.994 / 9.994** | **9.983 / 9.962** | **9.993 / 10.000** | **10.000 / 10.001** |
+| Minuti 2-10 sotto 9.900 att./s | 0 | 2 (t3 9.877, t10 9.769) | 1 (t6 9.801) | 0 |
+| Intervallo più lungo senza accettazioni (ms) | 500 | 928 | 537 | 559 |
+| `start_ready` p50 / p99 (ms) | 66,2 / 144,5 | 136,6 / 405,5 | 137,2 / 399,4 | 67,8 / 153,0 |
+| Ritardo di proiezione p99 (ms) | 345,6 | 537,6 | 553,0 | 357,6 |
+| Append p50 per gruppo, per minuto (min-max, ms) | 23,9-66,5 | 117,6-128,8 | 125,0-130,2 | 65,5-66,3 |
+| `held_max` per minuto (min-max) | — | 202-930 | 289-1.011 | — |
+| Istruzioni SQL per attività | 0,0157 | 0,0293 | 0,0292 | 0,0155 |
+| **Accettate perse** | 0 | 0 | 0 | 0 |
+| Righe `timer` per attività concluse | — (B non ha la tabella) | **0** | **0** | — |
+
+- **Superato in tutte e 4 le corse** (misurata): ≥ 9.900 att./s sull'intera corsa e sulla media dei minuti 2-10, accettate perse 0. Il confronto tra bracci si riporta con i numeri, senza mediana (2 coppie): H2 è sotto B di circa 0,1 % sull'intera corsa; nelle corse H2 un minuto isolato scende a 9.769-9.877 att./s (in B nessuno).
+- **Le istruzioni SQL per attività restano due ordini di grandezza sotto il limite di 5** (NFR-4, misurata): 0,0292-0,0293 (H2) contro 0,0155-0,0157 (B).
+- **Il costo che resta a 10.000/s è nel tempo di avvio e nell'append, non nella portata** (misurata): p50 dell'avvio 136-137 ms contro 66-68 ms, append p50 per gruppo 118-130 ms contro 66 ms (come nel blocco D, braccio H: 124-129 ms). Che dipenda dal gruppo `Timer` in più per consegna è ipotesi (stesso numero di eventi sul bus di H, v. sintesi 6).
+
+### Cosa è cambiato nel codice dello spike
+
+- `spikes/bus/src/engine.rs` (commit `c2ac38a`): `dispatch` invia subito e arma la scadenza in memoria; `Group::sends` e `Engine::sends` tolte; `Group::deliveries`, `Shared::{undurable, undurable_max, held, held_max}`; riga `MIN` con `held_max`; statistiche con `undurable_deliveries`, `undurable_max`, `held`; `TSET 0` al momento dell'invio.
+- `spikes/bus/scen.sh` (commit `ef33d90`): a fine corsa (SQLite) conteggio delle righe `timer` per attività concluse e totali, con la SQL scritta nel file grezzo; la scena `ekill` stampa `undurable_deliveries` prima del kill.
+
+### Deviazioni dal piano (blocco D, seconda parte)
+
+- **Worktree:** partito da `main`, portato a `5775283` con `git reset --hard` (pulito, nessun commit mio prima).
+- **Kill del motore sotto carico:** la scena è `ekill` (blocco B) con `ERATE=334 CAP=4096` (circa 1.000 att./s con attività da 3 s, quindi 3.000 in volo; con `CAP=512` il carico non sarebbe sostenibile). Una corsa richiesta; ne ho tenute tre (r2 e r3 in più, per cercare il doppione: non è comparso). Il conteggio degli iniziati due volte è già nella scena (`work.log`): nessun meccanismo nuovo, solo la riga di `undurable_deliveries`.
+- **Soglia di kill sotto carico:** campione di `undurable_deliveries` preso subito prima del kill (una chiamata delle statistiche, pochi ms prima del segnale), non al suo istante, che non si può osservare; il massimo della corsa è il limite superiore riportato. La soglia è banalmente soddisfatta (0) e il percorso non è esercitato (v. sopra).
+- **`TSET` di tipo 0 in H2** si scrive all'invio, non a gruppo durevole come in H: `tstat.sh` di retry e scadenza continua a funzionare, ma la scadenza del tentativo non è più «scrittura durevole + 15-20 ms».
+- **Modifica a tutti i tentativi, non solo al primo:** `dispatch` è l'unico punto di consegna, quindi anche i tentativi dopo un ritentativo (tipo 1) e dopo una scadenza (tipo 0) inviano prima e registrano dopo. Effetto: un crash prima che il `Timer` del tentativo `n+1` sia durevole lascia il timer del passo precedente (ritentativo o scadenza) e il tentativo `n+1` si rifà con lo stesso numero (nessuna corsa lo provoca).
+- **Chiamate parallele per errore:** in un solo messaggio ho lanciato dieci chiamate `ssh` per `start1k`; `brun.sh` rifiuta di partire con una corsa in corso, quindi le prime quattro sono andate in fila nell'ordine voluto (H2 r2, B r2, B r3, H2 r3: nessun dato perso né mescolato) e le altre sei sono state rifiutate e le ho rifatte una per volta; nessun file grezzo è stato scritto dalle rifiutate.
+- **B senza tabella `timer`:** nei file grezzi B la riga `timer_rows_for_finished_activities` riporta l'errore di `sqlite3` («no such table: timer»), atteso.
+- **Un'unica corsa a 10.000/s di H a 2.048** (la riga del piano), con attesa di quiete 0 s (macchina già ferma).
+- **Tempo:** circa due ore (lettura del codice, modifica, costruzione, 30 corse su minisheep tra 1,5 e 13 minuti).
+
+### Non coperto
+
+- **Una correzione che porti il rapporto H2/B sotto 1,20:** nessuna provata (per esempio il `Timer` in un gruppo senza coda dietro i `Done`/`Ready`, più connessioni di scrittura, o nessun timer durevole per attività brevi). H2 rispetta il limite assoluto (19,83 ms ≤ 25 ms) e i 10.000/s, non il rapporto di 1,20 contro B.
+- **Il doppione dopo un crash con `Timer` non durevole** come caso provocato (non è comparso in tre corse); **crash a metà aggiornamento** e con consegne non durevoli; **Postgres**.
+- **Il gruppo `Timer` in coda** come causa del +6,9 ms di p50: ipotesi, non isolata.
+- **Il tetto più alto su H2** (`CAP=2048` su H2) e `held_max` sul braccio H: non misurati; la corsa a 2.048 è su H, senza `held_max`.
+- **Le scadenze di tentativo con il tetto alto** (12.364 su H): il margine `grace_ms` di 2 s contro l'attesa nel worker non è stato riesaminato; senza battiti un tentativo in coda scade.
+- Tutto il resto del blocco D (log dei task, RustFS, `If-None-Match`, visibilità, worker rumoroso, segreto, crash con righe in volo, tetto per tentativo): non fatto, come chiesto.
+
+### Comandi per rifare (blocco D, seconda parte)
+
+Su minisheep, in `~/ttspikebus` (`env.sh` dal repository, `.env` da `./gen-env.sh`, binari `bin/busspike-bB`, `bin/busspike-d0`, `bin/busspike-h2`, `bin/busspike-h2-old`). Una corsa alla volta, una chiamata per volta; `ARM_BIN` e `ARM` scelgono il binario e il nome del braccio.
+
+| Misura | Comando |
+| --- | --- |
+| Passo 1 | `GATE60=1 VTRIES=100 CAP=2048 ARM_BIN=$HOME/ttspikebus/bin/busspike-d0 ARM=H-cap2048-head-5117575 BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost2-thr10k-H-cap2048-4-ms-r1.txt ./with-sampler.sh risultati/iggy-sqlite-timercost2-thr10k-H-cap2048-4-ms-r1.io ./scen.sh iggy sqlite thr10k secs=600`, poi `./brun.sh wait` |
+| Retry / scadenza su H2 | `ARM_BIN=$HOME/ttspikebus/bin/busspike-h2 ARM=H2-c2ac38a BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost2-timer-retry-h2-4-ms-r1.txt ./scen.sh iggy sqlite tretry` (`tdead`) |
+| Kill sotto carico | `ERATE=334 CAP=4096 ARM_BIN=… ARM=H2-c2ac38a BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost2-ekill-h2-4-ms-r1.txt ./scen.sh iggy sqlite ekill` |
+| C2 / C3.4 | `[PRE100K=1] SPIKE_OLD=$HOME/ttspikebus/bin/busspike-h2-old CAP=4096 ARM_BIN=$HOME/ttspikebus/bin/busspike-h2 ARM=H2-c2ac38a BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost2-upgrade-rerun-h2-4-ms-r1.txt ./up-run.sh n=3 rate=334` |
+| D2.1 | `ARM_BIN=$HOME/ttspikebus/bin/busspike-bB ARM=B-blockB-7f156ba BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost2-start1k-B-4-ms-r1.txt ./scen.sh iggy sqlite start1k` (H2: `busspike-h2`, `ARM=H2-c2ac38a`) |
+| D2.2 | `GATE60=1 VTRIES=100 ARM_BIN=… ARM=… BRUN_ITERS=30 ./brun.sh risultati/iggy-sqlite-timercost2-thr10k-H2-4-ms-r1.txt ./with-sampler.sh risultati/iggy-sqlite-timercost2-thr10k-H2-4-ms-r1.io ./scen.sh iggy sqlite thr10k secs=600`, poi `./brun.sh wait` |
