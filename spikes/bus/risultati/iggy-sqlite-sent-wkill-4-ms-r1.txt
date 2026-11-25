@@ -1,0 +1,58 @@
+[stato prima 19:56:34] load: 0.88 1.14 1.24
+[stato prima] io: some avg10=0.85 avg60=5.33 avg300=10.62 total=20685972209
+[stato prima] cpu: some avg10=0.01 avg60=0.11 avg300=0.35 total=2271917756
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: SENT-wkill
+[stato prima] binario sha256:514d262500a5f659
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=6.96ms p99=10.80ms p99.9=66.24ms max=66.24ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 30 s
+### iggy + sqlite: wkill 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=3045584 READY recovered_ms=1596 now_us=1795633005715937 gen=1
+prima del kill: secs=15.1 accepted=3996 refused=0 done=5911 rejected=0 groups=106 expired=0 late_ok=0
+T0 kill del worker 1=1795633020758805
+load tenants=ab rate=334/s kind=0 n=3 size=1024 work_ms=3000 warm=1s measured=30s
+offered=10354 accepted=10354 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+errors_by_type {}
+accept_rtt_open_loop n=10020 p50=40.16ms p99=375.30ms p99.9=440.83ms max=470.53ms over100ms=2663
+accept_max_gap_ms=150 from_us=1795633025974469 to_us=1795633026124904
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.74 cpu_per_1000_att engine=0.000 worker=745.000
+motore dopo la corsa: secs=34.1 accepted=10354 refused=0 done=24981 rejected=0 groups=272 expired=1532 late_ok=0
+verify: accettate=10354 concluse_nella_proiezione=7230 accettate_perse=3124 attivita_concluse=24866 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=25273 duplicati_sul_bus=0 payload_decifrati=24866 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10354 concluse_nella_proiezione=8375 accettate_perse=1979 attivita_concluse=28113 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=28489 duplicati_sul_bus=0 payload_decifrati=28113 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10354 concluse_nella_proiezione=9486 accettate_perse=868 attivita_concluse=30194 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=30400 duplicati_sul_bus=0 payload_decifrati=30194 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10354 concluse_nella_proiezione=10354 accettate_perse=0 attivita_concluse=31062 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=31062 duplicati_sul_bus=0 payload_decifrati=31062 payload_illeggibili=0 light=false
+verify OK
+tentativi iniziati: 32586, attività distinte: 31062, eseguite più di una volta: 1524
+riesecuzioni: 1524; kill -> nuovo inizio: min 2019, mediana 3479, max 5019 ms
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 79068 kB
+rss pid=3045584 42076 kB
+rss pid=3045767 26056 kB
+-- conteggio file archivio: 74
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+sentinel pronto (now_us=1795633005773198)
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+sentinel_stats events=105072 topics=2 lag_events p50=1 p99=1 max=1 gaps=0 gap_events=0 alarms overdue=0 retry=0 engine_silent=0 recovered=0 header_bytes=46 cpu_s=0.53
+sentinel_read_delay n=3177 p50=15.47ms p99=58.11ms p99.9=68.35ms max=102.14ms over100ms=2
+sentinel_retry_latency n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel_deadlines_resolved_after_due=1532 margin_lt_1s=0 margin_to_grace_end n=1532 p50=1955.84ms p99=1978.37ms p99.9=1981.44ms max=1981.44ms over100ms=1532
+sentinel allarmi: overdue=0 retry=0 engine-silent=0 recovered=0
+sentinel prime righe:  |  |  | 
+[stato dopo 19:57:30] load: 2.81 1.60 1.39
+[stato dopo] io: some avg10=45.61 avg60=28.14 avg300=15.85 total=20708529987
+[stato dopo] cpu: some avg10=2.11 avg60=1.34 avg300=0.64 total=2273236176
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: SENT-wkill
+[stato dopo] binario sha256:514d262500a5f659
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.83ms p99=4.16ms p99.9=4.63ms max=4.63ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.03

@@ -1461,3 +1461,65 @@ Tutte molto sotto il limite di 5 istruzioni per attività (NFR-4). Le istruzioni
 ### Comandi per rifare
 
 `./logd-iso-chain.sh rows` su minisheep (`./logd-iso-chain.sh wait`, `./logd-iso-chain.sh smoke`), con `bin/busspike-logd-7c1dfcd`; le tre varianti: `NOISY=1 LOGA=0x0 LOGB=3x80 ./scen.sh iggy sqlite lognoisy`, `LOGB=3x80 ./scen.sh iggy sqlite lognoisy`, `./scen.sh iggy sqlite lognoisy`, ciascuna dentro `ms-run.sh` con `ARM=LOG-iso-<braccio>`.
+
+## Sentinella (prototipo)
+
+Prototipo di Marco (2026-11-25): un processo di sola lettura che segue i topic `state-*` di Iggy con il gruppo di consumatori `sentinel` e, dalle sole intestazioni utente in chiaro che il motore aggiunge con `META=1` (35 byte grezzi, 46 sul filo), vede se un workflow avanza, è bloccato o ha errori e se il motore è fermo. Non ha chiavi (ingressi e uscite restano sigillati per tenant), non scrive sul bus né sul database, gira sulle CPU `1-4` del motore. Regole di lettura: `risultati/iggy-sqlite-sent-regola-4-ms.txt` (commit `4b54a74`, 19:25:19, scritte prima di ogni corsa misurata; adattamenti accettati dal coordinatore: il ritardo di lettura guida il criterio c della riga 1, la riga 2 passa con «almeno un `overdue`», la riga 4 riporta `margin_lt_1s` e lascia `engine_silent` non giudicato). Binario `bin/busspike-sent-116e57c` (commit `116e57c`), sha256 `514d262500a5f659`, scritto in ogni file grezzo. Script di catena `sent-chain.sh rows` (commit `06d55ce`, 19:28:02, con validità V1-V3 e una ripetizione immediata). La prima corsa misurata ha `[stato prima 19:28:03]`. 21 corse, **nessuna non valida**, nessuna ripetizione. File grezzi `risultati/iggy-sqlite-sent-<riga>-<braccio>-4-ms-r<n>.txt`.
+
+**Macchina.** Minisheep tranquilla in questa serie: carico a 1 min prima delle corse 0,41-1,47 e dopo 0,97-3,38; CPU massima di un runner prima e dopo ogni corsa sotto 0,3 % (0,00-0,26); nessuna corsa con `[macchina non ferma]`; attesa di quiete 0-75 s (righe 1) e 30-55 s (righe 2-5). Pavimento di `fdatasync` prima: p50 1,92-8,45 ms; in 11 corse il p99.9 è sopra 60 ms (fino a 146,7 ms), nessuna sopra 150 ms. A differenza dell'isolamento (runner molto attivi), qui i runner sono rimasti fermi: **i numeri della riga 1 sono stabili**.
+
+### Sintesi
+
+1. **Riga 1, costo: superata.** Mediana del p99 di avvio: OFF **19,70 ms**, ON **19,94 ms**; R = **1,012** (soglia 1,20). Differenza **non dichiarabile (effetto d'ordine)**: X +1,02 ms (ON per primo), Y −0,59 ms (ON per secondo). Criterio a (≤ 25 ms per braccio): rispettato in tutti e due. Criterio c: in tutte le 6 corse ON ritardo di lettura p99 16,8-17,8 ms (limite 1.000), `gaps=0`, 0 allarmi di ogni tipo. Criterio d: istruzioni SQL per attività 0,0414 (OFF) contro 0,0416 (ON), scarto 0,5 % (limite 10 %). CPU del sentinella 0,49 s per corsa. (misurata)
+2. **Riga 2, motore ucciso e lasciato fermo: superata in 3 corse su 3.** `engine-silent` a +2,08 / +2,09 / +2,07 s dal kill (limite 3 s); primo `overdue` a +4,10 / +4,02 / +4,00 s; `overdue` 3.025 / 3.010 / 3.033 contro 3.025 / 3.010 / 3.033 tentativi in volo (tutti); `RECOVERED engine` 197 / 65 / 217 ms dopo `READY`; `verify OK`. (misurata)
+3. **Riga 3, errori: superata in 2 corse su 2.** Allarmi `retry` 500 e 483, uguali ai tentativi falliti (500 e 483, dal registro dei worker); ritardo dall'append del Timer all'allarme p99 57,5 e 86,9 ms (limite 1.000); 0 `overdue`, 0 `engine-silent`; `verify OK`. (misurata)
+4. **Riga 4, worker ucciso, motore vivo: superata in 2 corse su 2.** 0 `overdue` in tutte e due (il motore ha riconsegnato 1.524 e 1.502 tentativi e il sentinella ha visto 1.532 e 1.514 scadenze risolte dopo la loro scadenza); `margin_lt_1s` 0 in tutte e due (margine mediano 1,956 e 1,958 s sui 2 s di tolleranza: il motore agisce circa 40 ms dopo la scadenza); `engine_silent` 0 e 0 (non giudicato). (misurata)
+5. **Riga 5, nuovo tenant: superata in 2 corse su 2.** Primo evento del topic nuovo letto 285 e 276 ms dopo la creazione (limite 2.000), `topics=3`, `verify OK`. (misurata)
+
+### Riga 1, per coppia (`iggy-sqlite-sent-cost-{OFF,ON}-4-ms-r{1..6}.txt`)
+
+`start_ready` p99 (p50) in ms. Ordine in tempo: r1 OFF, ON; r2 ON, OFF; r3 OFF, ON; r4 ON, OFF; r5 OFF, ON; r6 ON, OFF.
+
+| Coppia | OFF | ON | d = ON − OFF | SQL per attività OFF / ON | Ritardo di lettura p99 (ON, ms) |
+| --- | --- | --- | --- | --- | --- |
+| 1 (OFF prima) | 19,01 (14,74) | 19,66 (14,38) | +0,65 | 0,0413 / 0,0416 | 17,23 |
+| 2 (ON prima) | 18,88 (14,54) | 19,90 (14,87) | +1,02 | 0,0416 / 0,0416 | 17,76 |
+| 3 (OFF prima) | 20,57 (14,77) | 19,98 (14,19) | −0,59 | 0,0414 / 0,0416 | 17,60 |
+| 4 (ON prima) | 20,37 (14,65) | 19,57 (14,36) | −0,80 | 0,0414 / 0,0417 | 17,04 |
+| 5 (OFF prima) | 21,57 (14,59) | 20,21 (14,25) | −1,36 | 0,0414 / 0,0416 | 16,82 |
+| 6 (ON prima) | 19,02 (14,71) | 20,59 (14,28) | +1,57 | 0,0416 / 0,0416 | 17,65 |
+| **Mediana** | **19,70 (14,68)** | **19,94 (14,32)** | mediana delle 6 d +0,03 | **0,0414 / 0,0416** | |
+
+- R = 19,94 / 19,70 = **1,012**; X (ON per primo: +1,02, −0,80, +1,57) = +1,02 ms; Y (ON per secondo: +0,65, −0,59, −1,36) = −0,59 ms: segni opposti, **non dichiarabile**; la differenza delle mediane (+0,25 ms) sta nel rumore tra corse (OFF varia da 18,88 a 21,57 ms). Criterio b rispettato (R ≤ 1,20). Il costo dell'intestazione e della lettura non si distingue dal rumore a 1.000 att./s. (misurata)
+- Sentinella (6 corse ON): eventi letti 139.469-139.500 per corsa, `gaps=0`, lag in eventi sempre 0 (1 è il valore minimo dell'istogramma), CPU 0,49 s per corsa. Pavimento prima: OFF p50 2,73-3,02 ms (p99.9 4,7-41 ms), ON p50 2,68-7,08 ms (p99.9 7,4-99,7 ms).
+
+### Righe 2-5, per corsa
+
+| Corsa | `[stato prima]` | Esito | Numeri |
+| --- | --- | --- | --- |
+| ekilldown r1 | 19:49:27 | superata | silent +2.083 ms; primo overdue +4.104 ms; overdue 3.025 / in volo 3.025; RECOVERED +197 ms dopo READY (READY a +20.222 ms dal kill); episodi `engine-silent` 4, `RECOVERED` 4; ritardo di lettura p99 74,5 ms; `gaps=0` |
+| ekilldown r2 | 19:51:10 | superata | silent +2.093 ms; primo overdue +4.015 ms; overdue 3.010 / 3.010; RECOVERED +65 ms; episodi 4 / 4; ritardo p99 54,8 ms; `gaps=0` |
+| ekilldown r3 | 19:52:40 | superata | silent +2.074 ms; primo overdue +3.998 ms; overdue 3.033 / 3.033; RECOVERED +217 ms; episodi 3 / 3; ritardo p99 23,2 ms; `gaps=0` |
+| retry r1 | 19:54:22 | superata | `retry` 500 = falliti 500; latenza Timer→allarme p50 44,1 / p99 57,5 ms; 0 overdue, 0 silent |
+| retry r2 | 19:55:38 | superata | `retry` 483 = falliti 483; latenza p50 44,7 / p99 86,9 ms; ritardo di lettura p99 285 ms; 0 overdue, 0 silent |
+| wkill r1 | 19:56:34 | superata | 0 overdue; risolte dopo la scadenza 1.532, `margin_lt_1s` 0, margine mediano 1.956 ms; silent 0 |
+| wkill r2 | 19:58:29 | superata | 0 overdue; risolte 1.514, `margin_lt_1s` 0, margine mediano 1.958 ms; silent 0 |
+| newtenant r1 | 20:00:15 | superata | primo evento letto 285 ms dopo la creazione; `topics=3` |
+| newtenant r2 | 20:01:44 | superata | 276 ms; `topics=3` |
+
+Stato della macchina per queste corse (dai file grezzi): carico 1 min prima/dopo ekilldown 0,92/1,64, 1,25/1,94, 1,32/1,44; retry 0,95/0,97, 0,57/1,43; wkill 0,88/2,81, 1,43/2,68; newtenant 1,42/3,38, 1,27/1,61; CPU massima di un runner prima/dopo sempre sotto 0,3 %. Pavimento di `fdatasync` prima: p50 1,92-8,45 ms, p99.9 4,1-146,7 ms.
+
+### Note di disegno (osservazioni e opzioni, non verdetti)
+
+- **`engine-silent` è silenzio, non «motore fermo».** Scatta quando il lavoro aspetta legittimamente, oltre che quando il motore è fermo. Osservato (misurato) nella riga 2: un solo kill dà 3-4 episodi per corsa (4, 4, 3 con altrettanti `RECOVERED`): il primo è il silenzio vero (+2,07-2,09 s dal kill), gli altri dopo il riavvio, quando le circa 3.000 attività recuperate aspettano le loro scadenze e il motore tace più di 2 s tra una raffica di eventi e l'altra. Nelle corse senza arresto (righe 1, 3, 4, 5) gli episodi sono 0. Un evento di battito del motore (scritto a intervalli fissi sul bus anche senza lavoro) separerebbe i due casi: **non è costruito**, è solo un'opzione per l'ADR.
+- **Limiti del prototipo** (dal codice, non misurati come limite): `tick` scorre tutti i timer aperti a ogni passo di 100 ms, quindi costa O(timer aperti) (qui fino a circa 3.000, nessun problema visibile; con centinaia di migliaia servirebbe un indice per scadenza); l'insieme `alarmed` non si restringe mai (cresce di una voce per allarme di tipo overdue o retry, nella riga 2 a 3.000 voci, in un servizio lungo andrebbe potato alla chiusura dell'esecuzione); `due_us` viene dall'orologio del motore e `now` da quello del sentinella: sulla stessa macchina coincidono (qui), su un altro host lo scarto degli orologi si somma ai 2 s di tolleranza (e il ritardo di lettura usa l'ora di append del server di Iggy).
+- **Avvertenza del prototipo, già nelle regole:** all'avvio il sentinella stampa un `SENTINEL_ERR` («rebalance in progress») per ogni topic e poi si riprende; il gruppo e la sua posizione salvata dal server funzionano (nessun salto, `gaps=0` in tutte le corse), ma la ripresa dopo un riavvio del sentinella non è provata.
+- **Avvisi di `cargo check --features old`:** a `2b4bdd3` (contati qui) c'è 1 avviso (`unused import std::time::Duration`, preesistente); a `4b54a74` ce ne sono 6. Questa fase ne ha aggiunti **5**: sono codice morto del modulo `sentinel` (`GRACE_US`, `SILENT_US`, `decode`, `State` e i suoi metodi), perché con `--features old` la funzione `run` è esclusa e restano senza uso. Non toccano la compilazione di default (clippy con `-D warnings` è pulito).
+
+### Non coperto
+
+Come nelle regole: conservazione che aspetta il sentinella (e se la posizione del gruppo limiti la cancellazione dei segmenti del motore: non verificato, nelle corse nessun segmento si chiude); crash e riavvio del sentinella; più membri dello stesso gruppo; Postgres; 10.000 att./s; consegna degli allarmi a una persona; esecuzioni aperte a lungo senza eventi (darebbero `engine-silent`).
+
+### Comandi per rifare
+
+Su minisheep, in `~/ttspikebus` (`.env` da `./gen-env.sh`, binario `bin/busspike-sent-116e57c`): `./sent-chain.sh rows` staccato e `./sent-chain.sh wait`; singole corse con `env ARM_BIN=… ARM=<braccio> <variabili> ./ms-run.sh risultati/<file> ./scen.sh iggy sqlite <scena>`, variabili e scene nella regola di lettura (`SENT=1 META=1`, `DOWN=20`).
