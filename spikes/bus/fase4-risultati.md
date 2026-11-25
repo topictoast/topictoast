@@ -1451,6 +1451,13 @@ File grezzi `iggy-sqlite-logd-iso-<braccio>-4-ms-r<n>.txt`. Pavimento prima: p50
 
 Tutte molto sotto il limite di 5 istruzioni per attività (NFR-4). Le istruzioni per attività di B variano tra 0,0361 (corsa non valida) e 0,0414 nei tre bracci, senza differenza legata alle righe o ad A; il pavimento di `fdatasync` di `Bsolo0` r2 ha avuto un valore massimo di 26,4 s nella misura (disco fermo, osservata nel file; la corsa vale per le regole).
 
+### Revisione
+
+- **Cosa risponde la serie.** Una sola delle tre quote è determinata: il carico di A senza righe, +2,0 ms (misurata). Il costo di base (`Bsolo0`) e le righe di B **non sono determinati**, e la ragione viene dalle regole stesse: la regola delle coppie dichiara B con le righe più lento di B senza righe, mentre le mediane dei bracci dicono il contrario (22,26 contro 25,60 ms). I numeri dei giri r4-r6 restano «fuori dalle regole» e non decidono nulla.
+- **Runner e corse lente: legame non sostenuto dai file.** Riga `cpu runner max` di `[stato prima]` e `[stato dopo]` accanto al p99, in tutte le 19 corse: delle cinque corse valide con p99 sopra 30 ms (Bsolo3 r1 176,00, Bsolo3 r2 83,78, Anolines r2 ripetizione 75,71, Bsolo0 r1 46,98, Bsolo0 r2 46,94) tre hanno i runner a 0,52 % o meno sia prima sia dopo (Bsolo3 r1, Anolines r2 ripetizione, Bsolo0 r1); Bsolo3 r3 ha un runner all'89 % dopo la corsa e un p99 di 22,37 ms. Le due istantanee possono non vedere l'attività durante la corsa, ma i file non sostengono il legame: la causa delle corse lente dei primi giri è **aperta**, e l'«ipotesi» della lettura a non ha il sostegno dei file.
+- **Stesso braccio, due serie.** `Anolines` (stesso binario, stesso comando) è 23,70 ms nella riga 2 e 25,34 ms qui: il livello assoluto si sposta di circa 1,6 ms tra un'ora e l'altra; valgono le differenze a coppie. Con un tenant vicino a 500 att./s B sta al limite dei 25 ms anche quando il vicino non scrive righe.
+- **Contrasto con la terza parte, per l'ADR.** La lettura a dà 25,6 ms per il motore col log e senza righe, sopra i 25 ms; H2 fu tenuto anche per «avvio p99 19,72 ms ≤ 25». L'ADR non può citare quel limite come rispettato senza mettere accanto questo numero; il costo di base resta aperto con i due valori (19,72 e 25,6).
+
 ### Comandi per rifare
 
 `./logd-iso-chain.sh rows` su minisheep (`./logd-iso-chain.sh wait`, `./logd-iso-chain.sh smoke`), con `bin/busspike-logd-7c1dfcd`; le tre varianti: `NOISY=1 LOGA=0x0 LOGB=3x80 ./scen.sh iggy sqlite lognoisy`, `LOGB=3x80 ./scen.sh iggy sqlite lognoisy`, `./scen.sh iggy sqlite lognoisy`, ciascuna dentro `ms-run.sh` con `ARM=LOG-iso-<braccio>`.
