@@ -1370,3 +1370,87 @@ Log dei task (FR-59) costruito sul motore H2 (decisione di Marco, 2026-11-25) e 
 ### Comandi per rifare (blocco D, log dei task)
 
 Su minisheep, in `~/ttspikebus` (`env.sh` dal repository, `.env` da `./gen-env.sh`, binario `bin/busspike-logd-7c1dfcd`); tutte le righe 1-5 in sequenza con `./logd-chain.sh rows` (staccato) e `./logd-chain.sh wait`. Una corsa: `env ARM_BIN=$HOME/ttspikebus/bin/busspike-logd-7c1dfcd ARM=<braccio> <variabili> ./ms-run.sh risultati/<file> ./scen.sh iggy sqlite <scena> [chiave=valore]`. Variabili e scene delle righe: nella regola di lettura. RustFS: `./reset.sh rustfs` poi `./ms-run.sh risultati/<file> ./rustfs-proof.sh`.
+
+## Blocco D, log dei task: isolamento del worker rumoroso
+
+Isolamento del 25,25 ms della riga 2 (decisione di Marco, 2026-11-25). Regole di lettura: `risultati/iggy-sqlite-logd-iso-regola-4-ms.txt` (commit `3868163`, 17:07:57, scritte prima di ogni corsa misurata; la prima corsa misurata ha `[stato prima 17:12:20]`). Binario `bin/busspike-logd-7c1dfcd`, sha256 `fd04efcdeefe0425`, controllato prima di partire e scritto in ogni file grezzo, mai ricostruito. Il risultato della riga 2 (criterio a non rispettato) **non cambia**: qui si attribuisce, non si giudica di nuovo. Tre bracci, 6 giri da 3 corse nell'ordine fisso del quadrato latino (18 corse), `lognoisy`, SQLite, `CAP=512`, minisheep: `Anolines` (A a 500 att./s senza righe, B con 3 righe), `Bsolo3` (niente A, B con 3 righe), `Bsolo0` (niente A, B senza righe). Corse di prova non misurate (`-smoke-iso-`): Bsolo0 senza riga `logcheck` e con `verify OK`, `done_b` presente (39.990), Bsolo3 con `lines_written` = 3 × `attempts_written` (134.970 = 3 × 44.990): tutte le regole applicabili come scritte.
+
+**Macchina.** Durante questa serie minisheep ha avuto molta attività dei runner di GitHub (carico 1 min dopo le corse tra 1,5 e 28; nel file grezzo `[stato prima]`/`[stato dopo]`). L'attesa di quiete di `ms-run.sh` ha trattenuto alcune corse fino a 15 minuti (`[attesa]` 835-905 s in tre corse); due corse hanno la riga `[macchina non ferma]` (Anolines r2 originale, Bsolo0 r2): contano e si segnalano, nessuna è esclusa.
+
+**Corse non valide (una).** `Anolines` r2 (`iggy-sqlite-logd-iso-Anolines-4-ms-r2.txt`, `[stato prima 17:55:56]`): V2 non rispettata, `done_b` 36.547 < 38.000 (p99 1.580 ms, p50 442 ms; un runner a 1.770 % di CPU, pavimento di `fdatasync` dopo con p99.9 1.538 ms, macchina non ferma). Rifatta una volta, nella stessa posizione, appena ripresa la serie (`...-r2-ripetizione.txt`, `[stato prima 18:01:00]`, valida: `done_b` 39.774, p99 75,71 ms, p50 34,34 ms); entrambe restano nel rapporto e **nelle mediane vale la ripetizione**. La serie è stata fermata e ripresa una sola volta (alle 17:59, mentre `Bsolo0` r3 era ancora in attesa di quiete e senza file grezzo): la prima versione dello script di catena non rifaceva da sola le corse non valide; la versione ripresa le controlla da sé (V1-V3) e salta le corse già valide. Nessun'altra corsa è non valida.
+
+### Mediane per braccio (6 corse; Anolines r2 = ripetizione)
+
+| Braccio | p99 di avvio di B, mediana (ms) | p50, mediana (ms) | p99 delle 6 corse (r1…r6) |
+| --- | --- | --- | --- |
+| `Anolines` | **25,335** | 17,855 | 25,55 / 75,71 / 24,40 / 27,61 / 23,15 / 25,12 |
+| `Bsolo3` | **22,255** | 15,395 | 176,00 / 83,78 / 22,37 / 22,14 / 21,15 / 22,06 |
+| `Bsolo0` | **25,595** | 14,825 | 46,98 / 46,94 / 30,37 / 20,82 / 20,25 / 19,26 |
+
+### Una tabella per giro (`start_ready_tenant_b` p99 (p50) in ms, in ordine di esecuzione)
+
+| Giro | 1º | 2º | 3º |
+| --- | --- | --- | --- |
+| r1 | Anolines 25,55 (17,79) | Bsolo3 176,00 (18,50) | Bsolo0 46,98 (15,00) |
+| r2 | Bsolo3 83,78 (15,06) | Bsolo0 46,94 (25,17) | Anolines 75,71 (34,34) (ripetizione; originale 1.580,03 / 442,37, non valida) |
+| r3 | Bsolo0 30,37 (15,42) | Anolines 24,40 (17,60) | Bsolo3 22,37 (16,02) |
+| r4 | Anolines 27,61 (17,93) | Bsolo0 20,82 (14,65) | Bsolo3 22,14 (15,26) |
+| r5 | Bsolo3 21,15 (15,46) | Anolines 23,15 (17,87) | Bsolo0 20,25 (14,61) |
+| r6 | Bsolo0 19,26 (14,50) | Bsolo3 22,06 (15,33) | Anolines 25,12 (17,84) |
+
+### Differenze (dA = Anolines − Bsolo3, dL = Bsolo3 − Bsolo0, dT = Anolines − Bsolo0), in ms sul p99
+
+| Giro | dA | dL | dT |
+| --- | --- | --- | --- |
+| r1 | −150,45 | +129,02 | −21,43 |
+| r2 | −8,07 | +36,84 | +28,77 |
+| r3 | +2,03 | −8,00 | −5,97 |
+| r4 | +5,47 | +1,32 | +6,79 |
+| r5 | +2,00 | +0,90 | +2,90 |
+| r6 | +3,06 | +2,80 | +5,86 |
+
+| Differenza | X (primo braccio prima) | Y (primo braccio dopo) | Verdetto (stesso segno) | Mediana delle 6 d | Differenza delle mediane dei bracci |
+| --- | --- | --- | --- | --- | --- |
+| dA | +2,03 (r1, r3, r4) | +2,00 (r2, r5, r6) | **dichiarata**, positiva (misurata) | +2,015 | +3,08 |
+| dL | +36,84 (r1, r2, r5) | +1,32 (r3, r4, r6) | **dichiarata**, positiva (misurata), ma instabile (v. lettura b) | +2,06 | −3,34 |
+| dT | +2,90 (r1, r4, r5) | +5,86 (r2, r3, r6) | **dichiarata**, positiva (misurata) | +4,38 | −0,26 |
+
+### Lettura per l'ADR (a-e come fissate nelle regole)
+
+- **a. Avvio di B con il log presente e senza righe (`Bsolo0`)**: mediana del p99 **25,595 ms, sopra il limite di 25 ms** (di 0,6 ms); p50 14,83 ms. Il confronto con la mediana di H2 della terza parte (19,72 ms) è **non alla pari** (altro binario, altra ora, altre condizioni della macchina). Osservazione dai file grezzi, fuori dalle regole e non usata per un verdetto: tre corse di `Bsolo0` sopra il limite (r1 46,98, r2 46,94, r3 30,37; r2 con macchina non ferma e runner a 82,8 % di CPU, in r1 e r3 pavimento di `fdatasync` p99.9 85 e 71 ms) e tre sotto (r4 20,82, r5 20,25, r6 19,26 ms, le ultime della serie). **Ipotesi** che l'attività dei runner sulla macchina abbia alzato il p99 delle prime corse: non isolata, non c'è una corsa ripetuta a macchina ferma.
+- **b. Quota delle 3 righe di B (dL)**: dichiarata (X +36,84, Y +1,32 ms, stesso segno): **misurata** come differenza positiva, ma la sua misura non è stabile: X è dominato da due corse `Bsolo3` disturbate (r1 176,00 e r2 83,78 ms contro 46,98 e 46,94 di `Bsolo0`), la mediana delle 6 d è +2,06 ms e la differenza delle mediane dei bracci è −3,34 ms (segno opposto). Nei giri r3-r6 (quattro valori) dL è −8,00 / +1,32 / +0,90 / +2,80 ms. Per l'ADR: le righe di B costano al più qualche millisecondo (ordine di +1…+3 ms, **ipotesi** sul valore), non un valore preciso.
+- **c. Quota del carico del tenant vicino senza righe (dA)**: dichiarata, **+2,0 ms** (X +2,03, Y +2,00; mediana delle 6 d +2,015; differenza delle mediane +3,08): **misurata**. È la parte dovuta ai 500 att./s di A senza righe.
+- **d. Scomposizione dei 25,25 ms della riga 2**: Bsolo0 25,595 + dL (+2,06, mediana delle 6 d) + dA (+2,015) + righe di A (+1,55 dalla riga 2) = **31,22 ms**, accanto al 25,25 della riga 2 e non al suo posto: le quote vengono da due serie in ore diverse e non si sommano alla pari, e il Bsolo0 di questa serie (25,595) è già alzato dalle prime corse disturbate. Nel solo gruppo r4-r6 (osservazione fuori dalle regole, macchina più ferma, non usata per un verdetto): Bsolo0 20,25 (mediana), Bsolo3 22,06, Anolines 25,12 ms, cioè circa +1,8 per le righe di B, +3,1 per il carico di A senza righe, +4,9 insieme.
+- **e. Cause**: restano «ipotesi» tutte quelle che non sono una differenza dichiarata qui con il suo file grezzo: dichiarate e misurate sono dA (+2,0 ms), dT (positiva, mediana +4,38 ms) e dL (positiva ma instabile). Il costo di avvio di H2 stesso (il resto del 25 ms con Bsolo0) e l'effetto dei runner sulla macchina sono ipotesi.
+
+### Per corsa: pavimento di `fdatasync` prima, istruzioni SQL per attività
+
+File grezzi `iggy-sqlite-logd-iso-<braccio>-4-ms-r<n>.txt`. Pavimento prima: p50 / p99.9 in ms. SQL per attività: tenant A / tenant B / globale (A è 0 nei bracci senza A). Attesa di quiete prima della corsa in secondi.
+
+| Corsa | Pavimento prima | SQL A / B / globale | Attesa (s) |
+| --- | --- | --- | --- |
+| Anolines r1 | 7,32 / 100,67 | 0,0828 / 0,0412 / 0,0550 | 30 |
+| Anolines r2 (non valida) | 4,40 / 9,67 | 0,0607 / 0,0361 / 0,0443 | 905 (macchina non ferma) |
+| Anolines r2 ripetizione | 6,73 / 76,61 | 0,0797 / 0,0396 / 0,0530 | 120 |
+| Anolines r3 | 2,74 / 5,02 | 0,0832 / 0,0412 / 0,0552 | 40 |
+| Anolines r4 | 4,65 / 6,20 | 0,0835 / 0,0413 / 0,0554 | 835 |
+| Anolines r5 | 2,95 / 13,10 | 0,0832 / 0,0414 / 0,0553 | 130 |
+| Anolines r6 | 6,69 / 100,29 | 0,0836 / 0,0411 / 0,0553 | 50 |
+| Bsolo3 r1 | 5,90 / 74,88 | 0 / 0,0392 / 0,0392 | 145 |
+| Bsolo3 r2 | 2,88 / 33,66 | 0 / 0,0409 / 0,0409 | 45 |
+| Bsolo3 r3 | 6,97 / 17,28 | 0 / 0,0414 / 0,0414 | 35 |
+| Bsolo3 r4 | 2,85 / 40,73 | 0 / 0,0412 / 0,0412 | 45 |
+| Bsolo3 r5 | 6,08 / 10,28 | 0 / 0,0414 / 0,0414 | 40 |
+| Bsolo3 r6 | 5,49 / 10,91 | 0 / 0,0414 / 0,0414 | 45 |
+| Bsolo0 r1 | 3,02 / 85,63 | 0 / 0,0405 / 0,0405 | 90 |
+| Bsolo0 r2 | 15,56 / 26.394,62 | 0 / 0,0396 / 0,0396 | 905 (macchina non ferma) |
+| Bsolo0 r3 | 4,43 / 70,59 | 0 / 0,0408 / 0,0408 | 120 |
+| Bsolo0 r4 | 7,89 / 46,91 | 0 / 0,0411 / 0,0411 | 55 |
+| Bsolo0 r5 | 7,05 / 75,33 | 0 / 0,0412 / 0,0412 | 70 |
+| Bsolo0 r6 | 2,90 / 54,88 | 0 / 0,0412 / 0,0412 | 45 |
+
+Tutte molto sotto il limite di 5 istruzioni per attività (NFR-4). Le istruzioni per attività di B variano tra 0,0361 (corsa non valida) e 0,0414 nei tre bracci, senza differenza legata alle righe o ad A; il pavimento di `fdatasync` di `Bsolo0` r2 ha avuto un valore massimo di 26,4 s nella misura (disco fermo, osservata nel file; la corsa vale per le regole).
+
+### Comandi per rifare
+
+`./logd-iso-chain.sh rows` su minisheep (`./logd-iso-chain.sh wait`, `./logd-iso-chain.sh smoke`), con `bin/busspike-logd-7c1dfcd`; le tre varianti: `NOISY=1 LOGA=0x0 LOGB=3x80 ./scen.sh iggy sqlite lognoisy`, `LOGB=3x80 ./scen.sh iggy sqlite lognoisy`, `./scen.sh iggy sqlite lognoisy`, ciascuna dentro `ms-run.sh` con `ARM=LOG-iso-<braccio>`.
