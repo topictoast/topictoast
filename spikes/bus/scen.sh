@@ -65,7 +65,7 @@ rm -rf out/archive out/spike.db* out/master.key out/ledger.txt
 [ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
 # CAPDBONLY=1: solo il database nel tmpfs (l archivio resta sul disco vero), per provare il disco pieno del database da solo
 [ "$SC" = dfull-db ] && [ -z "$CAPDBONLY" ] && ln -s "$PWD/out/capmnt/archive" out/archive
-rm -f out/work.log out/engine-pre.log
+rm -f out/work.log out/engine-pre.log out/kind0-dump.txt
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
 [ -f out/worker.cred ] || "$BIN" gen-cred dir=out
 echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64}"
@@ -176,6 +176,11 @@ case $SC in
     # Terza parte: il campione e il timer in memoria (attività in volo) si prendono subito prima del kill.
     echo "prima del kill: $("$BIN" stats dir=out | grep -E '^undurable_deliveries|timers_pending' | tr '\n' ' ')"
     T0=$(us); kill -9 $EP; wait $EP 2>/dev/null
+    # blocco D, parte terza (SQLite): righe `timer` di tipo 0 dopo il kill e PRIMA della ripartenza (esecuzione passo tentativo)
+    if [ $DB = sqlite ]; then
+      sqlite3 out/spike.db "SELECT lower(hex(exec_id)), step, attempt FROM timer WHERE kind=0" > out/kind0-dump.txt
+      echo "scarico righe timer tipo 0 dopo il kill: $(wc -l < out/kind0-dump.txt) righe; per attività non concluse: $(sqlite3 out/spike.db "SELECT count(*) FROM timer t LEFT JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE t.kind=0 AND a.done_us IS NULL")"
+    fi
     start_engine
     RU=$(sed -n 's/^READY .*now_us=\([0-9]*\).*/\1/p' out/engine.log)
     echo "kill -9 -> READY: $(ms $T0 $RU) ms ($(grep -E '^READY' out/engine.log)); READY_us=$RU"
@@ -186,6 +191,12 @@ case $SC in
     echo "motore dopo la corsa: $("$BIN" stats dir=out | head -1)"
     ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done
     echo "tentativi iniziati: $(wc -l < out/work.log), attività distinte: $(cut -d' ' -f1,2 out/work.log | sort -u | wc -l), eseguite più di una volta: $(cut -d' ' -f1,2 out/work.log | sort | uniq -d | wc -l)"
+    # blocco D, parte terza: inclusione di insiemi. Tentativi (esecuzione passo tentativo) iniziati due volte, e quanti hanno una riga nello scarico
+    if [ -f out/kind0-dump.txt ]; then
+      awk '{print $1" "$2" "$5}' out/work.log | sort | uniq -d > out/started-twice.txt
+      echo "iniziati due volte: $(wc -l < out/started-twice.txt); di cui con riga nello scarico (devono essere 0): $(awk 'NR==FNR{d[$1" "$2" "$3]=1; next} ($1" "$2" "$3) in d' out/kind0-dump.txt out/started-twice.txt | wc -l)"
+      echo "-- scarico (esecuzione passo tentativo):"; cat out/kind0-dump.txt
+    fi
     # blocco D, parte terza: esecuzioni nuove nei 2 s dopo READY, da istanti già registrati (accepted_us nel database, registro dei worker)
     echo "sql: SELECT min(accepted_us) - $RU FROM execution WHERE accepted_us > $RU"
     FA=$(sqlite3 out/spike.db "SELECT min(accepted_us) - $RU FROM execution WHERE accepted_us > $RU")

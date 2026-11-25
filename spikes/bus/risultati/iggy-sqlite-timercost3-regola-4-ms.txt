@@ -36,6 +36,14 @@ I file grezzi si chiamano `iggy-sqlite-timercost3-<riga>-4-ms-r<n>.txt`; una cor
      prima del kill (il campione precede il segnale di qualche decina di ms e le consegne continuano a circa 1.000/s, quindi i record in attesa
      al kill possono superarlo di poco). Se la soglia letterale fallisce, si riporta come FALLITA con tutti e tre i numeri: iniziati due volte,
      campione, `undurable_max` della corsa; accanto si riporta la riga `ripresa: ... da consegnare subito` della ripresa. Nessuna rilettura dopo.
+     SOSTITUZIONE (decisione del coordinatore, scritta prima della nuova corsa, dopo la corsa r1 che resta FALLITA con la regola sopra: 379 iniziati due volte
+     contro un campione di 371, massimo 546): la soglia «<= record in attesa al kill» non si puo' campionare a un kill -9 (ogni campione precede il segnale e i
+     record in attesa sono una dentatura tra un commit del lotto e l'altro). Nuova regola per la corsa ekill con REC_DELAY=500 (file r2): dopo il kill e PRIMA
+     che il motore riparta, la scena scarica nel file grezzo le righe `timer` di tipo 0 (esecuzione, passo, tentativo) dal file SQLite. SUPERATO = tentativi
+     iniziati due volte > 0 E nessuno dei tentativi iniziati due volte ha una riga in quello scarico (inclusione di insiemi: un doppione nasce solo da una
+     consegna il cui record non e' stato committato) E 0 accettate perse. Controllo incrociato, riportato: righe dello scarico per attivita' non concluse
+     contro la cifra «in volo (scadenza ripristinata)» della riga di ripresa. Solo scen.sh cambia, nessun binario. La corsa r1 resta nel rapporto come FALLITA
+     con la regola vecchia, con tutti i suoi numeri.
    - Aggiornamento semplice (up-run.sh n=3 rate=334, CAP=4096) e con 100.000 timer (PRE100K=1 CAP=4096): 0 accettate perse; 0 timer persi o doppi;
      attivita' rifatte riportate; pausa riportata (limite di Marco: 30 s).
    - In OGNI corsa di H3 di tutto il blocco: zero occorrenze di «database is locked» / SQLITE_BUSY (si conta nel registro del motore e nel file grezzo e
