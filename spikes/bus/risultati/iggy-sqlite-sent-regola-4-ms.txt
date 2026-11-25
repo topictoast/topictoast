@@ -1,0 +1,96 @@
+Sentinella (prototipo): regole di lettura scritte PRIMA di ogni corsa misurata (idea di Marco, 2026-11-25: un processo di sola lettura che segue i topic di stato
+di Iggy con un gruppo di consumatori e dagli eventi vede se un workflow avanza, e' bloccato o ha errori, e se il motore e' fermo, fuori dal percorso caldo).
+Nessuna soglia cambia dopo una corsa; nessuna corsa si scarta o si rifa' dopo averla vista, salvo le condizioni di validita' qui sotto.
+
+Cosa e':
+  - Intestazione in chiaro (decisione di Marco): con `META=1` (argomento `meta=1` del motore) ogni evento dei soli topic `state-<tenant>` (mai `log-*`) porta
+    un'intestazione utente di Iggy `m` di 35 byte grezzi: tipo (Accepted, Timer, Ready, Done), esecuzione, passo, tentativo, tipo del timer, scadenza `due_us`,
+    ultimo passo. Sul filo l'intestazione occupa 46 byte (`user_headers_length` letto dal sentinella). Ingressi e uscite restano sigillati per tenant: il sentinella non ha chiavi.
+    Il motore antepone il prefisso al messaggio sigillato in `seal_ev` e `Bus::append` lo sposta nell'intestazione: nessun altro percorso cambia; con `META=0` (default) niente cambia.
+  - Il sentinella (`busspike sentinel dir=out`, un solo modulo `src/sentinel.rs`): ogni 1 s elenca i topic dello stream e segue ogni `state-*`, anche quelli nati dopo la sua partenza,
+    con il gruppo di consumatori `sentinel` (lettura `PollingStrategy::next`, `CommitPolicy::OnRead`: la posizione la salva il server, un sentinella riavviato riprende).
+    Non scrive sul bus ne' sul database e non tocca la lettura del motore (posizione del proiettore). Gira sulle CPU `1-4` del motore (fa parte della piattaforma).
+  - Stato per esecuzione dalle sole intestazioni: esecuzioni aperte (Accepted senza il Done dell'ultimo passo), ultimo Timer per (esecuzione, passo).
+  - Costanti fissate: scoperta dei topic 1 s; controllo degli allarmi ogni 100 ms; tolleranza dopo la scadenza di un tentativo 2 s; silenzio del motore 2 s con almeno una
+    esecuzione aperta; lettura a gruppi fino a 1.000 eventi, 20 ms di pausa se vuota.
+  - Righe in `out/sentinel.log`: `<µs> ALARM overdue <esecuzione> <passo> <tentativo>` (un Timer di tipo 0, scadenza del tentativo, con `due_us` + 2 s passati, senza Done ne'
+    Timer piu' nuovo per quel passo; una volta per tentativo); `<µs> ALARM retry <esecuzione> <passo> <tentativo>` (un Timer di tipo 1: un tentativo e' fallito e un ritentativo e'
+    in programma; il tentativo mostrato e' quello FALLITO; una volta per tentativo); `<µs> ALARM engine-silent` (nessun evento su nessun topic `state-*` da piu' di 2 s con una
+    esecuzione aperta; una volta per episodio) e `<µs> RECOVERED engine` (al primo evento dopo l'allarme); piu' righe `FOLLOW <topic>` e `FIRST <topic>` (primo evento letto).
+  - Statistiche a fine corsa (`sentinel_stats`, `sentinel_read_delay`, `sentinel_retry_latency`, `sentinel_deadlines_resolved_after_due`): eventi letti; ritardo di lettura =
+    ora di lettura meno ora di append data da Iggy all'ultimo messaggio di ogni gruppo letto (µs); lag in eventi (testa del bus meno posizione del sentinella: il valore 1 stampato
+    significa 0, l'istogramma parte da 1); `gaps` = salti di posizione, cioe' eventi che il sentinella non ha mai visto; conteggio degli allarmi per tipo; CPU del sentinella;
+    ritardo tra l'append del Timer di tipo 1 e l'allarme `retry`; scadenze risolte (Timer nuovo o Done) dopo la loro scadenza, con il margine che restava prima della fine della
+    tolleranza e quante con meno di 1 s.
+
+Binario: bin/busspike-sent-116e57c, costruito dal commit 116e57c, sha256 che inizia con 514d262500a5f659; lo stesso per ogni riga e ogni braccio, mai sostituito a meta'.
+Ogni file grezzo porta le righe `[stato prima HH:MM:SS] pavimento fdatasync`, `[stato prima] braccio:` e `[stato prima] binario sha256:`. Una corsa vale solo se il suo
+`[stato prima HH:MM:SS]` e' piu' tardi del commit di questo file. SQLite, CAP=512 salvo dove scritto, una corsa alla volta, `ms-run.sh`. Postgres e 10.000 att./s non si misurano.
+File grezzi: iggy-sqlite-sent-<riga>-<braccio>-4-ms-r<n>.txt (riga 2: iggy-sqlite-sent-ekilldown-4-ms-r<n>.txt; righe 3-5: iggy-sqlite-sent-<retry|wkill|newtenant>-4-ms-r<n>.txt).
+
+Validita' di ogni corsa (se manca si scrive «non valida: motivo» e si rifa' la corsa una volta, subito; entrambe restano nel rapporto):
+  V1. `verify OK` (accettate perse 0) nel file grezzo.
+  V2. Solo riga 1: `activities_per_s` della finestra >= 950 e `errors=0` nel generatore.
+  V3. Le corse con il sentinella (tutte tranne il braccio OFF della riga 1) hanno la riga `sentinel_stats` con `events` > 0. Le righe `SENTINEL_ERR` di avvio («rebalance in progress»,
+      viste nelle prove) si contano e si riportano; non invalidano.
+  Le corse con la riga `[macchina non ferma]` contano e si segnalano; il pavimento di fdatasync prima di ogni corsa si riporta.
+  Avvertenza dichiarata: un arresto della piattaforma di oltre 2 s con esecuzioni aperte e' un silenzio del motore anche per il sentinella; nelle corse a 1.000 att./s su una macchina
+  carica puo' dare un `engine-silent` vero (osservato in una prova con un runner a oltre 1.000 % di CPU). Conta come allarme dove la riga dice 0 allarmi.
+
+Riga 1. COSTO (riga `cost`, bracci `OFF` e `ON`)
+  Comandi (1.000 att./s: 100 esecuzioni/s da 10 passi, tenant A, 40 s misurati dopo 5 s; la scena `logrun` e' la stessa per i due bracci, TRIM=0 in entrambi):
+    OFF: `./scen.sh iggy sqlite logrun`                      senza intestazioni e senza sentinella
+    ON:  `SENT=1 META=1 ./scen.sh iggy sqlite logrun`        intestazioni sul motore e sentinella in esecuzione
+  ARM nel file grezzo: `SENT-cost-OFF` e `SENT-cost-ON`. 6 coppie (r1-r6), un braccio per volta, ordine alternato: coppie 1, 3, 5 con OFF per primo, coppie 2, 4, 6 con ON per primo.
+  Metrica per corsa: `start_ready` p99 (e p50) dalle statistiche a fine finestra.
+  Aggregazione (stessa regola della riga 2 del log dei task): mediana per braccio sulle 6 corse; d = p99(ON) - p99(OFF) per coppia; X = mediana delle d nelle coppie con ON per primo
+  (2, 4, 6), Y = mediana delle d nelle coppie con ON per secondo (1, 3, 5); la differenza si DICHIARA solo se X e Y hanno lo stesso segno. R = mediana(ON) / mediana(OFF).
+  Criteri:
+    a. mediana del p99 <= 25 ms, valutata e riportata per ciascun braccio (la base e' vicina al limite: il braccio `Anolines` del log dei task aveva 23,7-25,3 ms);
+    b. R <= 1,20 = rispettato; R > 1,20 con differenza dichiarata positiva (X e Y > 0) = NON rispettato; R > 1,20 con X e Y di segno opposto = «non dichiarabile (effetto d'ordine)»,
+       riportato con i numeri;
+    c. in OGNI corsa ON: ritardo di lettura del sentinella `sentinel_read_delay` p99 <= 1.000 ms; `gaps=0`; zero allarmi di ogni tipo (`overdue=0`, `retry=0`, `engine_silent=0`):
+       nessun falso positivo;
+    d. istruzioni SQL per attivita' (`sql_per_activity` globale delle statistiche a fine finestra): la mediana del braccio ON differisce da quella del braccio OFF di non piu' del 10 %
+       (relativo); il sentinella non tocca il database. Si riportano anche CPU del sentinella (`cpu_s`) e lag in eventi.
+
+Riga 2. MOTORE UCCISO E LASCIATO FERMO (riga `ekilldown`, braccio `SENT-ekill-down`)
+  Comando: `SENT=1 META=1 DOWN=20 ERATE=334 CAP=4096 ./scen.sh iggy sqlite ekill` (circa 1.000 att./s con attivita' da 3 s, circa 3.000 in volo; `kill -9` del motore a 12 s, motore fermo per
+  20 s, poi riavvio). 3 corse (r1-r3). Gli istanti: `kill T0_us=` e `READY_us=` della scena, i µs delle righe di `out/sentinel.log` riportate dalla scena (prima riga di ogni tipo) e il conteggio.
+  SUPERATA (ognuna):
+    - `ALARM engine-silent` entro 3 s dal kill: (µs della prima riga `engine-silent` - `kill T0_us`) <= 3.000.000;
+    - almeno un `ALARM overdue` (per i tentativi in volo) prima del riavvio; si riportano il tempo dal kill alla prima, e il numero di `overdue` contro i tentativi in volo
+      (cifra «in volo (scadenza ripristinata)» della riga `ripresa:` del motore ripartito); l'attesa e' che siano quasi tutti (non e' una soglia);
+    - `RECOVERED engine` dopo il riavvio: esiste una riga `RECOVERED engine` con µs >= `READY_us`; si riporta il tempo dopo `READY_us`;
+    - `verify OK`.
+  Si riportano anche: numero di episodi `engine-silent` e `RECOVERED` nella corsa (dopo il riavvio le 3.000 esecuzioni recuperate aspettano le loro scadenze e il motore puo' tacere piu' di
+  2 s tra una raffica di eventi e l'altra: osservato nella prova; non e' un criterio), `gaps`, ritardo di lettura.
+
+Riga 3. ERRORI (riga `retry`, braccio `SENT-retry`)
+  Comando: `SENT=1 META=1 ./scen.sh iggy sqlite retry` (kind 3: il primo tentativo di ogni passo fallisce, attesa di 300 ms, secondo tentativo; 100 esecuzioni/s per 5 s, senza kill).
+  2 corse (r1-r2). SUPERATA (ognuna):
+    - allarmi `retry` = tentativi falliti, esattamente: il numero `retry=` della riga `sentinel allarmi` e' uguale a «tentativi falliti» della scena (primi tentativi iniziati dal worker, `work.log`);
+    - ritardo dall'append del Timer di tipo 1 all'allarme, p99 <= 1.000 ms (`sentinel_retry_latency`: ora di lettura del sentinella meno ora di append data da Iggy);
+    - `overdue=0` e `engine_silent=0`;
+    - `verify OK`.
+
+Riga 4. WORKER UCCISO, MOTORE VIVO (riga `wkill`, braccio `SENT-wkill`)
+  Comando: `SENT=1 META=1 ERATE=334 CAP=4096 ./scen.sh iggy sqlite wkill` (due worker, a 12 s si uccide il primo; il motore riconsegna i suoi tentativi alla scadenza). 2 corse (r1-r2).
+  SUPERATA (ognuna): `overdue=0` (il motore ha agito, niente e' bloccato) e `verify OK`. Si riportano: quante scadenze sono state risolte dopo la loro scadenza (`deadlines_resolved_after_due`),
+  quante di queste con meno di 1 s di margine rimasto prima della fine della tolleranza di 2 s (`margin_lt_1s`) e il margine mediano; il numero di `engine_silent` (non giudicato: tentativi in
+  attesa di una scadenza possono dare periodi senza eventi).
+
+Riga 5. NUOVO TENANT (riga `newtenant`, braccio `SENT-newtenant`)
+  Comando: `SENT=1 META=1 ./scen.sh iggy sqlite newtenant` (carico normale di 20 esecuzioni/s per 8 s; a 4 s `busspike sentinel-newtopic` crea un topic `state-<uuid>` nuovo e vi scrive un evento
+  `Ready` con la sola intestazione). 2 corse (r1-r2). SUPERATA (ognuna): il primo evento del nuovo topic e' letto entro 2 s dalla creazione: la riga `newtenant:` della scena (µs della riga
+  `FIRST <topic>` di `out/sentinel.log` meno `create_us` della riga `NEWTOPIC`) <= 2.000 ms; `sentinel_stats` ha `topics=3`; `verify OK`.
+
+Cosa il prototipo NON copre (dichiarato ora):
+  - la conservazione che aspetta il sentinella: oggi un sentinella in ritardo perde eventi se i segmenti vengono tagliati (e' cio' che conta `gaps`); non e' verificato se la posizione salvata
+    del gruppo `sentinel` limiti anche la cancellazione dei segmenti del motore (la conservazione resta sulla posizione del proiettore: nelle corse i segmenti non si chiudono);
+  - il crash e il riavvio del sentinella (la ripresa dalla posizione salvata dal server non e' provata);
+  - piu' membri dello stesso gruppo;
+  - Postgres;
+  - 10.000 att./s;
+  - la consegna degli allarmi a una persona;
+  - le esecuzioni aperte a lungo senza eventi (un `wait` di minuti, un ritentativo con attesa lunga) darebbero `engine-silent`: la regola dei 2 s non distingue il silenzio legittimo.
