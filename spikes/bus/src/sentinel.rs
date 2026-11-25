@@ -425,8 +425,9 @@ mod run {
         );
         println!("sentinel_retry_latency {}", crate::fmt(&st.retry_lat));
         println!(
-            "sentinel_deadlines_resolved_after_due={} margin_to_grace_end {}",
+            "sentinel_deadlines_resolved_after_due={} margin_lt_1s={} margin_to_grace_end {}",
             st.resolved_after_due,
+            st.margin.count_between(0, 1_000_000),
             crate::fmt(&st.margin)
         );
     }
