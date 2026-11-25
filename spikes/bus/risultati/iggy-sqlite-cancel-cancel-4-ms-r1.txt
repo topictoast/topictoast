@@ -1,0 +1,85 @@
+[stato prima 00:27:40] load: 1.14 1.11 1.21
+[stato prima] io: some avg10=0.23 avg60=9.52 avg300=9.07 total=21320666844
+[stato prima] cpu: some avg10=0.00 avg60=0.54 avg300=0.50 total=2330104939
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: CANCEL-cancel
+[stato prima] binario sha256:4686b30b01664b38
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=5.71ms p99=10.06ms p99.9=10.65ms max=10.65ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.04
+[attesa] 0 s
+### iggy + sqlite: cancel 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=3972046 READY recovered_ms=766 now_us=1795649270309852 gen=1
+CANCELCTL phase=never exec=01a2150976447320b5260259e6f00487 code=CANCELLED role=integrator latency_us=10746 at_us=1795649271436993
+CANCELCTL phase=never exec=01a21509765976d1a67938bb24125053 code=CANCELLED role=integrator latency_us=8343 at_us=1795649271447753
+CANCELCTL phase=never exec=01a2150976637596abc3ded14e63218c code=CANCELLED role=integrator latency_us=9134 at_us=1795649271456103
+CANCELCTL phase=never accettate=6
+CANCELCTL phase=inflight exec=01a215097aa976cd882310c1f4aca273 code=CANCELLED role=tenant latency_us=13878 at_us=1795649273117767
+CANCELCTL phase=held exec=01a215097b8574f1b87163b1266fa303 code=CANCELLED role=tenant latency_us=17447 at_us=1795649273131674
+CANCELCTL phase=held exec=01a215097b7e77b9970153ce17e89ecb code=CANCELLED role=integrator latency_us=11267 at_us=1795649273149128
+CANCELCTL phase=twice exec=01a215097aa976cd882310c1f4aca273 code=ALREADY_CANCELLED role=tenant latency_us=514 at_us=1795649273160401
+CANCELCTL phase=twice exec=01a215097b8574f1b87163b1266fa303 code=ALREADY_CANCELLED role=integrator latency_us=581 at_us=1795649273160921
+CANCELCTL phase=finished exec=01a215097a9d7107bc64eedc134cea24 code=E_NOT_LIVE role=tenant latency_us=5331 at_us=1795649274041303
+CANCELCTL phase=finished exec=01a215097abc7114bf01ade3992369aa code=E_NOT_LIVE role=tenant latency_us=658 at_us=1795649274046644
+CANCELCTL phase=finished exec=01a215097ad4763f97a5c79c3d69f867 code=E_NOT_LIVE role=tenant latency_us=516 at_us=1795649274047309
+CANCELCTL phase=retrywait exec=01a2150980bf73adaa4a67134ddc7244 code=CANCELLED role=tenant latency_us=11855 at_us=1795649274708941
+CANCELCTL phase=retrywait exec=01a2150980d3774287b61630169445f4 code=CANCELLED role=tenant latency_us=9429 at_us=1795649274720806
+CANCELCTL phase=retrywait exec=01a2150980ee751691f87ede5f5764c0 code=CANCELLED role=tenant latency_us=9228 at_us=1795649274730243
+CANCELCTL phase=fanout exec=01a215098373739b974c9916f0114b65 code=CANCELLED role=tenant latency_us=12892 at_us=1795649275265189
+CANCELCTL phase=rest accettate=28
+verify: accettate=34 concluse_nella_proiezione=19 accettate_perse=15 attivita_concluse=13 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=1 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=34 concluse_nella_proiezione=28 accettate_perse=6 attivita_concluse=25 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=4 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=34 concluse_nella_proiezione=34 accettate_perse=0 attivita_concluse=31 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify OK
+sentinel pronto (now_us=1795649270373710)
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+sentinel_stats events=161 topics=2 lag_events p50=1 p99=1 max=1 gaps=0 gap_events=0 alarms overdue=0 retry=3 engine_silent=0 recovered=0 header_bytes=46 cpu_s=0.17
+sentinel_read_delay n=62 p50=15.38ms p99=31.17ms p99.9=31.17ms max=31.17ms over100ms=0
+sentinel_retry_latency n=3 p50=25.21ms p99=28.29ms p99.9=28.29ms max=28.29ms over100ms=0
+sentinel_deadlines_resolved_after_due=0 margin_lt_1s=0 margin_to_grace_end n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel allarmi: overdue=0 retry=3 engine-silent=0 recovered=0
+sentinel prime righe:  |  |  | 1795649274138453 ALARM retry 01a2150980bf73adaa4a67134ddc7244 0 0
+-- annullamenti e scadenze durevoli: 10; per stato alla richiesta:  1 status1:fanout; 2 status1:held; 1 status1:inflight; 3 status1:never; 3 status1:retrywait;
+-- risposte del pilota:  2 code=ALREADY_CANCELLED; 10 code=CANCELLED; 3 code=E_NOT_LIVE;
+JUDGE 1 consegne partite dopo l'evento durevole (invio_us) valore=0 atteso=0 PASS
+-- (riportato) consegne ricevute dal worker dopo l'evento durevole (ricezione_us): 0
+JUDGE 2 Stop spediti prima dell'evento durevole valore=0 atteso=0 PASS
+JUDGE 3 attivita' rese pronte dopo l'evento durevole valore=0 atteso=0 PASS
+JUDGE 4 timer rimasti per esecuzioni annullate o scadute valore=0 atteso=0 PASS
+JUDGE 5 allarmi overdue/retry del sentinella per esecuzioni annullate dopo l'evento durevole valore=0 atteso=0 PASS
+-- (riportato) allarmi overdue/retry per esecuzioni annullate PRIMA dell'evento durevole (ammessi): 3
+JUDGE 7a righe 'annullata' = risposte CANCELLED del pilota valore=10 atteso=10 PASS
+JUDGE 7b annullamenti durevoli del motore = risposte CANCELLED del pilota valore=10 atteso=10 PASS
+JUDGE 6 stato 'never' raggiunto (1 = almeno una richiesta) valore=1 atteso=1 PASS
+JUDGE 6 stato 'held' raggiunto (1 = almeno una richiesta) valore=1 atteso=1 PASS
+JUDGE 6 stato 'inflight' raggiunto (1 = almeno una richiesta) valore=1 atteso=1 PASS
+JUDGE 6 stato 'fanout' raggiunto (1 = almeno una richiesta) valore=1 atteso=1 PASS
+JUDGE 6 stato 'retrywait' raggiunto (1 = almeno una richiesta) valore=1 atteso=1 PASS
+JUDGE 6 codice E_NOT_LIVE ottenuto (1 = almeno una risposta) valore=1 atteso=1 PASS
+JUDGE 6 codice ALREADY_CANCELLED ottenuto (1 = almeno una risposta) valore=1 atteso=1 PASS
+JUDGE 8 Stop spediti = tentativi in volo all'evento durevole valore=5 atteso=5 PASS
+-- Stop ricevuti dai worker: 5, di cui con il tentativo ancora in corso: 5
+-- dall'evento durevole allo Stop ricevuto dal worker (ms, p50/p99/max): n=5 p50=0.3 p99=0.3 max=0.6
+-- storico: 1:integrator:Luca Bianchi|1;1:integrator:Maria Rossi|3;1:tenant:|3;1:tenant:Anna Verdi|3;
+-- attivita' aperte nelle esecuzioni annullate (ammesse, restano ferme): 13
+-- latenza del comando CANCELLED vista dal pilota (ms, periodo misurato): n=10 p50=10.7 p99=13.9 max=17.4
+-- contatori del motore (dopo un crash ripartono da zero): start_ready_tenant_b n=14 p50=20.61ms p99=529.92ms p99.9=529.92ms max=529.92ms over100ms=4 cancel cancelled=10 expired=0 noop_not_live=3 noop_again=2 noop_cancelling=0 stops_sent=5 stops_no_session=0 inflight_at_durable=5 window_deliveries=0 late_after_cancel=0 cancel_durable_latency n=10 p50=10.01ms p99=16.83ms p99.9=16.83ms max=16.83ms over100ms=0 exec_timeout_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 75996 kB
+rss pid=3972046 27728 kB
+rss pid=3972545 16176 kB
+-- conteggio file archivio: 12
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 00:28:03] load: 1.50 1.20 1.24
+[stato dopo] io: some avg10=1.86 avg60=7.53 avg300=8.64 total=21321492539
+[stato dopo] cpu: some avg10=0.00 avg60=0.37 avg300=0.47 total=2330213317
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: CANCEL-cancel
+[stato dopo] binario sha256:4686b30b01664b38
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.78ms p99=4.18ms p99.9=5.01ms max=5.01ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.03

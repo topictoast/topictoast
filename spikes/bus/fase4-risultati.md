@@ -1690,3 +1690,63 @@ Confronto con minisheep; il criterio «database is locked» / `SQLITE_BUSY` (sol
 ### Comandi per rifare
 
 Su bigsheep (ogni comando in `bash -c`, shell di login fish), in `~/ttspikebus` (script copiati dal repository, `env.sh` = `env-bigsheep.sh`, `.env` da `./gen-env.sh`, binario `bin/busspike-aux-af23e79`): `./aux10k-chain.sh floor`, `./aux10k-chain.sh smoke`, `./aux10k-chain.sh rows` (staccato, con `taskset -c 5,6,7`; stato in `chain-aux10k.log`).
+
+## Blocco E, annullamento e scadenza dell'esecuzione
+
+Annullamento (FR-10) e scadenza dell'esecuzione (FR-8) nel motore del prototipo, su **minisheep** (Iggy + SQLite, sentinella attivo con `meta=1`). Regole scritte prima: `risultati/iggy-sqlite-cancel-regola-4-ms.txt` (commit `b11cf5e`, emendato il 2026-11-26 dal commit `ca28304` prima delle corse misurate). Binario `bin/busspike-cancel-75ab6cc`, sha256 `4686b30b01664b38`, uguale in tutti i file grezzi. Cinque scene per due corse, una alla volta con `ms-run.sh`; ogni `[stato prima]` e' piu' tardo del commit dell'emendamento (00:27:33): da 00:27:40 a 00:38:02. File grezzi: `risultati/iggy-sqlite-cancel-<scena>-4-ms-r<n>.txt`.
+
+### Disegno (5 righe)
+
+1. La richiesta di annullamento passa dalla stessa porta dell'accettazione (`Control.Cancel`), con ruolo e nome visualizzato opzionale.
+2. Il motore scrive `Cancelled{esecuzione, ruolo, nome, istante}` sigillato come gli altri eventi; solo a evento durevole risponde, scarta i passi in coda e pronti, spedisce `Stop` alla sessione che tiene ogni tentativo in volo e toglie i timer.
+3. Un esito tardivo si conta (`late_after_cancel`), si rifiuta e si conferma; annullare un'esecuzione conclusa e' un no-op (`E_NOT_LIVE`), un secondo annullamento e' idempotente (`ALREADY_CANCELLED`, o `E_CANCELLING` se il primo non e' ancora durevole).
+4. La scadenza dell'esecuzione e' un `Timer` durevole di tipo 3 scritto nel gruppo di accettazione; allo scadere segue lo stesso percorso con ruolo `timeout` e stato `scaduta` (2), distinto da `annullata` (1).
+5. Il proiettore scrive stato, ruolo, nome e istante nello storico e toglie i timer dell'esecuzione; il recupero rilegge `Cancelled` e non riconsegna nulla; il sentinella legge un nuovo tipo (5) nei metadati in chiaro (35 byte invariati) e ignora le esecuzioni annullate.
+
+### Per corsa
+
+Tutti i punti giudicati (`JUDGE`) sono **PASS in tutte e 10 le corse**: zero esatto per i punti 1-5 e uguaglianze 7 e 8 (dove valgono); `verify OK` in tutte (le righe «verify FALLITA» sono i tentativi di assestamento dentro la scena, come nei blocchi precedenti: la verifica si rifa fino a 12 volte e poi passa).
+
+| Scena, corsa | Pavimento fdatasync p50 / p99 (ms) | JUDGE | Annullamenti o scadenze durevoli | Stop spediti = in volo | Stop ricevuti | Durevole a Stop ricevuto p50 / p99 / max (ms) | Comando a durevole, motore p50 / p99 (ms) | Comando visto dal pilota p50 / p99 (ms) | Ritardo scadenza p50 / p99 (ms) | `late_after_cancel` | `window_deliveries` | `stops_no_session` | Altri codici |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `cancel` r1 | 5,71 / 10,06 | 15/15 | 10 | 5 = 5 | 5 | 0,3 / 0,3 / 0,6 | 10,01 / 16,83 | 10,7 / 13,9 | n.a. | 0 | 0 | 0 | 3 `E_NOT_LIVE`, 2 `ALREADY_CANCELLED` |
+| `cancel` r2 | 2,75 / 4,32 | 15/15 | 10 | 5 = 5 | 5 | 0,2 / 0,2 / 0,2 | 11,03 / 21,09 | 11,7 / 12,9 | n.a. | 0 | 0 | 0 | 3 `E_NOT_LIVE`, 2 `ALREADY_CANCELLED` |
+| `cancel-load` r1 | 7,42 / 10,40 | 8/8 | 1.301 | 1.244 = 1.244 | 1.244 | 0,2 / 0,6 / 0,8 | 17,02 / 21,71 | 25,8 / 39,3 | n.a. | 62 | 0 | 0 | 63 `E_CANCELLING` |
+| `cancel-load` r2 | 2,75 / 4,13 | 8/8 | 1.301 | 1.255 = 1.255 | 1.255 | 0,2 / 0,5 / 0,8 | 16,89 / 22,67 | 25,2 / 39,2 | n.a. | 41 | 0 | 0 | 70 `E_CANCELLING`, 1 `ALREADY_CANCELLED` |
+| `cancel-crash` r1 | 2,89 / 4,11 | 7/7 | 100 (prima del kill) | punto 8 non vale: 0 spediti, 100 in volo | 0 | nessuno | n.a. (motore ucciso) | 23,7 / 32,7 | n.a. | 100 (dopo la ripartenza) | 0 | 0 | sentinella: `engine-silent` 3, `recovered` 3 |
+| `cancel-crash` r2 | 2,85 / 3,83 | 7/7 | 100 (prima del kill) | idem | 0 | nessuno | n.a. (motore ucciso) | 28,0 / 37,8 | n.a. | 100 (dopo la ripartenza) | 0 | 0 | sentinella: `engine-silent` 3, `recovered` 3 |
+| `exectimeout` r1 | 6,97 / 11,04 | 9/9 | 100 `scaduta` | 100 = 100 | 100 | 0,2 / 0,3 / 0,3 | 8,65 / 29,68 | n.a. | 9,37 / 19,31 | 0 | 0 | 0 | 0 `annullata` |
+| `exectimeout` r2 | 2,92 / 4,00 | 9/9 | 100 `scaduta` | 100 = 100 | 100 | 0,1 / 0,3 / 0,3 | 9,24 / 17,15 | n.a. | 7,12 / 16,61 | 0 | 0 | 0 | 0 `annullata` |
+| `exectimeout` + `TCRASH=1` r1 | 3,20 / 8,30 | 9/9 | 99 `scaduta` dopo la ripartenza | 99 = 99 | 99 | 0,2 / 0,3 / 0,3 | 9,33 / 21,77 | n.a. | 10,31 / 20,53 | 0 | 0 | 0 | `expired=0` al kill, 65 timer ripristinati |
+| `exectimeout` + `TCRASH=1` r2 | 10,82 / 18,08 | 9/9 | 99 `scaduta` dopo la ripartenza | 99 = 99 | 99 | 0,1 / 0,3 / 0,3 | 8,57 / 20,73 | n.a. | 9,81 / 20,13 | 0 | 0 | 0 | `expired=0` al kill |
+
+Dettagli per scena, letti dai file grezzi:
+
+- **`cancel`**: tutti e sette gli stati alla richiesta raggiunti, contati da `CANCEL_RECV`: mai consegnato 3, trattenuto dal tetto 2, in volo 1, ritentativo in attesa 3, fan-out 1; gia' concluso (3 risposte `E_NOT_LIVE`) e annullato due volte (2 `ALREADY_CANCELLED`) contati dalle risposte del pilota. Storico: 10 righe `annullata`, con i ruoli e i nomi della richiesta. Il sentinella emette 3 allarmi `retry` prima dell'annullamento (ammessi) e nessuno dopo. `start_ready_tenant_b` in questa scena (14 campioni, tetto 4) non e' una misura da leggere.
+- **`cancel-load`** (tenant B a circa 1.083 att./s, tetto 512): `start_ready_tenant_b` p99 **22,61 ms** (r1) e **23,09 ms** (r2) contro il limite NFR-2 di 25 ms, solo riportato, nessuna soglia. Stati alla richiesta: r1 1.270 in volo e 31 tra un passo e l'altro, r2 1.278 e 23. Storico: r1 1.254 `tenant` e 47 `integrator/Gemello`, r2 1.261 e 40. **Nessuna richiesta ha trovato l'esecuzione gia' conclusa** (0 `E_NOT_LIVE`): il caso «esecuzione A conclusa prima dell'annullamento» e' coperto solo dalla scena `cancel`. La latenza vista dal pilota e' sul periodo misurato (1.241 e 1.238 risposte), quella del motore su tutti i 1.301.
+- **`cancel-crash`**: 100 annullamenti durevoli, `kill -9` con gli `Stop` ancora trattenuti da `stop_delay_ms=4000` (0 `Stop` spediti prima del kill), riavvio in 87 ms (r1). Dopo la ripartenza: 100 esecuzioni vive (le altre 100, non annullate), nessuna consegna per le annullate, **0 `Stop` ricevuti dal worker**, **100 esiti tardivi rifiutati** e contati (`late_after_cancel=100`), timer rimasti 0.
+- **`exectimeout`**: scadenza di 3 s. Righe `scaduta` = esecuzioni A non concluse entro la scadenza dalla proiezione (`JUDGE 7c`: 100 = 100 senza crash, 99 = 99 con crash, dove il pilota ha avuto 2 e 1 errori di accettazione), 0 `scaduta` prima della scadenza (`7d`), 0 `annullata` (`7e`). Nelle corse con crash il motore e' ucciso prima della prima scadenza (`expired=0` al kill) e tutte le scadenze scattano dopo la ripartenza, dai timer durevoli.
+
+### Esiti
+
+1. **Zero esatto e uguaglianze: superati in 10 corse su 10** (consegne dopo l'evento durevole 0 sull'istante di invio e anche sulla ricezione; `Stop` prima dell'evento durevole 0; attivita' rese pronte dopo 0; timer rimasti 0; allarmi del sentinella dopo 0; storico = risposte `CANCELLED` = annullamenti durevoli del motore; scadute = attese dalla proiezione e nessuna prima della scadenza; `Stop` spediti = tentativi in volo). (misurata)
+2. **Reperto del crash.** Dopo un crash tra l'annullamento durevole e lo `Stop`, il worker non riceve lo `Stop`; il tentativo arriva in fondo e il suo esito si rifiuta. (misurata: `cancel-crash` r1 e r2, 0 `Stop` ricevuti, `late_after_cancel=100`.) Nessuna consegna nuova e nessun effetto sull'esecuzione: il costo e' lavoro del worker sprecato fino alla fine del tentativo. Il motore al riavvio non ha alcun elenco dei tentativi che erano in volo per le esecuzioni annullate: il proiettore ne ha cancellato i timer, e la riga di tipo 0 per (esecuzione, passo) e' il registro dei tentativi in volo che il recupero usa. (osservata sul codice)
+3. **Costo.** Dall'annullamento alla risposta (evento durevole): p50 8,7-17,0 ms e p99 16,8-29,7 ms secondo la scena; sotto carico (`cancel-load`) nel motore p50 17 ms e p99 22 ms, visto dal pilota p50 25-26 ms e p99 39 ms. Dall'evento durevole allo `Stop` ricevuto dal worker: p50 0,1-0,3 ms, massimo 0,8 ms. Ritardo di scatto della scadenza: p50 7,1-10,3 ms, p99 16,6-20,5 ms. (misurata, solo riportata)
+4. **Effetto sul tenant B:** `start_ready_tenant_b` p99 22,6 e 23,1 ms durante 1.300 annullamenti. Il valore di confronto senza annullamenti non e' stato misurato in questo blocco: non si dice quanto aggiungano. (nessuna misura di confronto)
+
+### Due opzioni per l'ADR (non costruite)
+
+- **A, rinviare lo `Stop` alla riconnessione per i tentativi in volo delle esecuzioni annullate.** Serve un registro di quei tentativi che sopravviva al crash: il proiettore oggi cancella i timer dell'esecuzione, e sono loro il registro dei tentativi in volo. Servirebbe tenere la riga fino a un riconoscimento dello `Stop` da parte del worker (una riga o una tabella `stop_pending`, tolta all'ack), oppure far dichiarare al worker i tentativi in corso alla riconnessione e farli confrontare dal motore con l'insieme delle esecuzioni annullate gia' recuperato (aggiunta al protocollo, nessuno stato nuovo nel motore). In entrambi i casi uno `Stop` in piu' da gestire (ack, idempotenza, worker che non torna piu') e un caso di prova in piu'.
+- **B, `Stop` al meglio, esito tardivo rifiutato.** Nessuna aggiunta: e' quello che gia' accade. Il worker puo' sprecare lavoro fino alla fine del tentativo dopo un crash; il risultato non crea nulla. Costo: lavoro inutile, nessuna violazione della semantica dell'annullamento. Da scegliere con un limite (la durata massima di un tentativo, che e' gia' la scadenza del tentativo).
+
+### Ipotesi da riportare al riallineamento del PRD
+
+**L'orologio di FR-8 parte dall'accettazione** dell'esecuzione (non dal primo passo, non dall'ammissione dopo il tetto): e' un'assunzione del prototipo, non una decisione. Con il tetto per tenant un'esecuzione trattenuta consuma la sua scadenza in coda; il PRD deve dire se e' voluto.
+
+### Non coperto
+
+Il percorso `window_deliveries` (consegna fatta tra la ricezione e l'evento durevole, il cui `Timer` segue `Cancelled` sul bus): contatore a **0 in tutte le corse**, quindi le protezioni del proiettore e del sentinella per quel caso non sono state esercitate dalle misure (esistono nel codice e nel test del sentinella); database lento (blocco a parte); `Stop` attraverso il motore su gRPC o iroh (qui il worker e' diretto); annullamento di una singola attivita'; piu' motori; ritentativo che scatta nella finestra dell'annullamento.
+
+### Comandi per rifare
+
+Su minisheep, in `~/ttspikebus` (binario `bin/busspike-cancel-75ab6cc`, `.env` da `./gen-env.sh`): `SENT=1 META=1 ARM_BIN=$HOME/ttspikebus/bin/busspike-cancel-75ab6cc ARM=CANCEL-<scena> ./brun.sh risultati/<file> ./scen.sh iggy sqlite <scena>`, con scena `cancel`, `cancel-load`, `cancel-crash`, `exectimeout` (con `TCRASH=1` per la variante con il crash).
