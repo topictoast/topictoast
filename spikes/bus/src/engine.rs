@@ -347,6 +347,8 @@ struct Engine {
     tmap: HashMap<(Uid, u32), (u8, u32, u64)>,
     /// Timer da armare quando il gruppo che li scrive è durevole (AD-2: prima il timer, poi l'effetto).
     arm: Vec<(Uid, u32, u8, u32, u64)>,
+    /// Record di consegna di tipo 0 verso il task scrittore del database (H3): (esecuzione, passo, tentativo, scadenza).
+    rec_tx: mpsc::UnboundedSender<(Uid, u32, u32, u64)>,
     /// Gruppi di eventi in volo sul bus.
     groups: HashMap<u64, Group>,
     gid: u64,
@@ -495,8 +497,6 @@ impl Engine {
         if self.sessions.is_empty() || self.sh.draining.load(Relaxed) {
             return;
         }
-        let mut evs: Vec<(usize, Ev)> = vec![];
-        let mut n_sent = 0u64;
         let mut progress = true;
         while progress {
             progress = false;
@@ -570,14 +570,12 @@ impl Engine {
                     fail: kind == 3 && attempt == 0,
                     lease_ms: self.sh.lease_ms as u32,
                 };
-                // Blocco D, seconda parte: «invia prima, registra dopo». L'attività è già durevolmente pronta (il gruppo di
-                // `Ready` o di un timer di ritentativo/scadenza che l'ha messa in coda è durevole: AD-2 vale per quella
-                // decisione). La consegna parte subito e la scadenza si arma in memoria ora; l'evento `Timer` di scadenza
-                // si scrive nel gruppo lanciato qui sotto, senza aspettarlo. Ordine sul bus: il gruppo parte prima che
-                // l'esito del worker possa essere elaborato (stesso ciclo), e le code di scrittura sono FIFO per esecuzione,
-                // quindi `Timer` precede sempre il suo `Done` (il proiettore non reinserisce una riga cancellata).
-                // Se il motore muore prima che il `Timer` sia durevole, alla ripresa l'attività risulta «mai consegnata» e si
-                // riconsegna: doppione accettato e contato (`undurable_deliveries`). Sessione chiusa all'invio: scade e si rifà.
+                // Blocco D, terza parte (H3): «invia prima, registra dopo, nel database». L'attività è già durevolmente pronta
+                // (il gruppo di `Ready` o di un timer di ritentativo/scadenza che l'ha messa in coda è durevole: AD-2 vale per
+                // quella decisione). La consegna parte subito e la scadenza si arma in memoria ora; il record di consegna
+                // (esecuzione, passo, tentativo, scadenza) va al task scrittore, che lo scrive nella tabella `timer` in modo
+                // asincrono: nessuno lo aspetta e non passa dal bus. Se il motore muore prima che il record sia durevole, alla
+                // ripresa l'attività risulta «mai consegnata» e si riconsegna: doppione accettato e contato (`undurable_deliveries`).
                 let now = now_us();
                 let lease = self.sh.lease_ms;
                 let due = now
@@ -586,25 +584,15 @@ impl Engine {
                     } else {
                         work_ms as u64 + self.sh.grace_ms
                     } * 1000;
-                evs.push((
-                    ti,
-                    Ev::Timer {
-                        exec,
-                        tenant,
-                        step,
-                        kind: 0,
-                        attempt,
-                        due_us: due,
-                        ts: now,
-                    },
-                ));
+                let u = self.sh.undurable.fetch_add(1, Relaxed) + 1;
+                self.sh.undurable_max.fetch_max(u, Relaxed);
+                let _ = self.rec_tx.send((exec, step, attempt, due));
                 self.set_timer(exec, step, 0, attempt, due);
                 if self.sh.timer_log {
                     eprintln!("TSET 0 {} {step} {attempt} {due} {}", hex(&exec), now_us());
                 }
                 d.sent_us = now_us();
                 let _ = tx.try_send(Ok(d));
-                n_sent += 1;
                 self.inflight.insert(
                     (exec, step),
                     Infl {
@@ -615,13 +603,6 @@ impl Engine {
                 self.tenant_inflight[ti] += 1;
                 progress = true;
             }
-        }
-        if !evs.is_empty() {
-            self.launch(evs, vec![], vec![], vec![], false);
-            // consegne inviate il cui `Timer` non è ancora durevole (se il motore muore ora si riconsegnano)
-            self.groups.get_mut(&self.gid).unwrap().deliveries = n_sent;
-            let u = self.sh.undurable.fetch_add(n_sent, Relaxed) + n_sent;
-            self.sh.undurable_max.fetch_max(u, Relaxed);
         }
         // pronte ma trattenute dal tetto per tenant (con sessioni e senza aggiornamento in corso), per la riga `MIN`
         let held = (self.pending[0].len() + self.pending[1].len()) as u64;
@@ -902,7 +883,6 @@ impl Engine {
                     .ok();
             }
         }
-        self.sh.undurable.fetch_sub(g.deliveries, Relaxed);
         for (reply, exec, _) in g.replies {
             let _ = reply.send(Ok(exec));
         }
@@ -965,7 +945,6 @@ impl Engine {
             acks,
             t0: Instant::now(),
             arm: std::mem::take(&mut self.arm),
-            deliveries: 0,
             intake,
         };
         self.groups.insert(self.gid, g);
@@ -1006,7 +985,6 @@ impl Engine {
                 acks,
                 t0: Instant::now(),
                 arm: vec![],
-                deliveries: 0,
                 intake: false,
             };
             self.finalize(g).await;
@@ -1061,7 +1039,9 @@ impl Engine {
                 // svuotamento completo: nessun gruppo in volo e posizione applicata uguale alla testa su ogni topic.
                 // Da qui in poi il motore non scrive più sul bus (la coda non si consuma): si può uscire.
                 _ = tokio::time::sleep(Duration::from_millis(20)) => {
-                    if draining && self.groups.is_empty() && self.drained().await {
+                    // H3: anche la coda del task scrittore deve essere vuota e durevole (`undurable` = record inviati e non
+                    // ancora confermati), prima che il motore nuovo riversi lo stato: i timer di consegna stanno solo nel database.
+                    if draining && self.groups.is_empty() && self.sh.undurable.load(Relaxed) == 0 && self.drained().await {
                         // le risposte alle accettazioni già durevoli escono dal socket prima della fine del processo
                         tokio::time::sleep(Duration::from_millis(300)).await;
                         eprintln!("DRAINED {} accepted={} in_flight_deliveries={}", now_us(), self.sh.m.lock().unwrap().accepted, self.inflight.len());
@@ -1070,6 +1050,38 @@ impl Engine {
                 }
             }
         }
+    }
+}
+
+/// Finestra di raccolta del task scrittore (ms): i record si scrivono a lotti ogni 20 ms al più, così le transazioni del
+/// proiettore non devono aspettare scritture continue (il gestore di blocco di SQLite non è equo) e un lotto è un commit.
+const REC_WINDOW_MS: u64 = 20;
+
+/// Task scrittore dei record di consegna (H3): raccoglie i record, li scrive a lotti nella tabella `timer` (stesso
+/// `Db`, quindi stesse istruzioni contate) e solo dopo il commit li toglie da `undurable`. Nessuno lo aspetta.
+/// Un errore del database si riprova (il lotto resta contato come non durevole). `delay_ms` è il ritardo di
+/// guasto della prova del doppione provocato: i commit partono con quel ritardo in più (0 = nessuno).
+async fn rec_writer(
+    sh: Arc<Shared>,
+    mut rx: mpsc::UnboundedReceiver<(Uid, u32, u32, u64)>,
+    delay_ms: u64,
+) {
+    let mut batch = vec![];
+    while rx.recv_many(&mut batch, 8192).await > 0 {
+        tokio::time::sleep(Duration::from_millis(REC_WINDOW_MS + delay_ms)).await;
+        while let Ok(r) = rx.try_recv() {
+            batch.push(r);
+        }
+        let mut reported = false;
+        while let Err(e) = sh.db.write_delivery_records(&batch).await {
+            if !reported {
+                eprintln!("REC_ERR {e}");
+                reported = true;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        sh.undurable.fetch_sub(batch.len() as u64, Relaxed);
+        batch.clear();
     }
 }
 
@@ -1084,8 +1096,6 @@ struct Group {
     t0: Instant,
     /// Timer da armare quando il gruppo è durevole (blocco C: ritentativi, attese, battiti).
     arm: Vec<(Uid, u32, u8, u32, u64)>,
-    /// Consegne già inviate il cui `Timer` di scadenza è in questo gruppo (blocco D, parte seconda).
-    deliveries: u64,
     /// Gruppo nato da messaggi in ingresso (conta per il limite `k`), non da una consegna o da un timer.
     intake: bool,
 }
@@ -1848,6 +1858,7 @@ pub async fn main(
     grace_ms: u64,
     append_timeout_ms: u64,
     lease_ms: u64,
+    rec_delay_ms: u64,
 ) {
     let t_start = Instant::now();
     // AD-2: un solo motore; il lock si libera da solo se il processo muore (kill -9)
@@ -2029,7 +2040,10 @@ pub async fn main(
         tokio::spawn(conn_worker(b.clone(), jrx, dtx.clone(), sh.clone()));
         jobs.push(jtx);
     }
+    let (rec_tx, rec_rx) = mpsc::unbounded_channel();
+    tokio::spawn(rec_writer(sh.clone(), rec_rx, rec_delay_ms));
     let mut eng = Engine {
+        rec_tx,
         sh: sh.clone(),
         execs,
         sessions: vec![],

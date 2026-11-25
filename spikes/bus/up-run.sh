@@ -96,6 +96,19 @@ ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=iggy
 # attività eseguite due volte e contatori del motore nuovo (blocco C), a corsa finita: registro dei worker, una riga per tentativo
 echo "tentativi iniziati: $(wc -l < out/work.log), attività distinte: $(cut -d' ' -f1,2 out/work.log | sort -u | wc -l), eseguite più di una volta: $(cut -d' ' -f1,2 out/work.log | sort | uniq -d | wc -l), tentativi con numero 1 o più: $(awk '$5>=1' out/work.log | wc -l)"
 echo "contatori del motore nuovo: $("$BIN" stats dir=out | head -1)"
+# blocco D, parte terza: righe `timer` per attività concluse, occorrenze di database bloccato, esecuzioni nuove nei 2 s dopo READY
+TSQL="SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL"
+echo "sql: $TSQL"
+echo "timer_rows_for_finished_activities: $(sqlite3 out/spike.db "$TSQL" 2>&1); timer_rows_total: $(sqlite3 out/spike.db 'SELECT count(*) FROM timer' 2>&1)"
+echo "busy_hits_engine_log: $(cat out/old.log out/new.log | grep -ciE 'database is locked|sqlite_busy')"
+RU=$(sed -n 's/^READY .*now_us=\([0-9]*\).*/\1/p' out/new.log)
+echo "READY_us (motore nuovo)=$RU; in volo allo svuotamento: $(grep -oE 'in_flight_deliveries=[0-9]+' out/old.log)"
+echo "sql: SELECT min(accepted_us) - $RU FROM execution WHERE accepted_us > $RU"
+FA=$(sqlite3 out/spike.db "SELECT min(accepted_us) - $RU FROM execution WHERE accepted_us > $RU")
+sqlite3 out/spike.db "SELECT lower(hex(id)) FROM execution WHERE accepted_us > $RU" | sort > out/new-ids.txt
+FDV=$(awk -v ru=$RU 'NR==FNR{n[$1]=1; next} ($1 in n) && $4>ru {if (m==""||$4<m) m=$4} END{print m}' out/new-ids.txt out/work.log)
+echo "dopo READY: prima accettazione nuova $(( ${FA:-0} / 1000 )) ms (us grezzi: ${FA:-nessuna}); prima consegna di un'esecuzione nuova $(( (${FDV:-$RU} - RU) / 1000 )) ms (vuoto = nessuna: $([ -z "$FDV" ] && echo sì || echo no))"
+echo "dopo READY, entro 2 s: accettate nuove $(sqlite3 out/spike.db "SELECT count(*) FROM execution WHERE accepted_us BETWEEN $RU AND $RU + 2000000"); consegne di esecuzioni nuove $(awk -v ru=$RU 'NR==FNR{n[$1]=1; next} ($1 in n) && $4>ru && $4<=ru+2000000' out/new-ids.txt out/work.log | wc -l)"
 echo "-- bus nuovo: $("$BIN" bus-info | tr '\n' ' ')"
 echo "-- posizioni: $(sqlite3 out/spike.db 'select topic,pos,gen from projection_pos' 2>/dev/null | tr '\n' ' ')"
 echo "-- log del motore vecchio (eventi): $(grep -cE 'DRAIN' out/old.log) righe; nuovo:"; grep -E "ripresa|RIVERSAMENTO|E_" out/new.log

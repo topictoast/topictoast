@@ -50,7 +50,7 @@ NSE() { nsenter -U --preserve-credentials -m -t $EP "$@"; }
 
 start_engine() {
   : > out/engine.log
-  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} >> out/engine.log 2>&1 &
+  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
@@ -65,7 +65,7 @@ rm -rf out/archive out/spike.db* out/master.key out/ledger.txt
 [ -n "$SPIKE_ARCHIVE" ] && { rm -rf "$SPIKE_ARCHIVE"; mkdir -p "$SPIKE_ARCHIVE"; ln -s "$SPIKE_ARCHIVE" out/archive; }
 # CAPDBONLY=1: solo il database nel tmpfs (l archivio resta sul disco vero), per provare il disco pieno del database da solo
 [ "$SC" = dfull-db ] && [ -z "$CAPDBONLY" ] && ln -s "$PWD/out/capmnt/archive" out/archive
-rm -f out/work.log
+rm -f out/work.log out/engine-pre.log
 [ -f out/tls/cert.pem ] || "$BIN" gen-cert dir=out
 [ -f out/worker.cred ] || "$BIN" gen-cred dir=out
 echo "### $BUS + $DB: $SC $*"; echo "cpu: motore/worker/bus/db=${SPIKE_CPUS:-tutte} carico=${SPIKE_LOADCPUS:-tutte} wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64}"
@@ -171,20 +171,28 @@ case $SC in
     LP=$!
     sleep 12
     echo "prima del kill: $("$BIN" stats dir=out | head -1)"
-    # blocco D, parte seconda: consegne inviate il cui Timer non è ancora durevole (ora e massimo della corsa)
-    echo "prima del kill: $("$BIN" stats dir=out | grep -E '^undurable_deliveries')"
     cp out/engine.log out/engine-pre.log
+    # blocco D, parte seconda: consegne inviate il cui record/Timer non è ancora durevole (ora e massimo della corsa).
+    # Terza parte: il campione e il timer in memoria (attività in volo) si prendono subito prima del kill.
+    echo "prima del kill: $("$BIN" stats dir=out | grep -E '^undurable_deliveries|timers_pending' | tr '\n' ' ')"
     T0=$(us); kill -9 $EP; wait $EP 2>/dev/null
     start_engine
     RU=$(sed -n 's/^READY .*now_us=\([0-9]*\).*/\1/p' out/engine.log)
-    echo "kill -9 -> READY: $(ms $T0 $RU) ms ($(grep -E '^READY' out/engine.log))"
+    echo "kill -9 -> READY: $(ms $T0 $RU) ms ($(grep -E '^READY' out/engine.log)); READY_us=$RU"
     grep -E "ripresa" out/engine.log
     waitlog "^FIRST_DONE" 60; FD=$(logus FIRST_DONE head)
     echo "kill -9 -> prima attività conclusa: $(ms $T0 $FD) ms"
     wait $LP; cat out/load.txt
     echo "motore dopo la corsa: $("$BIN" stats dir=out | head -1)"
     ok=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt && ok=1 && break; sleep 3; done
-    echo "tentativi iniziati: $(wc -l < out/work.log), attività distinte: $(cut -d' ' -f1,2 out/work.log | sort -u | wc -l), eseguite più di una volta: $(cut -d' ' -f1,2 out/work.log | sort | uniq -d | wc -l)" ;;
+    echo "tentativi iniziati: $(wc -l < out/work.log), attività distinte: $(cut -d' ' -f1,2 out/work.log | sort -u | wc -l), eseguite più di una volta: $(cut -d' ' -f1,2 out/work.log | sort | uniq -d | wc -l)"
+    # blocco D, parte terza: esecuzioni nuove nei 2 s dopo READY, da istanti già registrati (accepted_us nel database, registro dei worker)
+    echo "sql: SELECT min(accepted_us) - $RU FROM execution WHERE accepted_us > $RU"
+    FA=$(sqlite3 out/spike.db "SELECT min(accepted_us) - $RU FROM execution WHERE accepted_us > $RU")
+    sqlite3 out/spike.db "SELECT lower(hex(id)) FROM execution WHERE accepted_us > $RU" | sort > out/new-ids.txt
+    FDV=$(awk -v ru=$RU 'NR==FNR{n[$1]=1; next} ($1 in n) && $4>ru {if (m==""||$4<m) m=$4} END{print m}' out/new-ids.txt out/work.log)
+    echo "dopo READY: prima accettazione nuova $(( ${FA:-0} / 1000 )) ms (us grezzi: ${FA:-nessuna}); prima consegna di un'esecuzione nuova $(( (${FDV:-$RU} - RU) / 1000 )) ms (vuoto = nessuna: $([ -z "$FDV" ] && echo sì || echo no))"
+    echo "dopo READY, entro 2 s: accettate nuove $(sqlite3 out/spike.db "SELECT count(*) FROM execution WHERE accepted_us BETWEEN $RU AND $RU + 2000000"); consegne di esecuzioni nuove $(awk -v ru=$RU 'NR==FNR{n[$1]=1; next} ($1 in n) && $4>ru && $4<=ru+2000000' out/new-ids.txt out/work.log | wc -l)" ;;
   bkill)
     # Blocco B, caso 2: crash di Iggy (docker kill = SIGKILL del processo; non è uno spegnimento dell'host), riavvio dopo 5 s
     $L rate=${ERATE:-300} kind=0 n=3 size=1024 work_ms=500 secs=40 warm=1 stats=0 tenants=ab ledger=out/ledger.txt > out/load.txt &
@@ -361,6 +369,14 @@ if [ $DB = sqlite ] && [ -f out/spike.db ]; then
   echo "sql: $TSQL"
   echo "timer_rows_for_finished_activities: $(sqlite3 out/spike.db "$TSQL" 2>&1); timer_rows_total: $(sqlite3 out/spike.db 'SELECT count(*) FROM timer' 2>&1)"
 fi
+# blocco D, parte terza: lo stesso controllo con Postgres (psql nel contenitore, socket locale)
+if [ $DB = pg ]; then
+  TSQL="SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL"
+  echo "sql: $TSQL"
+  echo "timer_rows_for_finished_activities: $(docker compose -p ttspikebus exec -T postgres psql -U spike -d spike -tAc "$TSQL" 2>&1); timer_rows_total: $(docker compose -p ttspikebus exec -T postgres psql -U spike -d spike -tAc 'SELECT count(*) FROM timer' 2>&1)"
+fi
+# blocco D, parte terza: occorrenze di database bloccato nei registri del motore (prima e dopo un eventuale crash)
+echo "busy_hits_engine_log: $(cat out/engine.log out/engine-pre.log 2>/dev/null | grep -ciE 'database is locked|sqlite_busy')"
 stop_all
 rm -rf out/archive; [ -n "$SPIKE_ARCHIVE" ] && rm -rf "$SPIKE_ARCHIVE"
 if [ "$SC" = dfull-iggy ]; then docker compose -p ttspikebus down -t 1 >/dev/null 2>&1; docker volume rm ttspikebus-iggycap >/dev/null; fi
