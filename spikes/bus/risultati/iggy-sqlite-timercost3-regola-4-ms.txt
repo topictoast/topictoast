@@ -1,0 +1,41 @@
+Blocco D, terza parte: regole di lettura scritte PRIMA di ogni corsa (decisione di Marco, 2026-11-25: misurare un record di consegna asincrono nel database, invece che sul bus).
+
+Bracci:
+  B  = motore del blocco B, commit 7f156ba (senza timer), binario bin/busspike-bB, sha256 che inizia con d730b1a73111ca79
+  H2 = commit c2ac38a («invia prima, registra dopo»: il Timer di scadenza va sul bus subito dopo l'invio, senza attesa), binario sha256 che inizia con 1a1348abf3bea374
+  H3 = H2 con il record di consegna (esecuzione, passo, tentativo, scadenza) di tipo 0 scritto da un task asincrono del motore nella tabella `timer`
+       esistente; nessuno lo aspetta; costruito dal commit del codice di H3 (sha256 dichiarato nella relazione e in ogni file grezzo)
+Ogni braccio ha il suo binario per una serie intera, mai sostituito a meta'. Ogni file grezzo porta le righe `braccio:` e `binario sha256:`.
+I file grezzi si chiamano `iggy-sqlite-timercost3-<riga>-4-ms-r<n>.txt`; una corsa vale solo se il suo `[stato prima HH:MM:SS]` e' piu' tardi di questo commit.
+
+1. start1k (1.000 att./s), protocollo a tre bracci, SQLite, CAP=512 in tutti i bracci.
+   - 6 triple B/H2/H3 che coprono tutti e 6 gli ordini (ogni braccio in ogni posizione due volte). Una corsa alla volta.
+   - Metrica: `start_ready` p99 di ogni corsa; mediana per braccio sulle 6 corse.
+   - Una differenza tra due bracci X e Y si dichiara solo se la mediana delle differenze (Y - X) calcolate dentro le triple ha lo stesso segno
+     nelle triple in cui X e' corso prima di Y e in quelle in cui e' corso dopo.
+   - Criteri per H3 (ognuno con la regola del segno qui sopra dove c'e' un confronto):
+       a. limite assoluto del prodotto: mediana del p99 di H3 <= 25 ms;
+       b. regola di non-regressione: rapporto H3/B delle mediane <= 1,20 e, per dichiararlo violato o rispettato come differenza, segno coerente.
+   - Lettura dell'ipotesi (il costo che resta e' la coda di scrittura per esecuzione sul bus): se la mediana del p99 di H3 e' piu' vicina a quella di B che a
+     quella di H2 (|H3-B| < |H3-H2|), l'ipotesi e' SUPPORTATA; se e' piu' vicina a H2, il costo e' altrove. Resta «ipotesi» in ogni caso finche'
+     una corsa non isola la causa; il confronto numerico e' «misurato».
+
+2. thr10k (10.000 att./s, 10 minuti, GATE60=1 VTRIES=100, SQLite, CAP=512): 2 corse per braccio, ordini B,H2,H3 e H3,H2,B.
+   Ogni corsa: almeno 9.900 att./s sulla finestra misurata (minuto 1 escluso) con 0 accettate perse. Si riportano i numeri, nessuna mediana.
+
+3. Postgres: start1k con `./scen.sh iggy pg start1k`, B contro H3, una coppia per ordine (B,H3 e H3,B). Si riporta, non si giudica (2 coppie non bastano
+   per una mediana).
+
+4. Controlli di correttezza su H3, prima di ogni misura, una corsa ciascuno salvo dove detto; se uno fallisce ci si ferma e si riporta:
+   - tretry e tdead (criteri del blocco C): ogni ritentativo/scadenza parte una volta sola e mai prima della scadenza; quelli gia' scaduti a fine ripresa
+     partono entro 1 s da READY; 0 accettate perse.
+   - Doppione provocato: ekill (ERATE=334 CAP=4096) con rec_delay_ms=500, cosi' che ci siano record in attesa al kill. Soglia: tentativi iniziati due volte
+     > 0 E <= record in attesa al kill (`undurable_deliveries` campionato subito prima del kill); 0 accettate perse. Poi 2 corse ekill normali (ritardo 0)
+     con gli iniziati due volte riportati.
+   - Aggiornamento semplice (up-run.sh n=3 rate=334, CAP=4096) e con 100.000 timer (PRE100K=1 CAP=4096): 0 accettate perse; 0 timer persi o doppi;
+     attivita' rifatte riportate; pausa riportata (limite di Marco: 30 s).
+   - In OGNI corsa di H3 di tutto il blocco: zero occorrenze di «database is locked» / SQLITE_BUSY (si conta nel registro del motore e nel file grezzo e
+     si scrive il numero) e zero righe `timer` per attivita' concluse (SQL del file scen.sh, scritta nel file grezzo).
+   - Solo riportati, senza soglia e senza codice nuovo: per le corse di kill e di aggiornamento, kill (o segnale) -> READY accanto al numero di attivita'
+     in volo al kill; se nei 2 s dopo READY si accettano e si consegnano esecuzioni nuove (prima accettazione nuova e prima consegna nuova, in ms dopo READY).
+     Derivati da istanti gia' registrati (`accepted_us` nel database, registro dei worker), senza nuovi meccanismi.
