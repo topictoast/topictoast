@@ -1554,6 +1554,8 @@ Password degli utenti di prova generate a ogni corsa (64 cifre esadecimali), mai
 
 Primi `[stato prima]`: prima serie 20:17:18 (control r1), ripetizione 20:27:58. Pavimento di `fdatasync` nei file grezzi, macchina tranquilla (carico 1 min 0,5-0,9).
 
+Nota del coordinatore sulle ripetizioni. Le regole (commit `339a350`) dicevano di rifare una volta il solo `control` quando una sua chiamata non riesce, e di rifare le corse con `verify` fallita. La ripetizione di `ro-sent` va oltre la lettera delle regole. È sostenuta dal controllo: nella stessa serie anche root ha fallito la stessa lettura da gruppo con lo stesso codice 5009, quindi i 2 FAIL di `ro-sent` della prima serie vengono dallo strumento, non dai permessi (misurata, con i file della prima serie). Il verdetto su `ro-sent` poggia sulla ripetizione. La prima serie resta nella tabella con i suoi FAIL.
+
 ### Reperti dello strumento (due difetti, trovati dal controllo e dalla verifica)
 
 - **5009 «rebalance in progress».** Subito dopo l'unione a un gruppo, la prima lettura da gruppo dà il codice 5009 («Consumer group member … does not own partition: 0 at the current generation (rebalance in progress)») anche a root; si risolve riprovando dopo 200 ms con una nuova unione (come fa il sentinella: da qui i `SENTINEL_ERR` di avvio). Nelle ripetizioni la lettura da gruppo riesce al secondo tentativo. Non è un errore di permessi. (misurata)
