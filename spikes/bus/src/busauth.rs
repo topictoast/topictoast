@@ -80,23 +80,37 @@ async fn send(c: &IggyClient, topic: &str) -> Result<(), IggyError> {
     .map(|_| ())
 }
 
-/// Lettura da gruppo con salvataggio della posizione (come fa il sentinella).
+/// Lettura da gruppo con salvataggio della posizione (come fa il sentinella). Subito dopo l'unione il server risponde 5009
+/// («rebalance in progress», anche a root): come il sentinella si riprova dopo 200 ms, con una nuova unione, fino a 25 volte;
+/// ogni errore intermedio si stampa. Un errore diverso da 5009 si torna subito.
 async fn poll_group(c: &IggyClient, topic: &str) -> Result<usize, IggyError> {
-    Ok(c.poll_messages(
-        &id(STREAM),
-        &id(topic),
-        0,
-        &Consumer::group(id("sentinel")),
-        &PollingStrategy::next(),
-        PollOptions {
-            count: 10,
-            commit: CommitPolicy::OnRead,
-            ..PollOptions::default()
-        },
-    )
-    .await?
-    .messages
-    .len())
+    for i in 1..=25 {
+        let r = c
+            .poll_messages(
+                &id(STREAM),
+                &id(topic),
+                0,
+                &Consumer::group(id("sentinel")),
+                &PollingStrategy::next(),
+                PollOptions {
+                    count: 10,
+                    commit: CommitPolicy::OnRead,
+                    ..PollOptions::default()
+                },
+            )
+            .await;
+        match r {
+            Err(e) if e.as_code() == 5009 && i < 25 => {
+                println!("  lettura da gruppo, tentativo {i}: codice=5009 {e}");
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                let _ = c
+                    .join_consumer_group(&id(STREAM), &id(topic), &id("sentinel"))
+                    .await;
+            }
+            r => return Ok(r?.messages.len()),
+        }
+    }
+    unreachable!()
 }
 
 async fn offset(c: &IggyClient, topic: &str) -> Result<Option<u64>, IggyError> {
