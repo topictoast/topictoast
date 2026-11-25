@@ -69,6 +69,9 @@ pub async fn load(url: &str, dir: &str) {
     let mut w0 = 0.0;
     let mut tasks = tokio::task::JoinSet::new();
     let mut input = vec![0u8; size];
+    let json = arg("payload", "bytes") == "json";
+    let inbad: usize = arg("inbad", "0").parse().unwrap();
+    let inflag = arg("inflag", "1") != "0";
     // intervallo di misura = [warm, warm+secs]; l'ultimo istante di invio è warm+secs
     while start.elapsed().as_secs_f64() < warm + secs {
         tick.tick().await;
@@ -89,7 +92,18 @@ pub async fn load(url: &str, dir: &str) {
                 "b" => 1,
                 _ => i % 2,
             };
-            input[..8].copy_from_slice(&(i as u64).to_le_bytes());
+            if json {
+                // blocco E2: documento JSON fisso di circa `size` byte (uguale nei due bracci); `inbad=N`: ogni N-esimo senza `name`; `inflag=0`: `flag` falso
+                input = crate::auxp::doc(
+                    i as u64,
+                    size,
+                    false,
+                    inbad > 0 && i.is_multiple_of(inbad),
+                    inflag,
+                );
+            } else {
+                input[..8].copy_from_slice(&(i as u64).to_le_bytes());
+            }
             let req = pb::AcceptReq {
                 tenant: TENANTS[tenant].to_vec(),
                 kind,

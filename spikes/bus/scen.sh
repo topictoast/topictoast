@@ -18,11 +18,11 @@ EP=; WP=
 # N scelto dalla verifica della fase 2d (mediana più alta di thrmax): Valkey 4, Iggy 1
 WDEF=1; [ "$BUS" = valkey ] && WDEF=4
 WL=; ENGPFX=
-case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db|tretry|tdead|theart|retry) TRIM=0; WL="worklog=out/work.log" ;; t100k) TRIM=0 ;; logrun) TRIM=0 ;; esac
+case $SC in kill|dbdown) TRIM=0 ;; size1m) PB=16 ;; size64k) PB=200 ;; ekill|bkill|wkill|dfull-iggy|dfull-db|tretry|tdead|theart|retry) TRIM=0; WL="worklog=out/work.log" ;; t100k) TRIM=0 ;; logrun|aux1k|auxneg|auxrss) TRIM=0 ;; esac
 # blocco D (log dei task): profilo delle righe dei worker (LOGA, LOGB = NxL: N righe da L byte per tentativo, tenant A e B),
 # pausa tra le due metà (LOGSPLIT), tetto (LOGLINES, LOGBYTES), ritardo della conferma (ACKHOLD), sostituzione del segreto
 # (REDACT=0 la spegne: corsa di controllo), LOGMARK=1 genera un segreto sintetico per corsa (mai da .env, mai stampato)
-WL="$WL loga=${LOGA:-0x0} logb=${LOGB:-0x0} logsplit_ms=${LOGSPLIT:-0} logw=out/log-written.txt"
+WL="$WL payload=${PAYLOAD:-bytes} loga=${LOGA:-0x0} logb=${LOGB:-0x0} logsplit_ms=${LOGSPLIT:-0} logw=out/log-written.txt"
 [ -n "$LOGMARK" ] && { SPIKE_SECRET=ttmark-$(od -An -N12 -tx1 /dev/urandom | tr -d ' \n'); export SPIKE_SECRET; echo "segreto sintetico generato per questa corsa (lunghezza ${#SPIKE_SECRET}), mai stampato"; }
 # blocco C: nelle corse con pochi timer il motore scrive una riga per ogni timer programmato (TSET) e scattato (TFIRE)
 case $SC in tretry|tdead|theart) export TIMER_LOG=1 ;; esac
@@ -55,7 +55,7 @@ NSE() { nsenter -U --preserve-credentials -m -t $EP "$@"; }
 
 start_engine() {
   : > out/engine.log
-  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} meta=${META:-0} >> out/engine.log 2>&1 &
+  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} meta=${META:-0} aux=${AUX:-0} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
@@ -74,6 +74,13 @@ logcheck_loop() {
   # le righe non entrano nei log del motore (FR-52): occorrenze del segreto sintetico nel registro del motore (solo il conteggio)
   [ -n "$SPIKE_SECRET" ] && echo "marker_in_engine_log: $(cat out/engine.log out/engine-pre.log 2>/dev/null | grep -cF "$SPIKE_SECRET")"
   echo "-- log dei task a fine corsa (contatori del motore, SQL per attività dei due tenant): $("$BIN" stats dir=out | grep -E '^(tasklog|sql_per_activity_tenant)' | tr '\n' ' ')"
+}
+
+# blocco E2: contatori finali dell'ausiliario e latenza del passo (dopo lo svuotamento: le chiamate si confrontano con le attività concluse)
+aux_final() {
+  echo "-- ausiliario a fine corsa: $("$BIN" stats dir=out | grep -E '^(aux|step_latency)' | tr '\n' ' ')"
+  echo "AUX_INPUT_INVALID nel registro del motore: $(grep -c AUX_INPUT_INVALID out/engine.log); AUX_OUTPUT_INVALID: $(grep -c AUX_OUTPUT_INVALID out/engine.log); panic: $(grep -c panicked out/engine.log)"
+  grep -m2 AUX_INPUT_INVALID out/engine.log | cut -c1-300
 }
 
 SERV="$BUS"; [ $DB = pg ] && SERV="$SERV postgres"
@@ -112,7 +119,7 @@ sentinel_stop() {
 $TS_ENG "$BIN" worker dir=out link=${LINK:-grpc} sessions=${WSESS:-4} $WL > out/worker.log 2>&1 &
 WP=$!
 sleep 1
-L="$TS_LOAD $BIN load dir=out"
+L="$TS_LOAD $BIN load dir=out ${PAYLOAD:+payload=$PAYLOAD} ${INBAD:+inbad=$INBAD} ${INFLAG:+inflag=$INFLAG}"
 
 case $SC in
   accept) $L rate=200 kind=0 n=1 size=1024 secs=30 warm=3 "$@" ;;
@@ -138,13 +145,14 @@ case $SC in
     sleep 3
     $L rate=100 kind=0 n=10 size=1024 tenants=b secs=30 warm=5 "$@"
     wait $LA; echo "-- tenant A (lento)"; cat out/iso-a.txt ;;
-  logrun)
+  logrun|aux1k|auxneg)
     # Blocco D, log dei task: una corsa con righe (profilo LOGA/LOGB). TAIL=1 misura la visibilità (logtail su CPU del carico);
     # in ogni caso rilegge tutti i pezzi, li confronta con la verità di base del worker e cerca il segreto (logcheck).
     [ -n "$TAIL" ] && { $TS_LOAD "$BIN" logtail dir=out secs=${TAILSECS:-52} > out/logtail.txt 2>&1 & TP=$!; sleep 1; }
     $L rate=100 kind=0 n=10 size=1024 secs=40 warm=5 ledger=out/ledger.txt "$@"
     [ -n "$TAIL" ] && { wait $TP; cat out/logtail.txt; }
     for i in $(seq 1 12); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
+    aux_final
     logcheck_loop ;;
   lognoisy)
     # Blocco D, worker rumoroso: B a 1.000 att./s (si misura start_ready_tenant_b); con NOISY=1 anche A, che scrive fino al tetto
@@ -190,6 +198,20 @@ case $SC in
   rss)
     sleep 60
     ./rss.sh $EP $WP ;;
+  auxrss)
+    # Blocco E2, riga 3: RSS a riposo (10 s dopo l'avvio) e sotto carico (a 1.000 att./s per 30 s, campione a 25 s) di motore, ausiliario
+    # (figlio del motore), worker e Iggy; somma motore + ausiliario + Iggy (il worker non conta nel conto della piattaforma).
+    sleep 10
+    AP=$(pgrep -P $EP | head -1)
+    echo "== a riposo"; ./rss.sh $EP $AP $WP
+    $L rate=100 kind=0 n=10 size=1024 secs=30 warm=2 stats=0 ledger=out/ledger.txt "$@" > out/load.txt &
+    LP=$!
+    sleep 27
+    echo "== sotto carico"; ./rss.sh $EP $AP $WP | tee out/rss-load.txt
+    wait $LP; grep -E "^(offered|activities)" out/load.txt
+    echo "rss somma sotto carico (motore + ausiliario + iggy): $(awk '/^rss iggy/{s+=$3} /^rss pid='$EP' /{s+=$3} /^rss pid='${AP:-0}' /{s+=$3} END{print s}' out/rss-load.txt) kB (80 MB = 81920 kB)"
+    for i in $(seq 1 12); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
+    aux_final ;;
   kill)
     $L rate=300 kind=0 n=10 size=1024 work_ms=100 secs=28 warm=1 stats=0 ledger=out/ledger.txt > out/load.txt &
     LP=$!

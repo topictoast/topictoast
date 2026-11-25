@@ -124,15 +124,22 @@ pub async fn work(d: pb::Delivery, recv: u64) -> pb::FromWorker {
     if d.work_ms > 0 {
         tokio::time::sleep(std::time::Duration::from_millis(d.work_ms as u64)).await;
     }
-    let mut out = vec![(d.delivery_id & 0xff) as u8; d.out_size as usize];
-    let hdr = [
-        d.exec.as_slice(),
-        &d.step.to_le_bytes(),
-        &d.delivery_id.to_le_bytes(),
-    ]
-    .concat();
-    let n = hdr.len().min(out.len());
-    out[..n].copy_from_slice(&hdr[..n]);
+    // blocco E2: con `payload=json` l'uscita è il documento JSON fisso di `out_size` byte (uguale nei due bracci)
+    static JSON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let out = if *JSON.get_or_init(|| arg("payload", "bytes") == "json") {
+        crate::auxp::doc(d.delivery_id, d.out_size as usize, true, false, true)
+    } else {
+        let mut out = vec![(d.delivery_id & 0xff) as u8; d.out_size as usize];
+        let hdr = [
+            d.exec.as_slice(),
+            &d.step.to_le_bytes(),
+            &d.delivery_id.to_le_bytes(),
+        ]
+        .concat();
+        let n = hdr.len().min(out.len());
+        out[..n].copy_from_slice(&hdr[..n]);
+        out
+    };
     pb::FromWorker {
         exec: d.exec,
         step: d.step,

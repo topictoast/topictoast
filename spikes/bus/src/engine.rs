@@ -52,6 +52,8 @@ pub struct M {
     /// Eventi per richiesta, in unità (non in tempo).
     pub sub_events: Histogram<u64>,
     pub start_ready: Histogram<u64>,
+    /// Blocco E2: latenza del passo, da «pronta» al giudizio di `Done`.
+    pub step_done: Histogram<u64>,
     pub start_sent: Histogram<u64>,
     pub start_join: Histogram<u64>,
     pub start_b: Histogram<u64>,
@@ -74,6 +76,8 @@ pub struct M {
     pub rows0: u64,
     pub wal0: i64,
     pub cpu0: f64,
+    /// CPU dell'ausiliario a inizio finestra.
+    pub aux_cpu0: f64,
 }
 
 fn cpu_s() -> f64 {
@@ -99,6 +103,7 @@ impl M {
             min_pdb: hist(),
             sub_events: hist(),
             start_ready: hist(),
+            step_done: hist(),
             start_sent: hist(),
             start_join: hist(),
             start_b: hist(),
@@ -119,6 +124,7 @@ impl M {
             rows0: 0,
             wal0: 0,
             cpu0: cpu_s(),
+            aux_cpu0: 0.0,
         }
     }
 }
@@ -183,6 +189,8 @@ pub struct Shared {
     pub logs: Arc<crate::tasklog::Counters>,
     /// Blocco sentinella: ogni evento di stato porta l'intestazione utente in chiaro (argomento `meta=1`).
     pub meta: bool,
+    /// Blocco E2: processo ausiliario (argomento `aux=1`); `None` = niente cambia.
+    pub aux: Option<Arc<crate::auxp::Client>>,
 }
 
 impl Shared {
@@ -348,6 +356,8 @@ struct Infl {
     /// Numero del tentativo in corso. La scadenza non è qui: è un timer durevole (blocco C), in `Engine::timers`; è l'unico
     /// modo in cui un tentativo perso (worker morto, sessione persa) torna disponibile.
     attempt: u32,
+    /// Istante di «pronta» dell'attività (0 dopo una ripresa): serve alla latenza del passo.
+    ready_us: u64,
 }
 
 struct Engine {
@@ -514,6 +524,7 @@ impl Engine {
             return;
         }
         let mut evs: Vec<(usize, Ev)> = vec![];
+        let mut newly: Vec<(usize, Uid, u32, u64)> = vec![];
         let mut n_sent = 0u64;
         let mut progress = true;
         while progress {
@@ -568,6 +579,32 @@ impl Engine {
                         v.extend_from_slice(&self.sh.payload(&tenant, h, *l).await);
                     }
                     Bytes::from(v)
+                };
+                // Blocco E2, andata e ritorno 1 (AD-6): tra «dipendenze soddisfatte» e l'invio al worker, quindi dentro
+                // `start_ready`: `if`, mappatura jq e schema d'ingresso nel processo ausiliario.
+                let input = match self.sh.aux.clone() {
+                    None => input,
+                    Some(aux) => match aux.prepare(input.to_vec()).await {
+                        crate::auxp::Prepared::Mapped(m) => Bytes::from(m),
+                        crate::auxp::Prepared::Skip => {
+                            // `if` falso: il passo si conclude senza uscita e senza consegna
+                            self.complete(exec, step, Bytes::new(), &mut evs, &mut newly);
+                            progress = true;
+                            continue;
+                        }
+                        crate::auxp::Prepared::Invalid(msg) => {
+                            // ponytail: l'attività con ingresso non valido non si consegna e non si ritenta (la politica di fallimento
+                            // terminale è della storia); il messaggio nomina il campo e può contenere il valore (da ripulire)
+                            eprintln!("AUX_INPUT_INVALID {} {step} {attempt}: {msg}", hex(&exec));
+                            progress = true;
+                            continue;
+                        }
+                        crate::auxp::Prepared::Down => {
+                            // ausiliario caduto: l'attività resta da consegnare, niente si perde e niente avanza
+                            self.pending[ti].push_front((exec, step, ready_us, attempt));
+                            break;
+                        }
+                    },
                 };
                 self.rr = (self.rr + 1) % self.sessions.len();
                 let (_, tx) = self.sessions[self.rr].clone();
@@ -630,6 +667,7 @@ impl Engine {
                     Infl {
                         delivery_id: self.next_delivery,
                         attempt,
+                        ready_us,
                     },
                 );
                 self.tenant_inflight[ti] += 1;
@@ -637,7 +675,7 @@ impl Engine {
             }
         }
         if !evs.is_empty() {
-            self.launch(evs, vec![], vec![], vec![], false);
+            self.launch(evs, newly, vec![], vec![], false);
             // consegne inviate il cui `Timer` non è ancora durevole (se il motore muore ora si riconsegnano)
             self.groups.get_mut(&self.gid).unwrap().deliveries = n_sent;
             let u = self.sh.undurable.fetch_add(n_sent, Relaxed) + n_sent;
@@ -787,7 +825,10 @@ impl Engine {
                         }
                     }
                     acks.push((sess, r.delivery_id));
-                    let attempt = self.inflight.remove(&key).map_or(0, |f| f.attempt);
+                    let (attempt, ready_us) = self
+                        .inflight
+                        .remove(&key)
+                        .map_or((0, 0), |f| (f.attempt, f.ready_us));
                     let e = self.execs.get_mut(&exec).unwrap();
                     let ti = tenant_idx(&e.tenant).unwrap();
                     self.tenant_inflight[ti] -= 1;
@@ -820,6 +861,12 @@ impl Engine {
                     {
                         let mut m = self.sh.m.lock().unwrap();
                         m.start_ready.record(r.lat_ready_us.max(1)).ok();
+                        // latenza del passo: da «pronta» al giudizio di `Done` (con l'ausiliario comprende il controllo dell'uscita)
+                        if ready_us != 0 {
+                            m.step_done
+                                .record(self.bts.saturating_sub(ready_us).max(1))
+                                .ok();
+                        }
                         m.start_sent.record(r.lat_sent_us.max(1)).ok();
                         if is_join {
                             m.start_join.record(r.lat_ready_us.max(1)).ok();
@@ -1019,7 +1066,31 @@ impl Engine {
     }
 
     /// Elabora messaggi (in ingresso o interni): eventi in un gruppo sul bus, oppure subito gli effetti se non c'è niente da scrivere.
-    async fn process(&mut self, batch: Vec<Msg>) {
+    async fn process(&mut self, mut batch: Vec<Msg>) {
+        // Blocco E2, andata e ritorno 2 (AD-6): prima che il passo sia giudicato `Done`, l'uscita si controlla contro lo schema
+        // nel processo ausiliario. Le richieste partono tutte insieme (pipeline), poi si attendono; un'uscita non valida
+        // segna il tentativo come fallito (si ritenta) e il messaggio col campo va nel registro.
+        if let Some(aux) = self.sh.aux.clone() {
+            let mut waits = vec![];
+            for (i, m) in batch.iter().enumerate() {
+                if let Msg::Result { r, .. } = m
+                    && !r.heartbeat
+                    && !r.failed
+                    && !r.output.is_empty()
+                {
+                    waits.push((i, aux.check_start(r.output.clone())));
+                }
+            }
+            for (i, rx) in waits {
+                if let Some(msg) = aux.check(rx).await
+                    && let Msg::Result { r, .. } = &mut batch[i]
+                {
+                    eprintln!("AUX_OUTPUT_INVALID {} {}: {msg}", hex(&r.exec), r.step);
+                    r.failed = true;
+                    r.output.clear();
+                }
+            }
+        }
         let (evs, newly, replies, acks) = self.handle(batch);
         if evs.is_empty() {
             let g = Group {
@@ -1672,6 +1743,19 @@ impl pb::control_server::Control for Ctl {
             m.done_t[1],
             self.sh.logs.text()
         );
+        // blocco E2: latenza del passo e contatori dell'ausiliario (CPU della finestra: dall'ultimo `reset`)
+        let aux_cpu = self.sh.aux.as_ref().map(|a| a.cpu_rss().0).unwrap_or(0.0);
+        let text = format!(
+            "{text}\nstep_latency {}{}\naux_cpu_s_window={:.3} aux_cpu_per_1000_att={:.3}",
+            f(&m.step_done),
+            self.sh
+                .aux
+                .as_ref()
+                .map(|a| format!("\n{}", a.text()))
+                .unwrap_or_default(),
+            aux_cpu - m.aux_cpu0,
+            (aux_cpu - m.aux_cpu0) * 1000.0 / m.done.max(1) as f64
+        );
         if r.into_inner().reset {
             let (stmts, rows) = (
                 self.sh.db.stmts.load(Relaxed),
@@ -1680,6 +1764,7 @@ impl pb::control_server::Control for Ctl {
             let stmts_t = [0, 1].map(|i| self.sh.db.stmts_t[i].load(Relaxed));
             *m = M::new();
             m.stmts0_t = stmts_t;
+            m.aux_cpu0 = aux_cpu;
             m.stmts0 = stmts;
             m.rows0 = rows;
             m.wal0 = wal;
@@ -2005,6 +2090,11 @@ pub async fn main(
             .into_bytes(),
         logs: Arc::new(Default::default()),
         meta: crate::arg("meta", "0") == "1",
+        aux: if crate::arg("aux", "0") == "1" {
+            Some(Arc::new(crate::auxp::Client::spawn().await))
+        } else {
+            None
+        },
     });
     // Sonda del bus (blocco B): una connessione propria chiede il topic ogni 500 ms con tempo massimo di 1,5 s; il client
     // non torna con un errore a bus giù (aspetta), quindi è il tempo massimo a dire «giù». Con il bus giù le accettazioni
@@ -2153,6 +2243,7 @@ pub async fn main(
                     Infl {
                         delivery_id: 0,
                         attempt,
+                        ready_us: 0,
                     },
                 );
                 eng.tenant_inflight[ti] += 1;

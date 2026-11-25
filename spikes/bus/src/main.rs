@@ -7,6 +7,7 @@
     clippy::let_and_return,
     clippy::unnecessary_to_owned
 )]
+mod auxp;
 mod bench;
 mod bus;
 #[cfg(not(feature = "old"))]
@@ -129,6 +130,8 @@ async fn main() {
         ),
         "verify" => load::verify(&arg("db", ""), &arg("bus", "valkey"), &dir).await,
         "logcheck" => logchk::check(&dir, &arg("bus", "iggy")).await,
+        // processo ausiliario (AD-6): lo avvia il motore con l'ambiente vuoto
+        "aux" => auxp::serve(),
         #[cfg(not(feature = "old"))]
         "busauth" => busauth::run(&arg("case", "control")).await,
         #[cfg(not(feature = "old"))]
