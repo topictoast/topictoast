@@ -1,0 +1,43 @@
+Blocco E, E1, credenziale di sola lettura del bus: regole di lettura scritte PRIMA di ogni corsa (decisione del coordinatore, 2026-11-25).
+Perche': (1) la riga del blocco E del piano: un utente Iggy con sola lettura sul topic del tenant A deve poter leggere A e non B, e non scrivere su A; (2) dalla decisione
+di Marco sul sentinella i metadati degli eventi sono in chiaro per chiunque legga il bus, quindi la stessa credenziale e' anche il cancello del sentinella.
+Si misura contro il server vero (Iggy `apache/iggy:0.10.0` del compose, versione stampata in ogni file grezzo), non dalla memoria del suo modello di permessi.
+
+Strumento: `busspike busauth case=<caso>` (commit 45e4663, `src/busauth.rs`), client Iggy 0.12.0 gia' nel crate, nessuna dipendenza nuova. Binario
+bin/busspike-cred-45e4663, sha256 che inizia con 1bfe5d3f2bce205b, uguale per tutte le corse. Ogni file grezzo ha le righe `[stato prima HH:MM:SS]` (pavimento di fdatasync,
+`braccio:` = `CRED-<caso>`, `binario sha256:`); una corsa vale solo se il suo `[stato prima]` e' piu' tardi del commit di questo file. Bus pulito prima di ogni corsa
+(`./reset.sh iggy`; la corsa del sentinella passa da `scen.sh`, che lo fa da se'). 2 corse per caso, in ordine: control, ro-a, ro-a-s, ro-sent, sentinel (giro 1), poi di nuovo (giro 2).
+File grezzi: iggy-sqlite-cred-<caso>-4-ms-r<n>.txt. Ogni controllo stampa `CHECK <nome> atteso=<riesce|rifiutato> ottenuto=<riesce|errore> <PASS|FAIL> <dettaglio>`, con il
+codice numerico e il messaggio esatti di ogni errore. PASS = quanto osservato e' quanto atteso; un FAIL non si corregge allargando i permessi: si riporta.
+
+Segreti: le password degli utenti di prova (`ro-a`, `ro-sent`) si generano a ogni corsa (due UUID casuali, 64 cifre esadecimali), non si stampano mai, non finiscono nei file
+grezzi ne' nei commit. L'unico file che le contiene e' `out/ro-sent.pw` (modo 600, solo nella corsa del sentinella, tolto a fine scena; `out/` si cancella a fine blocco). Controlli finali:
+`grep -lF -f .env` sui file nuovi = 0 file; nessun file grezzo nuovo contiene una sequenza di 64 cifre esadecimali (formato delle password generate) = 0 file; ricerca del nome
+del file `ro-sent.pw` e dei dati su minisheep dopo la pulizia.
+
+Permessi dei casi (Iggy li chiede per numero di stream e di topic, non per nome o schema: la ricerca di un modello `state-*` non esiste; si riporta cosi'):
+  control : utente root, stesse operazioni dei casi sotto.
+  ro-a    : utente `ro-a`, nessun permesso globale, sullo stream `tt` solo il permesso di topic `read_topic` + `poll_messages` sul topic `state-<A>` (nessun permesso di stream).
+  ro-a-s  : come ro-a, piu' `read_stream` sullo stream `tt` (variante, solo se la minima non basta: si eseguono comunque entrambe e si riporta la minima che passa).
+  ro-sent : utente `ro-sent`, nessun permesso globale, sullo stream `tt` (a livello di stream, quindi su tutti i suoi topic anche creati dopo) `read_stream` + `read_topics` + `poll_messages`;
+            nessun `send_messages`, nessun `manage_*`.
+
+Controlli (atteso):
+  control (r1, r2), tutti = riesce, altrimenti la corsa e' non valida (chiamata rotta) e si rifa' una volta: lettura di A; lettura di B; invio a A; elenco dei topic; creare un topic;
+    cancellare un topic; creare il gruppo `sentinel` su A; unirsi; lettura da gruppo con posizione salvata; posizione salvata del gruppo.
+  ro-a e ro-a-s (r1, r2): lettura di A = riesce; lettura di B = rifiutato (errore riportato); invio a A = rifiutato; creare un topic = rifiutato; cancellare un topic = rifiutato.
+    Informativo, non conta nel verdetto: elenco dei topic (atteso rifiutato; si riporta cosa risponde).
+    Verdetto: la credenziale di sola lettura sul tenant A e' PROVATA con la variante piu' piccola in cui tutti e cinque i controlli sono PASS in entrambe le corse.
+  ro-sent (r1, r2), tutti = riesce salvo gli ultimi tre: elenco dei topic; elenco con un topic `state-*` creato da root DOPO l'accesso dell'utente (deve vederlo); creare il gruppo `sentinel`
+    sul topic nuovo; unirsi al gruppo; lettura da gruppo con salvataggio della posizione (almeno i 3 eventi scritti da root); posizione salvata del gruppo presente; lettura semplice
+    di A; invio a A = rifiutato; creare un topic = rifiutato; cancellare un topic = rifiutato; unirsi a un gruppo creato da root su un altro topic e leggerne gli eventi = riesce
+    (dice se per un tenant nuovo basta che il gruppo lo crei root). Se la creazione o l'unione del gruppo e' rifiutata si riporta il permesso che manca (e' un reperto per l'ADR: chi crea
+    il gruppo per un tenant nuovo); non si allargano i permessi per farla passare.
+  sentinel (r1, r2), il vero sentinella con l'utente `ro-sent`: `SENT=1 META=1 SENTUSER=1 ./scen.sh iggy sqlite newtenant rate=100 n=10 secs=15` (circa 1.000 att./s per 15 s, a 4 s un
+    topic `state-*` nuovo creato da root). PASS se: `verify OK`; `sentinel_stats` con `events` > 0 e `topics=3` (due tenant piu' il nuovo, scoperti con quell'utente); `gaps=0`; la riga
+    `newtenant:` con il primo evento del topic nuovo letto entro 2.000 ms dalla creazione; la posizione salvata del gruppo `sentinel` su `state-<A>` presente (`busauth case=offsets`,
+    con root); il numero di righe `SENTINEL_ERR` si riporta con il primo messaggio (all'avvio ce ne sono di «rebalance in progress»; qualunque altro errore e' un reperto). Se il sentinella
+    non legge nulla (`events=0`) o non scopre il topic nuovo e' FAIL e si riporta il permesso mancante; non si allarga.
+
+Cosa il blocco NON copre: rotazione o scadenza delle password, token personali di accesso, TLS verso Iggy, il permesso per un topic di un tenant creato dopo l'utente `ro-a` (i
+permessi di topic sono per numero: andrebbero concessi alla creazione del topic), scritture del sentinella (non ne ha), piu' utenti di sola lettura, Valkey.
