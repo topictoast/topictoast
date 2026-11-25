@@ -1,0 +1,48 @@
+[stato prima 21:30:52] load: 0.90 1.17 1.11
+[stato prima] io: some avg10=0.85 avg60=7.45 avg300=16.77 total=21219957761
+[stato prima] cpu: some avg10=0.01 avg60=0.27 avg300=0.62 total=2305432528
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: AUX-rss
+[stato prima] binario sha256:f2152947f38633cf
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=1.93ms p99=2.72ms p99.9=61.09ms max=61.09ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.14
+[attesa] 40 s
+### iggy + sqlite: auxrss 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=3381650 READY recovered_ms=463 now_us=1795638659928781 gen=1
+== a riposo
+rss iggy 76176 kB
+rss pid=3381650 26484 kB
+rss pid=3381725 13836 kB
+rss pid=3381732 15612 kB
+rss somma a riposo (motore + ausiliario + iggy; pid motore=3381650 ausiliario=3381725 worker=3381732): 116496 kB (80 MB = 81920 kB)
+== sotto carico
+rss iggy 78232 kB
+rss pid=3381650 35784 kB
+rss pid=3381725 14324 kB
+rss pid=3381732 16896 kB
+offered=3200 accepted=3200 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+rss somma sotto carico (motore + ausiliario + iggy): 128340 kB (80 MB = 81920 kB)
+verify: accettate=3200 concluse_nella_proiezione=3119 accettate_perse=81 attivita_concluse=31468 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=52 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=3200 concluse_nella_proiezione=3200 accettate_perse=0 attivita_concluse=32000 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=54 payload_illeggibili=0 light=true
+verify OK
+-- ausiliario a fine corsa: step_latency n=32000 p50=28.37ms p99=94.53ms p99.9=115.78ms max=156.80ms over100ms=159 aux calls_prepare=32000 calls_check=32000 skipped=0 input_invalid=0 output_invalid=0 errors=0 cpu_s=2.20 rss_kb=14324 aux_rtt n=64000 p50=0.30ms p99=3.59ms p99.9=4.38ms max=5.10ms over100ms=0 aux_cpu_s_window=2.200 aux_cpu_per_1000_att=0.069 
+AUX_INPUT_INVALID nel registro del motore: 0; AUX_OUTPUT_INVALID: 0; panic: 0
+MIN t=1 act_s=0 append_p50_ms=0.0 sub_p50_ms=0.0 lag_p50_ms=0 lag_p99_ms=0 proj_read_p50_ms=0.0 proj_arch_p50_ms=0.0 proj_db_p50_ms=0.0 proj_groups=0 held_max=0 io=[some avg10=0.18 avg60=2.77 avg300=13.43 total=21220589250]
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 98180 kB
+rss pid=3381650 35892 kB
+rss pid=3381732 16928 kB
+-- conteggio file archivio: 30
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 21:32:36] load: 1.92 1.44 1.21
+[stato dopo] io: some avg10=44.35 avg60=22.30 avg300=17.17 total=21237180375
+[stato dopo] cpu: some avg10=1.83 avg60=0.89 avg300=0.65 total=2306515269
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: AUX-rss
+[stato dopo] binario sha256:f2152947f38633cf
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.86ms p99=13.50ms p99.9=2500.61ms max=2500.61ms over100ms=1
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.03

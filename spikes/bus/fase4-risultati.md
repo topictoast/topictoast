@@ -1568,3 +1568,60 @@ Rotazione o scadenza delle password, token personali di accesso, TLS verso Iggy,
 ### Comandi per rifare
 
 Su minisheep, in `~/ttspikebus` (`.env` da `./gen-env.sh`, binari `bin/busspike-cred-45e4663` e `bin/busspike-cred-818fa0d`): `./cred-chain.sh rows` (prima serie) e `./cred-chain.sh redo` (ripetizione), staccati, con `./cred-chain.sh wait`; un caso solo: `./cred-chain.sh case <control|ro-a|ro-a-s|ro-sent>` dopo `. ./env.sh`; il sentinella: `SENT=1 META=1 SENTUSER=1 ./scen.sh iggy sqlite newtenant rate=100 n=10 secs=15`.
+
+## Blocco E, processo ausiliario (1.000 att./s)
+
+Processo ausiliario di AD-6 (sottocomando `aux` dello stesso binario, figlio del motore con `env_clear`, IPC a frame con id su pipe, un processo, un task scrittore e uno lettore nel motore) con filtro `if`, mappatura jq e controllo degli schemi d'ingresso (sul mappato) e d'uscita. Regole: `risultati/iggy-sqlite-aux-regola-4-ms.txt` (commit `4e5e158`, 21:07:25, con l'aggiunta sul binario con `PREPARE` in pipeline, scritta prima di ogni corsa misurata; la prima corsa misurata ha `[stato prima 21:07:26]`). Binario `bin/busspike-aux-af23e79` (commit `af23e79`), sha256 `f2152947f38633cf`. Dopo la revisione il percorso `PREPARE` è stato messo in pipeline (scelta delle attività del giro, una richiesta per ciascuna senza attendere, poi attesa nell'ordine di scelta): le corse di prova del primo binario non contano. Corse di prova con il binario finale: `-smoke-aux-…-r2`. 15 corse misurate, **nessuna non valida**. File grezzi `risultati/iggy-sqlite-aux-<riga>-<braccio>-4-ms-r<n>.txt`.
+
+Dipendenze nuove (tutte pinnate, nessun TLS né HTTP tra i 32 crate nuovi): `jaq-core 3.1.2`, `jaq-std 3.0.4`, `jaq-json 2.0.3` (MIT), `jsonschema 0.61.1` con `default-features = false` (MIT; senza `resolve-http` né `resolve-file`), `serde_json` (già presente). Licenze dei crate nuovi: MIT, MIT OR Apache-2.0, Apache-2.0, MIT-0 e `self_cell 1.3.0` con **`Apache-2.0 OR GPL-2.0-only`: si elegge Apache-2.0** (scelta approvata dal coordinatore).
+
+**Macchina.** Tranquilla: carico a 1 min prima delle corse 0,61-1,42 e dopo 1,10-2,00; CPU massima di un runner prima e dopo sotto 0,15 % in ogni corsa (0,00-0,14); nessuna corsa con `[macchina non ferma]`. Pavimento di `fdatasync` prima: p50 1,93-8,26 ms; il p99.9 ha picchi di 68,9 / 67,3 / 182,4 / 184,5 ms in quattro corse della riga 1 (OFF r2, ON r3, OFF r5, ON r6).
+
+### Sintesi
+
+1. **Riga 1, costo a 1.000 att./s: superata.** Mediana del p99 di `start_ready`: OFF **19,55 ms**, ON **20,05 ms**; R = **1,026** (soglia 1,20). Differenza **non dichiarabile (effetto d'ordine)**: X (ON per primo, coppie 2/4/6: +1,55, +1,06, +34,53) = +1,55 ms, Y (ON per secondo, coppie 1/3/5: −0,53, −0,22, +0,70) = −0,22 ms; mediana delle 6 d +0,88 ms. Criterio a (≤ 25 ms): rispettato in tutti e due i bracci. Criterio c: istruzioni SQL per attività 0,0415 (OFF) contro 0,0416 (ON), scarto 0,2 % (limite 10 %). Validità: in tutte e 6 le corse ON `calls_prepare` = `calls_check` = attività concluse (esattamente 2 chiamate per attività completata: `calls_prepare` e `calls_check` uguali alle `attivita_concluse` dell'ultimo `verify`), 0 errori dell'ausiliario, `verify OK`, `activities_per_s` 1.000-1.006. (misurata)
+2. **Costo dell'ausiliario (misurata, mediane delle 6 corse):** CPU dell'ausiliario **0,072 s per 1.000 attività** (0,069-0,072); CPU del motore per 1.000 attività OFF 0,098 contro ON 0,116 (+18 %); andata e ritorno del motore con l'ausiliario p50 **0,23 ms** e p99 1,88 ms (misurata dall'invio alla risposta, con la coda della pipeline: 0,29 / 3,48 ms nella corsa r6); RSS dell'ausiliario 14,1-15,0 MB.
+3. **Riga 2, controlli negativi: superati.** schema: 60 ingressi su 600 senza `name`; 60 righe `AUX_INPUT_INVALID … 0 0: /name: null is not of type "string"` (nomina il campo) = `input_invalid` 60 = `accettate_perse` 60; le 540 esecuzioni valide concludono (`calls_check` 540); nessun panic, nessuna riga `AUX_CADUTO` né `AUX_EXIT`, `errors=0`, l'ausiliario resta vivo. if falso: `skipped` 600 = `calls_prepare` 600, `calls_check` 0, `verify OK` (le 600 esecuzioni si concludono senza consegna), nessuna riga di errore. (misurata)
+4. **Riga 3, memoria: NON rispettata a riposo.** A riposo (60 s dopo l'avvio, nessuna esecuzione): Iggy 76.176 kB, motore 26.484 kB, ausiliario 13.836 kB, worker 15.612 kB (escluso da NFR-1); **somma motore + ausiliario + Iggy = 116.496 kB** (113,8 MB) contro 81.920 kB. Sotto carico a 1.000 att./s: Iggy 78.232 kB, motore 35.784 kB, ausiliario 14.324 kB, worker 16.896 kB; somma 128.340 kB (riportata, non giudicata). **La deroga di Marco sul requisito di RAM (Iggy 92-96 MB nella fase 2) vale ancora**: Iggy da solo è 74 MB dei 114; motore + ausiliario (senza il bus) fanno 40,3 MB a riposo; **la quota dell'ausiliario è 13,8 MB** (circa 14 MB sotto carico). Non si giudica oltre: il giudizio contro 80 MB riguarda l'intero conto di NFR-1, non l'ausiliario. (misurata)
+
+### Riga 1, per coppia (`iggy-sqlite-aux-aux1k-{OFF,ON}-4-ms-r{1..6}.txt`)
+
+`start_ready` p99 (p50) in ms; ordine in tempo: r1 OFF, ON; r2 ON, OFF; r3 OFF, ON; r4 ON, OFF; r5 OFF, ON; r6 ON, OFF.
+
+| Coppia | OFF | ON | d = ON − OFF | SQL per attività OFF / ON | CPU motore per 1.000 att. OFF / ON | CPU ausiliario per 1.000 att. | `aux_rtt` p50 / p99 (ms) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 (OFF prima) | 20,18 (14,70) | 19,65 (14,79) | −0,53 | 0,0414 / 0,0416 | 0,098 / 0,116 | 0,071 | 0,22 / 1,90 |
+| 2 (ON prima) | 19,17 (14,50) | 20,72 (14,69) | +1,55 | 0,0414 / 0,0416 | 0,099 / 0,115 | 0,072 | 0,23 / 1,88 |
+| 3 (OFF prima) | 19,98 (14,62) | 19,76 (14,94) | −0,22 | 0,0416 / 0,0418 | 0,098 / 0,117 | 0,072 | 0,23 / 1,88 |
+| 4 (ON prima) | 19,28 (14,58) | 20,34 (14,80) | +1,06 | 0,0414 / 0,0416 | 0,098 / 0,116 | 0,072 | 0,23 / 1,88 |
+| 5 (OFF prima) | 19,04 (14,54) | 19,74 (14,80) | +0,70 | 0,0416 / 0,0416 | 0,097 / 0,117 | 0,072 | 0,23 / 1,85 |
+| 6 (ON prima) | 19,81 (14,67) | 54,34 (15,24) | +34,53 | 0,0416 / 0,0409 | 0,099 / 0,114 | 0,069 | 0,29 / 3,48 |
+| **Mediana** | **19,55 (14,60)** | **20,05 (14,80)** | +0,88 | **0,0415 / 0,0416** | **0,098 / 0,116** | **0,072** | **0,23 / 1,88** |
+
+- R = 20,05 / 19,55 = **1,026**; X = +1,55 ms (ON per primo), Y = −0,22 ms (ON per secondo): segni opposti, **non dichiarabile**. La coppia 6 (ON 54,34 ms, p99.9 del pavimento del disco prima della corsa 184,5 ms e `activities_per_s` 1.006) pesa su X e sulla media; senza di lei X varrebbe +1,3 ms (osservazione, non usata per il verdetto). Criterio b **rispettato**. La differenza di mediana (+0,5 ms) è dello stesso ordine del rumore tra corse (OFF 19,04-20,18 ms). (misurata)
+- Il costo visibile dell'ausiliario a questo ritmo sta nella CPU (motore +18 %, più 0,072 s per 1.000 attività nell'ausiliario) più che nel p99 di avvio. Non si conclude oltre sul 10.000/s, che ha le sue regole.
+
+### Latenza del passo (`step_latency`): metrica non validata, solo riportata
+
+Mediana delle 6 corse del p50 / p99: OFF **28,9 / 36,6 ms**, ON **17,5 / 37,0 ms**. **L'inversione vista nella prova si ripete in tutte le corse misurate**: nel braccio OFF il passo risulta più lento (p50 circa 29 ms) che nel braccio ON (p50 circa 17,5 ms), pur facendo ON più lavoro; `start_ready` p50 è invece 14,6 contro 14,8 ms. La causa è **aperta (ipotesi)**: la misura va da «pronta» al giudizio di `Done` e dipende dal momento in cui il ciclo del motore elabora il risultato, che a sua volta dipende dal limite di gruppi in volo sul bus; con l'ausiliario il ciclo attende le risposte e potrebbe raggruppare i risultati in modo diverso. Nessun criterio usa questa metrica.
+
+### Righe 2-3, per corsa
+
+| Corsa | `[stato prima]` | Esito | Note |
+| --- | --- | --- | --- |
+| auxneg schema | 21:28:38 | superata | v. sintesi 3; macchina: runner 0,01/0,05 %, pavimento p50 2,82 ms |
+| auxneg if | 21:29:45 | superata | v. sintesi 3; runner 0,00/0,03 % |
+| auxrss | 21:30:52 | NFR-1 a riposo non rispettato (con deroga) | v. sintesi 4; runner 0,14/0,03 % |
+
+### Come lavora l'ausiliario (note di disegno, non verdetti)
+
+- `PREPARE` in pipeline: il giro di `dispatch` sceglie le attività (stesso turno tra i tenant e stesso tetto), lancia una richiesta per ciascuna e poi le attende nell'ordine; con questo il costo non è più un andata e ritorno seriale nel ciclo del motore (nella prova col primo binario la CPU dell'ausiliario era 0,083 s per 1.000 attività e la mediana dell'andata e ritorno 0,09 ms; con la pipeline 0,072 e 0,23 ms, perché le richieste fanno coda nell'ausiliario).
+- Un'uscita non valida segna il tentativo come fallito (si ritenta); un ingresso non valido non si consegna e non si ritenta; il messaggio di validazione può riportare il valore del campo e va ripulito prima di un uso reale.
+
+### Non coperto
+
+`PR_SET_DUMPABLE` e i core dump (AD-6); **un ausiliario che cade non viene riavviato: il motore tiene il lavoro (le attività tornano in testa alla coda dei pronti) ma smette di avanzare**; **l'ingresso non valido non ha un fallimento terminale: l'esecuzione resta bloccata**; più processi ausiliari; `call http`; il tenant vicino con schemi pesanti del benchmark a carico misto del PRD; Postgres; la compilazione dell'interprete per `wasm32-wasip1` (la spine la richiede, qui non si verifica); il costo a 10.000 att./s (su bigsheep, con regole proprie).
+
+### Comandi per rifare
+
+Su minisheep, in `~/ttspikebus` (`.env` da `./gen-env.sh`, binario `bin/busspike-aux-af23e79`): `./aux-chain.sh rows` staccato (poi `tail chain-aux.log`); singole corse: `PAYLOAD=json [AUX=1] ./scen.sh iggy sqlite aux1k`, `PAYLOAD=json AUX=1 INBAD=10 ./scen.sh iggy sqlite auxneg rate=50 n=1 secs=10 warm=2`, `PAYLOAD=json AUX=1 INFLAG=0 …`, `PAYLOAD=json AUX=1 ./scen.sh iggy sqlite auxrss`.
