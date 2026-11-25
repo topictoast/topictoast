@@ -167,6 +167,12 @@ pub struct Shared {
     pub lease_ms: u64,
     /// Battiti accettati (ognuno è un evento `Timer` sul bus).
     pub heartbeats: AtomicU64,
+    /// Blocco D, parte seconda: consegne inviate il cui `Timer` di scadenza non è ancora durevole (ora e massimo della corsa).
+    pub undurable: AtomicU64,
+    pub undurable_max: AtomicU64,
+    /// Attività pronte ma trattenute dal tetto per tenant: ultimo valore e massimo del minuto (riga `MIN`).
+    pub held: AtomicU64,
+    pub held_max: AtomicU64,
 }
 
 impl Shared {
@@ -339,9 +345,8 @@ struct Engine {
     /// Si ricostruiscono dal database e dal bus alla ripresa; un timer entra qui solo quando il suo evento è durevole.
     timers: BTreeSet<(u64, Uid, u32)>,
     tmap: HashMap<(Uid, u32), (u8, u32, u64)>,
-    /// Timer da armare e consegne da inviare quando il gruppo che li scrive è durevole (AD-2: prima il timer, poi l'effetto).
+    /// Timer da armare quando il gruppo che li scrive è durevole (AD-2: prima il timer, poi l'effetto).
     arm: Vec<(Uid, u32, u8, u32, u64)>,
-    sends: Vec<(mpsc::Sender<Result<pb::Delivery, Status>>, pb::Delivery)>,
     /// Gruppi di eventi in volo sul bus.
     groups: HashMap<u64, Group>,
     gid: u64,
@@ -491,6 +496,7 @@ impl Engine {
             return;
         }
         let mut evs: Vec<(usize, Ev)> = vec![];
+        let mut n_sent = 0u64;
         let mut progress = true;
         while progress {
             progress = false;
@@ -548,7 +554,7 @@ impl Engine {
                 self.rr = (self.rr + 1) % self.sessions.len();
                 let (_, tx) = self.sessions[self.rr].clone();
                 self.next_delivery += 1;
-                let d = pb::Delivery {
+                let mut d = pb::Delivery {
                     exec: exec.to_vec(),
                     step,
                     tenant: tenant.to_vec(),
@@ -564,10 +570,14 @@ impl Engine {
                     fail: kind == 3 && attempt == 0,
                     lease_ms: self.sh.lease_ms as u32,
                 };
-                // AD-2, scadenza durevole: il timer del tentativo si scrive sul bus PRIMA della consegna. La consegna parte
-                // (`Group::sends`) e il timer si arma (`Group::arm`) quando il gruppo è durevole; l'attività è già «in volo»
-                // da ora, così non si consegna due volte. Se la sessione è chiusa al momento dell'invio il tentativo
-                // scade e si rifà (prima si rimetteva subito in coda).
+                // Blocco D, seconda parte: «invia prima, registra dopo». L'attività è già durevolmente pronta (il gruppo di
+                // `Ready` o di un timer di ritentativo/scadenza che l'ha messa in coda è durevole: AD-2 vale per quella
+                // decisione). La consegna parte subito e la scadenza si arma in memoria ora; l'evento `Timer` di scadenza
+                // si scrive nel gruppo lanciato qui sotto, senza aspettarlo. Ordine sul bus: il gruppo parte prima che
+                // l'esito del worker possa essere elaborato (stesso ciclo), e le code di scrittura sono FIFO per esecuzione,
+                // quindi `Timer` precede sempre il suo `Done` (il proiettore non reinserisce una riga cancellata).
+                // Se il motore muore prima che il `Timer` sia durevole, alla ripresa l'attività risulta «mai consegnata» e si
+                // riconsegna: doppione accettato e contato (`undurable_deliveries`). Sessione chiusa all'invio: scade e si rifà.
                 let now = now_us();
                 let lease = self.sh.lease_ms;
                 let due = now
@@ -588,8 +598,13 @@ impl Engine {
                         ts: now,
                     },
                 ));
-                self.arm.push((exec, step, 0, attempt, due));
-                self.sends.push((tx, d));
+                self.set_timer(exec, step, 0, attempt, due);
+                if self.sh.timer_log {
+                    eprintln!("TSET 0 {} {step} {attempt} {due} {}", hex(&exec), now_us());
+                }
+                d.sent_us = now_us();
+                let _ = tx.try_send(Ok(d));
+                n_sent += 1;
                 self.inflight.insert(
                     (exec, step),
                     Infl {
@@ -603,7 +618,15 @@ impl Engine {
         }
         if !evs.is_empty() {
             self.launch(evs, vec![], vec![], vec![], false);
+            // consegne inviate il cui `Timer` non è ancora durevole (se il motore muore ora si riconsegnano)
+            self.groups.get_mut(&self.gid).unwrap().deliveries = n_sent;
+            let u = self.sh.undurable.fetch_add(n_sent, Relaxed) + n_sent;
+            self.sh.undurable_max.fetch_max(u, Relaxed);
         }
+        // pronte ma trattenute dal tetto per tenant (con sessioni e senza aggiornamento in corso), per la riga `MIN`
+        let held = (self.pending[0].len() + self.pending[1].len()) as u64;
+        self.sh.held.store(held, Relaxed);
+        self.sh.held_max.fetch_max(held, Relaxed);
     }
 
     /// Elabora un gruppo di messaggi: aggiorna lo stato e produce gli eventi da scrivere, i passi pronti e le risposte.
@@ -879,6 +902,7 @@ impl Engine {
                     .ok();
             }
         }
+        self.sh.undurable.fetch_sub(g.deliveries, Relaxed);
         for (reply, exec, _) in g.replies {
             let _ = reply.send(Ok(exec));
         }
@@ -913,10 +937,6 @@ impl Engine {
                 }
             }
         }
-        for (tx, mut d) in g.sends {
-            d.sent_us = now_us();
-            let _ = tx.try_send(Ok(d));
-        }
         // le esecuzioni concluse escono dallo stato quando i loro eventi sono durevoli
         self.execs.retain(|_, e| !e.finished());
         self.dispatch().await;
@@ -945,7 +965,7 @@ impl Engine {
             acks,
             t0: Instant::now(),
             arm: std::mem::take(&mut self.arm),
-            sends: std::mem::take(&mut self.sends),
+            deliveries: 0,
             intake,
         };
         self.groups.insert(self.gid, g);
@@ -986,7 +1006,7 @@ impl Engine {
                 acks,
                 t0: Instant::now(),
                 arm: vec![],
-                sends: vec![],
+                deliveries: 0,
                 intake: false,
             };
             self.finalize(g).await;
@@ -1062,9 +1082,10 @@ struct Group {
     /// Esiti accettati in questo gruppo (sessione, consegna): si confermano al worker quando il gruppo è durevole.
     acks: Vec<(u64, u64)>,
     t0: Instant,
-    /// Timer da armare e consegne da inviare quando il gruppo è durevole (blocco C).
+    /// Timer da armare quando il gruppo è durevole (blocco C: ritentativi, attese, battiti).
     arm: Vec<(Uid, u32, u8, u32, u64)>,
-    sends: Vec<(mpsc::Sender<Result<pb::Delivery, Status>>, pb::Delivery)>,
+    /// Consegne già inviate il cui `Timer` di scadenza è in questo gruppo (blocco D, parte seconda).
+    deliveries: u64,
     /// Gruppo nato da messaggi in ingresso (conta per il limite `k`), non da una consegna o da un timer.
     intake: bool,
 }
@@ -1579,7 +1600,7 @@ impl pb::control_server::Control for Ctl {
         let stm = self.sh.db.stmts.load(Relaxed) - m.stmts0;
         let rows = self.sh.db.rows.load(Relaxed) - m.rows0;
         let text = format!(
-            "secs={secs:.1} accepted={} refused={} done={} rejected={} groups={} expired={} late_ok={}\nactivities_per_s={:.0} accepted_per_s={:.0}\naccept_engine {}\nappend {}\nappend_sub {}\nsub_events_p50={} sub_events_p99={}\nstart_ready {}\nstart_sent {}\nstart_join {}\nstart_ready_tenant_b {}\narchive_read {}\nproj_lag {}\ntimer_fire_delay {} timers_pending={} heartbeats={}\nsql_stmts={stm} sql_rows={rows} sql_per_activity={:.4} rows_per_activity={:.3} wal_bytes_per_activity={:.1}\nengine_cpu_s={:.2} cache_entries={}",
+            "secs={secs:.1} accepted={} refused={} done={} rejected={} groups={} expired={} late_ok={}\nactivities_per_s={:.0} accepted_per_s={:.0}\naccept_engine {}\nappend {}\nappend_sub {}\nsub_events_p50={} sub_events_p99={}\nstart_ready {}\nstart_sent {}\nstart_join {}\nstart_ready_tenant_b {}\narchive_read {}\nproj_lag {}\ntimer_fire_delay {} timers_pending={} heartbeats={}\nundurable_deliveries={} undurable_max={} held={}\nsql_stmts={stm} sql_rows={rows} sql_per_activity={:.4} rows_per_activity={:.3} wal_bytes_per_activity={:.1}\nengine_cpu_s={:.2} cache_entries={}",
             m.accepted,
             m.refused,
             m.done,
@@ -1603,6 +1624,9 @@ impl pb::control_server::Control for Ctl {
             f(&m.timer_delay),
             self.sh.timers_pending.load(Relaxed),
             self.sh.heartbeats.load(Relaxed),
+            self.sh.undurable.load(Relaxed),
+            self.sh.undurable_max.load(Relaxed),
+            self.sh.held.load(Relaxed),
             stm as f64 / m.done.max(1) as f64,
             rows as f64 / m.done.max(1) as f64,
             (wal - m.wal0) as f64 / m.done.max(1) as f64,
@@ -1907,6 +1931,10 @@ pub async fn main(
         timer_log: std::env::var("TIMER_LOG").is_ok(),
         lease_ms,
         heartbeats: 0.into(),
+        undurable: 0.into(),
+        undurable_max: 0.into(),
+        held: 0.into(),
+        held_max: 0.into(),
     });
     // Sonda del bus (blocco B): una connessione propria chiede il topic ogni 500 ms con tempo massimo di 1,5 s; il client
     // non torna con un errore a bus giù (aspetta), quindi è il tempo massimo a dire «giù». Con il bus giù le accettazioni
@@ -1973,7 +2001,7 @@ pub async fn main(
             last_done = m.done;
             let ms = |h: &Histogram<u64>, q: f64| h.value_at_quantile(q) as f64 / 1e3;
             eprintln!(
-                "MIN t={t} act_s={:.0} append_p50_ms={:.1} sub_p50_ms={:.1} lag_p50_ms={:.0} lag_p99_ms={:.0} proj_read_p50_ms={:.1} proj_arch_p50_ms={:.1} proj_db_p50_ms={:.1} proj_groups={} io=[{io}]",
+                "MIN t={t} act_s={:.0} append_p50_ms={:.1} sub_p50_ms={:.1} lag_p50_ms={:.0} lag_p99_ms={:.0} proj_read_p50_ms={:.1} proj_arch_p50_ms={:.1} proj_db_p50_ms={:.1} proj_groups={} held_max={} io=[{io}]",
                 d as f64 / 60.0,
                 ms(&m.min_append, 0.5),
                 ms(&m.min_sub, 0.5),
@@ -1982,7 +2010,8 @@ pub async fn main(
                 ms(&m.min_pread, 0.5),
                 ms(&m.min_parc, 0.5),
                 ms(&m.min_pdb, 0.5),
-                m.min_pdb.len()
+                m.min_pdb.len(),
+                sh3.held_max.swap(0, Relaxed)
             );
             m.min_append.reset();
             m.min_sub.reset();
@@ -2018,7 +2047,6 @@ pub async fn main(
         timers: BTreeSet::new(),
         tmap: HashMap::new(),
         arm: vec![],
-        sends: vec![],
         groups: HashMap::new(),
         gid: 0,
         intake_n: 0,
