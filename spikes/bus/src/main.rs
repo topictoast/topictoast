@@ -9,6 +9,8 @@
 )]
 mod bench;
 mod bus;
+#[cfg(not(feature = "old"))]
+mod busauth;
 mod crypto;
 mod db;
 mod engine;
@@ -127,6 +129,8 @@ async fn main() {
         ),
         "verify" => load::verify(&arg("db", ""), &arg("bus", "valkey"), &dir).await,
         "logcheck" => logchk::check(&dir, &arg("bus", "iggy")).await,
+        #[cfg(not(feature = "old"))]
+        "busauth" => busauth::run(&arg("case", "control")).await,
         #[cfg(not(feature = "old"))]
         "sentinel" => sentinel::run(&dir, arg("secs", "600").parse().unwrap()).await,
         "sentinel-newtopic" => sentinel::new_topic(&arg("bus", "iggy")).await,

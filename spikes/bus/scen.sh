@@ -92,7 +92,16 @@ start_engine
 # blocco sentinella: SENT=1 avvia il sentinella (sulle CPU del motore: fa parte della piattaforma), META=1 (sopra) fa scrivere al motore
 # l'intestazione in chiaro; il sentinella si ferma con `out/sentinel.stop` e stampa le sue statistiche
 SP=
-[ -n "$SENT" ] && { $TS_ENG "$BIN" sentinel dir=out secs=${SENTSECS:-900} > out/sentinel.txt 2>&1 & SP=$!; sleep 1; }
+if [ -n "$SENT" ]; then
+  # blocco E (credenziale di sola lettura): SENTUSER=1 fa girare il vero sentinella con l'utente `ro-sent` (password generata, mai stampata)
+  if [ -n "$SENTUSER" ]; then
+    "$BIN" busauth case=setup-sent
+    IGGY_ROOT_USERNAME=ro-sent IGGY_ROOT_PASSWORD=$(cat out/ro-sent.pw) $TS_ENG "$BIN" sentinel dir=out secs=${SENTSECS:-900} > out/sentinel.txt 2>&1 &
+  else
+    $TS_ENG "$BIN" sentinel dir=out secs=${SENTSECS:-900} > out/sentinel.txt 2>&1 &
+  fi
+  SP=$!; sleep 1
+fi
 sentinel_stop() {
   [ -n "$SP" ] || return 0
   touch out/sentinel.stop; wait $SP; SP=
@@ -457,6 +466,8 @@ fi
 # blocco D, parte terza: occorrenze di database bloccato nei registri del motore (prima e dopo un eventuale crash)
 echo "busy_hits_engine_log: $(cat out/engine.log out/engine-pre.log 2>/dev/null | grep -ciE 'database is locked|sqlite_busy')"
 sentinel_stop
+[ -n "$SENTUSER" ] && { echo "sentinel (utente ro-sent) errori del processo: $(grep -c SENTINEL_ERR out/sentinel.txt)"; grep -m3 SENTINEL_ERR out/sentinel.txt | cut -c1-300; "$BIN" busauth case=offsets; }
 stop_all
+rm -f out/ro-sent.pw
 rm -rf out/archive out/logs; [ -n "$SPIKE_ARCHIVE" ] && rm -rf "$SPIKE_ARCHIVE"
 if [ "$SC" = dfull-iggy ]; then docker compose -p ttspikebus down -t 1 >/dev/null 2>&1; docker volume rm ttspikebus-iggycap >/dev/null; fi
