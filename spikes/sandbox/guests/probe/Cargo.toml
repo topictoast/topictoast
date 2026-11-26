@@ -1,0 +1,12 @@
+# Modulo ostile (wasm32-wasip1): prova la fuga dalla sandbox. Fuori dai workspace e dal gate.
+[package]
+name = "probe"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[profile.release]
+opt-level = "s"
+strip = true
