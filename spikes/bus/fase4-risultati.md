@@ -1803,7 +1803,14 @@ Crash (`slowdb-serial-crash`, guardiano spento, kill a ritardo del tick di 3.138
 
 ### Conseguenza di disegno per AD-2: lo scrittore unico su SQLite
 
-Con SQLite la proiezione deve avere **un solo scrittore** per processo, non un proiettore per tenant: due scrittori sullo stesso file si contendono l'unico lock di scrittura e, appena un commit rallenta, uno finisce in «database is locked» oltre `busy_timeout` e il motore lo scambia per proiezione ferma, con rifiuti di accettazione che non dipendono dal ritardo ma dal layout. Un mutex nel processo (`proj_serial=1`) basta a evitarlo nel prototipo (0 busy, 0 rifiuti nei bracci seriali); con Postgres (MVCC) non c'e' un unico lock di scrittura e la conseguenza non vale. Il criterio sul busy a 10.000 att./s (tappa 5) va misurato con questo layout, non con due scrittori.
+Con SQLite la proiezione deve avere **un solo scrittore** per processo, non un proiettore per tenant: due scrittori sullo stesso file si contendono l'unico lock di scrittura e, appena un commit rallenta, uno finisce in «database is locked» oltre `busy_timeout` e il motore lo scambia per proiezione ferma, con rifiuti di accettazione che non dipendono dal ritardo ma dal layout. Un mutex nel processo (`proj_serial=1`) basta a evitarlo nel prototipo (0 busy, 0 rifiuti nei bracci seriali); con Postgres (MVCC) non c'e' un unico lock di scrittura e la conseguenza non dovrebbe valere (ipotesi, Postgres non misurato qui). Il criterio sul busy a 10.000 att./s (tappa 5) si misura con tutti e due i layout, due scrittori come base e scrittore unico accanto.
+
+### Revisione
+
+- **Valori riletti sui file grezzi**, tutte le 8 corse valide: `[stato prima]` tra 01:23:30 e 01:40:10, dopo l'emendamento delle 01:23:14; hash `47be4b2ee7224fdf`; `verify OK` e JUDGE PASS. `busy_hits` 22 e 20 con due scrittori, 0 nei sei bracci seriali; rifiuti per busy 811 e 739; rifiuti `E_PROJECTION_LAG` 1.027 e 1.075; kill -> READY 117 e 119 ms.
+- **Etichetta del generatore di carico**: il campo `refused_E_PROJECTION_DOWN` della riga `offered=` conta tutti i rifiuti. Il codice vero è in `errors_by_type`; nei bracci con il guardiano è `E_PROJECTION_LAG`.
+- **Il guardiano a 1 s non tiene la proiezione entro 1 s**: il ritardo arriva a 1,87-1,94 s, con 10,1 s complessivi sopra 1 s nella corsa r1. Rifiutare il lavoro nuovo non accelera la proiezione: l'arretrato già accettato si smaltisce in circa 2 s. Per stare entro il limite di AD-2 il guardiano dovrebbe scattare prima di 1 s (ipotesi, non misurata).
+- **Latenze sopra NFR-2 in tutti i bracci** (accettazione p50 27 ms e p99 62-67 ms, `start_ready` p99 43-46 ms): questa serie ha segmenti di Iggy da 1 MiB, `proj_batch=50` e 25 s di ritardo dentro la corsa, quindi non si confronta con le altre serie (non alla pari). Non dicono niente del motore senza database lento.
 
 ### Non coperto
 
