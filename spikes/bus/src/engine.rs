@@ -1917,6 +1917,8 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
                 .ok();
         }
         if raw.is_empty() {
+            // lettura vuota: niente da applicare, ritardo zero (finché arrivano eventi resta il valore del gruppo appena applicato)
+            sh.unapplied_ts[ti].store(0, Relaxed);
             tokio::time::sleep(Duration::from_millis(2)).await;
             continue;
         }
@@ -1940,8 +1942,8 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
             .iter()
             .map(|(_, b)| Ev::decode(&sh.keys.open(&format!("bus/{topic}"), b).2))
             .collect();
-        // blocco E4c: età del più vecchio evento durevole non ancora applicato (si azzera a gruppo applicato; nel breve intervallo fino alla
-        // lettura successiva gli eventi arrivati nel frattempo non sono ancora noti, quindi il campionamento a 100 ms può sottostimare)
+        // blocco E4c: età del più vecchio evento durevole non ancora applicato. Resta il valore dell'ultimo gruppo fino alla lettura successiva
+        // (si azzera solo a lettura vuota): tra due gruppi sovrastima di poco, non scende mai a zero con un arretrato
         sh.unapplied_ts[ti].store(evs.iter().map(|e| e.ts()).min().unwrap().max(1), Relaxed);
         // payload nel segmento del tenant e un solo fdatasync PRIMA della transazione (la posizione fa scartare il bus)
         let noarc = std::env::var("DIAG_NOARCHIVE").is_ok();
@@ -2058,7 +2060,6 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
             }
         }
         sh.applied_ts[ti].store(evs.iter().map(|e| e.ts()).max().unwrap(), Relaxed);
-        sh.unapplied_ts[ti].store(0, Relaxed);
         // la cache si svuota con i payload appena proiettati (non per istante: con più connessioni l'ordine sul bus non segue gli istanti)
         if !noarc_flag() {
             let mut c = sh.cache.lock().unwrap();

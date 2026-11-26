@@ -24,7 +24,7 @@ case $SC in cancel|cancel-crash|exectimeout) TRIM=0; WL="worklog=out/work.log st
 [ "$SC" = cancel ] && { NOWORKER=1; CAP=4; FANSLOW=1; }
 [ "$SC" = cancel-crash ] && { CAP=4096; STOP_DELAY=${STOP_DELAY:-4000}; }
 [ "$SC" = exectimeout ] && { EXEC_TIMEOUT=${EXEC_TIMEOUT:-3000}; CAP=4096; }
-case $SC in slowdb|slowdb-guard|slowdb-crash) PB=${SLOWPB:-100}; PROJ_DELAY=${PROJ_DELAY:-50}; PROJ_FROM=${PROJ_FROM:-15}; PROJ_SECS=${PROJ_SECS:-25} ;; esac
+case $SC in slowdb|slowdb-guard|slowdb-crash) PB=${SLOWPB:-50}; PROJ_DELAY=${PROJ_DELAY:-20}; PROJ_FROM=${PROJ_FROM:-15}; PROJ_SECS=${PROJ_SECS:-25} ;; esac
 [ "$SC" = slowdb-guard ] && LAG_MAX=${LAG_MAX:-1000}
 # blocco D (log dei task): profilo delle righe dei worker (LOGA, LOGB = NxL: N righe da L byte per tentativo, tenant A e B),
 # pausa tra le due metà (LOGSPLIT), tetto (LOGLINES, LOGBYTES), ritardo della conferma (ACKHOLD), sostituzione del segreto
