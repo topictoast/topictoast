@@ -81,7 +81,8 @@ pub fn main(cfg: &str) {
                 let masked: Vec<u8> = (0..m["x"].len() / 2)
                     .map(|i| u8::from_str_radix(&m["x"][2 * i..2 * i + 2], 16).unwrap())
                     .collect();
-                match scan_mem("self", &masked) {
+                // `pid=<n>`: legge la memoria di un altro processo (prova di Yama), altrimenti la propria
+                match scan_mem(m.get("pid").copied().unwrap_or("self"), &masked) {
                     Ok((h, r)) => format!("ok hits={h} read_bytes={r}"),
                     Err(e) => format!("err {e}"),
                 }

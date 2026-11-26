@@ -729,6 +729,11 @@ fn sentinel(env: &Env, a: &A) {
             "L8 cfg={cfg} TEST: scan B for A's value, from the driver: {}",
             ext(&xb.pid, &ma)
         );
+        // solo riportato: l'ausiliario A (non antenato di B) legge la memoria di B: lo nega Yama, non topictoast
+        println!(
+            "L8 cfg={cfg} REPORTED: A (sibling process) reads B's memory for B's value: {}",
+            xa.send(&format!("scan x={mb} pid={}", xb.pid))
+        );
         // dopo il rilascio delle istanze: residuo del valore dentro lo stesso processo (stesso tenant)
         xa.send("free");
         xb.send("free");
