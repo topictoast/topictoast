@@ -1,0 +1,44 @@
+[stato prima 20:52:42] load: 1.33 1.52 1.17
+[stato prima] io: some avg10=0.88 avg60=12.17 avg300=16.15 total=10994438417
+[stato prima] cpu: some avg10=0.01 avg60=0.71 avg300=0.94 total=1230737936
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] binario sha256: d51b36de4ca9c6dc
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=7.16ms p99=10.67ms p99.9=66.62ms max=66.62ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 45 s
+### iggy + sqlite: wkill 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2292638 READY recovered_ms=422 now_us=1795549973068798 gen=1
+prima del kill: secs=14.2 accepted=3599 refused=0 done=5379 rejected=0 groups=110 expired=0 late_ok=0
+T0 kill del worker 1=1795549987269639
+load tenants=ab rate=300/s kind=0 n=3 size=1024 work_ms=3000 warm=1s measured=30s
+offered=9300 accepted=9300 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+errors_by_type {}
+accept_rtt_open_loop n=9001 p50=13.23ms p99=24.34ms p99.9=43.36ms max=60.58ms over100ms=0
+accept_max_gap_ms=54 from_us=1795549994668430 to_us=1795549994722740
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.88 cpu_per_1000_att engine=0.000 worker=880.000
+motore dopo la corsa: secs=33.2 accepted=9300 refused=0 done=22499 rejected=0 groups=288 expired=1347 late_ok=0
+verify: accettate=9300 concluse_nella_proiezione=6554 accettate_perse=2746 attivita_concluse=22378 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=22738 duplicati_sul_bus=0 payload_decifrati=22378 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=9300 concluse_nella_proiezione=7521 accettate_perse=1779 attivita_concluse=25379 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=25565 duplicati_sul_bus=0 payload_decifrati=25379 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=9300 concluse_nella_proiezione=8550 accettate_perse=750 attivita_concluse=27150 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=27294 duplicati_sul_bus=0 payload_decifrati=27150 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=9300 concluse_nella_proiezione=9300 accettate_perse=0 attivita_concluse=27900 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=27900 duplicati_sul_bus=0 payload_decifrati=27900 payload_illeggibili=0 light=false
+verify OK
+tentativi iniziati: 29247, attività distinte: 27900, eseguite più di una volta: 1347
+riesecuzioni: 1347; kill -> nuovo inizio: min 2100, mediana 3602, max 5002 ms
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 84264 kB
+rss pid=2292638 35212 kB
+rss pid=2292706 23492 kB
+-- conteggio file archivio: 76
+[stato dopo 20:53:36] load: 2.27 1.76 1.27
+[stato dopo] io: some avg10=50.34 avg60=30.02 avg300=20.09 total=11015640379
+[stato dopo] cpu: some avg10=2.79 avg60=1.66 avg300=1.14 total=1232181071
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] binario sha256: d51b36de4ca9c6dc
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.77ms p99=4.11ms p99.9=5.36ms max=5.36ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.02

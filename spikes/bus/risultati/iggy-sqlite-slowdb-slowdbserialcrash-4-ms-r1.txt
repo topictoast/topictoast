@@ -1,0 +1,60 @@
+[stato prima 01:30:19] load: 1.45 1.97 1.83
+[stato prima] io: some avg10=0.53 avg60=13.44 avg300=18.76 total=21860498547
+[stato prima] cpu: some avg10=0.01 avg60=0.83 avg300=1.17 total=2372650758
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: SLOWDB-serial-crash
+[stato prima] binario sha256:47be4b2ee7224fdf
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.60ms p99=4.10ms p99.9=74.81ms max=74.81ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 35 s
+### iggy + sqlite: slowdb-serial-crash 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2822 READY recovered_ms=518 now_us=1795653027046492 gen=1
+prima del kill: ritardo del tick 3138 ms; lag tick_lag_now_ms=3138 tick_lag_max_ms=3138 over1s_ms=5800 busy_hits=0 refused_lag=0 pending_locs=0 down_busy=0 down_other=0 
+kill T0_us=1795653051386683
+engine pid=5569 READY recovered_ms=113 now_us=1795653051504178 gen=1
+kill -> READY: 117 ms (limite NFR-15: 30000 ms); READY_us=1795653051504178
+ripresa: 34 esecuzioni vive, 9771 eventi riletti dal bus, 34 attività emesse e non concluse, 19 timer
+ripresa: 34 attività emesse e non concluse: 19 in volo (scadenza ripristinata), 0 in attesa di un timer, 15 da consegnare subito
+load tenants=ab rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=60s
+offered=6500 accepted=6485 refused_E_PROJECTION_DOWN=0 errors=15 overload_skipped=0
+errors_by_type {"Unavailable:tcp connect error": 11, "Unknown:transport error": 4}
+accept_rtt_open_loop n=5986 p50=27.42ms p99=67.45ms p99.9=97.53ms max=117.69ms over100ms=4
+-- READY -> ritardo del tick sotto 1 s (recupero dell'arretrato dopo il riavvio): 908 ms; il ritardo rilevato dopo la ripresa parte dagli eventi riletti
+verify: accettate=6485 concluse_nella_proiezione=6448 accettate_perse=39 attivita_concluse=64674 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=115 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=6485 concluse_nella_proiezione=6487 accettate_perse=0 attivita_concluse=64870 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=117 payload_illeggibili=0 light=true
+verify OK
+JUDGE verify OK dopo il riavvio (0 accettate perse) valore=1 atteso=1 PASS
+-- curva del ritardo a tick di 100 ms, finestre da 10 s (tick_lag_max_ms, tempo sopra 1 s, RSS, pending_locs, busy, rifiuti per ritardo, guardiano):
+LAG10 t=10 tick_lag_max_ms=324 over1s_ms=0 rss_kb=30468 pending_locs=0 busy_hits=0 refused_lag=0 guard=0
+LAG10 t=20 tick_lag_max_ms=1634 over1s_ms=1800 rss_kb=32436 pending_locs=0 busy_hits=0 refused_lag=0 guard=0
+LAG10 t=10 tick_lag_max_ms=3148 over1s_ms=800 rss_kb=35520 pending_locs=0 busy_hits=0 refused_lag=0 guard=0
+LAG10 t=20 tick_lag_max_ms=300 over1s_ms=0 rss_kb=35736 pending_locs=0 busy_hits=0 refused_lag=0 guard=0
+LAG10 t=30 tick_lag_max_ms=280 over1s_ms=0 rss_kb=35836 pending_locs=0 busy_hits=0 refused_lag=0 guard=0
+LAG10 t=40 tick_lag_max_ms=279 over1s_ms=0 rss_kb=35972 pending_locs=0 busy_hits=0 refused_lag=0 guard=0
+-- ritardo acceso (PROJ_DELAY_ON) 1795653043391788; spento (PROJ_DELAY_OFF) non nel registro; ritardo sopra 1 s (LAG_OVER1S) 1795653045535546: 2143 ms dopo l'accensione; sotto 1 s di nuovo (LAG_UNDER1S) 1795653052412803: n.a. ms dopo lo spegnimento (recupero)
+-- contatori finali: lag tick_lag_now_ms=0 tick_lag_max_ms=3148 over1s_ms=800 busy_hits=0 refused_lag=0 pending_locs=0 down_busy=0 down_other=0
+-- start_ready e proj_lag: start_ready n=41847 p50=17.82ms p99=46.21ms p99.9=72.96ms max=97.66ms over100ms=0;proj_lag n=139424 p50=145.53ms p99=3004.41ms p99.9=3284.99ms max=3323.90ms over100ms=98021;
+-- accettazioni offerte e rifiutate (frazione), per codice: offerte 6500 riuscite 6485 ; errors_by_type {"Unavailable:tcp connect error": 11, "Unknown:transport error": 4}
+-- E_PROJECTION_DOWN per causa dell'ultimo errore del proiettore (busy / altro): down_busy=0 down_other=0
+-- errori di database «locked/busy» arrivati al proiettore e righe 'proiezione ferma': 0 ; 0
+JUDGE posizioni del bus tagliate oltre la posizione applicata (righe E_POSIZIONE_PERSA) valore=0 atteso=0 PASS
+-- primo offset leggibile del bus per topic (trim non vuoto se > 0): state-0000000000007000800000000000000a 99376;state-0000000000007000800000000000000b 99475; posizione applicata: state-0000000000007000800000000000000b 100533;state-0000000000007000800000000000000a 100564;
+JUDGE primo offset leggibile oltre la posizione applicata (conteggio topic) valore=0 atteso=0 PASS
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 98192 kB
+rss pid=5569 36248 kB
+rss pid=2881 17040 kB
+-- conteggio file archivio: 118
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 01:31:36] load: 3.20 2.34 1.97
+[stato dopo] io: some avg10=34.71 avg60=33.08 avg300=23.63 total=21891347324
+[stato dopo] cpu: some avg10=2.34 avg60=2.15 avg300=1.50 total=2374992018
+[stato dopo] container non nostri non in esecuzione stabile: 3; in esecuzione: 12
+[stato dopo] braccio: SLOWDB-serial-crash
+[stato dopo] binario sha256:47be4b2ee7224fdf
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.71ms p99=5.98ms p99.9=30.50ms max=30.50ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

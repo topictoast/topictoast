@@ -1,0 +1,167 @@
+[stato prima 00:14:02] load: 0.78 1.37 1.66
+[stato prima] io: some avg10=0.91 avg60=3.51 avg300=2.06 total=21265945989
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.26 total=2325773298
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: CANCEL-crash-smoke
+[stato prima] binario sha256:c91dfbfbe5f5444b
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=7.36ms p99=11.29ms p99.9=97.98ms max=97.98ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 35 s
+### iggy + sqlite: cancel-crash 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=3924390 READY recovered_ms=774 now_us=1795648452457864 gen=1
+CANCELCTL phase=crash exec=01a214fcff69730283f156daf8a6150e code=CANCELLED role=integrator latency_us=13381 at_us=1795648456248329
+CANCELCTL phase=crash exec=01a214fcffda7414a8f5d751eca8644b code=CANCELLED role=integrator latency_us=24431 at_us=1795648456248589
+CANCELCTL phase=crash exec=01a214fcff8c73a3b349a1549d1a9a4c code=CANCELLED role=integrator latency_us=24656 at_us=1795648456248391
+CANCELCTL phase=crash exec=01a214fcffb772e698820a2800c7cb9d code=CANCELLED role=integrator latency_us=24603 at_us=1795648456248460
+CANCELCTL phase=crash exec=01a214fcffa170d2a616f36a51e92ca5 code=CANCELLED role=integrator latency_us=24679 at_us=1795648456248447
+CANCELCTL phase=crash exec=01a214fcffce71ec837eebb65b2746e9 code=CANCELLED role=integrator latency_us=24655 at_us=1795648456248500
+CANCELCTL phase=crash exec=01a214fd00287479aeabe4f3ff15edff code=CANCELLED role=integrator latency_us=24582 at_us=1795648456248595
+CANCELCTL phase=crash exec=01a214fd000b74378773efb57a927f5a code=CANCELLED role=integrator latency_us=24672 at_us=1795648456248529
+CANCELCTL phase=crash exec=01a214fd00ab70b4b30cfe87dddc4bab code=CANCELLED role=integrator latency_us=24592 at_us=1795648456248642
+CANCELCTL phase=crash exec=01a214fcffe370bfbcd8779ced74a3d0 code=CANCELLED role=integrator latency_us=24634 at_us=1795648456248605
+CANCELCTL phase=crash exec=01a214fd009d70d89404617e4b5b66b8 code=CANCELLED role=integrator latency_us=24632 at_us=1795648456248624
+CANCELCTL phase=crash exec=01a214fcff78771ebb4311267769806e code=CANCELLED role=integrator latency_us=24879 at_us=1795648456248382
+CANCELCTL phase=crash exec=01a214fd00497344975c9af09b5aa1e8 code=CANCELLED role=integrator latency_us=24637 at_us=1795648456248632
+CANCELCTL phase=crash exec=01a214fcffc47250a2ca683b268166cd code=CANCELLED role=integrator latency_us=24889 at_us=1795648456248388
+CANCELCTL phase=crash exec=01a214fd003872bba2fd4a0dce6c315f code=CANCELLED role=integrator latency_us=24674 at_us=1795648456248612
+CANCELCTL phase=crash exec=01a214fd001a729fb9398ff86828ebd1 code=CANCELLED role=integrator latency_us=24723 at_us=1795648456248582
+CANCELCTL phase=crash exec=01a214fd006576b1a4c430372733be68 code=CANCELLED role=integrator latency_us=24703 at_us=1795648456248603
+CANCELCTL phase=crash exec=01a214fcfffc72358a1c4584fafcda9a code=CANCELLED role=integrator latency_us=24782 at_us=1795648456248524
+CANCELCTL phase=crash exec=01a214fd005875458918a10290acce2a code=CANCELLED role=integrator latency_us=24771 at_us=1795648456248635
+CANCELCTL phase=crash exec=01a214fcffee73519950cc2b7489916e code=CANCELLED role=integrator latency_us=24804 at_us=1795648456248617
+CANCELCTL phase=crash exec=01a214fd00f17553a8d5c610b8d49065 code=CANCELLED role=integrator latency_us=24781 at_us=1795648456248654
+CANCELCTL phase=crash exec=01a214fd00fe74c4b3de8c14b9caf3aa code=CANCELLED role=integrator latency_us=24772 at_us=1795648456248674
+CANCELCTL phase=crash exec=01a214fd00d4766bb8b27c45650eb135 code=CANCELLED role=integrator latency_us=24767 at_us=1795648456248689
+CANCELCTL phase=crash exec=01a214fd0076723e9bdd848cad8a2e2c code=CANCELLED role=integrator latency_us=24937 at_us=1795648456248652
+CANCELCTL phase=crash exec=01a214fd00b8729d9af0711d23d16114 code=CANCELLED role=integrator latency_us=24957 at_us=1795648456248656
+CANCELCTL phase=crash exec=01a214fd008d75b1af6f7e9dd3878af1 code=CANCELLED role=integrator latency_us=24961 at_us=1795648456248673
+CANCELCTL phase=crash exec=01a214fd01637199b8ca5c0185a64a4f code=CANCELLED role=integrator latency_us=24942 at_us=1795648456248695
+CANCELCTL phase=crash exec=01a214fd0187736d90faccfcdf0e023d code=CANCELLED role=integrator latency_us=24937 at_us=1795648456248697
+CANCELCTL phase=crash exec=01a214fd0081772b9fb84f23b950b5b8 code=CANCELLED role=integrator latency_us=24983 at_us=1795648456248667
+CANCELCTL phase=crash exec=01a214fd024e700b9c00133924ce8030 code=CANCELLED role=integrator latency_us=24901 at_us=1795648456248754
+CANCELCTL phase=crash exec=01a214fd01a470b89927a5be20f80276 code=CANCELLED role=integrator latency_us=24948 at_us=1795648456248711
+CANCELCTL phase=crash exec=01a214fd00e172009b2aad5784286011 code=CANCELLED role=integrator latency_us=25019 at_us=1795648456248645
+CANCELCTL phase=crash exec=01a214fd00c670f48169511159e3b635 code=CANCELLED role=integrator latency_us=24994 at_us=1795648456248680
+CANCELCTL phase=crash exec=01a214fd010b7759b817ad6eece61cab code=CANCELLED role=integrator latency_us=24992 at_us=1795648456248685
+CANCELCTL phase=crash exec=01a214fd011777bcb4b1ff5f9a9b4e17 code=CANCELLED role=integrator latency_us=25016 at_us=1795648456248662
+CANCELCTL phase=crash exec=01a214fd013470f6831c37b10b00dedc code=CANCELLED role=integrator latency_us=24988 at_us=1795648456248717
+CANCELCTL phase=crash exec=01a214fd020d72eeac81eeafa5c43b77 code=CANCELLED role=integrator latency_us=24980 at_us=1795648456248736
+CANCELCTL phase=crash exec=01a214fd0264737a986979db93f7d996 code=CANCELLED role=integrator latency_us=24977 at_us=1795648456248745
+CANCELCTL phase=crash exec=01a214fd01467043b7a8717ddb8b3564 code=CANCELLED role=integrator latency_us=25192 at_us=1795648456248723
+CANCELCTL phase=crash exec=01a214fd01e2724dba0f992543574ffa code=CANCELLED role=integrator latency_us=25211 at_us=1795648456248719
+CANCELCTL phase=crash exec=01a214fd01f075d7b46d9a1505e1ec41 code=CANCELLED role=integrator latency_us=25212 at_us=1795648456248727
+CANCELCTL phase=crash exec=01a214fd02337775884189d9ed9d48ec code=CANCELLED role=integrator latency_us=25210 at_us=1795648456248749
+CANCELCTL phase=crash exec=01a214fd022276c5b3803d42eb59618b code=CANCELLED role=integrator latency_us=25229 at_us=1795648456248741
+CANCELCTL phase=crash exec=01a214fd026f7230a395aad4ff3838dd code=CANCELLED role=integrator latency_us=25264 at_us=1795648456248751
+CANCELCTL phase=crash exec=01a214fd01fe736d8f4b05c477d0d968 code=CANCELLED role=integrator latency_us=25285 at_us=1795648456248738
+CANCELCTL phase=crash exec=01a214fd01d576ff8287774e8365e0ba code=CANCELLED role=integrator latency_us=25313 at_us=1795648456248717
+CANCELCTL phase=crash exec=01a214fd01c67606a55ba15a1acc4860 code=CANCELLED role=integrator latency_us=25306 at_us=1795648456248730
+CANCELCTL phase=crash exec=01a214fd023e74b5b361cfd1746d3f3c code=CANCELLED role=integrator latency_us=25352 at_us=1795648456248744
+CANCELCTL phase=crash exec=01a214fd027d775dab84a7ebc1520274 code=CANCELLED role=integrator latency_us=25391 at_us=1795648456248758
+CANCELCTL phase=crash exec=01a214fd0154754991034767896ef542 code=CANCELLED role=integrator latency_us=25420 at_us=1795648456248729
+CANCELCTL phase=crash exec=01a214fd029872d98f7fa6ce5ecb54d4 code=CANCELLED role=integrator latency_us=25400 at_us=1795648456248759
+CANCELCTL phase=crash exec=01a214fd012673e588fd1b1e6b62ecae code=CANCELLED role=integrator latency_us=25481 at_us=1795648456248699
+CANCELCTL phase=crash exec=01a214fd01b4704480691206393145fc code=CANCELLED role=integrator latency_us=25488 at_us=1795648456248725
+CANCELCTL phase=crash exec=01a214fd028a74edaf79f7bd94a75a9e code=CANCELLED role=integrator latency_us=25599 at_us=1795648456248754
+CANCELCTL phase=crash exec=01a214fd0192753391ac28c8da006a9f code=CANCELLED role=integrator latency_us=25660 at_us=1795648456248703
+CANCELCTL phase=crash exec=01a214fd025a734eb7027b18a986a15b code=CANCELLED role=integrator latency_us=25603 at_us=1795648456248773
+CANCELCTL phase=crash exec=01a214fd030875ef9142bb11a2a70c4b code=CANCELLED role=integrator latency_us=25613 at_us=1795648456248776
+CANCELCTL phase=crash exec=01a214fd03287782839644ed31b7d3d8 code=CANCELLED role=integrator latency_us=25613 at_us=1795648456248782
+CANCELCTL phase=crash exec=01a214fd02fa77b089ef2cc6383031c3 code=CANCELLED role=integrator latency_us=25631 at_us=1795648456248771
+CANCELCTL phase=crash exec=01a214fd033d715587217e82e7c34e81 code=CANCELLED role=integrator latency_us=25630 at_us=1795648456248783
+CANCELCTL phase=crash exec=01a214fd02a673388305a830d7892ced code=CANCELLED role=integrator latency_us=25717 at_us=1795648456248766
+CANCELCTL phase=crash exec=01a214fd033375bd92b6f17f7d16e9c0 code=CANCELLED role=integrator latency_us=25702 at_us=1795648456248789
+CANCELCTL phase=crash exec=01a214fd02d272d6a8a03b5e22c50599 code=CANCELLED role=integrator latency_us=25693 at_us=1795648456248800
+CANCELCTL phase=crash exec=01a214fd02e077ed999de6f56e965075 code=CANCELLED role=integrator latency_us=25741 at_us=1795648456248771
+CANCELCTL phase=crash exec=01a214fd031977b4b329b5a8164d1674 code=CANCELLED role=integrator latency_us=25735 at_us=1795648456248778
+CANCELCTL phase=crash exec=01a214fd034a77b09460f2ac0bb79704 code=CANCELLED role=integrator latency_us=25733 at_us=1795648456248788
+CANCELCTL phase=crash exec=01a214fd03757688a7e32d629d9524f6 code=CANCELLED role=integrator latency_us=25723 at_us=1795648456248803
+CANCELCTL phase=crash exec=01a214fd02b4733d88d89f970409101d code=CANCELLED role=integrator latency_us=25768 at_us=1795648456248761
+CANCELCTL phase=crash exec=01a214fd02ec75a3aca9f283afe6cef8 code=CANCELLED role=integrator latency_us=25774 at_us=1795648456248790
+CANCELCTL phase=crash exec=01a214fd03b17750b8194c2aad617676 code=CANCELLED role=integrator latency_us=25775 at_us=1795648456248806
+CANCELCTL phase=crash exec=01a214fd0357732884847bceacfd68ea code=CANCELLED role=integrator latency_us=26126 at_us=1795648456248801
+CANCELCTL phase=crash exec=01a214fd0477722e9219aea5522a9fe9 code=CANCELLED role=integrator latency_us=37418 at_us=1795648456248841
+CANCELCTL phase=crash exec=01a214fd040a705d89ae77c2e68f4936 code=CANCELLED role=integrator latency_us=37479 at_us=1795648456248824
+CANCELCTL phase=crash exec=01a214fd038477dba06c764aa873ae59 code=CANCELLED role=integrator latency_us=37514 at_us=1795648456248810
+CANCELCTL phase=crash exec=01a214fd049673f094aefabd1ea4fc84 code=CANCELLED role=integrator latency_us=37482 at_us=1795648456248845
+CANCELCTL phase=crash exec=01a214fd03fc73a8be9763d9e8328025 code=CANCELLED role=integrator latency_us=37518 at_us=1795648456248821
+CANCELCTL phase=crash exec=01a214fd03ce72f68c2feec51455af75 code=CANCELLED role=integrator latency_us=37522 at_us=1795648456248818
+CANCELCTL phase=crash exec=01a214fd0394747cbd96892182169282 code=CANCELLED role=integrator latency_us=37546 at_us=1795648456248806
+CANCELCTL phase=crash exec=01a214fd03677197ba43b7fb2e0b51fd code=CANCELLED role=integrator latency_us=37545 at_us=1795648456248812
+CANCELCTL phase=crash exec=01a214fd04377450ad7f2b1916daaccd code=CANCELLED role=integrator latency_us=37530 at_us=1795648456248832
+CANCELCTL phase=crash exec=01a214fd03de74f190640c8ba09e133e code=CANCELLED role=integrator latency_us=37552 at_us=1795648456248819
+CANCELCTL phase=crash exec=01a214fd02c2716db23326df4eb7eb32 code=CANCELLED role=integrator latency_us=37590 at_us=1795648456248783
+CANCELCTL phase=crash exec=01a214fd042872a88a4e0a59a08f5042 code=CANCELLED role=integrator latency_us=37553 at_us=1795648456248832
+CANCELCTL phase=crash exec=01a214fd03a476e3bdb1b759ed9739ed code=CANCELLED role=integrator latency_us=37573 at_us=1795648456248813
+CANCELCTL phase=crash exec=01a214fd03ec775496810d8a93032996 code=CANCELLED role=integrator latency_us=37573 at_us=1795648456248820
+CANCELCTL phase=crash exec=01a214fd0485764c985a5affccde6244 code=CANCELLED role=integrator latency_us=37565 at_us=1795648456248843
+CANCELCTL phase=crash exec=01a214fd04477045b0f89299fac9e6cf code=CANCELLED role=integrator latency_us=37584 at_us=1795648456248838
+CANCELCTL phase=crash exec=01a214fd041a70e48951e65342e288ba code=CANCELLED role=integrator latency_us=37596 at_us=1795648456248831
+CANCELCTL phase=crash exec=01a214fd04cf77b1a4603be000c48378 code=CANCELLED role=integrator latency_us=37576 at_us=1795648456248857
+CANCELCTL phase=crash exec=01a214fd046772d6a1c2e38895326529 code=CANCELLED role=integrator latency_us=37605 at_us=1795648456248840
+CANCELCTL phase=crash exec=01a214fd04b177cea8786260121bde4a code=CANCELLED role=integrator latency_us=37599 at_us=1795648456248851
+CANCELCTL phase=crash exec=01a214fd04a57404a4b0d555062137ee code=CANCELLED role=integrator latency_us=37675 at_us=1795648456248850
+CANCELCTL phase=crash exec=01a214fd017d72b6a73cc5f184618dbc code=CANCELLED role=integrator latency_us=37596 at_us=1795648456248931
+CANCELCTL phase=crash exec=01a214fd0457749f8b33e7fb068d2afc code=CANCELLED role=integrator latency_us=37700 at_us=1795648456248839
+CANCELCTL phase=crash exec=01a214fd03c077aca1cda3d803cecae0 code=CANCELLED role=integrator latency_us=37731 at_us=1795648456248812
+CANCELCTL phase=crash exec=01a214fd04dd70cc81070fe339664096 code=CANCELLED role=integrator latency_us=37687 at_us=1795648456248859
+CANCELCTL phase=crash exec=01a214fd04bf774cb02b5e82377e65fc code=CANCELLED role=integrator latency_us=37704 at_us=1795648456248852
+CANCELCTL phase=crash exec=01a214fd017271c8b37974615eb254b0 code=CANCELLED role=integrator latency_us=37636 at_us=1795648456248921
+CANCELCTL phase=crash exec=01a214fd04ed734cb764d799187d7961 code=CANCELLED role=integrator latency_us=37713 at_us=1795648456248860
+CANCELCTL phase=crash exec=01a214fd04fe72369637e0cf672e82d2 code=CANCELLED role=integrator latency_us=37714 at_us=1795648456248860
+CANCELCTL phase=crash accettate=200
+prima del kill: undurable_deliveries=0 undurable_max=1 held=0 cancel cancelled=100 expired=0 noop_not_live=0 noop_again=0 noop_cancelling=0 stops_sent=0 stops_no_session=0 inflight_at_durable=100 window_deliveries=0 late_after_cancel=0 
+kill T0_us=1795648457780039 (Stop spediti prima del kill: 0)
+engine pid=3924711 READY recovered_ms=85 now_us=1795648457873727 gen=1
+kill -> READY: 93 ms; READY_us=1795648457873727
+ripresa: 100 esecuzioni vive, 7 eventi riletti dal bus, 100 attività emesse e non concluse, 100 timer
+ripresa: 100 attività emesse e non concluse: 100 in volo (scadenza ripristinata), 0 in attesa di un timer, 0 da consegnare subito
+verify: accettate=200 concluse_nella_proiezione=100 accettate_perse=100 attivita_concluse=100 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=2 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=200 concluse_nella_proiezione=100 accettate_perse=100 attivita_concluse=200 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=4 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=200 concluse_nella_proiezione=100 accettate_perse=100 attivita_concluse=200 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=4 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=200 concluse_nella_proiezione=200 accettate_perse=0 attivita_concluse=300 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=6 payload_illeggibili=0 light=true
+verify OK
+./scen.sh: line 214: out/stop.log: No such file or directory
+Stop ricevuti dai worker dopo la ripartenza (righe di stop.log): 0; esiti rifiutati e contati come tardivi: late_after_cancel=100
+sentinel pronto (now_us=1795648452515578)
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+sentinel_stats events=1400 topics=2 lag_events p50=1 p99=1 max=1 gaps=0 gap_events=0 alarms overdue=0 retry=0 engine_silent=3 recovered=3 header_bytes=46 cpu_s=0.23
+sentinel_read_delay n=344 p50=11.52ms p99=25.79ms p99.9=91.07ms max=91.07ms over100ms=0
+sentinel_retry_latency n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel_deadlines_resolved_after_due=0 margin_lt_1s=0 margin_to_grace_end n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel allarmi: overdue=0 retry=0 engine-silent=3 recovered=3
+sentinel prime righe:  | 1795648459799174 ALARM engine-silent | 1795648461388515 RECOVERED engine | 
+-- annullamenti e scadenze durevoli: 100; per stato alla richiesta:  100 status1:inflight;
+-- risposte del pilota:  100 code=CANCELLED;
+-- consegne per un'esecuzione annullata DOPO l'evento durevole (registro dei worker, devono essere 0): 0
+-- Stop spediti PRIMA dell'evento durevole (devono essere 0): 0
+./scen.sh: line 92: out/stop.log: No such file or directory
+-- Stop spediti: 0; tentativi in volo all'evento durevole: 100; Stop ricevuti dai worker: 0, di cui con il tentativo ancora in corso: 0
+-- dall'evento durevole allo Stop ricevuto dal worker (ms, p50/p99/max): nessuno
+-- tentativi iniziati dopo la ripartenza per esecuzioni annullate: vedi consegne dopo l'evento durevole
+sql storico: 1|100; ruoli: 1:integrator:Carla Neri|100;
+sql timer rimasti per esecuzioni annullate o scadute (devono essere 0): 0
+sql attivita' aperte nelle esecuzioni annullate: 100 (ammesse: restano ferme)
+-- allarmi del sentinella per esecuzioni annullate: totali 0, DOPO l'evento durevole (devono essere 0) 0
+-- contatori del motore (post-ripartenza se c'e' stato un crash): cancel cancelled=0 expired=0 noop_not_live=0 noop_again=0 noop_cancelling=0 stops_sent=0 stops_no_session=0 inflight_at_durable=0 window_deliveries=0 late_after_cancel=100 cancel_durable_latency n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 exec_timeout_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 96584 kB
+rss pid=3924711 27936 kB
+rss pid=3924521 15752 kB
+-- conteggio file archivio: 10
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 00:14:35] load: 0.87 1.33 1.63
+[stato dopo] io: some avg10=11.08 avg60=7.67 avg300=3.28 total=21270596184
+[stato dopo] cpu: some avg10=0.23 avg60=0.10 avg300=0.26 total=2326009392
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: CANCEL-crash-smoke
+[stato dopo] binario sha256:c91dfbfbe5f5444b
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.65ms p99=4.08ms p99.9=4.56ms max=4.56ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.78

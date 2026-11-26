@@ -1,0 +1,52 @@
+[stato prima 19:24:08] load: 0.97 1.07 1.72
+[stato prima] io: some avg10=0.93 avg60=11.42 avg300=10.89 total=20334319201
+[stato prima] cpu: some avg10=0.01 avg60=0.78 avg300=0.67 total=2253707595
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: SENT-newtenant-smoke
+[stato prima] binario sha256:514d262500a5f659
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=3.13ms p99=8.73ms p99.9=83.26ms max=83.26ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.02
+[attesa] 50 s
+### iggy + sqlite: newtenant 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2928124 READY recovered_ms=1772 now_us=1795631061453651 gen=1
+load tenants=a rate=20/s kind=0 n=1 size=1024 work_ms=0 warm=1s measured=8s
+offered=180 accepted=180 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+errors_by_type {}
+accept_rtt_open_loop n=160 p50=9.04ms p99=50.30ms p99.9=57.79ms max=57.79ms over100ms=0
+accept_max_gap_ms=61 from_us=1795631072249058 to_us=1795631072310513
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.04 cpu_per_1000_att engine=0.000 worker=37.000
+NEWTOPIC state-34a9717baac14bc9a6b0769d17f50ff8 create_us=1795631067533462 created_us=1795631067539461 append_done_us=1795631067629708
+verify: accettate=180 concluse_nella_proiezione=176 accettate_perse=4 attivita_concluse=176 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=5 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=180 concluse_nella_proiezione=180 accettate_perse=0 attivita_concluse=180 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=5 payload_illeggibili=0 light=true
+verify OK
+sentinel pronto (now_us=1795631061521896)
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-34a9717baac14bc9a6b0769d17f50ff8: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+sentinel_stats events=721 topics=3 lag_events p50=1 p99=1 max=1 gaps=0 gap_events=0 alarms overdue=0 retry=0 engine_silent=0 recovered=0 header_bytes=46 cpu_s=0.22
+sentinel_read_delay n=329 p50=15.54ms p99=36.99ms p99.9=195.58ms max=195.58ms over100ms=1
+sentinel_retry_latency n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel_deadlines_resolved_after_due=0 margin_lt_1s=0 margin_to_grace_end n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel allarmi: overdue=0 retry=0 engine-silent=0 recovered=0
+sentinel prime righe:  |  |  | 
+newtenant: topic state-34a9717baac14bc9a6b0769d17f50ff8, primo evento letto 280 ms dopo la creazione (create_us=1795631067533462 first_read_us=1795631067814230)
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 75812 kB
+rss pid=2928124 25064 kB
+rss pid=2928387 14452 kB
+-- conteggio file archivio: 9
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 19:24:38] load: 0.71 1.00 1.68
+[stato dopo] io: some avg10=15.05 avg60=13.92 avg300=11.58 total=20339887141
+[stato dopo] cpu: some avg10=0.42 avg60=0.61 avg300=0.64 total=2253910401
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: SENT-newtenant-smoke
+[stato dopo] binario sha256:514d262500a5f659
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=7.77ms p99=11.25ms p99.9=11.77ms max=11.77ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.03

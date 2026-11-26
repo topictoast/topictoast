@@ -1,0 +1,47 @@
+Blocco E5, SQLite senza SQLITE_BUSY a 10.000 att./s (criterio della spina S-1, «Da fissare e provare»): regole di lettura scritte PRIMA di ogni corsa misurata (decisione del coordinatore, 2026-11-26).
+Criterio, parola per parola: «con SQLite, scritture del motore (segreti, chiavi avvolte) e gruppi del proiettore senza `SQLITE_BUSY` né chiavi esterne verso righe non ancora proiettate».
+
+Prove precedenti (non dicono questa cosa):
+  - blocco D, terza parte: il braccio B aveva 4 eventi «proiezione ferma» per busy a 10.000 att./s; l'H3 scartata ne aveva 77 e 39;
+  - E4d (database lento, 1.000 att./s): con due proiettori che si contendono il lock di scrittura i `busy_hits` sono 20-22 per corsa e 739-811 rifiuti `E_PROJECTION_DOWN`; con un solo scrittore (`proj_serial=1`) 0 busy, 0 rifiuti. Qui il ritardo era finto e il carico 10 volte piu' basso: per questa domanda e' un'IPOTESI;
+  - il prototipo NON ha scritture del motore sul database (elenco dei suoi utenti del database in `iggy-sqlite-slowdb-regola-4-ms.txt`): la meta' «scritture del motore» del criterio e' finora non provata.
+
+Strumento: `busspike` commit 192f7a6, bin/busspike-busy10k-192f7a6, sha256 che inizia con a96201aa183b04dd, uguale per tutte le corse. Ogni file grezzo ha le righe `[stato prima HH:MM:SS]` (pavimento di fdatasync, `braccio:`, `binario sha256:`) e `[stato dopo]`; una corsa vale solo se il suo `[stato prima]` e' piu' tardi del commit di questo file.
+Solo minisheep (SQLite, Iggy), motore e Iggy sui core 1-4, carico sui core 8-11 come nei blocchi precedenti.
+
+Manopola nuova `eng_writes_per_s=N` (default 0): un compito del motore scrive UNA riga a ogni tick (N al secondo) nella tabella nuova `tenant_secret(tenant, name, value, ts)`, con `value` opaco di 256 byte, alternando i due tenant, ognuna in una transazione breve sullo stesso pool del proiettore (`Db::put_secret`: BEGIN, INSERT, COMMIT).
+Con `proj_serial=1` prende lo STESSO mutex dei proiettori (una sola corsia di scrittura per processo); con `proj_serial=0` non lo prende. Gli errori «locked/busy» di queste scritture si contano a parte (`eng_busy`), gli altri in `eng_err`; ogni errore scrive `ENG_WRITE_ERR`. Si misurano la latenza della scrittura (dal momento in cui il tick prende il mutex, attesa compresa) e
+l'attesa dei proiettori sul mutex (`proj_lock_wait`, solo con `proj_serial=1`). Solo SQLite (il letterale `X'..'` della riga non vale per Postgres). Si simula SOLO il carico di scrittura dei segreti e delle chiavi avvolte, non i loro flussi veri.
+
+Chiavi esterne: `tenant_secret` NON ha una chiave esterna verso `execution`, ne' verso altro. FK non applicabile nel prototipo: un segreto o una chiave avvolta appartiene al tenant, non a un'esecuzione, quindi non puo' riferire righe non ancora proiettate; la tabella non e' una riga della proiezione e non dipende dalla sua posizione. Nessuna chiave esterna e' dichiarata
+nemmeno nelle altre tabelle del prototipo (`projection_pos`, `execution`, `activity`, `timer`): la parte del criterio «né chiavi esterne verso righe non ancora proiettate» e' soddisfatta per costruzione e non si misura (si riporta, non si giudica).
+
+Bracci (scena `thr10k`, SQLite, `CAP=512`, consegna H2 come scelta, `GATE60=1 VTRIES=100`, campionatore di I/O acceso, `secs=300` + 5 s di riscaldamento, `proj_batch` e dimensione dei segmenti Iggy di default, nessun ritardo finto):
+  B2   `proj_serial=0`  `eng_writes_per_s=0`   layout di oggi (due scrittori), base
+  S1   `proj_serial=1`  `eng_writes_per_s=0`   una corsia di scrittura
+  S1W  `proj_serial=1`  `eng_writes_per_s=50`  una corsia, con scritture del motore (50 al secondo = 15.000 righe in 5 minuti)
+Ordine: due giri in ordine «latino»: `B2, S1, S1W` e poi `S1W, S1, B2`. File grezzi: iggy-sqlite-busy10k-<braccio>-4-ms-r<n>.txt (n = 1 per il primo giro, 2 per il secondo), con il file dei campioni di I/O accanto (`.io`). Una corsa alla volta con `ms-run.sh` (via `brun.sh`), stesse variabili per ogni braccio salvo le due manopole.
+Pavimenti di fdatasync prima e dopo riportati; il cancello del disco di `ms-run.sh` e' quello di sempre (`GATE60=1`).
+
+Giudicato:
+  1. Busy (proiettore + motore) = 0 in ogni corsa dei bracci S1 e S1W. Si somma `busy_hits` (errori «database is locked» o busy arrivati al proiettore) a `eng_busy` (le scritture del motore); si riportano anche le righe del registro del motore che contengono `database is locked` o `SQLITE_BUSY` (fuori da `MIN` e `LAG10`). E' il criterio della spina. Con un solo scrittore e il mutex ci si aspetta 0, ma e' una misura, non un'assunzione.
+  2. `verify OK` in ogni corsa (0 accettate perse).
+  3. Validita' per la lettura del busy: la media dei minuti 2-5 (righe `MIN`, `act_s`) e' >= 9.900 att./s e `verify OK` (0 perse). Una corsa sotto la soglia o con perse e' riportata come «non valida per la portata» e RIFATTA UNA VOLTA, subito; le due corse restano nel rapporto e ognuna conta per la sua lettura.
+Riportato (nessuna soglia):
+  busy in B2 (ATTESO > 0: IPOTESI da E4d); rifiuti `E_PROJECTION_DOWN` per causa (busy o altro); `eng_busy` e `eng_err`; latenza delle scritture del motore (p50, p99); SQL per attivita' (limite NFR-4: <= 5) e byte di WAL per attivita' (con SQLite il contatore del motore dice 0: si riporta la dimensione del file `spike.db-wal` a fine corsa); `start_ready` p99 (NFR-2: 25 ms
+  giudicato altrove), p99 dell'accettazione, p99 del ritardo di proiezione; attesa dei proiettori sul mutex (p50, p99); tempo sopra 1 s del ritardo del tick; pavimenti prima e dopo; la riga `tenant_secret` (conteggio a fine corsa).
+
+Lettura, fissata ora:
+  a. Tutte e due le corse S1W valide e con 0 busy: «criterio rispettato con lo scrittore unico, anche con scritture del motore» (misurata, su minisheep, a 10.000 att./s, con scritture del motore simulate a 50 al secondo).
+  b. Una qualunque corsa valida di S1 o S1W con busy > 0: «non rispettato», con i numeri.
+  c. Nessuna corsa valida in un braccio: «non conclusivo» per quel braccio.
+  Il conteggio di B2 si riporta accanto, non si giudica. Le corse non valide per la portata non entrano nelle letture a-c ma restano nel rapporto.
+
+Prova prima delle corse (non conta, `-smoke-` nel nome): S1W da 2 minuti: 10.001 att./s, `verify OK`, 0 busy (proiettore e motore), 6.516 scritture del motore con p50 4,4 ms e p99 26 ms, attesa del mutex p50 2,0 ms e p99 18 ms.
+
+Validita' come nei file di regole precedenti: un `[stato prima]` piu' tardo del commit di questo file, hash del binario in ogni file grezzo; chiamata rotta dello strumento = corsa non valida, si rifa' una volta con il file della prima conservato; le soglie non cambiano dopo una corsa; un emendamento solo prima delle corse misurate o una nota datata senza cambio di soglia.
+Etichette delle cause: «misurata» (con file grezzo), «ipotesi», «osservata senza file grezzo», «fuori dalle regole». Una coincidenza nello stesso minuto non e' mai una causa.
+
+Segreti: le password e le chiavi generate non finiscono in file committati; i 256 byte di `tenant_secret` sono un riempitivo (0xA5 e un contatore), non un segreto. Controlli finali, solo conteggi: `grep -lF -f .env` sui file grezzi nuovi, `git grep -nE 'root[A-Za-z0-9]{6}'`, il modello `\bak[A-Za-z0-9]{14}\b`, sequenze di 64 cifre esadecimali fuori dalle righe `CG`.
+
+Cosa il blocco NON copre: Postgres; i flussi veri dei segreti e delle chiavi avvolte (si simula solo il carico di scrittura); bigsheep; scritture del motore a ritmi diversi da 50 al secondo; letture lunghe concorrenti sul database; il ritardo finto di E4d insieme al carico di 10.000 att./s.

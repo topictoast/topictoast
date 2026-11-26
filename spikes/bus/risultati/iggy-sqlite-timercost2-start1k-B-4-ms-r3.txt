@@ -1,0 +1,48 @@
+[stato prima 08:52:00] load: 0.74 1.27 1.72
+[stato prima] io: some avg10=0.87 avg60=17.68 avg300=21.91 total=14896995506
+[stato prima] cpu: some avg10=0.02 avg60=0.68 avg300=0.99 total=1637414155
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: B-blockB-7f156ba
+[stato prima] binario sha256:d730b1a73111ca79
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=1.90ms p99=4.03ms p99.9=4.76ms max=4.76ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 40 s
+### iggy + sqlite: start1k 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=537541 READY recovered_ms=290 now_us=1795593127840316 gen=1
+load tenants=a rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=40s
+offered=4500 accepted=4500 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+errors_by_type {}
+accept_rtt_open_loop n=4001 p50=11.55ms p99=17.97ms p99.9=25.73ms max=34.59ms over100ms=0
+accept_max_gap_ms=0 from_us=0 to_us=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=40.0 accepted=3999 refused=0 done=40003 rejected=0 groups=185 expired=0 late_ok=0
+activities_per_s=1000 accepted_per_s=100
+accept_engine n=3999 p50=11.13ms p99=17.57ms p99.9=26.34ms max=34.40ms over100ms=0
+append n=5413 p50=7.71ms p99=10.18ms p99.9=15.29ms max=29.05ms over100ms=0
+append_sub n=5413 p50=7.71ms p99=10.18ms p99.9=15.29ms max=29.05ms over100ms=0
+sub_events_p50=16 sub_events_p99=21
+start_ready n=40003 p50=8.02ms p99=10.46ms p99.9=15.52ms max=29.30ms over100ms=0
+start_sent n=40003 p50=0.15ms p99=0.31ms p99.9=1.17ms max=2.41ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+archive_read n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+proj_lag n=84288 p50=128.25ms p99=237.31ms p99.9=246.01ms max=254.85ms over100ms=53115
+sql_stmts=1295 sql_rows=88489 sql_per_activity=0.0324 rows_per_activity=2.212 wal_bytes_per_activity=0.0
+engine_cpu_s=3.97 cache_entries=105
+worker_cpu_s=1.00 cpu_per_1000_att engine=0.099 worker=0.025
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 81932 kB
+rss pid=537541 29656 kB
+rss pid=537581 14076 kB
+-- conteggio file archivio: 42
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: Parse error in 2nd command line argument: no such table: timer; timer_rows_total: Parse error in 2nd command line argument: no such table: timer
+[stato dopo 08:52:54] load: 1.51 1.41 1.74
+[stato dopo] io: some avg10=52.97 avg60=35.85 avg300=25.97 total=14921973011
+[stato dopo] cpu: some avg10=2.14 avg60=1.42 avg300=1.14 total=1638637697
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: B-blockB-7f156ba
+[stato dopo] binario sha256:d730b1a73111ca79
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.92ms p99=4.14ms p99.9=4.37ms max=4.37ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.07

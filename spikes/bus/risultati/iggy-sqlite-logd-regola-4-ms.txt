@@ -1,0 +1,116 @@
+Blocco D, log dei task (FR-59): regole di lettura scritte PRIMA di ogni corsa misurata (decisione di Marco, 2026-11-25: il log dei task si costruisce
+sul motore H2). Nessuna soglia cambia dopo una corsa; nessuna corsa si scarta o si rifa' dopo averla vista, salvo le condizioni di validita' scritte qui sotto.
+
+Cosa si misura, in breve (il codice e' nel commit del binario):
+  - il worker scrive righe nella sessione gRPC, ognuna con un numero progressivo per tentativo dato dal worker (la verita' di base) e l'ora di scrittura
+    nelle prime 16 cifre; le tiene finche' il motore non conferma («log_ack» fino a un numero) e le rimanda a ogni ricollegamento;
+  - il motore sostituisce il valore esatto del segreto consegnato con `[REDACTED]` prima del bus e dell'archivio, applica il tetto per tentativo, raggruppa le
+    righe per tentativo in pezzi chiusi al piu' dopo 500 ms, li cifra per tenant nel formato di C-12 e li scrive nell'archivio con creazione solo se assente;
+    sul bus (topic `log-<tenant>`, mai letto dal proiettore) va solo il riferimento; conferma al worker dopo pezzo durevole (fsync del file e della directory) E
+    riferimento durevole sul bus;
+  - numero del pezzo = primo numero di riga del pezzo (mai un contatore del motore); se la chiave esiste si legge il pezzo esistente e si prosegue dopo il suo
+    ultimo numero: nessuna riga si perde e nessuna si salva due volte anche se il worker rimanda le righe raggruppate in modo diverso dopo un crash;
+  - su disco: file temporaneo `create_new` + `fdatasync` + `hard_link` sulla chiave (la libreria standard rifiuta il collegamento se la chiave esiste;
+    con una `create_new` diretta un crash a meta' scrittura lascerebbe un pezzo troncato che una riscrittura troverebbe «esistente»);
+  - il riferimento al pezzo NON si proietta nel database (il proiettore non legge il topic `log-*`): il log non aggiunge istruzioni SQL (FR-59, NFR-4).
+  Valori scelti dalla spike (il PRD non li fissa: NFR-14 rimanda alla spec della storia): tetto per tentativo 100 righe e 16.384 byte (`log_lines=100`,
+  `log_bytes=16384`), chiusura del pezzo al piu' dopo 500 ms (`log_close_ms=500`), ciclo di scrittura ogni 50 ms. Il tetto in righe e' per numero di riga
+  (uguale dopo un riavvio); il tetto in byte conta in memoria del motore e dopo un riavvio riparte da zero (ceiling dichiarato nel codice).
+
+Binario: bin/busspike-logd-7c1dfcd, costruito dal commit 7c1dfcd, sha256 che inizia con fd04efcdeefe0425; ogni corsa ha lo stesso, mai sostituito a meta'.
+Ogni file grezzo porta le righe `[stato prima HH:MM:SS] pavimento fdatasync`, `[stato prima] braccio:` e `[stato prima] binario sha256:`. Una corsa vale solo se il
+suo `[stato prima HH:MM:SS]` e' piu' tardi del commit di questo file. SQLite, CAP=512 (default di scen.sh), `CAP=4096` solo dove scritto. Una corsa alla volta.
+Nessuna riga a 10.000 att./s in questo blocco: il pavimento del disco di minisheep cambia dentro una corsa di 10 minuti (misurato nella ripetizione precedente) e a
+quel ritmo non separa i bracci. Postgres non si misura in questo blocco.
+
+Nomi dei file grezzi: iggy-sqlite-logd-<riga>-<braccio>-4-ms-r<n>.txt, con riga e braccio indicati in ogni riga qui sotto.
+
+Condizioni valide per OGNI corsa (se mancano si scrive «non valida: motivo» e si rifa' la corsa una volta; entrambe restano nel rapporto):
+  V1. `verify OK` (accettate perse 0) alla fine; `logcheck OK` (vedi riga 4 per il significato) salvo dove una riga dice altro.
+  V2. Per le corse a 1.000 att./s: `activities_per_s` della finestra >= 950 e `errors=0` nel generatore.
+  V3. `bus_scan_incomplete=0` quando c'e' una ricerca del segreto (TRIM=0 nelle corse `logrun`).
+  Le corse con la macchina «non ferma» (riga `[macchina non ferma]`) contano e si segnalano. Le istruzioni SQL per attivita' (NFR-4) si riportano in ogni corsa
+  (`sql_per_activity` globale e `sql_per_activity_tenant_a` / `_b` della riga di statistiche) e devono essere <= 5 per ciascun tenant: se no, il criterio di NFR-4
+  della riga e' non superato.
+
+Riga 1. VISIBILITA' (riga `vis`, braccio `LOG-vis`)
+  Comando: `LOGA=5x80 TAIL=1 ./scen.sh iggy sqlite logrun` (1.000 att./s: rate=100 esecuzioni/s da 10 passi, tenant A, 5 righe da 80 byte per attivita', 40 s
+  misurati dopo 5 s di avvio). Il lettore (`logtail`, su CPU del carico) segue la creazione dei pezzi con inotify, li decifra e misura, per OGNI riga, ora di
+  lettura meno ora scritta dal worker.
+  3 corse (r1-r3). Metrica: la riga `log_visibility` del file grezzo, p99.
+  SUPERATA se il p99 di OGNUNA delle tre corse e' <= 1.000 ms e `over1s` / `n` e' <= 1 %. Si riportano p50, p99, p99.9, max e la mediana dei p99.
+  Validita' aggiuntiva: il numero di pezzi della riga `log_visibility` (`chunks=`) e' uguale al numero di pezzi della riga `logcheck` (`chunks=`); se no il lettore
+  ha perso eventi e la corsa e' non valida (si rifa' una volta).
+
+Riga 2. WORKER RUMOROSO (riga `noisy`, bracci `withA` e `Anolines`; decisione del coordinatore dopo la prima revisione: il braccio di confronto ha A attivo senza righe)
+  Comandi, uguali per i due bracci tranne il profilo di A:
+    withA:    `NOISY=1 LOGA=100x80 LOGB=3x80 ./scen.sh iggy sqlite lognoisy`
+    Anolines: `NOISY=1 LOGA=0x0 LOGB=3x80 ./scen.sh iggy sqlite lognoisy`
+  Tenant B: 1.000 att./s (100 esecuzioni/s da 10 passi), 3 righe da 80 byte per attivita', 40 s misurati dopo 5 s. Tenant A, in ENTRAMBI i bracci: 500 att./s
+  (50 esecuzioni/s da 10 passi, 50 s, parte 3 s prima di B); nel braccio withA scrive 100 righe da 80 byte per attivita' = il tetto in righe, su OGNI attivita';
+  nel braccio Anolines non scrive nessuna riga. La differenza tra i bracci e' quindi solo il log di A fino al tetto.
+  Validita' del braccio Anolines: `logcheck` deve dire `lines_written` = 3 * `attempts_written` (scrivono righe solo i tentativi di B, 3 ciascuno: A non ne scrive)
+  e A deve avere ~500 att./s (`done_a` nel conteggio di fine corsa >= 19.000 nei 40 s di finestra di B); se no la corsa e' non valida.
+  6 coppie (r1-r6), un braccio per volta; ordine alternato, ogni braccio per primo 3 volte: coppie 1, 3, 5 con withA per primo, coppie 2, 4, 6 con Anolines per primo
+  (r<n> = n-esima coppia). Metrica per corsa: `start_ready_tenant_b` p99 (e p50) dalle statistiche a fine finestra.
+  Aggregazione (come nella terza parte): mediana per braccio sulle 6 corse; differenza di una coppia d = p99(withA) - p99(Anolines); X = mediana delle d nelle coppie
+  con withA per primo, Y = mediana delle d nelle coppie con Anolines per primo; la differenza si DICHIARA solo se X e Y hanno lo stesso segno (entrambi > 0 oppure
+  entrambi < 0). R = mediana(withA) / mediana(Anolines).
+  Criteri:
+    a. limite di NFR-2, assoluto: mediana del p99 di B <= 25 ms, valutata per ciascun braccio (il p50 <= 5 ms si riporta accanto, non si giudica: nelle fasi
+       precedenti e' sopra in ogni braccio);
+    b. non peggioramento: R <= 1,20 = rispettato. R > 1,20 con differenza dichiarata positiva (X e Y > 0) = NON rispettato. R > 1,20 con X e Y di segno
+       opposto = «non dichiarabile (effetto d'ordine)», riportato con i numeri, ne' superato ne' non superato;
+    c. NFR-4 per ciascun tenant: `sql_per_activity_tenant_a` e `_b` <= 5 in ogni corsa di ogni braccio; «invariate» per B = la mediana di B nel braccio withA differisce dalla
+       mediana di B nel braccio Anolines di non piu' del 10 % (relativo). Si riportano i valori di A in tutti e due i bracci, di B e globali di tutte le corse.
+  Validita' aggiuntiva: in entrambi i bracci il generatore di A riporta `errors=0` e accettate >= 99 % delle offerte; `logcheck` con 0 scartate nel braccio withA (il profilo
+  sta nel tetto) si riporta ma non si giudica.
+
+Riga 3. SEGRETO (riga `secret`, bracci `on` e `off`)
+  Comandi: on:  `LOGMARK=1 LOGA=20x80 LOGB=20x80 ./scen.sh iggy sqlite logrun tenants=ab rate=40 n=5 secs=10 warm=2`   (2 corse, r1-r2)
+           off: `LOGMARK=1 REDACT=0 LOGA=20x80 LOGB=20x80 ./scen.sh iggy sqlite logrun tenants=ab rate=40 n=5 secs=10 warm=2`   (1 corsa di controllo, r1)
+  Il segreto e' un valore sintetico per corsa (`ttmark-` + 24 cifre esadecimali casuali, generato da scen.sh, consegnato ai worker come segreto e scritto in una riga
+  ogni dieci); non viene da `.env` ne' da altri file e nei file grezzi compaiono solo conteggi (e la sua lunghezza).
+  Ricerca dopo la decifratura (`logcheck`): nei pezzi dell'archivio (`marker_in_chunks`) e negli eventi del bus, sia di stato sia dei riferimenti
+  (`marker_in_bus_events`), piu' nel registro del motore (`marker_in_engine_log`).
+  SUPERATA (braccio on, ognuna delle 2 corse): `marker_in_chunks=0`, `marker_in_bus_events=0`, `marker_in_engine_log=0`, `placeholder_in_chunks` > 0 e uguale al
+  contatore `redacted` del motore (la sostituzione e' avvenuta davvero, una per riga con il segreto), `logcheck OK`.
+  CONTROLLO (braccio off): `marker_in_chunks` > 0 (la ricerca sa trovare il valore) e `placeholder_in_chunks=0`. Il controllo vale solo per la ricerca nei pezzi: le righe
+  non passano dal bus, quindi `marker_in_bus_events=0` e' atteso anche con la sostituzione spenta e non si legge come prova di quel canale; si riporta il valore.
+  Se il controllo non trova il segreto la riga e' «non conclusiva» (la ricerca non e' provata).
+
+Riga 4. CRASH DEL MOTORE CON RIGHE IN VOLO (riga `crash`, braccio `LOG-crash`)
+  Comando: `LOGMARK=1 LOGA=20x80 LOGB=20x80 LOGSPLIT=1000 ACKHOLD=1500 ERATE=334 CAP=4096 ./scen.sh iggy sqlite ekill` (circa 1.000 att./s con attivita' da 3 s,
+  3.000 in volo; `kill -9` del motore a 12 s e riavvio subito; ogni attivita' scrive 20 righe in due scritture, 10 subito e 10 dopo 1 s; `ACKHOLD=1500` ritarda
+  di 1,5 s la conferma al worker dopo il pezzo durevole, per avere pezzi gia' scritti con la conferma ancora non partita al momento del kill: e' una manopola della
+  prova, come `REC_DELAY` in H3). 3 corse (r1-r3).
+  SUPERATA (ognuna): `logcheck OK` dopo la decifrazione di TUTTI i pezzi: `stored_plus_discarded` = `lines_written`, `missing=0`, `overlap=0`, `stored_twice=0`,
+  `beyond_written=0`, `header_inconsistent=0` (ogni numero scritto dal worker compare esattamente una volta, salvato o in uno scarto contato); `refs_without_chunk=0`
+  (ogni riferimento sul bus ha il suo pezzo); `verify OK` (accettate perse 0). Si riportano: tentativi iniziati due volte (`iniziati due volte`, riga della scena),
+  `chunks`, `conflicts` e `conflicts_differ` della riga `tasklog` del motore ripartito.
+  Il caso del pezzo riscritto dopo il riavvio e' ESERCITATO solo se `conflicts_differ` >= 1 nella riga `tasklog` del motore ripartito (la chiave esisteva con un contenuto
+  che copriva meno righe di quelle da riscrivere). Se in una corsa e' 0, quella corsa e' «caso non esercitato» (non conta come prova del caso) e la riga e' superata solo
+  se almeno 2 corse su 3 lo esercitano.
+
+Riga 5. TETTO (riga `cap`, braccio `LOG-cap`)
+  Comando: `LOGA=50x400 LOGB=150x80 ./scen.sh iggy sqlite logrun tenants=ab rate=20 n=5 secs=6 warm=2` (1 corsa, r1; i due tenant alternati). Tenant A scrive 50 righe da 400 byte
+  (supera il tetto in byte: 40 salvate, 10 scartate), tenant B 150 righe da 80 byte (supera il tetto in righe: 100 salvate, 50 scartate).
+  SUPERATA se: `logcheck OK` (salvate + scartate = scritte dal worker); `lines_discarded` > 0; `header_inconsistent=0` (ogni pezzo dichiara le scartate e la somma delle
+  dichiarazioni e' `lines_discarded`); `attempts_over_cap=0` (nessun tentativo supera 100 righe o 16.384 byte salvati); e i totali coincidono con quelli attesi, ricavati
+  dal file grezzo: con `att` = `attempts_written` e `w` = `lines_written`, attA = (150*att - w) / 100, attB = att - attA; attese salvate = 40*attA + 100*attB,
+  attese scartate = 10*attA + 50*attB.
+
+Riga 6. RUSTFS, CREAZIONE SOLO SE ASSENTE (riga `rustfs`, braccio `RUSTFS-1.0.4`)
+  Immagine `rustfs/rustfs:1.0.4` (versione della spine, 2026-10-25, Apache-2.0), credenziali generate da `gen-env.sh` (mai predefinite), solo localhost. Comando: `./reset.sh rustfs`
+  poi `./rustfs-proof.sh`: due PUT firmati con `curl --aws-sigv4` sulla stessa chiave con `If-None-Match: *` e contenuti diversi, poi GET; controllo con un PUT senza intestazione.
+  2 corse (r1-r2, ripartendo da dati vuoti).
+  SUPERATA (ognuna): PUT 1 = 200; PUT 2 rifiutato con 412 o 409 (le risposte S3 di una scrittura condizionale fallita: PreconditionFailed e ConditionalRequestConflict; si riporta quale);
+  l'impronta dell'oggetto letto e' quella del PRIMO contenuto (`l'oggetto salvato è il primo`); il controllo (PUT 3 senza intestazione) torna 200 e l'impronta letta dopo e' quella del
+  secondo contenuto (prova che e' l'intestazione a rifiutare). Se PUT 2 torna 200 o l'oggetto salvato e' il secondo: NON superata, l'adattatore RustFS non puo' contare su `If-None-Match`
+  e lo si dice con il numero della versione.
+  Su disco la stessa proprieta' e' provata dalle corse della riga 4 (conflitti dopo il riavvio) e da un test unitario del motore (stessa chiave, contenuti diversi).
+
+Cosa il blocco NON copre (dichiarato ora): tetto in byte dopo un riavvio (riparte da zero), tenant ricavato dal tentativo e rifiuto delle righe di un tentativo concluso o non
+corrente (C-2, AD-17: la spike si fida del tenant dichiarato dal worker e accetta righe anche dopo l'esito, per non perdere righe non confermate), pezzo finale che chiude il log del
+tentativo, tempo reale verso il client (AD-18), scrittura dei pezzi su RustFS dal motore (solo la prova delle due PUT), segnaposto sul lato dell'SDK (il worker di prova non lo applica
+all'origine: il motore e' l'unico a sostituire), segreti molto corti o spezzati su piu' righe, Postgres, 10.000 att./s.

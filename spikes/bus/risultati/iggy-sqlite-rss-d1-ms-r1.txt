@@ -1,0 +1,25 @@
+[stato prima 03:18:12] load: 1.04 1.30 1.89
+[stato prima] io: some avg10=0.82 avg60=6.83 avg300=12.75 total=4494453245
+[stato prima] cpu: some avg10=0.00 avg60=0.12 avg300=0.41 total=595698640
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.38ms p99=7.95ms p99.9=8.29ms max=8.29ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.03
+[attesa] 50 s
+### iggy + sqlite: rss 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024
+engine pid=2904590 READY recovered_ms=479
+rss iggy 78148 kB
+rss pid=2904590 20028 kB
+rss pid=2904650 11780 kB
+MIN t=1 act_s=0 append_p50_ms=0.0 sub_p50_ms=0.0 lag_p50_ms=0 lag_p99_ms=0 io=[some avg10=0.00 avg60=2.30 avg300=10.11 total=4495028541]
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 78148 kB
+rss pid=2904590 20028 kB
+rss pid=2904650 11780 kB
+-- conteggio file archivio: 0
+[stato dopo 03:19:21] load: 0.86 1.19 1.81
+[stato dopo] io: some avg10=0.00 avg60=2.30 avg300=10.11 total=4495039560
+[stato dopo] cpu: some avg10=0.00 avg60=0.04 avg300=0.33 total=595920433
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.54ms p99=8.32ms p99.9=8.57ms max=8.57ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.01

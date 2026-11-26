@@ -1,0 +1,30 @@
+### valkey + pg: kill 
+engine pid=2007243 READY recovered_ms=17
+prima del kill: secs=9.2 accepted=2400 refused=0 done=22319 rejected=0 groups=54 activities_per_s=2428 accepted_per_s=261 
+engine pid=2007779 READY recovered_ms=18
+kill -9 -> motore di nuovo in ascolto: 1.205430599 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.315408231 s
+prima del kill: secs=5.3 accepted=1589 refused=0 done=15892 rejected=0 groups=38 activities_per_s=2993 accepted_per_s=299 
+engine pid=2008206 READY recovered_ms=17
+kill -9 -> motore di nuovo in ascolto: 1.205831173 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.317920048 s
+prima del kill: secs=6.3 accepted=1891 refused=0 done=18899 rejected=0 groups=46 activities_per_s=2993 accepted_per_s=299 
+engine pid=2008653 READY recovered_ms=19
+kill -9 -> motore di nuovo in ascolto: 1.205285170 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.315707159 s
+load tenants=a rate=300/s kind=0 n=10 size=1024 work_ms=100 warm=1s measured=28s
+offered=8700 accepted=7778 refused_E_PROJECTION_DOWN=0 errors=922 overload_skipped=0
+accept_rtt_open_loop n=7479 p50=0.86ms p99=4.74ms p99.9=12.10ms max=17.33ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+verify: accettate=7778 concluse_nella_proiezione=7434 accettate_perse=344 attivita_concluse=76145 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=77346 duplicati_sul_bus=0
+verify FALLITA
+verify: accettate=7778 concluse_nella_proiezione=7778 accettate_perse=0 attivita_concluse=77780 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=77780 duplicati_sul_bus=0
+verify OK
+-- valkey: total_forks:1 aof_last_rewrite_time_sec:0 aof_rewrites:1 
+-- RSS dopo la corsa (motore, worker, bus)
+rss valkey 139372 kB
+rss postgres 191392 kB
+rss pid=2008653 37184 kB
+rss pid=2007268 15140 kB
+-- conteggio file archivio: 85558

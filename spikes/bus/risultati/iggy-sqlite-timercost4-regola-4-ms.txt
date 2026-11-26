@@ -1,0 +1,41 @@
+Blocco D, ripetizione di thr10k: regole di lettura scritte PRIMA di ogni corsa (decisione di Marco, 2026-11-25: ripetere 10.000 att./s
+prima di scegliere quale registro di consegna va nell'ADR).
+
+Perche': nella terza parte H3 ha superato 9.900 att./s in una corsa su due (r1 9.887, r2 9.998 sulla media dei minuti 2-10). La causa della
+corsa sotto soglia e' aperta: il pavimento del disco prima di H3 r1 (4,79 / 68,7 ms) era simile a quello di H2 r2 (4,50 / 84,5 ms), che e'
+passata; nella stessa corsa il task scrittore ha avuto 4 raffiche REC_ERR. Queste corse dicono se H3 regge il limite del PRD su un disco
+tranquillo. Nessun codice nuovo, nessun binario nuovo, REC_WINDOW_MS resta 20 ms.
+
+Bracci (binari gia' su minisheep, sha256 controllato prima di ogni corsa e scritto nel file grezzo):
+  B  = bin/busspike-bB, sha256 che inizia con d730b1a73111ca79, ARM=B-blockB-7f156ba
+  H3 = bin/busspike-h3, sha256 che inizia con 25c97a9e69512b9a, ARM=H3-01cf3bc
+File grezzi: iggy-sqlite-timercost4-thr10k-<braccio>-4-ms-r<n>.txt (+ .io del campionatore). Una corsa vale solo se il suo
+`[stato prima HH:MM:SS]` e' piu' tardi di questo commit.
+
+1. Ordine fisso, una corsa alla volta: H3 r1, B r1, H3 r2. Ogni corsa: thr10k 10 minuti, SQLite, CAP=512, GATE60=1, VTRIES=100,
+   con il campionatore di I/O, come nella terza parte.
+
+2. Disco tranquillo. Soglia: pavimento di fdatasync (`fsync-floor dir=$HOME/.cache n=300`) con p50 <= 4,0 ms E p99.9 <= 100 ms.
+   - Prima di avviare ogni corsa si misura il pavimento da solo. Se e' sopra soglia si aspetta 5 minuti e si rimisura, al massimo 3 volte;
+     poi la corsa parte comunque. Ogni misura di attesa si scrive nella relazione con l'ora.
+   - La corsa conta come «su disco tranquillo» solo se la riga `[stato prima] pavimento fdatasync` del SUO file grezzo e' entro soglia.
+     Nessuna corsa si scarta o si rifa' dopo averla vista.
+
+3. Esito di ogni corsa (come nella terza parte): SUPERATA se la media dei minuti 2-10 e' >= 9.900 att./s E 0 accettate perse alla fine
+   delle verifiche. Si riportano anche: att./s sull'intera corsa, minuti 2-10 sotto 9.900 (con il valore), intervallo piu' lungo senza
+   accettazioni, start_ready p50/p99, pavimento prima e dopo, pressione I/O.
+
+4. Lettura per l'ADR, fissata ora:
+   a. Le due corse H3 SUPERATE e B SUPERATA: «H3 regge 10.000 att./s» sulla serie nuova (misurato). La r1 della terza parte resta nel
+      rapporto, sotto soglia, accanto.
+   b. Almeno una corsa H3 non superata su disco tranquillo, con B SUPERATA: «H3 non regge 10.000 att./s con la finestra di 20 ms» (misurato).
+   c. B non superata, oppure una corsa H3 non superata su disco non tranquillo: NON CONCLUSIVO. Si riporta; nessuna corsa aggiuntiva
+      senza il coordinatore.
+
+5. Criteri di H3 che restano dalla terza parte, contati in ogni corsa H3 e scritti nel file grezzo PRIMA che `out/` si cancelli:
+   - «database is locked» / SQLITE_BUSY: numero nel registro del motore E nel file grezzo (il criterio resta zero; se non e' zero si
+     riporta come violato). Si conta anche in B, solo riportato.
+   - raffiche REC_ERR del task scrittore: numero, con il minuto in cui cadono;
+   - righe `timer` per attivita' concluse (SQL di scen.sh): devono essere 0.
+   Per ogni minuto sotto 9.900 si scrive cosa coincide nello stesso minuto (REC_ERR, arresti del proiettore, pressione I/O): la
+   coincidenza e' «osservata», la causa resta «ipotesi».

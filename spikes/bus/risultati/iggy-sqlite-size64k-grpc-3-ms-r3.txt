@@ -1,0 +1,40 @@
+[stato prima 09:25:46] load: 1.11 1.33 1.19
+[stato prima] io: some avg10=0.73 avg60=10.80 avg300=15.67 total=6596506195
+[stato prima] cpu: some avg10=0.03 avg60=1.27 avg300=1.49 total=800654314
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.62ms p99=7.81ms p99.9=158.59ms max=158.59ms over100ms=1
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 45 s
+### iggy + sqlite: size64k 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=3030 READY recovered_ms=242
+load tenants=ab rate=100/s kind=0 n=5 size=65536 work_ms=0 warm=5s measured=30s
+offered=3499 accepted=3499 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=3000 p50=13.89ms p99=31.30ms p99.9=48.77ms max=54.21ms over100ms=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=2999 refused=0 done=15003 rejected=0 groups=272
+activities_per_s=500 accepted_per_s=100
+accept_engine n=2999 p50=13.37ms p99=30.64ms p99.9=48.26ms max=53.76ms over100ms=0
+append n=3333 p50=8.27ms p99=17.82ms p99.9=31.31ms max=48.16ms over100ms=0
+append_sub n=6394 p50=7.52ms p99=16.70ms p99.9=25.02ms max=48.13ms over100ms=0
+sub_events_p50=5 sub_events_p99=11
+start_ready n=15003 p50=9.21ms p99=19.12ms p99.9=32.67ms max=49.98ms over100ms=0
+start_sent n=15003 p50=0.40ms p99=1.08ms p99.9=2.65ms max=4.80ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=7503 p50=9.22ms p99=19.17ms p99.9=36.03ms max=49.98ms over100ms=0
+archive_read n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+proj_lag n=33013 p50=137.60ms p99=248.57ms p99.9=264.96ms max=282.37ms over100ms=22053
+sql_stmts=1904 sql_rows=36288 sql_per_activity=0.1269 rows_per_activity=2.419 wal_bytes_per_activity=0.0
+engine_cpu_s=6.84 cache_entries=78
+worker_cpu_s=2.06 cpu_per_1000_att engine=0.456 worker=0.137
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 107180 kB
+rss pid=3030 124892 kB
+rss pid=3064 16384 kB
+-- conteggio file archivio: 64
+[stato dopo 09:26:30] load: 2.14 1.54 1.27
+[stato dopo] io: some avg10=37.14 avg60=22.30 avg300=17.89 total=6610681305
+[stato dopo] cpu: some avg10=4.42 avg60=2.64 avg300=1.80 total=802435299
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.94ms p99=4.24ms p99.9=5.25ms max=5.25ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.01

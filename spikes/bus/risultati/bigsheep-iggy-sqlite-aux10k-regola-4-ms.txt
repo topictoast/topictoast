@@ -1,0 +1,45 @@
+Blocco E, E2c, processo ausiliario a 10.000 att./s su BIGSHEEP: regole di lettura scritte PRIMA di ogni corsa misurata (decisione del coordinatore, 2026-11-25; bigsheep acceso da Marco per questa prova).
+Nessuna soglia cambia dopo una corsa. I numeri di bigsheep si confrontano solo tra loro, mai con le serie di minisheep.
+
+Macchina (da `lscpu -e`, `docker info`, controlli di sola lettura):
+  - AMD Ryzen 7 9700X, 8 core fisici / 16 thread (le CPU n e n+8 sono fratelli SMT), 60 GB di RAM, NVMe Samsung 990 PRO (842 GB liberi), Arch, kernel 7.2.4, Docker 29.8 (archivio di
+    immagini containerd). Governor della CPU `powersave` (non si cambia; `[stato prima]` e `[stato dopo]` di ogni file grezzo lo riportano). Login shell fish: ogni comando remoto in `bash -c`.
+  - Container di Marco in esecuzione (qwen38-27b, open-webui, watchamovie, watchamovie-reranker, watchamovie-embedder): non si toccano; la loro CPU (`docker stats`) e' scritta in
+    `[stato prima]` e `[stato dopo]` di ogni file grezzo («container non nostri, CPU»). Tutti sotto 2 % di una CPU nei controlli.
+  - Immagine Iggy copiata da minisheep con `docker save`/`docker load` (nessun pull da internet): `apache/iggy:0.10.0` e `valkey/valkey:9.1.4` (quest'ultima solo per il contenitore usa e getta che
+    svuota la directory dei dati). Identita' verificata: stessa architettura, stessa data di creazione, stessi strati (impronta dei `RootFS.Layers` uguale) e stessa configurazione (Cmd, Entrypoint, Env);
+    l'identificatore mostrato da `docker images` differisce (4574944d61b9 su minisheep, 78f25266c7e9 su bigsheep) perche' bigsheep usa l'archivio containerd, che mostra l'impronta del manifest invece di quella
+    della configurazione.
+
+Posizionamento dei processi (stesso budget di 4 CPU delle corse di riferimento di minisheep): motore, worker e Iggy sui core FISICI 1-4 = CPU 1-4 (`SPIKE_CPUS=1-4` per motore e worker con `taskset`,
+`SPIKE_CPUSET=1-4` per Iggy); i fratelli SMT 9-12 restano liberi da carico nostro. Generatore di carico, campionatore dell'I/O e script di corsa sui core fisici 5-7 = CPU 5,6,7 (`SPIKE_LOADCPUS=5,6,7` e
+`taskset -c 5,6,7` sulla catena); i fratelli 13-15 restano liberi. Nessuno dei processi misurati sta su un fratello SMT di un altro.
+
+Disco (prima di scrivere le regole): `fsync-floor dir=$HOME/.cache n=300` tre volte: p50 4,92 / 4,93 / 4,93 ms, p99 5,20 / 5,15 / 5,20 ms, p99.9 6,13 / 5,20 / 9,75 ms (`risultati/bigsheep-aux10k-floor-4-ms.txt`).
+Il pavimento e' stabile a 4,9 ms: **il cancello «p50 <= 4,0 ms» e' fuori dal pavimento di questo disco in tutte le misure**, quindi ogni corsa aspettera' le tre attese da 5 minuti e partira' comunque; lo si registra.
+Corsa di prova non misurata (3 minuti, OFF, `-smoke-`): 9.999 att./s sull'intera corsa, minuti 2 e 3 a 9.997 e 10.003, 0 accettate perse (`verify OK`), `start_ready` p50 161 ms: bigsheep raggiunge i 10.000/s.
+
+Binario: bin/busspike-aux-af23e79 (commit af23e79), sha256 che inizia con f2152947f38633cf, controllato sulla copia di bigsheep e scritto in ogni file grezzo; lo stesso per tutte le corse.
+Il processo ausiliario, il manifest fisso, il carico `PAYLOAD=json` e il `PREPARE` in pipeline sono quelli di `iggy-sqlite-aux-regola-4-ms.txt`.
+
+Corse (`thr10k`, 10 minuti ciascuna, SQLite, `CAP=512`, `GATE60=1`, `VTRIES=100`, campionatore dell'I/O acceso, `PAYLOAD=json` in entrambi i bracci; ON aggiunge `AUX=1`):
+  OFF: `PAYLOAD=json GATE60=1 VTRIES=100 ./scen.sh iggy sqlite thr10k secs=600`        ON: `PAYLOAD=json AUX=1 GATE60=1 VTRIES=100 ./scen.sh iggy sqlite thr10k secs=600`
+  due coppie in quest'ordine: OFF r1, ON r1, ON r2, OFF r2 (r<n> = n-esima coppia). File grezzi: bigsheep-iggy-sqlite-aux10k-<OFF|ON>-4-ms-r<n>.txt (con i campioni di I/O nel file).
+  Una corsa vale solo se il suo `[stato prima HH:MM:SS]` e' piu' tardi del commit di questo file. Una corsa alla volta, `ms-run.sh` (con la sua attesa di quiete: carico < 1,5, pressione I/O).
+  Cancello del disco tranquillo prima di ogni corsa: pavimento di fdatasync con p50 <= 4,0 ms E p99.9 <= 100 ms; se fuori si aspettano 5 minuti e si rimisura, al massimo 3 volte, poi si parte comunque
+  (ogni misura e ogni attesa sono nel registro della catena e nel rapporto). Il pavimento prima e dopo di ogni corsa e' anche nel file grezzo.
+
+Esito di ogni corsa: SUPERATA se la media dei minuti 2-10 (le righe `MIN t=2` … `MIN t=10`, `act_s`) e' >= 9.900 att./s E 0 accettate perse dopo le verifiche (`verify OK`).
+Una coppia CONTA solo se la sua corsa OFF e' superata. Validita' di ON: `calls_prepare` = `calls_check` = `attivita_concluse` dell'ultima verifica (riga `-- ausiliario a fine corsa`) e `errors=0`
+nell'ausiliario; se manca la corsa ON e' non valida e si rifa' una volta, subito (entrambe nel rapporto).
+
+Lettura, fissata ora:
+  a. entrambe le coppie contano e ON e' superata in tutte e due: «l'ausiliario regge 10.000 att./s» (misurato, su bigsheep);
+  b. almeno una coppia che conta con ON non superata: «non regge» (con i numeri);
+  c. nessuna coppia conta: non conclusivo.
+
+Si riportano, per ogni corsa: att./s sull'intera corsa; minuti 2-10 sotto 9.900 (con il valore); l'intervallo piu' lungo senza accettazioni (`accept_max_gap_ms`); `start_ready` p50 e p99; CPU del motore e
+dell'ausiliario per 1.000 attivita' (`cpu_per_1000_att engine`, `aux_cpu_per_1000_att`); andata e ritorno dell'ausiliario `aux_rtt` p50 e p99 e RSS dell'ausiliario; istruzioni SQL per attivita';
+conteggi di «database is locked» / `SQLITE_BUSY` nel registro del motore per entrambi i bracci (solo riportati: quel criterio e' di una fase successiva); pavimento prima e dopo; stato dei container di Marco.
+
+Non coperto: confronto con minisheep; PR_SET_DUMPABLE; piu' ausiliari; il comportamento dopo un crash dell'ausiliario; il costo con schemi pesanti.

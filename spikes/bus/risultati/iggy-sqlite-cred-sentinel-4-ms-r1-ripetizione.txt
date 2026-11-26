@@ -1,0 +1,60 @@
+[stato prima 20:28:56] load: 0.75 0.72 0.78
+[stato prima] io: some avg10=0.91 avg60=1.26 avg300=2.69 total=20776400025
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.04 total=2278853252
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: CRED-sentinel
+[stato prima] binario sha256:d07c64fc7d46873e
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.69ms p99=3.33ms p99.9=92.54ms max=92.54ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 15 s
+### iggy + sqlite: newtenant rate=100 n=10 secs=15
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=3159611 READY recovered_ms=576 now_us=1795634943986053 gen=1
+busauth case=setup-sent server_iggy=0.10.0
+utente ro-sent creato (lettura e poll di tutto lo stream `tt`, nessun invio)
+load tenants=a rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=1s measured=15s
+offered=1600 accepted=1600 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+errors_by_type {}
+accept_rtt_open_loop n=1501 p50=20.80ms p99=32.93ms p99.9=38.24ms max=45.44ms over100ms=0
+accept_max_gap_ms=0 from_us=0 to_us=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.31 cpu_per_1000_att engine=0.000 worker=310.000
+NEWTOPIC state-d7dcf2c29f4d4be5a6345795e3e5d292 create_us=1795634950110741 created_us=1795634950114732 append_done_us=1795634950322597
+verify: accettate=1600 concluse_nella_proiezione=1569 accettate_perse=31 attivita_concluse=15803 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=26 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=1600 concluse_nella_proiezione=1600 accettate_perse=0 attivita_concluse=16000 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=26 payload_illeggibili=0 light=true
+verify OK
+sentinel pronto (now_us=1795634944099137)
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-d7dcf2c29f4d4be5a6345795e3e5d292: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+sentinel_stats events=49601 topics=3 lag_events p50=1 p99=1 max=1 gaps=0 gap_events=0 alarms overdue=0 retry=0 engine_silent=0 recovered=0 header_bytes=46 cpu_s=0.28
+sentinel_read_delay n=798 p50=9.77ms p99=17.68ms p99.9=93.50ms max=93.50ms over100ms=0
+sentinel_retry_latency n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel_deadlines_resolved_after_due=0 margin_lt_1s=0 margin_to_grace_end n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel allarmi: overdue=0 retry=0 engine-silent=0 recovered=0
+sentinel prime righe:  |  |  | 
+newtenant: topic state-d7dcf2c29f4d4be5a6345795e3e5d292, primo evento letto 288 ms dopo la creazione (create_us=1795634950110741 first_read_us=1795634950399300)
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 80528 kB
+rss pid=3159611 32160 kB
+rss pid=3159740 14752 kB
+-- conteggio file archivio: 15
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+sentinel (utente ro-sent) errori del processo: 3
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-d7dcf2c29f4d4be5a6345795e3e5d292: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+busauth case=offsets server_iggy=0.10.0
+CHECK offset del gruppo sentinel su state-A (root) atteso=riesce ottenuto=riesce PASS Some(49599)
+[stato dopo 20:29:27] load: 0.94 0.77 0.80
+[stato dopo] io: some avg10=28.56 avg60=13.48 avg300=5.54 total=20786089679
+[stato dopo] cpu: some avg10=0.97 avg60=0.43 avg300=0.14 total=2279338372
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: CRED-sentinel
+[stato dopo] binario sha256:d07c64fc7d46873e
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.85ms p99=4.09ms p99.9=5.04ms max=5.04ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

@@ -1,0 +1,24 @@
+[stato prima 20:22:31] load: 0.52 0.59 0.77
+[stato prima] io: some avg10=0.69 avg60=3.78 avg300=4.35 total=20764261335
+[stato prima] cpu: some avg10=0.00 avg60=0.07 avg300=0.08 total=2277737355
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: CRED-ro-a-s
+[stato prima] binario sha256:1bfe5d3f2bce205b
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.76ms p99=3.47ms p99.9=79.04ms max=79.04ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.05
+[attesa] 15 s
+busauth case=ro-a-s server_iggy=0.10.0
+CHECK ro-a: lettura di A atteso=riesce ottenuto=riesce PASS 3 messaggi
+CHECK ro-a: lettura di B atteso=rifiutato ottenuto=riesce FAIL 3 messaggi
+CHECK ro-a: invio a state-0000000000007000800000000000000a atteso=rifiutato ottenuto=errore PASS codice=41 Unauthorized
+CHECK ro-a: creare un topic atteso=rifiutato ottenuto=errore PASS codice=41 Unauthorized
+CHECK ro-a: cancellare un topic atteso=rifiutato ottenuto=errore PASS codice=41 Unauthorized
+CHECK ro-a: elenco dei topic (informativo, atteso rifiutato) atteso=rifiutato ottenuto=riesce FAIL 3 topic
+[stato dopo 20:22:39] load: 0.60 0.61 0.77
+[stato dopo] io: some avg10=2.06 avg60=3.71 avg300=4.32 total=20764645715
+[stato dopo] cpu: some avg10=0.00 avg60=0.06 avg300=0.08 total=2277763316
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: CRED-ro-a-s
+[stato dopo] binario sha256:1bfe5d3f2bce205b
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.80ms p99=4.12ms p99.9=4.93ms max=4.93ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

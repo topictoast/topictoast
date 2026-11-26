@@ -1,0 +1,66 @@
+[stato prima 00:32:26] load: 0.76 1.23 1.27
+[stato prima] io: some avg10=0.92 avg60=6.43 avg300=11.62 total=21365364396
+[stato prima] cpu: some avg10=0.03 avg60=0.28 avg300=0.64 total=2333564344
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: CANCEL-exectimeoutcrash
+[stato prima] binario sha256:4686b30b01664b38
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=3.20ms p99=8.30ms p99.9=149.63ms max=149.63ms over100ms=1
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.01
+[attesa] 15 s
+### iggy + sqlite: exectimeout 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=3990577 READY recovered_ms=743 now_us=1795649554818217 gen=1
+prima del kill: secs=3.6 accepted=58 refused=0 done=27 rejected=0 groups=12 expired=0 late_ok=0 
+kill T0_us=1795649558405212
+engine pid=3990820 READY recovered_ms=85 now_us=1795649558494389 gen=1
+ripresa: 33 esecuzioni vive, 26 eventi riletti dal bus, 33 attività emesse e non concluse, 65 timer
+ripresa: 33 attività emesse e non concluse: 32 in volo (scadenza ripristinata), 0 in attesa di un timer, 1 da consegnare subito
+load tenants=a rate=20/s kind=0 n=3 size=64 work_ms=2000 warm=0s measured=5s
+offered=100 accepted=98 refused_E_PROJECTION_DOWN=0 errors=2 overload_skipped=0
+load tenants=b rate=20/s kind=0 n=1 size=64 work_ms=100 warm=0s measured=5s
+offered=100 accepted=99 refused_E_PROJECTION_DOWN=0 errors=1 overload_skipped=0
+verify: accettate=197 concluse_nella_proiezione=198 accettate_perse=0 attivita_concluse=198 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=7 payload_illeggibili=0 light=true
+verify OK
+sentinel pronto (now_us=1795649554905551)
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+sentinel_stats events=1287 topics=2 lag_events p50=1 p99=1 max=1 gaps=0 gap_events=0 alarms overdue=0 retry=0 engine_silent=0 recovered=0 header_bytes=46 cpu_s=0.16
+sentinel_read_delay n=439 p50=13.76ms p99=30.11ms p99.9=31.21ms max=31.21ms over100ms=0
+sentinel_retry_latency n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel_deadlines_resolved_after_due=0 margin_lt_1s=0 margin_to_grace_end n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel allarmi: overdue=0 retry=0 engine-silent=0 recovered=0
+sentinel prime righe:  |  |  | 
+-- annullamenti e scadenze durevoli: 99; per stato alla richiesta:  99 status2:inflight;
+-- risposte del pilota: 
+JUDGE 1 consegne partite dopo l'evento durevole (invio_us) valore=0 atteso=0 PASS
+-- (riportato) consegne ricevute dal worker dopo l'evento durevole (ricezione_us): 0
+JUDGE 2 Stop spediti prima dell'evento durevole valore=0 atteso=0 PASS
+JUDGE 3 attivita' rese pronte dopo l'evento durevole valore=0 atteso=0 PASS
+JUDGE 4 timer rimasti per esecuzioni annullate o scadute valore=0 atteso=0 PASS
+JUDGE 5 allarmi overdue/retry del sentinella per esecuzioni annullate dopo l'evento durevole valore=0 atteso=0 PASS
+-- (riportato) allarmi overdue/retry per esecuzioni annullate PRIMA dell'evento durevole (ammessi): 0
+JUDGE 7c righe 'scaduta' = esecuzioni A non concluse entro la scadenza valore=99 atteso=99 PASS
+JUDGE 7d esecuzioni 'scaduta' prima della scadenza (end_us < accepted_us + T) valore=0 atteso=0 PASS
+JUDGE 7e righe 'annullata' in una scena di sole scadenze valore=0 atteso=0 PASS
+JUDGE 8 Stop spediti = tentativi in volo all'evento durevole valore=99 atteso=99 PASS
+-- Stop ricevuti dai worker: 99, di cui con il tentativo ancora in corso: 99
+-- dall'evento durevole allo Stop ricevuto dal worker (ms, p50/p99/max): n=99 p50=0.2 p99=0.3 max=0.3
+-- storico: 2:timeout:|99;
+-- attivita' aperte nelle esecuzioni annullate (ammesse, restano ferme): 99
+-- contatori del motore (dopo un crash ripartono da zero): start_ready_tenant_b n=72 p50=8.80ms p99=74.50ms p99.9=74.50ms max=74.50ms over100ms=0 cancel cancelled=0 expired=99 noop_not_live=0 noop_again=0 noop_cancelling=0 stops_sent=99 stops_no_session=0 inflight_at_durable=99 window_deliveries=0 late_after_cancel=0 cancel_durable_latency n=99 p50=9.33ms p99=21.77ms p99.9=21.77ms max=21.77ms over100ms=0 exec_timeout_fire_delay n=99 p50=10.31ms p99=20.53ms p99.9=20.53ms max=20.53ms over100ms=0 
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 96648 kB
+rss pid=3990820 28344 kB
+rss pid=3990684 16384 kB
+-- conteggio file archivio: 14
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 00:32:48] load: 0.61 1.17 1.25
+[stato dopo] io: some avg10=13.48 avg60=8.36 avg300=11.66 total=21368157201
+[stato dopo] cpu: some avg10=0.67 avg60=0.37 avg300=0.63 total=2333775175
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: CANCEL-exectimeoutcrash
+[stato dopo] binario sha256:4686b30b01664b38
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.71ms p99=4.23ms p99.9=5.38ms max=5.38ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.01

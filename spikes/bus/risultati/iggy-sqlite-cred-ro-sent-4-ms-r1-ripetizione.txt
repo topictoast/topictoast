@@ -1,0 +1,32 @@
+[stato prima 20:28:29] load: 0.82 0.74 0.79
+[stato prima] io: some avg10=0.71 avg60=0.90 avg300=2.75 total=20775720839
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.04 total=2278779595
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: CRED-ro-sent
+[stato prima] binario sha256:d07c64fc7d46873e
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=1.94ms p99=2.91ms p99.9=61.50ms max=61.50ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-3 0.04
+[attesa] 20 s
+busauth case=ro-sent server_iggy=0.10.0
+CHECK ro-sent: elenco dei topic atteso=riesce ottenuto=riesce PASS 3 topic: state-0000000000007000800000000000000a,state-0000000000007000800000000000000b,scratch
+CHECK ro-sent: elenco dei topic con il topic nato dopo atteso=riesce ottenuto=riesce PASS 4 topic, nuovo visto: true
+CHECK ro-sent: creare il gruppo sentinel sul topic nuovo atteso=riesce ottenuto=riesce PASS ok
+CHECK ro-sent: unirsi al gruppo atteso=riesce ottenuto=riesce PASS ok
+  lettura da gruppo, tentativo 1: codice=5009 Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+CHECK ro-sent: lettura da gruppo con posizione salvata atteso=riesce ottenuto=riesce PASS 3 messaggi
+CHECK ro-sent: posizione salvata del gruppo atteso=riesce ottenuto=riesce PASS Some(2)
+CHECK ro-sent: lettura semplice di A atteso=riesce ottenuto=riesce PASS 3 messaggi
+CHECK ro-sent: invio a state-0000000000007000800000000000000a atteso=rifiutato ottenuto=errore PASS codice=41 Unauthorized
+CHECK ro-sent: creare un topic atteso=rifiutato ottenuto=errore PASS codice=41 Unauthorized
+CHECK ro-sent: cancellare un topic atteso=rifiutato ottenuto=errore PASS codice=41 Unauthorized
+CHECK ro-sent: unirsi a un gruppo creato da root atteso=riesce ottenuto=riesce PASS ok
+  lettura da gruppo, tentativo 1: codice=5009 Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+CHECK ro-sent: lettura da quel gruppo atteso=riesce ottenuto=riesce PASS 3 messaggi
+[stato dopo 20:28:38] load: 0.69 0.71 0.78
+[stato dopo] io: some avg10=1.79 avg60=1.13 avg300=2.75 total=20776132362
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.04 total=2278808240
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: CRED-ro-sent
+[stato dopo] binario sha256:d07c64fc7d46873e
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.78ms p99=4.81ms p99.9=5.17ms max=5.17ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.01

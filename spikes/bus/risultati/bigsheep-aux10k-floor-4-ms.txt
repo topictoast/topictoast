@@ -1,0 +1,4 @@
+21:41:49 fsync-floor /home/white_sheep/.cache: n=300 p50=4.92ms p99=5.20ms p99.9=6.13ms max=6.13ms over100ms=0
+21:41:50 fsync-floor /home/white_sheep/.cache: n=300 p50=4.93ms p99=5.15ms p99.9=5.20ms max=5.20ms over100ms=0
+21:41:52 fsync-floor /home/white_sheep/.cache: n=300 p50=4.93ms p99=5.20ms p99.9=9.75ms max=9.75ms over100ms=0
+governor cpu1: powersave

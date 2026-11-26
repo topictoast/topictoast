@@ -1,0 +1,52 @@
+[stato prima 08:34:08] load: 1.14 2.84 2.40
+[stato prima] io: some avg10=0.78 avg60=5.09 avg300=18.97 total=14663485999
+[stato prima] cpu: some avg10=0.00 avg60=0.28 avg300=1.80 total=1620681036
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: H2-c2ac38a
+[stato prima] binario sha256:1a1348abf3bea374
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.79ms p99=8.80ms p99.9=10.28ms max=10.28ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.06
+[attesa] 30 s
+### iggy + sqlite: ekill 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=468885 READY recovered_ms=426 now_us=1795592056167037 gen=1
+prima del kill: secs=13.2 accepted=4003 refused=0 done=5953 rejected=0 groups=112 expired=0 late_ok=0
+prima del kill: undurable_deliveries=0 undurable_max=37 held=0
+engine pid=469411 READY recovered_ms=108 now_us=1795592069479981 gen=1
+kill -9 -> READY: 111 ms (READY recovered_ms=108 now_us=1795592069479981 gen=1)
+ripresa: 3034 esecuzioni vive, 223 eventi riletti dal bus, 3034 attività emesse e non concluse, 3019 timer
+ripresa: 3034 attività emesse e non concluse: 3019 in volo (scadenza ripristinata), 0 in attesa di un timer, 15 da consegnare subito
+kill -9 -> prima attività conclusa: 220 ms
+load tenants=ab rate=334/s kind=0 n=3 size=1024 work_ms=3000 warm=1s measured=30s
+offered=10354 accepted=10308 refused_E_PROJECTION_DOWN=0 errors=46 overload_skipped=0
+errors_by_type {"Unavailable:tcp connect error": 36, "Unknown:transport error": 10}
+accept_rtt_open_loop n=9974 p50=26.72ms p99=64.06ms p99.9=112.00ms max=129.22ms over100ms=14
+accept_max_gap_ms=159 from_us=1795592069355882 to_us=1795592069514660
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.78 cpu_per_1000_att engine=0.000 worker=776.000
+motore dopo la corsa: secs=19.0 accepted=6305 refused=0 done=18961 rejected=16 groups=174 expired=0 late_ok=3019
+verify: accettate=10308 concluse_nella_proiezione=7273 accettate_perse=3040 attivita_concluse=24857 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=25186 duplicati_sul_bus=0 payload_decifrati=24857 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10308 concluse_nella_proiezione=8379 accettate_perse=1934 attivita_concluse=28085 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=28387 duplicati_sul_bus=0 payload_decifrati=28085 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10308 concluse_nella_proiezione=9486 accettate_perse=827 attivita_concluse=30112 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=30303 duplicati_sul_bus=0 payload_decifrati=30112 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10308 concluse_nella_proiezione=10313 accettate_perse=0 attivita_concluse=30939 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=30939 duplicati_sul_bus=0 payload_decifrati=30939 payload_illeggibili=0 light=false
+verify OK
+tentativi iniziati: 30939, attività distinte: 30939, eseguite più di una volta: 0
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 100480 kB
+rss pid=469411 41040 kB
+rss pid=468968 23460 kB
+-- conteggio file archivio: 76
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+[stato dopo 08:34:59] load: 2.21 2.85 2.43
+[stato dopo] io: some avg10=43.70 avg60=27.11 avg300=22.69 total=14685162698
+[stato dopo] cpu: some avg10=2.28 avg60=1.58 avg300=1.91 total=1622196002
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: H2-c2ac38a
+[stato dopo] binario sha256:1a1348abf3bea374
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.79ms p99=8.78ms p99.9=9.46ms max=9.46ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

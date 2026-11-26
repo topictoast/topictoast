@@ -1,0 +1,24 @@
+[stato prima 09:00:54] load: 0.99 0.97 0.85
+[stato prima] io: some avg10=0.28 avg60=4.92 avg300=14.72 total=6333834841
+[stato prima] cpu: some avg10=0.00 avg60=0.16 avg300=0.51 total=779258040
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.58ms p99=3.30ms p99.9=3.46ms max=3.46ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 0 s
+### iggy + sqlite: sec 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=4103516 READY recovered_ms=277
+buono (credenziale, identita e certificato giusti): ACCETTATO ACCETTATO ACCETTATO 
+credenziale errata: RIFIUTATO: code: 'The request does not have valid authentication credentials', message: "E_CREDENZIALE"
+il worker non verifica il server (certificato di un altro motore): RIFIUTATO: code: 'The service is currently unavailable', message: "invalid peer certificate: BadSignature", source: tonic::transport::Error(Transport, ConnectError(Custom { kind: InvalidData, error: InvalidCertificate(BadSignature) }))
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 76108 kB
+rss pid=4103516 22108 kB
+rss pid=4103566 13436 kB
+-- conteggio file archivio: 0
+[stato dopo 09:01:10] load: 0.77 0.92 0.83
+[stato dopo] io: some avg10=0.87 avg60=4.15 avg300=14.02 total=6334142690
+[stato dopo] cpu: some avg10=0.00 avg60=0.12 avg300=0.48 total=779306953
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.67ms p99=3.70ms p99.9=64.54ms max=64.54ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-1 0.16

@@ -1,0 +1,23 @@
+[stato prima 20:58:41] load: 0.60 1.09 1.20
+[stato prima] io: some avg10=0.00 avg60=2.93 avg300=10.94 total=1624763289
+[stato prima] cpu: some avg10=0.00 avg60=0.05 avg300=0.25 total=178645740
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.15
+[attesa] 0 s
+### valkey + sqlite: rss 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1
+engine pid=1606959 READY recovered_ms=29
+rss valkey 21224 kB
+rss pid=1606959 17096 kB
+rss pid=1607039 11776 kB
+-- valkey: total_forks:0 aof_last_rewrite_time_sec:-1 aof_rewrites:0 
+-- RSS dopo la corsa (motore, worker, bus)
+rss valkey 21236 kB
+rss pid=1606959 17096 kB
+rss pid=1607039 11776 kB
+-- conteggio file archivio: 0
+[stato dopo 20:59:49] load: 0.80 1.04 1.17
+[stato dopo] io: some avg10=0.00 avg60=0.97 avg300=8.66 total=1624900559
+[stato dopo] cpu: some avg10=0.00 avg60=0.01 avg300=0.19 total=178809789
+[stato dopo] container non nostri non in esecuzione stabile: 4; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

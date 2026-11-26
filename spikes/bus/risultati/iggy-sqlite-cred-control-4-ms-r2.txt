@@ -1,0 +1,28 @@
+[stato prima 20:21:40] load: 0.50 0.59 0.78
+[stato prima] io: some avg10=0.78 avg60=6.96 avg300=4.89 total=20763344322
+[stato prima] cpu: some avg10=0.00 avg60=0.19 avg300=0.11 total=2277646279
+[stato prima] container non nostri non in esecuzione stabile: 3; in esecuzione: 12
+[stato prima] braccio: CRED-control
+[stato prima] binario sha256:1bfe5d3f2bce205b
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.44ms p99=4.71ms p99.9=5.84ms max=5.84ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.18
+[attesa] 30 s
+busauth case=control server_iggy=0.10.0
+CHECK root: lettura di A atteso=riesce ottenuto=riesce PASS 3 messaggi
+CHECK root: lettura di B atteso=riesce ottenuto=riesce PASS 3 messaggi
+CHECK root: invio a state-0000000000007000800000000000000a atteso=riesce ottenuto=riesce PASS ok
+CHECK root: creare un topic atteso=riesce ottenuto=riesce PASS ok
+CHECK root: cancellare un topic atteso=riesce ottenuto=riesce PASS ok
+CHECK root: elenco dei topic atteso=riesce ottenuto=riesce PASS 3 topic
+CHECK root: creare il gruppo sentinel su A atteso=riesce ottenuto=riesce PASS ok
+CHECK root: unirsi al gruppo atteso=riesce ottenuto=riesce PASS ok
+CHECK root: lettura da gruppo con posizione salvata atteso=riesce ottenuto=errore FAIL codice=5009 Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+CHECK root: posizione salvata del gruppo atteso=riesce ottenuto=riesce PASS None
+[stato dopo 20:21:48] load: 0.58 0.61 0.78
+[stato dopo] io: some avg10=1.20 avg60=6.31 avg300=4.80 total=20763692618
+[stato dopo] cpu: some avg10=0.00 avg60=0.16 avg300=0.10 total=2277673993
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: CRED-control
+[stato dopo] binario sha256:1bfe5d3f2bce205b
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.08ms p99=3.31ms p99.9=7.16ms max=7.16ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-2 0.01

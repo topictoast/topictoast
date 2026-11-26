@@ -1,0 +1,29 @@
+[stato prima 16:58:18] load: 0.70 4.14 5.54
+[stato prima] io: some avg10=0.71 avg60=1.77 avg300=4.04 total=19519041404
+[stato prima] cpu: some avg10=0.00 avg60=0.07 avg300=0.89 total=2127760605
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: RUSTFS-1.0.4
+[stato prima] binario sha256:fd04efcdeefe0425
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.87ms p99=4.21ms p99.9=7.29ms max=7.29ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 10 s
+rustfs pronto dopo 0 s
+crea bucket: 200
+PUT 1 (If-None-Match: *, contenuto 1): 200
+PUT 2 (If-None-Match: *, contenuto 2, stessa chiave): 412
+<?xml version="1.0" encoding="UTF-8"?><Error><Code>PreconditionFailed</Code><Message>At least one of the pre-conditions you specified did not hold</Message></Error>
+
+GET: 200
+impronte: primo=72379c46518eebed secondo=0a3d9bd1eccea746 salvato=72379c46518eebed
+l'oggetto salvato è il primo
+controllo, PUT 3 senza intestazione (deve sovrascrivere): 200
+GET dopo il controllo: 200
+salvato=0a3d9bd1eccea746
+[stato dopo 16:58:21] load: 0.64 4.07 5.51
+[stato dopo] io: some avg10=2.44 avg60=2.01 avg300=4.06 total=19519281472
+[stato dopo] cpu: some avg10=0.00 avg60=0.07 avg300=0.87 total=2127765791
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: RUSTFS-1.0.4
+[stato dopo] binario sha256:fd04efcdeefe0425
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.59ms p99=4.78ms p99.9=5.30ms max=5.30ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-2 0.01

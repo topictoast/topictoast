@@ -1,0 +1,34 @@
+[stato prima 21:53:15] load: 1.42 3.79 3.79
+[stato prima] io: some avg10=0.10 avg60=8.21 avg300=24.00 total=11788304167
+[stato prima] cpu: some avg10=0.00 avg60=0.81 avg300=2.46 total=1317879399
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] binario sha256: d51b36de4ca9c6dc
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.67ms p99=5.87ms p99.9=70.27ms max=70.27ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-3 0.04
+[attesa] 55 s
+tmpfs            64M   24K   64M   1% /app/local_data
+41943040 bytes (42 MB, 40 MiB) copied, 0.00922511 s, 4.5 GB/s
+tmpfs            64M   41M   24M  63% /app/local_data
+tmpfs            64M   64M  212K 100% /app/local_data
+tmpfs            64M   24M   41M  38% /app/local_data
+ballast tolto
+Up 54 seconds
+iggy-1  | Error: 1 shard thread(s) failed: shard 0 -> shard 0 stopped: partition 0 could not commit op 127, which the cluster had already committed. The replica is divergent and was fenced; the server shut down so it cannot serve a prefix the cluster
+iggy-1  | [2m2026-11-24T20:54:00.856934Z[0m [33m WARN[0m main [2mserver_common::log::logger[0m[2m:[0m Low disk space for logs. Available: 8192 bytes, Recommended: 10000000 bytes
+iggy-1  | [2m2026-11-24T20:54:08.451574Z[0m [31mERROR[0m shard-0 [2mpartitions::iggy_partition[0m[2m:[0m partition prepare persistence failed [3merror[0m[2m=[0mNo space left on device (os error 28) [3mnamespace_raw[0m[2m=[0m0
+iggy-1  | [2m2026-11-24T20:54:08.456896Z[0m [33m WARN[0m shard-0 [2mpartitions::iggy_partition[0m[2m:[0m fatal partition could not drain its WAL on shutdown [3merror[0m[2m=[0mNo space left on device (os error 28)
+iggy-1  | [2m2026-11-24T20:54:08.457490Z[0m [31mERROR[0m shard-0 [2mserver::boot::threads[0m[2m:[0m message pump stopped on a partition commit fault; the server is shutting down [3mshard[0m[2m=[0m0 [3mnamespace_raw[0m[2m=[0m0 [3mop[
+iggy-1  | [2m2026-11-24T20:54:08.463147Z[0m [31mERROR[0m    main [2mserver::boot::threads[0m[2m:[0m shard thread returned error [3mshard_id[0m[2m=[0m0 [3merror[0m[2m=[0mshard 0 stopped: partition 0 could not commit op 127, which the c
+iggy-1  | Error: 1 shard thread(s) failed: shard 0 -> shard 0 stopped: partition 0 could not commit op 127, which the cluster had already committed. The replica is divergent and was fenced; the server shut down so it cannot serve a prefix the cluster
+iggy-1  | [2m2026-11-24T20:54:09.474833Z[0m [33m WARN[0m main [2mserver_common::log::logger[0m[2m:[0m Low disk space for logs. Available: 8192 bytes, Recommended: 10000000 bytes
+ok=126 err=1 primo errore: P 47571 ERR 20000 timeout 20 s
+    126 ok
+      1 ERR
+      1 head=Ok(1008)
+[stato dopo 21:54:25] load: 0.87 3.12 3.56
+[stato dopo] io: some avg10=0.09 avg60=2.91 avg300=19.03 total=11789058000
+[stato dopo] cpu: some avg10=0.00 avg60=0.27 avg300=1.93 total=1318029604
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] binario sha256: d51b36de4ca9c6dc
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=8.05ms p99=12.35ms p99.9=13.10ms max=13.10ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

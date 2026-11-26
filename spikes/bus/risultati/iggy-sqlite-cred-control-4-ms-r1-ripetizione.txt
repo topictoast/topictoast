@@ -1,0 +1,29 @@
+[stato prima 20:27:58] load: 0.64 0.69 0.78
+[stato prima] io: some avg10=0.13 avg60=0.35 avg300=2.85 total=20775060318
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.05 total=2278733121
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: CRED-control
+[stato prima] binario sha256:d07c64fc7d46873e
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.78ms p99=4.10ms p99.9=4.55ms max=4.55ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.04
+[attesa] 0 s
+busauth case=control server_iggy=0.10.0
+CHECK root: lettura di A atteso=riesce ottenuto=riesce PASS 3 messaggi
+CHECK root: lettura di B atteso=riesce ottenuto=riesce PASS 3 messaggi
+CHECK root: invio a state-0000000000007000800000000000000a atteso=riesce ottenuto=riesce PASS ok
+CHECK root: creare un topic atteso=riesce ottenuto=riesce PASS ok
+CHECK root: cancellare un topic atteso=riesce ottenuto=riesce PASS ok
+CHECK root: elenco dei topic atteso=riesce ottenuto=riesce PASS 3 topic
+CHECK root: creare il gruppo sentinel su A atteso=riesce ottenuto=riesce PASS ok
+CHECK root: unirsi al gruppo atteso=riesce ottenuto=riesce PASS ok
+  lettura da gruppo, tentativo 1: codice=5009 Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+CHECK root: lettura da gruppo con posizione salvata atteso=riesce ottenuto=riesce PASS 4 messaggi
+CHECK root: posizione salvata del gruppo atteso=riesce ottenuto=riesce PASS Some(3)
+[stato dopo 20:28:06] load: 0.91 0.75 0.79
+[stato dopo] io: some avg10=1.29 avg60=0.61 avg300=2.84 total=20775448715
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.05 total=2278753651
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: CRED-control
+[stato dopo] binario sha256:d07c64fc7d46873e
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.95ms p99=3.89ms p99.9=4.52ms max=4.52ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.04

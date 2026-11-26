@@ -1,0 +1,49 @@
+[stato prima 02:08:11] load: 0.50 2.01 2.76
+[stato prima] io: some avg10=0.33 avg60=1.94 avg300=11.56 total=3663353465
+[stato prima] cpu: some avg10=0.00 avg60=0.23 avg300=1.93 total=494430688
+[stato prima] container non nostri non in esecuzione stabile: 6; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.34ms p99=9.62ms p99.9=14.50ms max=14.50ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 140 s
+### iggy + sqlite: thr10k secs=600
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024
+engine pid=2650449 READY recovered_ms=837
+load tenants=ab rate=1000/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=600s
+offered=605001 accepted=605001 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=600002 p50=95.42ms p99=352.51ms p99.9=1217.54ms max=1543.17ms over100ms=251657
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=600.0 accepted=599965 refused=0 done=5999825 rejected=0 groups=13260
+activities_per_s=10000 accepted_per_s=1000
+accept_engine n=599965 p50=94.91ms p99=351.23ms p99.9=1215.49ms max=1542.14ms over100ms=246096
+append n=27708 p50=79.04ms p99=216.32ms p99.9=367.10ms max=1251.33ms over100ms=4304
+append_sub n=55417 p50=17.92ms p99=59.52ms p99.9=98.30ms max=599.55ms over100ms=50
+sub_events_p50=213 sub_events_p99=624
+start_ready n=5999825 p50=83.71ms p99=279.81ms p99.9=791.04ms max=1755.13ms over100ms=1451759
+start_sent n=5999825 p50=0.48ms p99=2.68ms p99.9=3.83ms max=8.25ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=2999915 p50=83.71ms p99=279.55ms p99.9=790.01ms max=1745.92ms over100ms=726596
+archive_read n=124150 p50=0.02ms p99=0.14ms p99.9=0.47ms max=3.14ms over100ms=0
+proj_lag n=12600712 p50=223.87ms p99=485.38ms p99.9=890.88ms max=1868.80ms over100ms=12231932
+sql_stmts=93126 sql_rows=13214540 sql_per_activity=0.0155 rows_per_activity=2.202 wal_bytes_per_activity=0.0
+engine_cpu_s=218.54 cache_entries=2308
+MIN t=1 act_s=8944 append_p50_ms=59.4 sub_p50_ms=15.2 lag_p50_ms=205 lag_p99_ms=379 io=[some avg10=35.01 avg60=23.65 avg300=15.92 total=3685995893]
+MIN t=2 act_s=10024 append_p50_ms=79.9 sub_p50_ms=18.1 lag_p50_ms=233 lag_p99_ms=492 io=[some avg10=33.26 avg60=30.71 avg300=19.45 total=3707228208]
+MIN t=3 act_s=10000 append_p50_ms=80.4 sub_p50_ms=18.4 lag_p50_ms=239 lag_p99_ms=525 io=[some avg10=33.70 avg60=33.57 avg300=22.42 total=3728739572]
+MIN t=4 act_s=9540 append_p50_ms=81.2 sub_p50_ms=19.1 lag_p50_ms=227 lag_p99_ms=882 io=[some avg10=30.52 avg60=33.99 avg300=24.71 total=3749784397]
+MIN t=5 act_s=10458 append_p50_ms=81.7 sub_p50_ms=19.7 lag_p50_ms=220 lag_p99_ms=452 io=[some avg10=34.92 avg60=34.70 avg300=26.60 total=3770980553]
+MIN t=6 act_s=10012 append_p50_ms=79.7 sub_p50_ms=18.6 lag_p50_ms=217 lag_p99_ms=438 io=[some avg10=36.47 avg60=35.66 avg300=28.36 total=3792901122]
+MIN t=7 act_s=9991 append_p50_ms=80.5 sub_p50_ms=18.5 lag_p50_ms=233 lag_p99_ms=458 io=[some avg10=36.83 avg60=35.62 avg300=29.65 total=3814362185]
+MIN t=8 act_s=10012 append_p50_ms=80.1 sub_p50_ms=18.4 lag_p50_ms=227 lag_p99_ms=501 io=[some avg10=37.72 avg60=35.78 avg300=30.72 total=3835830057]
+MIN t=9 act_s=9989 append_p50_ms=81.2 sub_p50_ms=18.5 lag_p50_ms=217 lag_p99_ms=444 io=[some avg10=37.49 avg60=35.77 avg300=31.57 total=3857192963]
+MIN t=10 act_s=10003 append_p50_ms=79.8 sub_p50_ms=18.6 lag_p50_ms=222 lag_p99_ms=430 io=[some avg10=37.76 avg60=36.00 avg300=32.35 total=3878933521]
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 93356 kB
+rss pid=2650449 69700 kB
+rss pid=2650506 15988 kB
+-- conteggio file archivio: 1099
+[stato dopo 02:18:27] load: 5.17 4.47 3.70
+[stato dopo] io: some avg10=37.35 avg60=36.12 avg300=32.46 total=3881234157
+[stato dopo] cpu: some avg10=3.29 avg60=3.47 avg300=3.24 total=518247762
+[stato dopo] container non nostri non in esecuzione stabile: 6; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.46ms p99=8.34ms p99.9=17.07ms max=17.07ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-2 0.01

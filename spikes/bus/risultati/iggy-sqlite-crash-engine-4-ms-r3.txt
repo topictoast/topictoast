@@ -1,0 +1,47 @@
+[stato prima 20:38:37] load: 0.88 0.91 0.62
+[stato prima] io: some avg10=0.78 avg60=11.57 avg300=9.06 total=10843335986
+[stato prima] cpu: some avg10=0.01 avg60=0.71 avg300=0.54 total=1219230379
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] binario sha256: d51b36de4ca9c6dc
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.90ms p99=3.29ms p99.9=69.95ms max=69.95ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.05
+[attesa] 40 s
+### iggy + sqlite: ekill 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2238319 READY recovered_ms=387 now_us=1795549125337694 gen=1
+prima del kill: secs=13.0 accepted=3596 refused=0 done=5370 rejected=0 groups=112 expired=0 late_ok=0
+engine pid=2239271 READY recovered_ms=102 now_us=1795549138476904 gen=1
+kill -9 -> READY: 106 ms (READY recovered_ms=102 now_us=1795549138476904 gen=1)
+ripresa: 2712 esecuzioni vive, 122 eventi riletti dal bus, 2712 attività da riconsegnare
+ripresa: 2712 attività in volo in attesa dell'esito o della scadenza
+kill -9 -> prima attività conclusa: 220 ms
+load tenants=ab rate=300/s kind=0 n=3 size=1024 work_ms=3000 warm=1s measured=30s
+offered=9299 accepted=9264 refused_E_PROJECTION_DOWN=0 errors=35 overload_skipped=0
+errors_by_type {"Unavailable:tcp connect error": 32, "Unknown:transport error": 3}
+accept_rtt_open_loop n=8965 p50=13.08ms p99=24.72ms p99.9=106.88ms max=124.61ms over100ms=11
+accept_max_gap_ms=141 from_us=1795549138368630 to_us=1795549138509992
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.97 cpu_per_1000_att engine=0.000 worker=967.000
+motore dopo la corsa: secs=19.0 accepted=5665 refused=0 done=16978 rejected=7 groups=174 expired=7 late_ok=2705
+verify: accettate=9264 concluse_nella_proiezione=6510 accettate_perse=2756 attivita_concluse=22244 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=22627 duplicati_sul_bus=0 payload_decifrati=22244 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=9264 concluse_nella_proiezione=7451 accettate_perse=1815 attivita_concluse=25265 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=25454 duplicati_sul_bus=0 payload_decifrati=25265 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=9264 concluse_nella_proiezione=8516 accettate_perse=750 attivita_concluse=27048 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=27181 duplicati_sul_bus=0 payload_decifrati=27048 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=9264 concluse_nella_proiezione=9266 accettate_perse=0 attivita_concluse=27798 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=27798 duplicati_sul_bus=0 payload_decifrati=27798 payload_illeggibili=0 light=false
+verify OK
+tentativi iniziati: 27798, attività distinte: 27798, eseguite più di una volta: 0
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 98844 kB
+rss pid=2239271 40212 kB
+rss pid=2238377 22572 kB
+-- conteggio file archivio: 76
+[stato dopo 20:39:27] load: 1.83 1.13 0.71
+[stato dopo] io: some avg10=42.57 avg60=28.60 avg300=13.95 total=10863368918
+[stato dopo] cpu: some avg10=2.82 avg60=1.78 avg300=0.85 total=1220671277
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] binario sha256: d51b36de4ca9c6dc
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.68ms p99=4.11ms p99.9=4.77ms max=4.77ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.10

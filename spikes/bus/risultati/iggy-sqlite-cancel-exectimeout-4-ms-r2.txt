@@ -1,0 +1,61 @@
+[stato prima 00:37:06] load: 0.84 1.14 1.22
+[stato prima] io: some avg10=0.94 avg60=9.61 avg300=13.90 total=21410959338
+[stato prima] cpu: some avg10=0.01 avg60=0.46 avg300=0.77 total=2337065718
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: CANCEL-exectimeout
+[stato prima] binario sha256:4686b30b01664b38
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.92ms p99=4.00ms p99.9=64.42ms max=64.42ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 20 s
+### iggy + sqlite: exectimeout 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=4009964 READY recovered_ms=530 now_us=1795649834686509 gen=1
+load tenants=a rate=20/s kind=0 n=3 size=64 work_ms=2000 warm=0s measured=5s
+offered=100 accepted=100 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+load tenants=b rate=20/s kind=0 n=1 size=64 work_ms=100 warm=0s measured=5s
+offered=100 accepted=100 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+verify: accettate=200 concluse_nella_proiezione=200 accettate_perse=0 attivita_concluse=200 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=5 payload_illeggibili=0 light=true
+verify OK
+sentinel pronto (now_us=1795649834785672)
+SENTINEL_ERR state-0000000000007000800000000000000a: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+SENTINEL_ERR state-0000000000007000800000000000000b: Consumer group member with VSR client ID: 0 does not own partition: 0 at the current generation (rebalance in progress).
+sentinel_stats events=1300 topics=2 lag_events p50=1 p99=1 max=1 gaps=0 gap_events=0 alarms overdue=0 retry=0 engine_silent=0 recovered=0 header_bytes=46 cpu_s=0.16
+sentinel_read_delay n=465 p50=13.98ms p99=30.14ms p99.9=32.13ms max=32.13ms over100ms=0
+sentinel_retry_latency n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel_deadlines_resolved_after_due=0 margin_lt_1s=0 margin_to_grace_end n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+sentinel allarmi: overdue=0 retry=0 engine-silent=0 recovered=0
+sentinel prime righe:  |  |  | 
+-- annullamenti e scadenze durevoli: 100; per stato alla richiesta:  100 status2:inflight;
+-- risposte del pilota: 
+JUDGE 1 consegne partite dopo l'evento durevole (invio_us) valore=0 atteso=0 PASS
+-- (riportato) consegne ricevute dal worker dopo l'evento durevole (ricezione_us): 0
+JUDGE 2 Stop spediti prima dell'evento durevole valore=0 atteso=0 PASS
+JUDGE 3 attivita' rese pronte dopo l'evento durevole valore=0 atteso=0 PASS
+JUDGE 4 timer rimasti per esecuzioni annullate o scadute valore=0 atteso=0 PASS
+JUDGE 5 allarmi overdue/retry del sentinella per esecuzioni annullate dopo l'evento durevole valore=0 atteso=0 PASS
+-- (riportato) allarmi overdue/retry per esecuzioni annullate PRIMA dell'evento durevole (ammessi): 0
+JUDGE 7c righe 'scaduta' = esecuzioni A non concluse entro la scadenza valore=100 atteso=100 PASS
+JUDGE 7d esecuzioni 'scaduta' prima della scadenza (end_us < accepted_us + T) valore=0 atteso=0 PASS
+JUDGE 7e righe 'annullata' in una scena di sole scadenze valore=0 atteso=0 PASS
+JUDGE 8 Stop spediti = tentativi in volo all'evento durevole valore=100 atteso=100 PASS
+-- Stop ricevuti dai worker: 100, di cui con il tentativo ancora in corso: 100
+-- dall'evento durevole allo Stop ricevuto dal worker (ms, p50/p99/max): n=100 p50=0.1 p99=0.3 max=0.3
+-- storico: 2:timeout:|100;
+-- attivita' aperte nelle esecuzioni annullate (ammesse, restano ferme): 100
+-- contatori del motore (dopo un crash ripartono da zero): start_ready_tenant_b n=100 p50=8.83ms p99=15.58ms p99.9=26.24ms max=26.24ms over100ms=0 cancel cancelled=0 expired=100 noop_not_live=0 noop_again=0 noop_cancelling=0 stops_sent=100 stops_no_session=0 inflight_at_durable=100 window_deliveries=0 late_after_cancel=0 cancel_durable_latency n=100 p50=9.24ms p99=17.15ms p99.9=17.21ms max=17.21ms over100ms=0 exec_timeout_fire_delay n=100 p50=7.12ms p99=16.61ms p99.9=16.62ms max=16.62ms over100ms=0 
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 75780 kB
+rss pid=4009964 28064 kB
+rss pid=4010069 16256 kB
+-- conteggio file archivio: 13
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 00:37:28] load: 1.37 1.24 1.25
+[stato dopo] io: some avg10=14.18 avg60=11.32 avg300=14.00 total=21414117651
+[stato dopo] cpu: some avg10=0.75 avg60=0.54 avg300=0.77 total=2337278194
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: CANCEL-exectimeout
+[stato dopo] binario sha256:4686b30b01664b38
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.71ms p99=4.00ms p99.9=4.97ms max=4.97ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.01

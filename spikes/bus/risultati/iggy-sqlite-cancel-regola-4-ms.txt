@@ -1,0 +1,85 @@
+Blocco E4a, annullamento (FR-10) e scadenza dell'esecuzione (FR-8): regole di lettura scritte PRIMA di ogni corsa misurata (decisione del coordinatore, 2026-11-26).
+Perche': il PRD chiede che un annullamento sia definitivo (FR-10) e che un'esecuzione abbia una scadenza propria (FR-8); la spina (AD-2) dice che nessun effetto precede l'evento
+durevole. Si misura se, dopo l'evento `Cancelled` durevole, il sistema non fa piu' nulla per quell'esecuzione, anche dopo un crash del motore, e cosa costa.
+
+Strumento: `busspike` commit 97b79f0, bin/busspike-cancel-97b79f0, sha256 che inizia con c91dfbfbe5f5444b, uguale per tutte le corse. Scene in `scen.sh`: `cancel`, `cancel-crash`,
+`exectimeout` (con `TCRASH=1` il motore muore prima della prima scadenza). Pilota: `busspike cancelctl` (accetta e annulla con le porte pubbliche `Accept` e `Cancel`). Il sentinella gira
+in tutte le scene (`SENT=1 META=1`). Ogni scena finisce con `verify`; per la verifica un'esecuzione annullata o scaduta e' chiusa (le sue attivita' aperte restano ferme di proposito).
+Ogni file grezzo ha le righe `[stato prima HH:MM:SS]` (pavimento di fdatasync, `braccio:`, `binario sha256:`); una corsa vale solo se il suo `[stato prima]` e' piu' tardi del commit di
+questo file. Bus e database puliti prima di ogni corsa. Macchina: solo minisheep. Piano: scene `cancel`, `cancel-crash`, `exectimeout`, `exectimeout` con `TCRASH=1`, 2 corse ciascuna (r1, r2).
+File grezzi: iggy-sqlite-cancel-<scena>-4-ms-r<n>.txt. Le corse di prova hanno `-smoke-` nel nome e non contano.
+
+Disegno (5 righe): (1) la richiesta passa dalla stessa porta dell'accettazione, con ruolo e nome visualizzato opzionale; (2) il motore scrive `Cancelled{esecuzione, ruolo, nome, istante}` sigillato come gli altri
+eventi; (3) solo a evento durevole: risponde al chiamante, scarta i passi in coda e pronti, spedisce `Stop` alla sessione che tiene ciascun tentativo in volo, toglie i timer (scadenza del tentativo, ritentativo,
+scadenza dell'esecuzione) come fa un esito; (4) un esito tardivo per un'esecuzione annullata si conta (`late_after_cancel`), si rifiuta e si conferma, e non crea nulla; annullare un'esecuzione conclusa e' un
+no-op con codice `E_NOT_LIVE`, un secondo annullamento `ALREADY_CANCELLED`, uno simultaneo `E_CANCELLING`; (5) il proiettore scrive nello storico lo stato `annullata` (1) o `scaduta` (2), con ruolo, nome e istante;
+il recupero rilegge `Cancelled` dal bus e non riconsegna nulla.
+
+Istante di riferimento: «dopo l'annullamento» = dopo che l'evento `Cancelled` e' durevole sul bus, cioe' quando il chiamante riceve la risposta. Si legge dalla riga `CANCEL_DURABLE esecuzione ... istante_us`
+del registro del motore, sullo stesso orologio dei registri dei worker (stessa macchina).
+
+Scadenza dell'esecuzione (FR-8), IPOTESI da riportare al riallineamento del PRD: il conteggio parte dall'ACCETTAZIONE dell'esecuzione (non dal primo passo, non dall'ammissione da parte del tetto), con una
+manopola del motore (`exec_timeout_ms`, ms). E' scritta come Timer durevole di tipo 3 nel gruppo di accettazione. Allo scadere segue lo stesso percorso dell'annullamento con ruolo `timeout` e stato `scaduta`.
+Non si misura quale partenza sia giusta: si misura che il percorso sia lo stesso e che il ritardo sia noto.
+
+Giudicato come ZERO ESATTO (un solo caso diverso da zero = scena non superata):
+  1. consegne per un'esecuzione annullata o scaduta partite dopo l'istante di riferimento (inizio tentativo nel registro dei worker piu' tardo di `CANCEL_DURABLE`);
+  2. `Stop` spediti prima dell'istante di riferimento (`STOP_SENT` piu' presto di `CANCEL_DURABLE`);
+  3. attivita' nuove dopo l'istante di riferimento, compresi un ritentativo che scatta e un passo successivo reso pronto da un esito tardivo (stesso conteggio del punto 1 e attivita' nuove nel database);
+  4. righe della tabella dei timer rimaste per esecuzioni annullate o scadute dopo lo svuotamento (`sql timer rimasti`);
+  5. allarmi `overdue` e `retry` del sentinella per esecuzioni annullate, emessi dopo l'istante di riferimento (quelli prima sono ammessi e si riportano);
+  6. gli stessi cinque punti dopo `cancel-crash` e per le scadenze (`exectimeout`, anche con `TCRASH=1`).
+Giudicato come UGUAGLIANZA:
+  7. righe dello storico con stato `annullata` = annullamenti accettati con codice `CANCELLED` (idem `scaduta` = scadenze scattate, `expired` del motore); ruolo e nome nello storico = quelli della richiesta;
+  8. `Stop` spediti = tentativi in volo all'istante di riferimento (`stops_sent` = `inflight_at_durable`), tranne in `cancel-crash`, dove l'uguaglianza non vale e si riporta cosa e' successo.
+Giudicato anche: `verify OK` per le esecuzioni non annullate (nessun passo perso, nessun duplicato); `cancel` raggiunge tutti e sette gli stati alla richiesta (mai consegnato, trattenuto dal tetto, in volo,
+in attesa di ritentativo, piu' passi in volo con il fan-out, gia' concluso, annullato due volte), contati dalle righe `CANCEL_RECV ... state=` del file grezzo; uno stato non raggiunto e' FAIL della scena,
+non si inventa.
+Solo RIPORTATO, nessuna soglia: consegne tra la ricezione e l'evento durevole (`window_deliveries`, ammesse: erano gia' partite); tempo dal comando all'evento durevole (`cancel_durable_latency`, p50/p99);
+tempo dall'evento durevole allo `Stop` ricevuto dal worker (p50, p99, max); ritardo di scadenza (`exec_timeout_fire_delay`, dall'istante dovuto all'istante in cui il motore scrive); `late_after_cancel`;
+quanti `Stop` ricevuti avevano il tentativo ancora in corso.
+
+`cancel-crash`: 100 esecuzioni lunghe (3 passi da 5 s) annullate insieme; `stop_delay_ms=4000` tiene gli `Stop` fermi dopo l'evento durevole e il motore e' ucciso con `kill -9` in quella finestra, poi riavviato.
+Si registra se il worker riceve uno `Stop` alla riconnessione o solo un esito rifiutato (`late_after_cancel`); quale dei due sia accettabile NON e' una soglia: e' una domanda dell'ADR. I punti 1, 3, 4, 5 restano zero esatto.
+`exectimeout`: scadenza di 3 s; tenant A esecuzioni da 3 passi da 2 s (scadono a meta'), tenant B da un passo da 100 ms (concludono prima). Con `TCRASH=1` il motore muore a circa 1,5 s, prima che la prima scadenza sia dovuta:
+la scadenza deve scattare dopo il riavvio, dal timer durevole.
+
+Sentinella, uscita attesa: nessun allarme `overdue` o `retry` per un'esecuzione annullata dopo l'istante di riferimento; allarmi prima dell'annullamento ammessi; `engine-silent` solo dove il motore e' ucciso, con `recovered` uguale.
+Il sentinella legge il tipo 5 in `m` (`META_LEN` invariato a 35 byte: stato nel campo del tipo di timer).
+
+Validita' come nei file di regole precedenti: un `[stato prima]` piu' tardo del commit di questo file, hash del binario in ogni file grezzo, pavimenti riportati; chiamata rotta dello strumento = corsa non valida, si rifa' una volta con
+il file della prima corsa conservato. Le soglie non cambiano dopo una corsa; un emendamento prima delle corse misurate o una nota datata senza cambio di soglia.
+Etichette delle cause: «misurata» (con file grezzo), «ipotesi», «osservata senza file grezzo», «fuori dalle regole». Una coincidenza nello stesso minuto non e' mai una causa.
+
+Segreti: le password e le chiavi generate non finiscono in file committati. Controlli finali, solo conteggi: `grep -lF -f .env` sui file grezzi nuovi, `git grep -nE 'root[A-Za-z0-9]{6}'`, il modello `\bak[A-Za-z0-9]{14}\b`,
+sequenze di 64 cifre esadecimali fuori dalle righe `CG`.
+
+Cosa il blocco NON copre: il database lento (blocco a parte), piu' motori, l'annullamento di un'esecuzione in attesa del tetto per colpa di un altro tenant (lo stato «trattenuto dal tetto» e' coperto), l'`Stop` verso worker
+dietro iroh o dietro il motore su gRPC (qui il worker e' diretto), l'annullamento di una singola attivita' (solo dell'intera esecuzione), l'orologio di FR-8 con ammissione ritardata dal tetto, retention dello storico.
+
+Emendamento del 2026-11-26, prima delle corse misurate (richiesta del coordinatore dopo la revisione; nessuna soglia esistente si allenta, due controlli si aggiungono):
+  A1. Il punto 7 per le scadenze non confronta piu' le righe `scaduta` con il contatore `expired` del motore (circolare: non vede una scadenza mai scattata). Si confronta con la proiezione:
+      righe `scaduta` = esecuzioni del tenant A (nella scena `exectimeout` sono quelle con work_ms=2000) durevoli nella proiezione la cui scadenza (accepted_us + exec_timeout_ms) e' passata e che
+      non erano concluse entro la scadenza (senza stato e con done_us <= scadenza); si giudica anche che 0 esecuzioni finiscano `scaduta` prima della scadenza (end_us >= accepted_us + T, cioe' ritardo
+      di scatto >= 0) e che non ci siano righe `annullata` in una scena di sole scadenze. Per gli annullamenti: righe `annullata` = risposte CANCELLED viste dal pilota = annullamenti durevoli del motore
+      (letti dal registro, non dal contatore: valgono anche dopo un crash). Le righe del rapporto sono `JUDGE 7a`..`7e`.
+  A2. Il punto 1 si giudica sull'istante di INVIO scritto dal motore (`sent_us` nella consegna, stesso orologio di `CANCEL_DURABLE`), non sulla ricezione del worker: una consegna spedita un attimo prima
+      dell'istante durevole e ricevuta un attimo dopo non e' un FAIL. Il registro d'inizio del worker ha ora un sesto campo `sent_us`; la ricezione si riporta accanto (non giudicata).
+  A3. Verificato sul codice (commit 97b79f0, invariato in 75ab6cc): ogni evento di un'esecuzione passa da `submit`, che lo instrada alla stessa coda FIFO di connessione con `exec_hash() % n`, anche
+      `Cancelled` (la richiesta e la scadenza finiscono nell'elenco `evs` del gruppo, poi `launch` -> `submit`). Quindi `Cancelled` non puo' diventare durevole prima del `Timer` di scadenza di una consegna
+      GIA' spedita: `dispatch` lancia il proprio gruppo con il `Timer` subito dopo l'invio, nello stesso ciclo e prima di ogni gruppo successivo. Nessuna manopola e nessuna scena. Resta, per costruzione,
+      la finestra tra la ricezione e l'evento durevole: `dispatch` puo' ancora consegnare un passo pronto di quell'esecuzione e il suo `Timer` segue `Cancelled` sul bus (proiettore e sentinella lo
+      ignorano); queste consegne si contano (`window_deliveries`, solo riportato).
+  A4. Verificato sul codice (`load.rs`, `verify`): ignora solo le attivita' aperte delle esecuzioni con `status` in proiezione (annullate o scadute); un'esecuzione la cui richiesta ha avuto risposta
+      `E_NOT_LIVE` non ha stato ed e' verificata per intero (tutte le attivita' concluse, un solo Done, nessun duplicato).
+  A5. Nuova scena `cancel-load` (annullamenti con il motore carico): sfondo tenant B a 1.000 att./s (100 esec./s da 10 passi, size 1024), tetto 512; tenant A a 20 esec./s da 10 passi da 400 ms (circa 4 s),
+      ogni esecuzione annullata in un istante casuale tra l'accettazione e la fine attesa, il 5 % con due annullamenti insieme (ruoli diversi, per `E_CANCELLING` e `ALREADY_CANCELLED`); 5 s di riscaldamento e 60 s misurati,
+      circa 1.200 annullamenti misurati. Giudicati: punti 1-5 zero esatto, uguaglianze 7 e 8, `verify OK` (tenant B e le esecuzioni A concluse prima dell'annullamento). Solo riportati: latenza del comando,
+      dall'evento durevole allo Stop, `start_ready_tenant_b` p99 accanto al limite NFR-2 di 25 ms (nessuna soglia qui), `late_after_cancel`, `window_deliveries`, `stops_no_session`. 2 corse (r1, r2).
+  Piano delle corse misurate (E4b), 5 scene x 2 corse: `cancel`, `cancel-load`, `cancel-crash`, `exectimeout`, `exectimeout` con `TCRASH=1`; una alla volta con ms-run.sh. Binario delle corse misurate:
+  bin/busspike-cancel-75ab6cc, sha256 che inizia con 4686b30b01664b38 (sostituisce c91dfbfb...; cambia il solo registro d'inizio del worker, la scena `cancel-load` e il rapporto). Una corsa vale solo se il
+  suo `[stato prima]` e' piu' tardi del commit di questo emendamento. Il rapporto stampa le righe `JUDGE <punto> valore=.. atteso=.. PASS|FAIL`; il punto 8 non vale in `cancel-crash` (si riporta).
+  Nota sulla corsa di prova `iggy-sqlite-cancel-smoke-exectimeoutcrash-4-ms-r1.txt` (2026-11-26): le 96 scadenze su 100 del tenant A non sono 4 scadenze perse. Il pilota di quel tenant ha `accepted=95 errors=5`
+  e `verify` ha `accettate=190 concluse_nella_proiezione=192`: 2 accettazioni (1 per tenant) sono durevoli con un errore visto dal client, 95 + 1 = 96 = righe `scaduta`. Il conteggio diretto dei tenant A nella
+  proiezione non e' piu' ripetibile (database ripulito a fine corsa); lo rifa' ogni corsa misurata con `JUDGE 7c`. Nota (2026-11-26) sulla prova `cancel-load`: tutti i punti giudicati PASS e le uguaglianze 7a, 7b, 8
+  rispettate (file iggy-sqlite-cancel-smoke-cancelload-4-ms-r1.txt, binario 4686b30b01664b38).

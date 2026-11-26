@@ -1,0 +1,34 @@
+[stato prima 09:01:23] load: 0.67 0.89 0.83
+[stato prima] io: some avg10=0.89 avg60=3.61 avg300=13.44 total=6334419243
+[stato prima] cpu: some avg10=0.00 avg60=0.09 avg300=0.46 total=779329736
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.72ms p99=3.71ms p99.9=70.02ms max=70.02ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.01
+[attesa] 10 s
+### iggy + sqlite: sec 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=4105409 READY recovered_ms=312
+buono (credenziale, identita e certificato giusti): iroh: relay_urls=0 address_lookup=Ok("AddressLookupServices { services: RwLock { data: [], poisoned: false, .. }, last_data: RwLock { data: Some(EndpointData { addrs: [Ip(127.0.0.1:48114)], user_data: None }), poisoned: false, .. }, addr_filter: RwLock { data: None, poisoned: false, .. }, metrics: Metrics { lookups: Counter, lookups_failed: Counter, service_results: Family { disabled: true }, service_errors: Family { disabled: true } } }") ACCETTATO 
+credenziale errata: RIFIUTATO: connessione chiusa dal motore
+il worker non verifica il server (identita attesa di un altro nodo): RIFIUTATO: connessione fallita (the cryptographic handshake failed: error 48: invalid peer certificate: UnknownIssuer)
+identita del nodo non derivata dalla credenziale: RIFIUTATO: connessione chiusa dal motore
+-- connessioni di rete di motore e worker (solo localhost ammesso):
+udp 127.0.0.1:37794 0.0.0.0:*
+udp 127.0.0.1:47011 0.0.0.0:*
+tcp 127.0.0.1:47010 0.0.0.0:*
+tcp 127.0.0.1:46792 127.0.0.1:47001
+tcp 127.0.0.1:46804 127.0.0.1:47001
+tcp 127.0.0.1:46812 127.0.0.1:47001
+tcp 127.0.0.1:46828 127.0.0.1:47001
+tcp 127.0.0.1:46830 127.0.0.1:47001
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 73464 kB
+rss pid=4105409 28260 kB
+rss pid=4105482 19604 kB
+-- conteggio file archivio: 0
+[stato dopo 09:01:33] load: 0.72 0.90 0.83
+[stato dopo] io: some avg10=2.16 avg60=3.61 avg300=13.11 total=6334850929
+[stato dopo] cpu: some avg10=0.00 avg60=0.07 avg300=0.44 total=779366088
+[stato dopo] container non nostri non in esecuzione stabile: 5; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.65ms p99=3.38ms p99.9=7.08ms max=7.08ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-1 0.01

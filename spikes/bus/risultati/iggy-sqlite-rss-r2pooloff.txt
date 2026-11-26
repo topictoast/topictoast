@@ -1,0 +1,10 @@
+### iggy + sqlite: rss 
+engine pid=2119471 READY recovered_ms=133
+rss iggy 72408 kB
+rss pid=2119471 19176 kB
+rss pid=2119514 11596 kB
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 72408 kB
+rss pid=2119471 19176 kB
+rss pid=2119514 11596 kB
+-- conteggio file archivio: 0

@@ -1,0 +1,23 @@
+### iggy + sqlite: thr10k 
+engine pid=1889167 READY recovered_ms=307
+load tenants=ab rate=1000/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=60s
+offered=65001 accepted=65001 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=60001 p50=10.66ms p99=82.17ms p99.9=109.69ms max=127.36ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=60.0 accepted=59986 refused=0 done=599524 rejected=0 groups=1362
+activities_per_s=9992 accepted_per_s=1000
+accept_engine n=59986 p50=10.41ms p99=81.79ms p99.9=109.50ms max=126.85ms
+append n=7889 p50=6.07ms p99=39.45ms p99.9=70.46ms max=97.02ms
+start_ready n=599524 p50=6.41ms p99=51.13ms p99.9=71.55ms max=97.92ms
+start_sent n=599524 p50=0.18ms p99=0.74ms p99.9=1.18ms max=2.67ms
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms
+start_ready_tenant_b n=299762 p50=6.42ms p99=51.13ms p99.9=71.68ms max=97.92ms
+archive_read n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms
+proj_lag n=1257848 p50=137.09ms p99=266.75ms p99.9=311.81ms max=353.02ms
+sql_stmts=9566 sql_rows=1319049 sql_per_activity=0.0160 rows_per_activity=2.200 wal_bytes_per_activity=0.0
+engine_cpu_s=38.14 cache_entries=4979
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 79460 kB
+rss pid=1889167 77884 kB
+rss pid=1889211 15392 kB
+-- conteggio file archivio: 714467

@@ -1,0 +1,42 @@
+[stato prima 20:53:08] load: 0.93 1.38 1.28
+[stato prima] io: some avg10=0.96 avg60=11.53 avg300=14.01 total=1584360880
+[stato prima] cpu: some avg10=0.00 avg60=0.32 avg300=0.35 total=176428053
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.01
+[attesa] 55 s
+### valkey + sqlite: iso 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1
+engine pid=1585992 READY recovered_ms=259
+load tenants=b rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=30s
+offered=3500 accepted=3500 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=3001 p50=622.59ms p99=2040.83ms p99.9=2185.22ms max=2215.93ms over100ms=2593
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=14602 refused=0 done=25250 rejected=0 groups=185
+activities_per_s=842 accepted_per_s=487
+accept_engine n=14602 p50=604.16ms p99=2044.93ms p99.9=2193.41ms max=2222.08ms over100ms=12540
+append n=240 p50=102.59ms p99=499.97ms p99.9=1424.38ms max=1424.38ms over100ms=123
+start_ready n=25250 p50=342.27ms p99=19939.33ms p99.9=20971.52ms max=21135.36ms over100ms=19616
+start_sent n=25250 p50=0.28ms p99=2.78ms p99.9=3.41ms max=3.50ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=21117 p50=193.02ms p99=1555.45ms p99.9=1593.34ms max=1660.93ms over100ms=15483
+archive_read n=10647 p50=0.02ms p99=0.27ms p99.9=0.96ms max=1.79ms over100ms=0
+proj_lag n=74024 p50=258.56ms p99=751.10ms p99.9=1731.58ms max=1731.58ms over100ms=71387
+sql_stmts=1233 sql_rows=80021 sql_per_activity=0.0488 rows_per_activity=3.169 wal_bytes_per_activity=0.0
+engine_cpu_s=3.74 cache_entries=623
+-- tenant A (lento)
+load tenants=a rate=400/s kind=0 n=1 size=1024 work_ms=3000 warm=2s measured=40s
+offered=16800 accepted=16800 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=16001 p50=566.78ms p99=1991.68ms p99.9=2183.17ms max=2222.08ms over100ms=12826
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+-- valkey: total_forks:1 aof_last_rewrite_time_sec:0 aof_rewrites:1 
+-- RSS dopo la corsa (motore, worker, bus)
+rss valkey 21304 kB
+rss pid=1585992 44936 kB
+rss pid=1586005 14164 kB
+-- conteggio file archivio: 72
+[stato dopo 20:54:00] load: 1.50 1.44 1.30
+[stato dopo] io: some avg10=22.97 avg60=16.34 avg300=14.79 total=1594619572
+[stato dopo] cpu: some avg10=0.00 avg60=0.12 avg300=0.29 total=176768029
+[stato dopo] container non nostri non in esecuzione stabile: 6; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.03

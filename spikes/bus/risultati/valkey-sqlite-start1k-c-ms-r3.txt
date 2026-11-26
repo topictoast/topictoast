@@ -1,0 +1,36 @@
+[stato prima 20:18:31] load: 0.72 1.01 1.02
+[stato prima] io: some avg10=0.98 avg60=12.89 avg300=14.19 total=1281644848
+[stato prima] cpu: some avg10=0.02 avg60=0.43 avg300=0.41 total=160801906
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.14
+[attesa] 40 s
+### valkey + sqlite: start1k secs=25
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1
+engine pid=1457087 READY recovered_ms=40
+load tenants=a rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=25s
+offered=2999 accepted=2999 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=2500 p50=4.87ms p99=8.47ms p99.9=15.37ms max=30.88ms over100ms=0
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=25.0 accepted=2500 refused=0 done=24996 rejected=0 groups=114
+activities_per_s=1000 accepted_per_s=100
+accept_engine n=2500 p50=4.51ms p99=8.02ms p99.9=15.10ms max=30.66ms over100ms=0
+append n=8349 p50=3.00ms p99=4.82ms p99.9=6.08ms max=29.89ms over100ms=0
+start_ready n=24996 p50=3.15ms p99=5.02ms p99.9=6.29ms max=30.06ms over100ms=0
+start_sent n=24996 p50=0.11ms p99=0.22ms p99.9=0.61ms max=2.14ms over100ms=0
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+start_ready_tenant_b n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+archive_read n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0
+proj_lag n=52481 p50=124.35ms p99=232.83ms p99.9=246.78ms max=258.30ms over100ms=32007
+sql_stmts=798 sql_rows=55094 sql_per_activity=0.0319 rows_per_activity=2.204 wal_bytes_per_activity=0.0
+engine_cpu_s=2.64 cache_entries=214
+-- valkey: total_forks:0 aof_last_rewrite_time_sec:-1 aof_rewrites:0 
+-- RSS dopo la corsa (motore, worker, bus)
+rss valkey 22520 kB
+rss pid=1457087 24940 kB
+rss pid=1457100 12220 kB
+-- conteggio file archivio: 28
+[stato dopo 20:19:09] load: 1.03 1.04 1.03
+[stato dopo] io: some avg10=15.20 avg60=13.15 avg300=14.02 total=1286654562
+[stato dopo] cpu: some avg10=0.08 avg60=0.25 avg300=0.36 total=161046850
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

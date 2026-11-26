@@ -1,0 +1,15 @@
+[stato prima 16:22:14] load: 1.14 1.22 1.00
+[stato prima] io: some avg10=0.61 avg60=7.80 avg300=12.09 total=377042224
+[stato prima] cpu: some avg10=0.00 avg60=0.22 avg300=0.52 total=100384308
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.17
+[attesa] 40 s
+== rep=9 bus=iggy
+bench-append bus=iggy size=1024 batch=1 conc=1: n=527 p50=11.78ms p99=17.04ms p99.9=19.18ms max=19.18ms over100ms=0 msgs/s=88
+bench-append bus=iggy size=1024 batch=50 conc=1: n=798 p50=7.80ms p99=10.09ms p99.9=30.05ms max=30.05ms over100ms=0 msgs/s=6650
+bench-append bus=iggy size=1024 batch=100 conc=4: n=2823 p50=8.43ms p99=12.15ms p99.9=33.34ms max=37.31ms over100ms=0 msgs/s=47050
+[stato dopo 16:22:45] load: 1.72 1.33 1.04
+[stato dopo] io: some avg10=45.04 avg60=21.66 avg300=14.99 total=390622439
+[stato dopo] cpu: some avg10=3.54 avg60=1.15 avg300=0.70 total=101362569
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00

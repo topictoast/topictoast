@@ -1,0 +1,21 @@
+### iggy + pg: dbdown 
+engine pid=2016390 READY recovered_ms=87
+postgres fermato
+postgres riavviato
+load tenants=a rate=300/s kind=0 n=10 size=1024 work_ms=100 warm=1s measured=28s
+offered=8699 accepted=6099 refused_E_PROJECTION_DOWN=2600 errors=0 overload_skipped=0
+accept_rtt_open_loop n=5800 p50=5.46ms p99=79.87ms p99.9=99.26ms max=105.98ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+proiezione ferma su state-0000000000007000800000000000000a: error communicating with database: Connection reset by peer (os error 104)
+proiezione ripresa su state-0000000000007000800000000000000a
+verify: accettate=6099 concluse_nella_proiezione=5677 accettate_perse=422 attivita_concluse=59092 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=59570 duplicati_sul_bus=0
+verify FALLITA
+verify: accettate=6099 concluse_nella_proiezione=6099 accettate_perse=0 attivita_concluse=60990 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=60990 duplicati_sul_bus=0
+verify OK
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 101396 kB
+rss postgres 142516 kB
+rss pid=2016390 53108 kB
+rss pid=2016430 15684 kB
+-- conteggio file archivio: 67089

@@ -1,0 +1,29 @@
+### iggy + sqlite: kill 
+cpu: motore/worker/bus/db=0-3 carico=8-15 wconn=4
+engine pid=2835269 READY recovered_ms=407
+prima del kill: secs=9.1 accepted=2399 refused=0 done=22107 rejected=0 groups=56 activities_per_s=2423 accepted_per_s=263 
+engine pid=2835589 READY recovered_ms=422
+kill -9 -> motore di nuovo in ascolto: 1.644265536 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.673318936 s
+prima del kill: secs=5.3 accepted=1573 refused=0 done=15761 rejected=0 groups=37 activities_per_s=2961 accepted_per_s=296 
+engine pid=2836057 READY recovered_ms=102
+kill -9 -> motore di nuovo in ascolto: 1.208025532 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.333016422 s
+prima del kill: secs=6.3 accepted=1869 refused=0 done=18776 rejected=0 groups=47 activities_per_s=2998 accepted_per_s=298 
+engine pid=2836300 READY recovered_ms=379
+kill -9 -> motore di nuovo in ascolto: 1.416778822 s (1 s di attesa voluta inclusa)
+kill -9 -> prima attività conclusa dopo la ripresa: 1.673014387 s
+load tenants=a rate=300/s kind=0 n=10 size=1024 work_ms=100 warm=1s measured=28s
+offered=8700 accepted=7499 refused_E_PROJECTION_DOWN=0 errors=1201 overload_skipped=0
+accept_rtt_open_loop n=7200 p50=12.05ms p99=115.39ms p99.9=148.86ms max=156.93ms over100ms=106
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+verify: accettate=7499 concluse_nella_proiezione=7060 accettate_perse=449 attivita_concluse=72473 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=75090 duplicati_sul_bus=0 payload_decifrati=72473 payload_illeggibili=0
+verify FALLITA
+verify: accettate=7499 concluse_nella_proiezione=7509 accettate_perse=0 attivita_concluse=75090 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=75090 duplicati_sul_bus=0 payload_decifrati=75090 payload_illeggibili=0
+verify OK
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 99608 kB
+rss pid=2836300 37404 kB
+rss pid=2835302 14552 kB
+-- conteggio file archivio: 27

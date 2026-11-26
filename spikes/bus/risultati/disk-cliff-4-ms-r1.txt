@@ -1,0 +1,62 @@
+[stato prima 17:26:25] load: 0.74 1.86 1.42
+[stato prima] io: some avg10=0.30 avg60=9.66 avg300=40.52 total=8229174769
+[stato prima] cpu: some avg10=0.00 avg60=0.52 avg300=2.24 total=1010437405
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.71ms p99=5.35ms p99.9=5.43ms max=5.43ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 0 s
+disk-cliff: 45 blocchi da 1 GB su /home/white_sheep/.cache/ttspikebus-data/cliff.tmp
+io prima: some avg10=1.98 avg60=9.42 avg300=40.05 total=8229404867
+blocco 1 alle 17:26:29: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.469775 s, 2.2 GB/s | util disco ticks=24660708
+blocco 2 alle 17:26:29: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.416029 s, 2.5 GB/s | util disco ticks=24660940
+blocco 3 alle 17:26:30: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.402545 s, 2.6 GB/s | util disco ticks=24661146
+blocco 4 alle 17:26:30: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.413578 s, 2.5 GB/s | util disco ticks=24661354
+blocco 5 alle 17:26:30: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.415227 s, 2.5 GB/s | util disco ticks=24661567
+blocco 6 alle 17:26:31: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.405016 s, 2.6 GB/s | util disco ticks=24661769
+blocco 7 alle 17:26:31: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.417665 s, 2.5 GB/s | util disco ticks=24661976
+blocco 8 alle 17:26:32: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.394387 s, 2.7 GB/s | util disco ticks=24662204
+blocco 9 alle 17:26:32: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.421457 s, 2.5 GB/s | util disco ticks=24662420
+blocco 10 alle 17:26:32: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.351029 s, 3.0 GB/s | util disco ticks=24662634
+blocco 11 alle 17:26:33: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.361647 s, 2.9 GB/s | util disco ticks=24662841
+blocco 12 alle 17:26:33: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.361198 s, 2.9 GB/s | util disco ticks=24663042
+blocco 13 alle 17:26:34: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.525003 s, 2.0 GB/s | util disco ticks=24663265
+blocco 14 alle 17:26:34: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.461466 s, 2.3 GB/s | util disco ticks=24663514
+blocco 15 alle 17:26:35: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.631103 s, 1.7 GB/s | util disco ticks=24663927
+blocco 16 alle 17:26:35: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.658566 s, 1.6 GB/s | util disco ticks=24664352
+blocco 17 alle 17:26:36: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.637161 s, 1.6 GB/s | util disco ticks=24664800
+blocco 18 alle 17:26:37: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.676412 s, 1.6 GB/s | util disco ticks=24665224
+blocco 19 alle 17:26:37: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.731407 s, 1.4 GB/s | util disco ticks=24665632
+blocco 20 alle 17:26:38: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.66016 s, 1.6 GB/s | util disco ticks=24666072
+blocco 21 alle 17:26:39: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.680839 s, 1.5 GB/s | util disco ticks=24666501
+blocco 22 alle 17:26:40: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.770344 s, 1.4 GB/s | util disco ticks=24667026
+blocco 23 alle 17:26:40: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.787112 s, 1.3 GB/s | util disco ticks=24667673
+blocco 24 alle 17:26:41: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.714127 s, 1.5 GB/s | util disco ticks=24668134
+blocco 25 alle 17:26:42: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.860889 s, 1.2 GB/s | util disco ticks=24668825
+blocco 26 alle 17:26:43: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.699673 s, 1.5 GB/s | util disco ticks=24669271
+blocco 27 alle 17:26:43: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.676033 s, 1.6 GB/s | util disco ticks=24669702
+blocco 28 alle 17:26:44: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.935489 s, 1.1 GB/s | util disco ticks=24670310
+blocco 29 alle 17:26:47: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 2.60088 s, 403 MB/s | util disco ticks=24672450
+blocco 30 alle 17:26:50: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 3.436 s, 305 MB/s | util disco ticks=24675453
+blocco 31 alle 17:26:51: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.718849 s, 1.5 GB/s | util disco ticks=24675890
+blocco 32 alle 17:26:52: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.68027 s, 1.5 GB/s | util disco ticks=24676319
+blocco 33 alle 17:26:52: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.703673 s, 1.5 GB/s | util disco ticks=24676739
+blocco 34 alle 17:26:53: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.685792 s, 1.5 GB/s | util disco ticks=24677178
+blocco 35 alle 17:26:54: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.66613 s, 1.6 GB/s | util disco ticks=24677607
+blocco 36 alle 17:26:55: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.764769 s, 1.4 GB/s | util disco ticks=24678039
+blocco 37 alle 17:26:55: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.69499 s, 1.5 GB/s | util disco ticks=24678491
+blocco 38 alle 17:26:56: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.677661 s, 1.5 GB/s | util disco ticks=24678925
+blocco 39 alle 17:26:57: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.599458 s, 1.7 GB/s | util disco ticks=24679388
+blocco 40 alle 17:26:57: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.665913 s, 1.6 GB/s | util disco ticks=24679842
+blocco 41 alle 17:26:58: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.674511 s, 1.6 GB/s | util disco ticks=24680279
+blocco 42 alle 17:26:59: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 0.680803 s, 1.5 GB/s | util disco ticks=24680707
+blocco 43 alle 17:27:01: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 2.44336 s, 429 MB/s | util disco ticks=24682787
+blocco 44 alle 17:27:04: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 3.26275 s, 321 MB/s | util disco ticks=24685641
+blocco 45 alle 17:27:07: 1048576000 bytes (1.0 GB, 1000 MiB) copied, 3.12486 s, 336 MB/s | util disco ticks=24688378
+io dopo: some avg10=17.71 avg60=12.02 avg300=36.90 total=8235357005
+FINITO disk-cliff
+[stato dopo 17:27:08] load: 1.01 1.77 1.41
+[stato dopo] io: some avg10=17.71 avg60=12.02 avg300=36.90 total=8235357005
+[stato dopo] cpu: some avg10=0.00 avg60=0.25 avg300=1.93 total=1010556442
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=4.65ms p99=5.44ms p99.9=106.88ms max=106.88ms over100ms=1
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.03

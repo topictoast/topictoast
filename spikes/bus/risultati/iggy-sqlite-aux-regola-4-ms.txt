@@ -1,0 +1,77 @@
+Blocco E, E2, processo ausiliario (AD-6): regole di lettura scritte PRIMA di ogni corsa misurata (decisione del coordinatore, 2026-11-25).
+Nessuna soglia cambia dopo una corsa; nessuna corsa si scarta o si rifa' dopo averla vista, salvo le condizioni di validita' qui sotto.
+La riga a 10.000 att./s NON e' in questo file: girera' su bigsheep, con regole proprie, dopo i risultati a 1.000 att./s.
+
+Cosa e':
+  - Il sottocomando `busspike aux` dello stesso binario, avviato dal motore all'avvio come figlio con l'ambiente VUOTO (`env_clear`), con `aux=1` (argomento del motore, `AUX=1` di
+    scen.sh); con `AUX=0` (default) il motore non lo avvia e niente cambia.
+  - IPC su pipe stdin/stdout, frame con prefisso di lunghezza `[u32 byte][u64 id richiesta][u8 tipo][carico]`; il motore manda per primo `HELLO` con la versione dell'IPC (1) e
+    l'ausiliario esce con codice 3 se e' diversa; un solo processo, un task scrittore e un task lettore nel motore, richieste in pipeline con id.
+  - Due andate e ritorno per attivita', in ON: (1) `PREPARE` in `dispatch`, tra «dipendenze soddisfatte» e l'invio al worker, quindi dentro `start_ready`: filtro `if`, mappatura
+    jq dell'ingresso e controllo dello schema d'ingresso sull'ingresso MAPPATO; al worker va l'ingresso mappato; (2) `CHECK` quando arriva il risultato, prima che il passo sia
+    giudicato `Done`: controllo dello schema d'uscita (fuori da `start_ready` di quel passo, ma ritarda il successivo). Un passo con `if` falso si conclude senza consegna e senza
+    uscita; un ingresso non valido non si consegna e non si ritenta; un'uscita non valida segna il tentativo come fallito (si ritenta).
+  - Librerie (nessuna usata prima): `jaq-core 3.1.2`, `jaq-std 3.0.4`, `jaq-json 2.0.3`, `jsonschema 0.61.1` con `default-features = false` (niente `resolve-http`, niente `resolve-file`, niente
+    TLS: AD-10 vieta i riferimenti esterni), `serde_json` (gia' presente nell'albero). Licenze dei 32 crate nuovi: MIT, MIT OR Apache-2.0, Apache-2.0, MIT-0 e uno `Apache-2.0 OR GPL-2.0-only`
+    (self_cell: si elegge Apache-2.0); nessun'altra.
+  - Manifest fisso (costanti in `src/auxp.rs`): `if` = `.flag == true` (sempre vero nelle corse misurate); mappatura = oggetto di 7 campi
+    `{id, seq: (.seq + 1), name, tags: (.tags | map(ascii_upcase)), total: ([.items[] | .qty * .price] | add), n: (.items | length), data}` (un'aritmetica, operazioni su array);
+    schema d'ingresso (sul mappato) e schema d'uscita: 2020-12 con `type`, `properties` (10 proprieta' ciascuno), `required`, `items`, `minimum`, `maxLength`.
+  - Carico: documento JSON fisso di circa 1 KB (12 campi, un oggetto annidato, due array) come ingresso e come uscita del worker, uguale nei due bracci (`PAYLOAD=json` in tutte le corse
+    di questo file: ingresso con `seq` che cambia, uscita con `status`); il worker riceve l'ingresso mappato (circa la stessa dimensione: la mappatura riporta `data`).
+  - Contatori (riga `aux` delle statistiche): chiamate per tipo, errori, CPU (da `/proc`), RSS, andata e ritorno del motore (`aux_rtt`); CPU dell'ausiliario per 1.000 attivita' nella finestra
+    (`aux_cpu_per_1000_att`); latenza del passo (`step_latency`: da «pronta» al giudizio di `Done`, comprende il controllo dell'uscita) per ogni passo.
+
+Binario: bin/busspike-aux-af23e79, costruito dal commit af23e79, sha256 che inizia con f2152947f38633cf; lo stesso per ogni riga e ogni braccio.
+  Aggiunta del 2026-11-25, dopo la revisione e PRIMA di ogni corsa misurata (nessuna soglia ne' atteso cambia): il percorso `PREPARE` e' stato messo in pipeline. Nel primo binario
+  (440cc63, solo corse di prova) `dispatch` aspettava la risposta di ogni attivita' prima di preparare la successiva (circa 0,1 ms di ciclo del motore per attivita'); ora, in ogni giro,
+  sceglie le attivita' (stesso giro a turno tra i tenant e stesso tetto: le gia' scelte si sommano alle in volo), lancia un `PREPARE` per ciascuna senza aspettare e poi attende le
+  risposte nell'ordine di scelta. Le corse di prova con il primo binario non contano. Ogni file grezzo ha le righe `[stato prima HH:MM:SS]`
+(pavimento di fdatasync, `braccio:`, `binario sha256:`); una corsa vale solo se il suo `[stato prima]` e' piu' tardi del commit di questo file. Minisheep, SQLite, CAP=512, una corsa alla volta,
+`ms-run.sh`. Raw: iggy-sqlite-aux-<riga>-<braccio>-4-ms-r<n>.txt.
+
+Riga 1. COSTO A 1.000 ATT./S (riga `aux1k`, bracci `OFF` e `ON`)
+  Comandi (1.000 att./s: 100 esecuzioni/s da 10 passi, 40 s misurati dopo 5 s, tenant A, TRIM=0 in entrambi):
+    OFF: `PAYLOAD=json ./scen.sh iggy sqlite aux1k`
+    ON:  `PAYLOAD=json AUX=1 ./scen.sh iggy sqlite aux1k`
+  6 coppie (r1-r6; il piano ne diceva 5, qui sono 6), un braccio per volta, ordine alternato: coppie 1, 3, 5 con OFF per primo, coppie 2, 4, 6 con ON per primo.
+  Metrica per corsa: `start_ready` p99 (e p50) dalle statistiche a fine finestra. Aggregazione come nel log dei task: mediana per braccio sulle 6 corse; d = p99(ON) - p99(OFF) per coppia;
+  X = mediana delle d nelle coppie con ON per primo (2, 4, 6), Y = mediana nelle coppie con ON per secondo (1, 3, 5); la differenza si DICHIARA solo se X e Y hanno lo stesso segno;
+  R = mediana(ON) / mediana(OFF).
+  Criteri:
+    a. mediana del p99 di `start_ready` <= 25 ms per ciascun braccio (la base e' vicina al limite: altrove 19,7-25,3 ms);
+    b. R <= 1,20 = rispettato; R > 1,20 con differenza dichiarata positiva (X e Y > 0) = NON rispettato; R > 1,20 con X e Y di segno opposto = «non dichiarabile (effetto d'ordine)», con i numeri;
+    c. istruzioni SQL per attivita' (`sql_per_activity` globale della finestra): la mediana di ON differisce da quella di OFF di non piu' del 10 % (relativo).
+  Si riportano, per braccio (mediana delle 6 corse): latenza del passo `step_latency` p50 e p99; CPU del motore per 1.000 attivita' (`cpu_per_1000_att engine`); CPU dell'ausiliario per 1.000
+  attivita' (`aux_cpu_per_1000_att`, solo ON); andata e ritorno dell'ausiliario `aux_rtt` p50 e p99 (solo ON, misurata nel motore dall'invio alla risposta); RSS dell'ausiliario a fine corsa.
+  Validita' di ogni corsa (se manca: «non valida: motivo», si rifa' una volta, subito; entrambe nel rapporto):
+    V1. `verify OK`; V2. `activities_per_s` della finestra >= 950 e `errors=0` nel generatore;
+    V3. ON: nella riga `-- ausiliario a fine corsa` (dopo lo svuotamento) `calls_prepare` = `calls_check` = `attivita_concluse` dell'ultima riga `verify` (esattamente 2 chiamate per attivita'
+        completata: 1 `PREPARE` con if, mappatura e schema d'ingresso, 1 `CHECK` dell'uscita), `errors=0`, `input_invalid=0`, `output_invalid=0`, `skipped=0`; OFF: nessuna riga `aux`.
+
+Riga 2. CONTROLLI NEGATIVI (riga `auxneg`, due corse: `schema` e `if`, una ciascuna)
+  schema: `PAYLOAD=json AUX=1 INBAD=10 ./scen.sh iggy sqlite auxneg rate=50 n=1 secs=10 warm=2` (50 esecuzioni/s da un solo passo; ogni decimo ingresso senza il campo `name`, quindi la
+    mappatura da' `name: null` e lo schema lo rifiuta). SUPERATA se: il registro del motore ha righe `AUX_INPUT_INVALID <esecuzione> <passo> <tentativo>: <messaggio>` e il messaggio nomina il
+    campo (contiene `/name`); il numero di quelle righe e `input_invalid` della riga `aux` sono uguali e uguali a `accettate_perse` della verifica finale (le esecuzioni con ingresso non valido non
+    concludono: verify FALLITA e' attesa in questa corsa, e sola); `panic` = 0 nel registro del motore; l'ausiliario non muore: `calls_prepare` > `input_invalid`, `errors=0`, e le esecuzioni
+    valide concludono (`attivita_concluse` = accettate - `input_invalid`); nessuna riga `AUX_CADUTO`/`AUX_EXIT`.
+  if: `PAYLOAD=json AUX=1 INFLAG=0 ./scen.sh iggy sqlite auxneg rate=50 n=1 secs=10 warm=2` (ogni ingresso con `flag` falso). SUPERATA se: `skipped` = `calls_prepare` = accettate (ogni passo si
+    salta), `calls_check` = 0, `verify OK` (le esecuzioni si concludono senza consegna), nessuna riga `AUX_INPUT_INVALID`, `panic` = 0, `errors=0`.
+  Il messaggio di validazione puo' contenere il valore dell'ingresso (e' il testo del validatore): da ripulire prima di un uso reale; si riporta.
+
+Riga 3. MEMORIA (riga `auxrss`, una corsa)
+  Comando: `PAYLOAD=json AUX=1 ./scen.sh iggy sqlite auxrss`: RSS (VmRSS di /proc) di motore, ausiliario (figlio del motore), worker e Iggy (container) a riposo, 60 s dopo l'avvio, e sotto
+  carico a 1.000 att./s (campione a 25 s di un carico di 30 s); somme.
+  Cosa copre NFR-1 (PRD): somma dell'RSS dei processi di topictoast in esecuzione (motore e ogni processo ausiliario attivo) e del bus, con SQLite, 60 s dopo l'avvio, nessuna esecuzione
+  attiva; esclusi i worker. Quindi la somma a RIPOSO motore + ausiliario + Iggy si confronta con 80 MB (81.920 kB) e si GIUDICA: <= 81.920 kB = rispettato, altrimenti non rispettato (con i
+  numeri). La somma sotto carico si riporta, non si giudica. Il worker si riporta e non entra nella somma. Nota: Iggy gira in un container con la configurazione della spike (pool di memoria
+  512 MiB abilitato, che lo spike ha gia' discusso: la deroga di Marco su NFR-1 vale ancora); se la somma supera 80 MB si dice quanta parte e' Iggy.
+
+«Non coperto» (dichiarato ora):
+  - `PR_SET_DUMPABLE` e le regole dei core dump di AD-6 (non si aggiunge nessuna libreria per questo);
+  - l'IPC con un ausiliario caduto o riavviato: il codice rimette l'attivita' in testa alla coda dei pronti (nessun lavoro perso, nessun avanzamento), non c'e' riavvio dell'ausiliario;
+    non misurato;
+  - piu' processi ausiliari; `call http`; il tenant vicino con schemi pesanti del benchmark a carico misto del PRD; Postgres; la compilazione dell'interprete per wasm32-wasip1 (la spine la
+    richiede, qui non si verifica);
+  - il costo a 10.000 att./s (riga a parte su bigsheep);
+  - la politica di fallimento terminale di un ingresso non valido (qui l'attivita' non si consegna e non si ritenta).

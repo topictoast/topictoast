@@ -1,0 +1,47 @@
+# Spike S-1 fase 2: crate autonomo, fuori dai workspace e dal gate. Codice da buttare.
+[package]
+name = "busspike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+# fase 4, blocco E2: processo ausiliario (AD-6). Nessun riferimento esterno (AD-10): `jsonschema` senza `resolve-http` ne' `resolve-file`.
+jaq-core = "=3.1.2"
+jaq-std = "=3.0.4"
+jaq-json = "=2.0.3"
+jsonschema = { version = "=0.61.1", default-features = false }
+serde_json = "1"
+tokio = { version = "=1.54.1", features = ["full"] }
+tokio-stream = "=0.1.19"
+tonic = { version = "=0.14.9", features = ["tls-ring", "transport"] }
+tonic-prost = "=0.14.9"
+prost = "=0.14.4"
+iggy = "=0.12.0"
+# fase 4: client del server 0.9.0 (stessa data del server, 2026-09-18), per il motore «vecchio» dell'aggiornamento
+iggy_old = { package = "iggy", version = "=0.11.0", optional = true }
+redis = { version = "=1.8.1", features = ["tokio-comp"] }
+sqlx = { version = "=0.9.1", features = ["runtime-tokio", "sqlite", "postgres"] }
+hdrhistogram = "=7.6.0"
+aes-gcm = "=0.11.1"
+hkdf = "=0.13.0"
+sha2 = "=0.11.1"
+rcgen = "=0.14.10"
+uuid = { version = "=1.29.1", features = ["v7"] }
+libc = "=0.2.191"
+bytes = "=1.12.1"
+# fase 3: collegamento dei worker su QUIC (iroh 1.4.1: ultima versione con almeno due settimane, nessun avviso pubblicato)
+iroh = { version = "=1.4.1", default-features = false, features = ["tls-ring"] }
+rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std"] }
+
+[features]
+# motore «vecchio» dell'aggiornamento: client iggy 0.11.0 (server 0.9.0) al posto della 0.12.0
+old = ["dep:iggy_old"]
+
+[build-dependencies]
+tonic-prost-build = "=0.14.9"
+
+[profile.release]
+debug = 1

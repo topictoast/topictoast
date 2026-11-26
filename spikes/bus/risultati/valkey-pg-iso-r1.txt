@@ -1,0 +1,31 @@
+### valkey + pg: iso 
+engine pid=2032731 READY recovered_ms=15
+load tenants=b rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=30s
+offered=3500 accepted=3500 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=3001 p50=1.08ms p99=13.15ms p99.9=150.53ms max=179.71ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+secs=30.0 accepted=15002 refused=0 done=35121 rejected=0 groups=280
+activities_per_s=1171 accepted_per_s=500
+accept_engine n=15002 p50=0.99ms p99=13.05ms p99.9=153.34ms max=181.50ms
+append n=39034 p50=0.55ms p99=2.33ms p99.9=5.88ms max=170.75ms
+start_ready n=35121 p50=0.70ms p99=18956.29ms p99.9=19054.59ms max=19136.51ms
+start_sent n=35121 p50=0.06ms p99=0.17ms p99.9=0.30ms max=0.77ms
+start_join n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms
+start_ready_tenant_b n=30001 p50=0.67ms p99=3.38ms p99.9=12.47ms max=171.65ms
+archive_read n=5120 p50=0.04ms p99=0.10ms p99.9=0.18ms max=1.35ms
+proj_lag n=92069 p50=122.11ms p99=230.01ms p99.9=359.17ms max=417.28ms
+sql_stmts=1816 sql_rows=100466 sql_per_activity=0.0517 rows_per_activity=2.861 wal_bytes_per_activity=1019.9
+engine_cpu_s=9.71 cache_entries=477
+-- tenant A (lento)
+load tenants=a rate=400/s kind=0 n=1 size=1024 work_ms=3000 warm=2s measured=40s
+offered=16800 accepted=16800 refused_E_PROJECTION_DOWN=0 errors=0 overload_skipped=0
+accept_rtt_open_loop n=16001 p50=1.20ms p99=9.46ms p99.9=144.13ms max=182.01ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+-- valkey: total_forks:1 aof_last_rewrite_time_sec:1 aof_rewrites:1 
+-- RSS dopo la corsa (motore, worker, bus)
+rss valkey 22588 kB
+rss postgres 179580 kB
+rss pid=2032731 35512 kB
+rss pid=2032789 13016 kB
+-- conteggio file archivio: 62011

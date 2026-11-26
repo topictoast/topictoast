@@ -1,0 +1,50 @@
+[stato prima 23:03:28] load: 0.25 0.82 1.63
+[stato prima] io: some avg10=0.71 avg60=4.15 avg300=10.25 total=12617532565
+[stato prima] cpu: some avg10=0.01 avg60=0.17 avg300=0.55 total=1390141561
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] binario sha256: 175e97d37560d594
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.82ms p99=4.05ms p99.9=67.45ms max=67.45ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 25 s
+### iggy + sqlite: tdead 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=2779457 READY recovered_ms=595 now_us=1795557815989637 gen=1
+T0 kill del worker 1=1795557820009304
+prima del kill del motore: secs=4.6 accepted=247 refused=0 done=122 rejected=0 groups=22 expired=0 late_ok=0 timer_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 timers_pending=125 
+engine pid=2779762 READY recovered_ms=71 now_us=1795557820597651 gen=1
+kill del motore -> READY: 73 ms; READY_us=1795557820597651
+ripresa: 127 esecuzioni vive, 32 eventi riletti dal bus, 127 attività emesse e non concluse, 127 timer
+ripresa: 127 attività emesse e non concluse: 127 in volo (scadenza ripristinata), 0 in attesa di un timer, 0 da consegnare subito
+load tenants=ab rate=100/s kind=0 n=1 size=1024 work_ms=1000 warm=0s measured=3s
+offered=300 accepted=291 refused_E_PROJECTION_DOWN=0 errors=9 overload_skipped=0
+errors_by_type {"Unavailable:tcp connect error": 7, "Unknown:transport error": 2}
+accept_rtt_open_loop n=291 p50=19.28ms p99=92.61ms p99.9=103.17ms max=103.17ms over100ms=1
+accept_max_gap_ms=108 from_us=1795557820521056 to_us=1795557820628856
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=0.02 cpu_per_1000_att engine=0.000 worker=24.000
+verify: accettate=291 concluse_nella_proiezione=138 accettate_perse=153 attivita_concluse=138 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=152 duplicati_sul_bus=0 payload_decifrati=138 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=291 concluse_nella_proiezione=286 accettate_perse=5 attivita_concluse=286 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=289 duplicati_sul_bus=0 payload_decifrati=286 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=291 concluse_nella_proiezione=291 accettate_perse=0 attivita_concluse=291 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=291 duplicati_sul_bus=0 payload_decifrati=291 payload_illeggibili=0 light=false
+verify OK
+motore dopo la corsa: secs=6.7 accepted=42 refused=0 done=169 rejected=0 groups=26 expired=51 late_ok=76 timer_fire_delay n=51 p50=1.30ms p99=18.85ms p99.9=18.85ms max=18.85ms over100ms=0 timers_pending=0 
+tentativi iniziati: 340, tentativo 0 distinti: 289, tentativo 0 eseguiti più di una volta: 0, tentativo 1 iniziati: 51
+tentativi 1 iniziati: 51 (con timer noto 49, senza 2); iniziati più di una volta: 0; iniziati prima della scadenza: 0
+inizio nel worker - scadenza, ms (tutti): p50 108.7 p99 557.0 max 607.6
+scaduti dopo READY: 49; inizio nel worker - scadenza, ms: p50 108.7 p99 557.0 max 607.6
+timer programmati (righe TSET di questo tipo e tentativo): 289
+TFIRE: 51 timer scattati, presa in carico - scadenza ms: p50 1.3 p99 18.8 max 18.8
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 96440 kB
+rss pid=2779762 26200 kB
+rss pid=2779590 16056 kB
+-- conteggio file archivio: 14
+[stato dopo 23:03:47] load: 0.51 0.85 1.62
+[stato dopo] io: some avg10=11.28 avg60=6.51 avg300=10.38 total=12620059070
+[stato dopo] cpu: some avg10=0.50 avg60=0.27 avg300=0.55 total=1390314567
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] binario sha256: 175e97d37560d594
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.85ms p99=4.14ms p99.9=4.66ms max=4.66ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.03

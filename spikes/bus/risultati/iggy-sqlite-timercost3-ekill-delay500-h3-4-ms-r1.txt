@@ -1,0 +1,56 @@
+[stato prima 11:57:44] load: 0.58 0.43 0.38
+[stato prima] io: some avg10=0.89 avg60=3.74 avg300=1.80 total=16160414286
+[stato prima] cpu: some avg10=0.00 avg60=0.08 avg300=0.03 total=1765807946
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: H3-01cf3bc
+[stato prima] binario sha256:25c97a9e69512b9a
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.81ms p99=4.16ms p99.9=7.51ms max=7.51ms over100ms=0
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[attesa] 25 s
+### iggy + sqlite: ekill 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=1160833 READY recovered_ms=521 now_us=1795604271792796 gen=1
+prima del kill: secs=13.1 accepted=4004 refused=0 done=5982 rejected=0 groups=112 expired=0 late_ok=0
+prima del kill: timer_fire_delay n=0 p50=0.00ms p99=0.00ms p99.9=0.00ms max=0.00ms over100ms=0 timers_pending=3012 heartbeats=0 undurable_deliveries=371 undurable_max=546 held=0 
+engine pid=1161362 READY recovered_ms=104 now_us=1795604285009955 gen=1
+kill -9 -> READY: 108 ms (READY recovered_ms=104 now_us=1795604285009955 gen=1); READY_us=1795604285009955
+ripresa: 3020 esecuzioni vive, 283 eventi riletti dal bus, 3020 attività emesse e non concluse, 2633 timer
+ripresa: 3020 attività emesse e non concluse: 2633 in volo (scadenza ripristinata), 0 in attesa di un timer, 387 da consegnare subito
+kill -9 -> prima attività conclusa: 216 ms
+load tenants=ab rate=334/s kind=0 n=3 size=1024 work_ms=3000 warm=1s measured=30s
+offered=10354 accepted=10316 refused_E_PROJECTION_DOWN=0 errors=38 overload_skipped=0
+errors_by_type {"Unavailable:tcp connect error": 35, "Unknown:transport error": 3}
+accept_rtt_open_loop n=9982 p50=12.50ms p99=22.08ms p99.9=104.38ms max=125.38ms over100ms=11
+accept_max_gap_ms=143 from_us=1795604284899811 to_us=1795604285042982
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+
+worker_cpu_s=1.03 cpu_per_1000_att engine=0.000 worker=1030.000
+motore dopo la corsa: secs=19.0 accepted=6305 refused=0 done=18933 rejected=387 groups=176 expired=0 late_ok=2633
+verify: accettate=10316 concluse_nella_proiezione=7294 accettate_perse=3023 attivita_concluse=24901 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=25217 duplicati_sul_bus=0 payload_decifrati=24901 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10316 concluse_nella_proiezione=8369 accettate_perse=1948 attivita_concluse=28061 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=28373 duplicati_sul_bus=0 payload_decifrati=28061 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10316 concluse_nella_proiezione=9523 accettate_perse=794 attivita_concluse=30157 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=30294 duplicati_sul_bus=0 payload_decifrati=30157 payload_illeggibili=0 light=false
+verify FALLITA
+verify: accettate=10316 concluse_nella_proiezione=10317 accettate_perse=0 attivita_concluse=30951 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=30951 duplicati_sul_bus=0 payload_decifrati=30951 payload_illeggibili=0 light=false
+verify OK
+tentativi iniziati: 31330, attività distinte: 30951, eseguite più di una volta: 379
+sql: SELECT min(accepted_us) - 1795604285009955 FROM execution WHERE accepted_us > 1795604285009955
+dopo READY: prima accettazione nuova 3 ms (us grezzi: 3658); prima consegna di un'esecuzione nuova 106 ms (vuoto = nessuna: no)
+dopo READY, entro 2 s: accettate nuove 667; consegne di esecuzioni nuove 664
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 102196 kB
+rss pid=1161362 42936 kB
+rss pid=1160894 24924 kB
+-- conteggio file archivio: 78
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 0
+[stato dopo 11:58:34] load: 2.13 0.86 0.53
+[stato dopo] io: some avg10=42.05 avg60=25.29 avg300=7.91 total=16180721625
+[stato dopo] cpu: some avg10=2.57 avg60=1.50 avg300=0.42 total=1767309512
+[stato dopo] container non nostri non in esecuzione stabile: 5; in esecuzione: 12
+[stato dopo] braccio: H3-01cf3bc
+[stato dopo] binario sha256:25c97a9e69512b9a
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.49ms p99=4.24ms p99.9=6.53ms max=6.53ms over100ms=0
+[stato dopo] cpu runner max: github-runner-runner-client-3 0.00

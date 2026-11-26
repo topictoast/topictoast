@@ -1,0 +1,13 @@
+### iggy + sqlite: size1m 
+engine pid=2060423 READY recovered_ms=78
+load tenants=ab rate=20/s kind=0 n=5 size=1048576 work_ms=0 warm=5s measured=30s
+offered=700 accepted=377 refused_E_PROJECTION_DOWN=0 errors=323 overload_skipped=0
+accept_rtt_open_loop n=278 p50=1143.81ms p99=3518.46ms p99.9=3616.77ms max=3616.77ms
+-- statistiche del motore a fine finestra (prima dello svuotamento)
+stats non disponibili: code: 'The service is currently unavailable', message: "tcp connect error", source: tonic::transport::Error(Transport, ConnectError(ConnectError("tcp connect error", 127.0.0.1:47010, Os { code: 111, kind: ConnectionRefused, message: "Connection refused" })))
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 134856 kB
+awk: fatale: non riesco ad aprire file `/proc/2060423/status' in lettura: File o directory non esistente
+rss pid=2060423  kB
+rss pid=2060470 102572 kB
+-- conteggio file archivio: 1668

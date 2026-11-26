@@ -1,0 +1,56 @@
+Blocco D, log dei task, isolamento del worker rumoroso: regole di lettura scritte PRIMA di ogni corsa misurata (decisione di Marco, 2026-11-25: isolare
+prima di scrivere l'ADR). Nessuna soglia cambia dopo una corsa; nessuna corsa si scarta o si rifa' dopo averla vista, salvo le condizioni di validita' qui sotto.
+
+Perche': nella riga 2 del log dei task (`iggy-sqlite-logd-regola-4-ms.txt`) la mediana del p99 di avvio del tenant B e' 25,25 ms con le righe di A al tetto
+(limite 25 ms, criterio a non rispettato) e 23,70 ms con A attivo senza righe. Le righe di A valgono +1,55 ms (misurata). Da dove vengano i 23,70 ms non e'
+misurato: carico di A (500 att./s senza righe), le 3 righe per attivita' di B, oppure il costo di avvio di H2 da solo. Queste corse lo dividono.
+Il risultato della riga 2 (criterio a non rispettato) NON cambia con queste corse: qui si attribuisce, non si giudica di nuovo.
+
+Binario: lo stesso della riga 2, bin/busspike-logd-7c1dfcd, sha256 che inizia con fd04efcdeefe0425, mai sostituito a meta'. Ogni file grezzo porta le righe
+`[stato prima HH:MM:SS] pavimento fdatasync`, `[stato prima] braccio:` e `[stato prima] binario sha256:`. Una corsa vale solo se il suo `[stato prima HH:MM:SS]`
+e' piu' tardi del commit di questo file. SQLite, CAP=512 (default di scen.sh), minisheep, stessi CPU della riga 2, una corsa alla volta, `ms-run.sh`.
+
+Bracci (scena `lognoisy`; tenant B sempre 1.000 att./s = 100 esecuzioni/s da 10 passi, 40 s misurati dopo 5 s):
+  Anolines: `NOISY=1 LOGA=0x0 LOGB=3x80 ./scen.sh iggy sqlite lognoisy`   A a 500 att./s senza righe, B con 3 righe da 80 byte (= braccio Anolines della riga 2)
+  Bsolo3:   `LOGB=3x80 ./scen.sh iggy sqlite lognoisy`                    niente A, B con 3 righe da 80 byte
+  Bsolo0:   `./scen.sh iggy sqlite lognoisy`                              niente A, B senza righe (worker e motore ricevono gli stessi parametri del log:
+                                                                           `loga=0x0 logb=0x0` e' il default di scen.sh; `logcheck` non gira perche' non ci sono righe)
+ARM nel file grezzo: `LOG-iso-<braccio>`. File grezzi: iggy-sqlite-logd-iso-<braccio>-4-ms-r<n>.txt. Il braccio Anolines si rifa' qui (non si riusano le corse
+della riga 2) perche' i confronti siano nella stessa ora.
+
+Ordine fisso, 6 giri da 3 corse (quadrato latino: ogni braccio 2 volte in ogni posizione; per ogni coppia di bracci, ciascuno prima dell'altro in 3 giri):
+  r1: Anolines, Bsolo3, Bsolo0
+  r2: Bsolo3, Bsolo0, Anolines
+  r3: Bsolo0, Anolines, Bsolo3
+  r4: Anolines, Bsolo0, Bsolo3
+  r5: Bsolo3, Anolines, Bsolo0
+  r6: Bsolo0, Bsolo3, Anolines
+Metrica per corsa: `start_ready_tenant_b` p99 (e p50) dalle statistiche a fine finestra, come nella riga 2.
+
+Validita' di ogni corsa (se manca si scrive «non valida: motivo» e si rifa' la corsa una volta, subito, nella stessa posizione; entrambe restano nel rapporto):
+  V1. `verify OK` (accettate perse 0). Anolines e Bsolo3: `logcheck OK` e `lines_written` = 3 * `attempts_written`. Bsolo0: nessuna riga `logcheck` nel file.
+  V2. B: `done_b` della riga di fine finestra >= 38.000 (950 att./s per 40 s; nei bracci senza A, se `done_b` manca, `activities_per_s` della finestra >= 950)
+      e `errors=0` nel generatore di B. Nel braccio Anolines `activities_per_s` e' la somma dei due tenant (circa 1.500) e non si usa per B.
+  V3. Solo Anolines: generatore di A con `errors=0`, accettate >= 99 % delle offerte, `done_a` >= 19.000 nella riga di fine finestra.
+  Le corse con la riga `[macchina non ferma]` contano e si segnalano. Il pavimento di fdatasync prima di ogni corsa si riporta (p50 e p99.9), senza attese e senza
+  esclusioni. Le istruzioni SQL per attivita' (globale e per tenant) si riportano per ogni corsa.
+
+Aggregazione (stessa regola dei segni della riga 2):
+  - mediana del p99 per braccio sulle 6 corse, con il p50 accanto;
+  - per ogni giro tre differenze: dA = p99(Anolines) - p99(Bsolo3) (carico di A senza righe), dL = p99(Bsolo3) - p99(Bsolo0) (le 3 righe di B),
+    dT = p99(Anolines) - p99(Bsolo0) (le due cose insieme);
+  - per ogni differenza: X = mediana delle d nei 3 giri in cui il primo braccio della differenza e' corso prima dell'altro, Y = mediana nei 3 giri in cui e' corso
+    dopo; la differenza si DICHIARA (misurata) solo se X e Y hanno lo stesso segno; se no «non dichiarabile (effetto d'ordine)», con i numeri.
+  - si riportano anche la mediana delle 6 d e la differenza delle mediane dei bracci.
+
+Lettura per l'ADR, fissata ora (nessuna soglia nuova di superamento):
+  a. Il p99 di avvio di B a 1.000 att./s con il log presente ma senza righe e' la mediana di Bsolo0; si confronta col limite di 25 ms (sotto o sopra, con il valore).
+     Il confronto con la mediana di H2 della terza parte (19,72 ms) si riporta, marcato «non alla pari» (altro binario, altra ora).
+  b. Quota delle righe di B: dL se dichiarata (misurata); se non dichiarabile, «non distinguibile in queste corse».
+  c. Quota del carico del tenant vicino senza righe: dA se dichiarata (misurata); se non dichiarabile, «non distinguibile in queste corse».
+  d. Con le tre quote si scrive nell'ADR la scomposizione dei 25,25 ms della riga 2 come: Bsolo0 + dL + dA + righe di A (+1,55 ms, dalla riga 2), segnando che le
+     quote vengono da due serie in ore diverse (riga 2 e questa) e non si sommano alla pari: la somma si riporta accanto al 25,25, non al suo posto.
+  e. Una causa che non sia una differenza dichiarata qui resta «ipotesi».
+
+Cosa queste corse NON coprono: il costo di avvio di H2 contro B (gia' misurato nella terza parte del blocco D), la variante di H2 con le scadenze su un topic separato,
+Postgres, 10.000 att./s.
