@@ -98,7 +98,7 @@ slowdb_report() {
   echo "-- start_ready e proj_lag: $("$BIN" stats dir=out | grep -E '^(start_ready |proj_lag )' | cut -c1-110 | tr '\n' ';')"
   echo "-- accettazioni offerte e rifiutate (frazione), per codice: $(grep -E '^offered=' out/load.txt | sed -E 's/offered=([0-9]+) accepted=([0-9]+).*/offerte \1 riuscite \2/') ; $(grep '^errors_by_type' out/load.txt)"
   echo "-- E_PROJECTION_DOWN per causa dell'ultimo errore del proiettore (busy / altro): $("$BIN" stats dir=out | grep -oE 'down_busy=[0-9]+ down_other=[0-9]+')"
-  echo "-- errori di database «locked/busy» arrivati al proiettore e righe 'proiezione ferma': $(echo "$ELOG" | grep -ciE 'locked|busy') ; $(echo "$ELOG" | grep -c '^proiezione ferma')"
+  echo "-- errori di database «locked/busy» arrivati al proiettore e righe 'proiezione ferma': $(echo "$ELOG" | grep '^proiezione ferma' | grep -ciE 'locked|busy') ; $(echo "$ELOG" | grep -c '^proiezione ferma')"
   # conservazione: nessuna posizione tagliata oltre quella applicata (il proiettore esce con E_POSIZIONE_PERSA se la lettura non parte da dove ha applicato)
   J "posizioni del bus tagliate oltre la posizione applicata (righe E_POSIZIONE_PERSA)" "$(echo "$ELOG" | grep -c E_POSIZIONE_PERSA)" 0
   sqlite3 out/spike.db "SELECT topic, pos FROM projection_pos" | tr '|' ' ' > out/pos.txt

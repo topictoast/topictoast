@@ -55,3 +55,26 @@ Validita' come nei file di regole precedenti: chiamata rotta dello strumento = c
 Segreti: le password e le chiavi generate non finiscono in file committati. Controlli finali, solo conteggi: `grep -lF -f .env` sui file grezzi nuovi, `git grep -nE 'root[A-Za-z0-9]{6}'`, il modello `\bak[A-Za-z0-9]{14}\b`, sequenze di 64 cifre esadecimali fuori dalle righe `CG`.
 
 Cosa il blocco NON copre: Postgres; il database fermo (e' la scena `dbdown`, gia' misurata); il disco pieno; il criterio sul busy (la tappa successiva); il livello di rilascio del guardiano e la sua isteresi; un database lento per colpa di un lettore o di una lettura lunga (qui il lento e' lo scrittore); piu' di un motore; il ritardo con il worker rumoroso.
+
+Emendamento del 2026-11-26, prima delle corse misurate (richiesta del coordinatore dopo la revisione; nessuna soglia esistente si allenta):
+  Perche': AD-2 prevede UN solo scrittore della proiezione, il proiettore; il prototipo ne ha DUE (uno per tenant) che si contendono il lock di scrittura di SQLite. Con un commit lento quello in attesa supera `busy_timeout` e il motore legge il busy come «proiezione ferma». Il comportamento di oggi con il
+  database lento mescola quindi due cose: il database lento e un'impostazione a due scrittori che AD-2 non prescrive. Si misurano tutte e due; il layout di oggi e' il braccio di controllo. L'osservazione e' un'IPOTESI per la domanda sul busy a 10.000 att./s (tappa successiva), non un risultato per quella.
+  Manopola `proj_serial=1` (default 0): un mutex asincrono nel processo, preso da ogni proiettore intorno a tutta la propria transazione di scrittura (`BEGIN` ... `COMMIT`, ritardo compreso); SQLite vede un solo scrittore alla volta e l'altro attende nel processo invece che nel gestore di busy. Nessun'altra modifica: i bracci
+  differiscono solo per questa manopola.
+  Tempi del guardiano (cosi' il giudizio sulle finestre non puo' dare un falso FAIL ai bordi): l'istante `ACC` si prende PRIMA di leggere il segno del guardiano; `PROJECTION_LAG_ENGAGE` si scrive DOPO aver memorizzato il segno e `PROJECTION_LAG_RELEASE` PRIMA di azzerarlo; il segno e' letto e scritto con ordine SeqCst. La finestra [ENGAGE, RELEASE] sta quindi dentro il tempo in cui il segno e' acceso:
+  un'accettazione con istante di ricezione dentro la finestra vede il guardiano acceso e viene rifiutata.
+  Causa dei rifiuti `E_PROJECTION_DOWN`: si contano separatamente quelli con ultimo errore del proiettore «database is locked» (`down_busy`) e quelli per altro (`down_other`); la causa e' quella dell'ULTIMO errore registrato (con due proiettori puo' non essere quella del proiettore che sta fermo: limite noto).
+  Correzione del rapporto: la riga «errori locked/busy ... righe proiezione ferma» delle corse di prova precedenti contava ogni riga del registro che contiene `busy` (comprese le righe `LAG10` con `busy_hits=`) e va ignorata; fa fede il contatore `busy_hits` (`lag ... busy_hits=` nelle statistiche e `LAG10`). La riga ora conta solo le righe `proiezione ferma`.
+  Fissi come prima: D = 20 ms, `proj_batch` = 50, inizio 15 s, tenuta 25 s, `IGGY_SEGMENT_SIZE=1048576`, carico 1.000 att./s, tetto 512.
+  Quattro scene per due corse, solo minisheep, una alla volta con `ms-run.sh`, in questo ordine: `slowdb` r1, `slowdb-serial` r1, `slowdb-serial-guard` r1, `slowdb-serial-crash` r1, poi le stesse quattro per r2:
+    `slowdb`              due scrittori, come oggi              guardiano spento
+    `slowdb-serial`       `proj_serial=1`                       guardiano spento
+    `slowdb-serial-guard` `proj_serial=1`                       `lag_max_ms=1000`
+    `slowdb-serial-crash` `proj_serial=1`                       guardiano spento; `kill -9` con ritardo del tick >= 3.000 ms, riavvio senza ritardo
+  (la scena `slowdb-guard` e `slowdb-crash` delle corse di prova diventano `slowdb-serial-guard` e `slowdb-serial-crash`: le prove con due scrittori restano solo come prova.)
+  Giudicato (invariato): `verify OK`, anche dopo il riavvio; 0 posizioni tagliate oltre quella applicata; 0 accettazioni riuscite dentro le finestre del guardiano, con i tempi sopra.
+  Riportato in piu': `busy_hits` per braccio; `E_PROJECTION_DOWN` per causa; numero di cicli inserimento/rilascio del guardiano e frazione delle accettazioni offerte rifiutate; intervallo piu' corto e mediano con il guardiano inserito (sfarfallio: il livello di rilascio e' uguale a quello di inserimento, IPOTESI); picco del ritardo.
+  IPOTESI scritta prima, non giudicata: `busy_hits` = 0 nei bracci seriali.
+  Binario delle corse misurate: bin/busspike-slowdb-4ab1fe1, sha256 che inizia con 47be4b2ee7224fdf (sostituisce bad46ba0...). Una corsa vale solo se il suo `[stato prima]` e' piu' tardi del commit di questo emendamento.
+  Prova prima delle corse (non contano, `-smoke-` nel nome): `slowdb-serial`: `busy_hits` 0, ritardo sopra 1 s dopo 2,4 s dall'accensione, picco 9,6 s, 0 rifiuti; `slowdb-serial-guard`: `busy_hits` 0, 5 cicli, 1.046 rifiuti `E_PROJECTION_LAG`, 0 accettazioni riuscite nelle finestre, picco 1,8 s;
+  `slowdb-serial-crash`: kill a 3,2 s di ritardo, kill -> READY 131 ms, 10.062 eventi riletti, `verify OK`.
