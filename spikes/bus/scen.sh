@@ -304,6 +304,8 @@ case $SC in
     RU=$(sed -n 's/^READY .*now_us=\([0-9]*\).*/\1/p' out/engine.log)
     echo "kill -> READY: $(ms $T0 $RU) ms (limite NFR-15: 30000 ms); READY_us=$RU"; grep -E "ripresa" out/engine.log
     wait $LP; grep -E '^(load|offered|errors_by_type|accept_rtt)' out/load.txt
+    UR=$(grep '^LAG_UNDER1S' out/engine.log | awk -v r="$RU" '$2>=r{print $2; exit}')
+    echo "-- READY -> ritardo del tick sotto 1 s (recupero dell'arretrato dopo il riavvio): $([ -n "$UR" ] && ms $RU $UR || echo n.a.) ms; il ritardo rilevato dopo la ripresa parte dagli eventi riletti"
     ok=0; for i in $(seq 1 ${VTRIES:-20}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && ok=1 && break; sleep 3; done
     J() { echo "JUDGE $1 valore=$2 atteso=$3 $([ "$2" = "$3" ] && echo PASS || echo FAIL)"; }
     J "verify OK dopo il riavvio (0 accettate perse)" "$ok" 1

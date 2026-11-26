@@ -1,0 +1,57 @@
+Blocco E4c, database lento ma attivo (AD-2, voce S-1 «comportamento con il database lento ma attivo, quando la proiezione supera 1 s»): regole di lettura scritte PRIMA di ogni corsa misurata (decisione del coordinatore, 2026-11-26).
+Perche': AD-2 dice che la proiezione resta indietro al piu' di 1 s; con il database fermo o il disco pieno il motore rifiuta lavoro nuovo con un codice (C-7) e un avviso (FR-48) e il lavoro accettato non si perde mai. Qui il database NON e' fermo: e' lento. Si misura cosa fa il motore di oggi
+(guardiano spento), cosa farebbe con un guardiano sul ritardo (`lag_max_ms`) e quanto costa un crash nel mezzo, per decidere nell'ADR se il guardiano serve e a che livello.
+
+Strumento: `busspike` commit 4ccb2b8 (la scena `slowdb-crash` ha una riga di rapporto in piu' in `scen.sh`, commit di questo file), bin/busspike-slowdb-4ccb2b8, sha256 che inizia con bad46ba02a20b7fb, uguale per tutte le corse. Scene in `scen.sh`: `slowdb`, `slowdb-guard`,
+`slowdb-crash`. Ogni file grezzo ha le righe `[stato prima HH:MM:SS]` (pavimento di fdatasync, `braccio:`, `binario sha256:`); una corsa vale solo se il suo `[stato prima]` e' piu' tardi del commit di questo file; hash del binario in ogni file grezzo, pavimenti riportati. Bus e database puliti prima di
+ogni corsa (la scena lo fa). Macchina: solo minisheep. Ogni corsa parte con `IGGY_SEGMENT_SIZE=1048576` nell'ambiente (segmenti da 1 MiB), cosi' il trim cancella davvero segmenti e il controllo «nessuna posizione non applicata e' stata tagliata» non e' vuoto.
+
+Carico: 1.000 att./s (100 esec./s da 10 passi, size 1024, due tenant `tenants=ab`), tetto 512, SQLite, trim acceso, 5 s di riscaldamento e 60 s misurati. Nessun worker rumoroso, nessun sentinella.
+
+Manopola del database lento (`proj_delay_ms=D proj_delay_from_s=F proj_delay_secs=H`): il proiettore attende D ms DENTRO la propria transazione di scrittura, dopo le scritture e prima del `COMMIT`; SQLite tiene quindi il lock di scrittura per D ms a ogni transazione. Il ritardo e' attivo tra F e F+H secondi
+contati dalla PRIMA applicazione del processo (cioe' dalle prime esecuzioni accettate), poi si rilascia. Il motore scrive `PROJ_DELAY_ON` e `PROJ_DELAY_OFF` con l'istante in µs. Valori scelti dalla taratura sotto e fissati qui: D = 20 ms, `proj_batch` = 50, F = 15 s, H = 25 s (ritardo acceso da 15 s a 40 s, 25 s di recupero
+sotto carico), in tutte e tre le scene. Il resto dei parametri del motore e' quello delle scene di sempre (`proj_batch` e' 1.000 nelle altre scene e qui scende a 50: con un batch di 1.000 il proiettore assorbe il ritardo di una transazione accorpando gli eventi).
+
+Chi altro usa il database durante una corsa (dal codice, `db.rs` e `engine.rs`):
+  scrittori: i DUE proiettori, uno per topic di tenant, ognuno nella propria transazione `BEGIN` ... `COMMIT` (`Db::apply`), su un pool da 4 connessioni; `PRAGMA busy_timeout=300`, `synchronous=FULL`, WAL. Sono l'unico scrittore durante la corsa. All'avvio e dopo un crash: `reset_positions` solo se la generazione del bus cambia (non in queste scene).
+  nessun altro scrittore: nel prototipo i segreti e le chiavi avvolte NON passano dal database (il segreto sintetico viene dall'ambiente e le chiavi sono in memoria, `crypto.rs`); il log dei task e l'archivio dei payload scrivono su file.
+  lettori: il recupero all'avvio e dopo il crash (`generation`, `positions`, `live`, `timers`, `cancelled_ids`); la verifica finale (`done_ids`, `count`, `out_locs` a campione) e le `sqlite3` della scena, tutte DOPO la fine del carico e in processi separati (in WAL non bloccano lo scrittore). Le chiamate `stats` non toccano il
+  database con SQLite (`wal_bytes` risponde 0, i contatori sono atomici). Durante il carico gli unici due che toccano il file sono quindi i due proiettori, che si contendono il lock di scrittura.
+  Conseguenza misurata in taratura (non voluta): con D > 0 un proiettore puo' non ottenere il lock entro `busy_timeout` (300 ms) per la contesa con l'altro, riceve «database is locked» e il motore lo tratta come proiezione ferma: rifiuta le accettazioni con `E_PROJECTION_DOWN` finche' una transazione riesce.
+  Gli errori «locked/busy» arrivati al proiettore si contano (`busy_hits`) e si riportano senza giudizio: il criterio sul busy e' della tappa successiva. Le attese del lock che finiscono bene dentro i 300 ms non si vedono.
+
+Misura del ritardo: `tick_lag` = eta' del piu' vecchio evento durevole non ancora applicato, valutata ogni 100 ms. Il proiettore scrive il timestamp del piu' vecchio evento del gruppo che ha letto e lo tiene fino alla lettura successiva; una lettura vuota lo azzera. Con una transazione ferma il ritardo registrato all'applicazione (`proj_lag`,
+che resta come prima) tace, questo no. Si riporta ogni 10 s (`LAG10`: massimo, millisecondi sopra 1 s, RSS del motore, dimensione della mappa `pending_locs`, `busy_hits`, rifiuti per ritardo, stato del guardiano) e nelle righe `MIN` (`tick_lag_max_ms`, `pending_locs`). Passaggi sopra e sotto 1 s: `LAG_OVER1S` e `LAG_UNDER1S` con l'istante.
+Limite noto: tra due gruppi il valore e' quello dell'ultimo gruppo (sovrastima di poco), e un arretrato fatto di eventi non ancora letti ha il ritardo del gruppo in corso, non quello dell'evento piu' vecchio sul bus.
+
+Guardiano (`lag_max_ms`, spento di default): mentre il ritardo del tick supera la soglia le nuove accettazioni sono rifiutate con il codice `E_PROJECTION_LAG`, dallo stesso percorso dei rifiuti di oggi (dopo i controlli `E_STORAGE_FULL`, `E_BUS_DOWN`, `E_PROJECTION_DOWN`, quindi con la proiezione ferma per il busy il codice resta `E_PROJECTION_DOWN`), con una riga all'inserimento
+(`PROJECTION_LAG_ENGAGE`) e una al rilascio (`PROJECTION_LAG_RELEASE`). IL LIVELLO DI RILASCIO (uguale a quello di inserimento) E' UN'IPOTESI: si riporta, non si giudica. In taratura il guardiano si inserisce e si rilascia piu' volte (7-10 volte in una corsa): con lo stesso livello per entrambi non c'e' isteresi.
+Con il guardiano acceso il motore scrive `ACC <µs>` per ogni accettazione riuscita (istante in cui la elabora), per la verifica sotto.
+
+Trim: la posizione del bus segue la posizione applicata dal proiettore, verificato sul codice (`projector` in `engine.rs`): `bus.trim(&topic, pos)` si chiama dopo `db.apply` (commit riuscito) con `pos = next`, mai prima, e al massimo ogni 500 ms; con la transazione ferma `pos` non avanza e il trim non avanza. In piu', a ogni lettura il proiettore esce con `E_POSIZIONE_PERSA` se il primo
+offset disponibile non e' la sua posizione.
+
+Taratura (corse di prova `iggy-sqlite-slowdb-smoke-calib<n>-4-ms-r1.txt`, binario 739be61c43ee7d81, che azzerava il ritardo del tick a ogni gruppo applicato; non contano; con il binario finale la scena `slowdb` e' stata ripetuta come ultima riga):
+  D=50 ms, batch 100: ritardo sopra 1 s dopo 1,19 s dall'accensione, massimo 6,6 s, 20 `busy_hits`, 901 rifiuti `E_PROJECTION_DOWN` su 6.499;
+  D=10 ms, batch 20: sopra 1 s dopo 1,20 s, massimo 16,3 s, recupero 31 s, 8 `busy_hits`, 272 rifiuti;
+  D=20 ms, batch 50: sopra 1 s dopo 1,39 s, massimo 9,9 s, 19 `busy_hits`, 730 rifiuti, recupero 1,5 s.
+  Scelto D=20 ms con batch 50: la capacita' del proiettore e' chiaramente sotto l'arrivo (circa 2.400 eventi/s), il ritardo supera 1 s entro 2 s dall'accensione e cresce per tutta la tenuta fino a circa 10 s, e il recupero e' di pochi secondi. Una taratura piu' lenta farebbe crescere il ritardo oltre 15 s; una piu' veloce (batch 100, D=50) arriva a 6,6 s.
+  Scena `slowdb` col binario finale: sopra 1 s dopo 1,45 s, massimo 9,96 s, recupero 2,7 s, 20 `busy_hits`, 774 rifiuti `E_PROJECTION_DOWN`; i rifiuti per il busy riducono l'arrivo e quindi limitano la crescita del ritardo: con il motore di oggi il ritardo non cresce senza limite perche' il busy lo ferma.
+
+Giudicato:
+  1. `verify OK` in tutte le scene: 0 accettate perse. Nel crash `verify OK` dopo il riavvio.
+  2. 0 posizioni del bus tagliate oltre la posizione applicata: 0 righe `E_POSIZIONE_PERSA` nei registri del motore, e il primo offset leggibile di ogni topic a fine corsa non supera la posizione applicata (`JUDGE` nel rapporto). Si riporta anche il primo offset leggibile (trim non vuoto se maggiore di 0).
+  3. In `slowdb-guard`: ogni richiesta di accettazione ricevuta mentre il guardiano e' inserito (tra la riga di inserimento e quella di rilascio, per istante di ricezione del motore) ha come risposta un rifiuto, cioe' 0 accettazioni riuscite in quegli intervalli. L'inserimento scrive il segno prima dell'istante e il rilascio l'istante prima del segno, quindi
+     un'accettazione con istante dentro l'intervallo ha visto il guardiano acceso. Le risposte che il codice `E_PROJECTION_DOWN` toglie al codice `E_PROJECTION_LAG` (proiezione ferma per il busy in quello stesso intervallo) non sono accettazioni riuscite e si riportano per codice.
+Solo RIPORTATO, accanto al limite dove esiste:
+  curva del ritardo del tick (massimo per 10 s) e massimo assoluto; tempo sopra 1 s (AD-2); latenza di accettazione p50 e p99 (NFR-2: p99 25 ms e' giudicato altrove, p50 5 ms si riporta); `start_ready` p99 e `proj_lag` della proiezione; RSS del motore e `pending_locs` ogni 10 s; rifiuti e loro codice; tempo di recupero dopo il rilascio
+  (dal rilascio al primo ritorno sotto 1 s); `busy_hits`; in `slowdb-crash` kill -> READY e eventi riletti dal bus accanto al limite di recupero di 30 s (NFR-15), e il tempo da READY al ritorno sotto 1 s del ritardo.
+`slowdb-crash`: guardiano spento; `kill -9` quando il ritardo del tick supera 3.000 ms (cioe' alcuni secondi, durante la tenuta), riavvio SENZA ritardo (il ritardo e' un carico finto che non si ripete). Nel registro il carico vede errori di connessione durante il riavvio: sono attesi, non giudicati.
+
+Piano: 3 scene x 2 corse (r1, r2), solo minisheep, una alla volta con `ms-run.sh`, `IGGY_SEGMENT_SIZE=1048576`. File grezzi: iggy-sqlite-slowdb-<scena>-4-ms-r<n>.txt con scena `slowdb`, `slowdb-guard`, `slowdb-crash`.
+Validita' come nei file di regole precedenti: chiamata rotta dello strumento = corsa non valida, si rifa' una volta con il file della prima conservato; le soglie non cambiano dopo una corsa; un emendamento prima delle corse misurate o una nota datata senza cambio di soglia. Cause: «misurata» (con file grezzo), «ipotesi», «osservata senza file grezzo»,
+«fuori dalle regole». Una coincidenza nello stesso minuto non e' mai una causa.
+
+Segreti: le password e le chiavi generate non finiscono in file committati. Controlli finali, solo conteggi: `grep -lF -f .env` sui file grezzi nuovi, `git grep -nE 'root[A-Za-z0-9]{6}'`, il modello `\bak[A-Za-z0-9]{14}\b`, sequenze di 64 cifre esadecimali fuori dalle righe `CG`.
+
+Cosa il blocco NON copre: Postgres; il database fermo (e' la scena `dbdown`, gia' misurata); il disco pieno; il criterio sul busy (la tappa successiva); il livello di rilascio del guardiano e la sua isteresi; un database lento per colpa di un lettore o di una lettura lunga (qui il lento e' lo scrittore); piu' di un motore; il ritardo con il worker rumoroso.
