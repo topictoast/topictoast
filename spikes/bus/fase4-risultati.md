@@ -1819,3 +1819,48 @@ Postgres; il database fermo (scena `dbdown`, gia' misurata) e il disco pieno; il
 ### Comandi per rifare
 
 Su minisheep, in `~/ttspikebus` (binario `bin/busspike-slowdb-4ab1fe1`, `.env` da `./gen-env.sh`): `IGGY_SEGMENT_SIZE=1048576 ARM_BIN=$HOME/ttspikebus/bin/busspike-slowdb-4ab1fe1 ARM=SLOWDB-<scena> ./brun.sh risultati/<file> ./scen.sh iggy sqlite <scena>` con scena `slowdb`, `slowdb-serial`, `slowdb-serial-guard`, `slowdb-serial-crash`.
+
+## Blocco E, database bloccato a 10.000 att./s
+
+Il criterio della spina S-1 «con SQLite, scritture del motore (segreti, chiavi avvolte) e gruppi del proiettore senza `SQLITE_BUSY` né chiavi esterne verso righe non ancora proiettate», a 10.000 att./s su **minisheep** (Iggy + SQLite, `CAP=512`, consegna H2, `proj_batch` 1.000 e segmenti Iggy di default, nessun ritardo finto, `secs=300` + 5 s di riscaldamento, `GATE60=1 VTRIES=100`, campionatore di I/O acceso). Regole scritte prima: `risultati/iggy-sqlite-busy10k-regola-4-ms.txt` (commit `aa7fc99`). Binario `bin/busspike-busy10k-192f7a6`, sha256 `a96201aa183b04dd`, uguale in tutti i file grezzi. Sei corse in ordine latino (`B2, S1, S1W` poi `S1W, S1, B2`), una alla volta con `ms-run.sh`; ogni `[stato prima]` e' piu' tardo del commit delle regole (01:51:30): da 01:53:17 a 02:35:14. File grezzi: `risultati/iggy-sqlite-busy10k-<braccio>-4-ms-r<n>.txt` (+ `.io.names`).
+
+Bracci: **B2** `proj_serial=0`, nessuna scrittura del motore (layout di oggi, due scrittori); **S1** `proj_serial=1` (una corsia di scrittura); **S1W** `proj_serial=1` con `eng_writes_per_s=50`: un compito del motore scrive una riga da 256 byte opachi in `tenant_secret` a ogni tick (circa 15.600 righe in una corsa) nello stesso pool, prendendo lo stesso mutex dei proiettori. Chiavi esterne: `tenant_secret` non ne ha e nessuna tabella del prototipo ne dichiara: **FK non applicabile nel prototipo**, un segreto appartiene al tenant e non a un'esecuzione, quindi non riferisce righe non ancora proiettate (non si misura, soddisfatto per costruzione).
+
+### Lettura (fissata prima)
+
+- **a. Entrambe le corse S1W valide e con 0 busy: «criterio rispettato con lo scrittore unico, anche con scritture del motore».** (misurata, minisheep, 10.000 att./s, scritture del motore simulate a 50 al secondo, 2 corse su 2.) Anche S1 senza scritture del motore: 0 busy in tutte e due.
+- **b.** Nessuna corsa valida di S1 o S1W con busy > 0: non applicabile.
+- **c.** Nessun braccio senza corse valide: non applicabile. Tutte e 6 le corse sono valide per la portata (media dei minuti 2-5 tra 9.972 e 9.981 att./s, `verify OK`, 0 perse): nessuna e' stata rifatta.
+- **B2 non conferma l'ipotesi di E4d.** Il conteggio dei busy nel layout a due scrittori, atteso > 0 («ipotesi»), e' **0 in tutte e due le corse B2**, senza ritardo finto. Il reperto dei due scrittori di E4d (20-22 `busy_hits` per corsa) vale quindi con il commit lento, non per questo carico senza ritardo a 10.000 att./s con il pavimento di `fdatasync` di circa 3-5 ms. Il criterio della spina non e' stato messo in crisi dal layout a due scrittori a questa portata: la scelta dello scrittore unico per AD-2 non si appoggia su una misura di busy a 10.000 att./s. (misurata)
+
+### Per corsa
+
+Giudicato: 1. busy = 0 in S1 e S1W; 2. `verify OK`; 3. validita' per la portata. Tutti **PASS** e **VALIDA** in tutte e 6 le corse.
+
+| Corsa | Pavimento fdatasync prima / dopo p50 (ms) | Portata media minuti 2-5 (att./s) | Busy proiettore + motore | Rifiuti | Scritture del motore (riuscite, p50 / p99 ms) | Attesa del mutex p50 / p99 (ms) | SQL per attivita' | WAL a fine corsa (MB) | `start_ready` p99 (ms) | Accettazione p99 (ms) | `proj_lag` p99 (ms) | Ritardo del tick, massimo (ms) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `B2` r1 | 2,61 / 4,57 | 9.979,0 | 0 + 0 | 0 | n.a. | n.a. (nessun mutex) | 0,0292 | 13,6 | 347,9 | 435,2 | 436,7 | 1.260 |
+| `S1` r1 | 2,82 / 4,09 | 9.972,5 | 0 + 0 | 0 | n.a. | 0,00 / 21,60 | 0,0292 | 6,2 | 339,7 | 402,9 | 463,9 | 886 |
+| `S1W` r1 | 4,28 / 4,44 | 9.979,5 | 0 + 0 | 0 | 15.592, 8,39 / 48,90 | 6,42 / 44,38 | 0,0447 | 7,0 | 291,8 | 369,7 | 444,4 | 1.001 |
+| `S1W` r2 | 4,57 / 4,38 | 9.980,5 | 0 + 0 | 0 | 15.594, 8,49 / 48,29 | 6,20 / 44,38 | 0,0447 | 6,2 | 287,2 | 349,4 | 419,1 | 777 |
+| `S1` r2 | 2,77 / 4,57 | 9.980,5 | 0 + 0 | 0 | n.a. | 0,00 / 21,17 | 0,0292 | 4,8 | 305,4 | 369,4 | 424,2 | 941 |
+| `B2` r2 | 2,83 / 4,63 | 9.978,2 | 0 + 0 | 0 | n.a. | n.a. | 0,0291 | 21,0 | 464,9 | 549,9 | 814,1 | 1.644 |
+
+Note sulla tabella:
+- «Busy» e' `busy_hits` (proiettore) + `eng_busy` (motore); le righe del registro con «database is locked» o `SQLITE_BUSY` (fuori da `MIN` e `LAG10`) sono 0 in tutte le corse; `eng_err` (altri errori delle scritture del motore) 0; `E_PROJECTION_DOWN` 0 per qualunque causa (`down_busy` 0, `down_other` 0).
+- SQL per attivita': 0,029 senza scritture del motore e 0,045 con 50 scritture al secondo (tre istruzioni ciascuna); il limite di NFR-4 e' 5 istruzioni per attivita': il contatore del prototipo conta le istruzioni del proiettore e del compito del motore divise per le attivita' concluse (dato tenuto com'e', misurato dal motore). I byte di WAL per attivita' con SQLite sono 0 nel contatore (non misurato); si riporta il file `spike.db-wal` a fine corsa. Righe di `tenant_secret` a fine corsa: 15.594-15.595 (S1W), 0 negli altri bracci.
+- `start_ready` p99 (287-465 ms) e accettazione p99 (349-550 ms) sono sopra i limiti di NFR-2 (25 ms) in tutti i bracci: e' il carico di 10.000 att./s sul prototipo, uguale con e senza scrittore unico, non una conseguenza dei busy (0). I due bracci B2 hanno la coda piu' lunga (`start_ready` p99 348-465 ms contro 287-340 ms) e il ritardo del tick piu' alto (1,26 e 1,64 s con 400 e 1.700 ms sopra 1 s; gli altri 0-100 ms): la differenza tra B2 e gli altri bracci e' osservata in due corse per braccio e non si da' come causa.
+- Costo delle scritture del motore: latenza p50 8,4-8,5 ms e p99 48-49 ms (attesa del mutex compresa); i proiettori attendono il mutex p50 6,2-6,4 ms e p99 44 ms in S1W contro p50 0 e p99 21 ms in S1 (le scritture del motore allungano l'attesa dei proiettori ma non causano busy: l'attesa e' nel processo, non nel gestore di busy di SQLite).
+- Pavimento di `fdatasync` p50 da 2,6 a 4,6 ms prima e dopo, p99 fino a 8,4 ms: dentro il cancello di sempre.
+
+### Conseguenza per il criterio e per AD-2
+
+Con lo scrittore unico (un mutex nel processo per proiettori e scritture del motore) il criterio della spina e' rispettato a 10.000 att./s su minisheep, anche con scritture del motore a 50 al secondo (misurata). Il layout a due scrittori non lo viola a questa portata senza commit lento (misurata, B2), ma lo viola con il commit lento (E4d, 1.000 att./s con 20 ms nella transazione): la regola dello scrittore unico di AD-2 e' quella che regge nei due casi, e le scritture del motore devono passare dalla stessa corsia.
+
+### Non coperto
+
+Postgres; i flussi veri dei segreti e delle chiavi avvolte (si e' simulato solo il carico di scrittura, 50 al secondo, righe da 256 byte); bigsheep; ritmi di scrittura del motore diversi da 50 al secondo; letture lunghe concorrenti sul database; il commit lento di E4d insieme al carico di 10.000 att./s.
+
+### Comandi per rifare
+
+Su minisheep, in `~/ttspikebus` (binario `bin/busspike-busy10k-192f7a6`, `.env` da `./gen-env.sh`): `[PROJ_SERIAL=1] [ENG_WRITES=50] GATE60=1 VTRIES=100 ARM_BIN=$HOME/ttspikebus/bin/busspike-busy10k-192f7a6 ARM=BUSY10K-<braccio> ./brun.sh risultati/<file> ./with-sampler.sh risultati/<file>.io ./scen.sh iggy sqlite thr10k secs=300`.
