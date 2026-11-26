@@ -76,7 +76,9 @@ Una sola approvazione per tutto il blocco. Ogni voce indica il meccanismo del PR
   del bus. Ruotare la chiave principale (FR-34) vuol dire cifrare di nuovo le chiavi dei tenant,
   senza conservare la vecchia busta.
 - **C-13 Cancellazione del tenant (M-39).** Input, output ed eventi dei tenant sono cifrati con
-  la chiave del tenant, nel formato di C-12, su bus, file e checkpoint. Eliminare un tenant vuol dire cancellarne la
+  la chiave del tenant, nel formato di C-12, su bus, file e checkpoint; unica eccezione l'intestazione
+  in chiaro degli eventi di stato, con un elenco chiuso di identificativi e numeri e mai nomi (AD-2).
+  Eliminare un tenant vuol dire cancellarne la
   chiave (cancellazione crittografica), seguita da una pulizia asincrona. Il costo della
   cifratura è misurato in S-1 (ADR del bus). Ordine (AD-7, FR-31): si fermano pipeline stream,
   esecuzioni, pianificazioni, sandbox riservate e stream SSE del tenant, e se ne rifiutano le
