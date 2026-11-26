@@ -1,0 +1,43 @@
+[stato prima 14:27:22] load: 0.68 0.58 0.50
+[stato prima] io: some avg10=0.00 avg60=0.03 avg300=0.01 total=22872267264
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2577521470
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L10-smoke
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.7%
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+L10 mod=javy-static in_bytes=1239385 wall_ms=436 validate_ms=4 compile_ms=422 maxrss_mb=73 killed_at_cap=false status=exit 0 result=ok
+L10 mod=rust-p1 in_bytes=91370 wall_ms=34 validate_ms=1 compile_ms=30 maxrss_mb=22 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-100k in_bytes=100532 wall_ms=83 validate_ms=1 compile_ms=80 maxrss_mb=27 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-1m in_bytes=1014737 wall_ms=818 validate_ms=5 compile_ms=799 maxrss_mb=140 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-10m in_bytes=10040242 wall_ms=7711 validate_ms=32 compile_ms=7569 maxrss_mb=1140 killed_at_cap=false status=exit 0 result=ok
+L10 as=512MiB mod=syn-1m in_bytes=1014737 wall_ms=933 validate_ms=4 compile_ms=910 maxrss_mb=138 killed_at_cap=false status=exit 0 result=ok
+L10 as=512MiB mod=hostile-straight in_bytes=0 wall_ms=1426 validate_ms=0 compile_ms=0 maxrss_mb=201 killed_at_cap=false status=signal 6 result=
+L10 as=512MiB mod=hostile-ifs in_bytes=0 wall_ms=5771 validate_ms=0 compile_ms=0 maxrss_mb=204 killed_at_cap=false status=signal 6 result=
+L10 hostile mod=hostile-nest in_bytes=60057 wall_ms=40 validate_ms=2 compile_ms=32 maxrss_mb=34 killed_at_cap=false status=exit 0 result=ok
+L10 hostile mod=hostile-brtable in_bytes=0 wall_ms=9 validate_ms=0 compile_ms=0 maxrss_mb=13 killed_at_cap=false status=exit 1 result=err failed to compile: wasm[0]::function[0]: WebAssembly translation error: Unsupported feature: `br
+L10 hostile mod=hostile-straight in_bytes=0 wall_ms=10067 validate_ms=0 compile_ms=0 maxrss_mb=1903 killed_at_cap=true status=signal 9 result=
+L10 hostile mod=hostile-ifs in_bytes=0 wall_ms=10012 validate_ms=0 compile_ms=0 maxrss_mb=575 killed_at_cap=true status=signal 9 result=
+L10 other-tenant during hostile compiles:
+   B t_start_ms n=4017 p50=0.028 p90=0.071 p99=0.110 max=0.192
+   B rtt_ms n=4017 p50=0.188 p90=0.329 p99=0.393 max=0.536
+L10 malformed truncated-javy bytes=619692 wall_ms=3 maxrss_mb=9 killed=false status=exit 1 -> err unexpected end-of-file (at offset 0x97141)
+L10 malformed zeros-1m bytes=1048576 wall_ms=3 maxrss_mb=9 killed=false status=exit 1 -> err magic header not detected: bad magic number - expected=[ |     0x0, |     0x61, |     0x73, |     0x6d, | ] actual=[
+L10 malformed header-only bytes=8 wall_ms=3 maxrss_mb=10 killed=false status=exit 0 -> ok path=/home/white_sheep/ttspikesandbox/out/cache/93a44bbb96c751218e4c00d479e4c14358122a389acca16205b1e4d0dc5f9476-7406
+L10 malformed garbage-after-header bytes=5008 wall_ms=3 maxrss_mb=8 killed=false status=exit 1 -> err malformed section id (at offset 0x8)
+[uscita] 0
+[stato dopo 14:28:03] load: 1.40 0.77 0.57
+[stato dopo] io: some avg10=0.01 avg60=0.05 avg300=0.02 total=22872314523
+[stato dopo] cpu: some avg10=0.02 avg60=0.02 avg300=0.00 total=2577609740
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L10-smoke
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.5%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.03
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

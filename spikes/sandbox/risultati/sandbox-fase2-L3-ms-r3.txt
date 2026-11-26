@@ -1,0 +1,60 @@
+[stato prima 14:41:40] load: 1.41 1.41 1.06
+[stato prima] io: some avg10=0.01 avg60=0.04 avg300=0.01 total=22873469951
+[stato prima] cpu: some avg10=0.51 avg60=0.23 avg300=0.05 total=2579701381
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L3-3
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.03
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 5 s
+L3 cfg=epoch mod=empty n=1 failures=0 base_rss_mb=10.4 base_pss_mb=7.1 rss_mb=11.0 pss_mb=7.6 hwm_mb=11.0 per_instance_rss_mb=0.61 per_instance_pss_mb=0.55
+L3 cfg=epoch mod=empty n=10 failures=0 base_rss_mb=10.2 base_pss_mb=6.8 rss_mb=10.9 pss_mb=7.5 hwm_mb=10.9 per_instance_rss_mb=0.08 per_instance_pss_mb=0.07
+L3 cfg=epoch mod=empty n=50 failures=0 base_rss_mb=10.1 base_pss_mb=6.7 rss_mb=11.1 pss_mb=7.7 hwm_mb=11.1 per_instance_rss_mb=0.02 per_instance_pss_mb=0.02
+L3 cfg=epoch mod=javy-static n=1 failures=0 base_rss_mb=11.3 base_pss_mb=7.9 rss_mb=15.0 pss_mb=11.6 hwm_mb=15.0 per_instance_rss_mb=3.79 per_instance_pss_mb=3.77
+L3 cfg=epoch mod=javy-static n=10 failures=0 base_rss_mb=11.0 base_pss_mb=7.6 rss_mb=18.1 pss_mb=12.7 hwm_mb=18.1 per_instance_rss_mb=0.71 per_instance_pss_mb=0.51
+L3 cfg=epoch mod=javy-static n=50 failures=0 base_rss_mb=11.1 base_pss_mb=7.7 rss_mb=32.2 pss_mb=18.4 hwm_mb=32.2 per_instance_rss_mb=0.42 per_instance_pss_mb=0.22
+L3 cfg=epoch mod=javy-dynamic n=1 failures=0 base_rss_mb=11.1 base_pss_mb=7.6 rss_mb=15.1 pss_mb=11.5 hwm_mb=15.1 per_instance_rss_mb=4.05 per_instance_pss_mb=3.91
+L3 cfg=epoch mod=javy-dynamic n=10 failures=0 base_rss_mb=11.0 base_pss_mb=7.6 rss_mb=17.7 pss_mb=12.7 hwm_mb=17.7 per_instance_rss_mb=0.67 per_instance_pss_mb=0.51
+L3 cfg=epoch mod=javy-dynamic n=50 failures=0 base_rss_mb=10.9 base_pss_mb=7.6 rss_mb=29.4 pss_mb=18.1 hwm_mb=29.4 per_instance_rss_mb=0.37 per_instance_pss_mb=0.21
+L3 cfg=epoch mod=rust-p1 n=1 failures=0 base_rss_mb=10.6 base_pss_mb=7.3 rss_mb=12.0 pss_mb=8.7 hwm_mb=12.0 per_instance_rss_mb=1.41 per_instance_pss_mb=1.39
+L3 cfg=epoch mod=rust-p1 n=10 failures=0 base_rss_mb=10.3 base_pss_mb=7.0 rss_mb=12.2 pss_mb=8.6 hwm_mb=12.2 per_instance_rss_mb=0.19 per_instance_pss_mb=0.16
+L3 cfg=epoch mod=rust-p1 n=50 failures=0 base_rss_mb=10.4 base_pss_mb=7.0 rss_mb=14.0 pss_mb=9.8 hwm_mb=14.0 per_instance_rss_mb=0.07 per_instance_pss_mb=0.06
+L3 cfg=epoch mod=rust-unknown n=1 failures=0 base_rss_mb=10.5 base_pss_mb=7.1 rss_mb=11.3 pss_mb=7.9 hwm_mb=11.3 per_instance_rss_mb=0.86 per_instance_pss_mb=0.80
+L3 cfg=epoch mod=rust-unknown n=10 failures=0 base_rss_mb=10.2 base_pss_mb=6.7 rss_mb=12.1 pss_mb=8.4 hwm_mb=12.1 per_instance_rss_mb=0.19 per_instance_pss_mb=0.17
+L3 cfg=epoch mod=rust-unknown n=50 failures=0 base_rss_mb=10.3 base_pss_mb=6.8 rss_mb=16.1 pss_mb=12.0 hwm_mb=16.1 per_instance_rss_mb=0.12 per_instance_pss_mb=0.10
+L3 cfg=epoch mod=rust-p2 n=1 failures=0 base_rss_mb=10.7 base_pss_mb=7.2 rss_mb=12.5 pss_mb=9.0 hwm_mb=12.5 per_instance_rss_mb=1.86 per_instance_pss_mb=1.81
+L3 cfg=epoch mod=rust-p2 n=10 failures=0 base_rss_mb=10.5 base_pss_mb=7.1 rss_mb=12.5 pss_mb=8.9 hwm_mb=12.5 per_instance_rss_mb=0.20 per_instance_pss_mb=0.18
+L3 cfg=epoch mod=rust-p2 n=50 failures=0 base_rss_mb=10.4 base_pss_mb=7.0 rss_mb=14.2 pss_mb=10.0 hwm_mb=14.2 per_instance_rss_mb=0.07 per_instance_pss_mb=0.06
+L3 cfg=pool+epoch mod=empty n=1 failures=0 base_rss_mb=10.3 base_pss_mb=6.8 rss_mb=10.9 pss_mb=7.4 hwm_mb=10.9 per_instance_rss_mb=0.62 per_instance_pss_mb=0.59
+L3 cfg=pool+epoch mod=empty n=10 failures=0 base_rss_mb=10.5 base_pss_mb=7.1 rss_mb=11.2 pss_mb=7.8 hwm_mb=11.2 per_instance_rss_mb=0.07 per_instance_pss_mb=0.07
+L3 cfg=pool+epoch mod=empty n=50 failures=0 base_rss_mb=10.6 base_pss_mb=7.2 rss_mb=11.6 pss_mb=8.1 hwm_mb=11.6 per_instance_rss_mb=0.02 per_instance_pss_mb=0.02
+L3 cfg=pool+epoch mod=javy-static n=1 failures=0 base_rss_mb=11.2 base_pss_mb=7.8 rss_mb=17.1 pss_mb=13.7 hwm_mb=17.1 per_instance_rss_mb=5.84 per_instance_pss_mb=5.82
+L3 cfg=pool+epoch mod=javy-static n=10 failures=0 base_rss_mb=11.1 base_pss_mb=7.6 rss_mb=26.3 pss_mb=20.9 hwm_mb=26.3 per_instance_rss_mb=1.52 per_instance_pss_mb=1.33
+L3 cfg=pool+epoch mod=javy-static n=50 failures=0 base_rss_mb=11.0 base_pss_mb=7.6 rss_mb=70.1 pss_mb=56.3 hwm_mb=70.1 per_instance_rss_mb=1.18 per_instance_pss_mb=0.97
+L3 cfg=pool+epoch mod=javy-dynamic n=1 failures=0 base_rss_mb=11.0 base_pss_mb=7.6 rss_mb=16.8 pss_mb=13.3 hwm_mb=16.8 per_instance_rss_mb=5.86 per_instance_pss_mb=5.72
+L3 cfg=pool+epoch mod=javy-dynamic n=10 failures=0 base_rss_mb=11.1 base_pss_mb=7.7 rss_mb=25.8 pss_mb=20.7 hwm_mb=25.8 per_instance_rss_mb=1.46 per_instance_pss_mb=1.30
+L3 cfg=pool+epoch mod=javy-dynamic n=50 failures=0 base_rss_mb=11.1 base_pss_mb=7.6 rss_mb=67.2 pss_mb=55.8 hwm_mb=67.2 per_instance_rss_mb=1.12 per_instance_pss_mb=0.96
+L3 cfg=pool+epoch mod=rust-p1 n=1 failures=0 base_rss_mb=10.6 base_pss_mb=7.2 rss_mb=14.1 pss_mb=10.6 hwm_mb=14.1 per_instance_rss_mb=3.42 per_instance_pss_mb=3.37
+L3 cfg=pool+epoch mod=rust-p1 n=10 failures=0 base_rss_mb=10.5 base_pss_mb=7.1 rss_mb=20.4 pss_mb=16.8 hwm_mb=20.4 per_instance_rss_mb=0.99 per_instance_pss_mb=0.97
+L3 cfg=pool+epoch mod=rust-p1 n=50 failures=0 base_rss_mb=10.3 base_pss_mb=7.0 rss_mb=51.5 pss_mb=47.4 hwm_mb=51.5 per_instance_rss_mb=0.82 per_instance_pss_mb=0.81
+L3 cfg=pool+epoch mod=rust-unknown n=1 failures=0 base_rss_mb=10.5 base_pss_mb=7.1 rss_mb=13.4 pss_mb=9.9 hwm_mb=13.4 per_instance_rss_mb=2.90 per_instance_pss_mb=2.84
+L3 cfg=pool+epoch mod=rust-unknown n=10 failures=0 base_rss_mb=10.4 base_pss_mb=7.0 rss_mb=20.1 pss_mb=16.5 hwm_mb=20.1 per_instance_rss_mb=0.96 per_instance_pss_mb=0.95
+L3 cfg=pool+epoch mod=rust-unknown n=50 failures=0 base_rss_mb=10.7 base_pss_mb=7.3 rss_mb=54.4 pss_mb=50.4 hwm_mb=54.4 per_instance_rss_mb=0.87 per_instance_pss_mb=0.86
+L3 cfg=pool+epoch mod=rust-p2 n=1 failures=0 base_rss_mb=10.8 base_pss_mb=7.3 rss_mb=14.3 pss_mb=10.8 hwm_mb=14.3 per_instance_rss_mb=3.54 per_instance_pss_mb=3.50
+L3 cfg=pool+epoch mod=rust-p2 n=10 failures=0 base_rss_mb=10.9 base_pss_mb=7.4 rss_mb=28.9 pss_mb=25.2 hwm_mb=28.9 per_instance_rss_mb=1.80 per_instance_pss_mb=1.79
+L3 cfg=pool+epoch mod=rust-p2 n=50 failures=0 base_rss_mb=10.6 base_pss_mb=7.2 rss_mb=90.5 pss_mb=86.3 hwm_mb=90.5 per_instance_rss_mb=1.60 per_instance_pss_mb=1.58
+[uscita] 0
+[stato dopo 14:41:50] load: 1.27 1.38 1.06
+[stato dopo] io: some avg10=0.00 avg60=0.04 avg300=0.00 total=22873470112
+[stato dopo] cpu: some avg10=0.18 avg60=0.20 avg300=0.05 total=2579781081
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L3-3
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

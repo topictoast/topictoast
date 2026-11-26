@@ -1,0 +1,30 @@
+[stato prima 14:25:41] load: 0.57 0.49 0.47
+[stato prima] io: some avg10=0.00 avg60=0.04 avg300=0.01 total=22872104642
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2577400813
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L9-smoke
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-3 0.06
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+L9 mod=empty wasm_bytes=50 cwasm_bytes=13696 outcome=none output_exact=false log_lines=0 levels_0_1_2=false emits=[]
+L9 mod=javy-static wasm_bytes=1239385 cwasm_bytes=3688336 outcome=none output_exact=true log_lines=3 levels_0_1_2=true emits=["emit events {\"sum\":5}"]
+L9 mod=javy-dynamic wasm_bytes=1336 cwasm_bytes=14648 outcome=none output_exact=true log_lines=3 levels_0_1_2=true emits=["emit events {\"sum\":5}"]
+L9 mod=rust-p1 wasm_bytes=91370 cwasm_bytes=292880 outcome=none output_exact=true log_lines=3 levels_0_1_2=true emits=["emit events {\"sum\":5}"]
+L9 mod=rust-unknown wasm_bytes=76231 cwasm_bytes=251600 outcome=none output_exact=true log_lines=3 levels_0_1_2=true emits=["emit events {\"sum\":5}"]
+L9 mod=rust-p2 wasm_bytes=110235 cwasm_bytes=343960 outcome=none output_exact=true log_lines=3 levels_0_1_2=true emits=["emit events {\"sum\":5}"]
+[uscita] 0
+[stato dopo 14:25:46] load: 0.52 0.48 0.46
+[stato dopo] io: some avg10=0.00 avg60=0.04 avg300=0.01 total=22872104668
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2577413104
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L9-smoke
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.2%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

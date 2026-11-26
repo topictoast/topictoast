@@ -1,0 +1,31 @@
+[stato prima 14:44:04] load: 0.89 1.17 1.01
+[stato prima] io: some avg10=0.00 avg60=0.01 avg300=0.00 total=22873591488
+[stato prima] cpu: some avg10=0.00 avg60=0.02 avg300=0.03 total=2579924186
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L7-3
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 21.0%; core 8-11 occupati: 18.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.04
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+L7 after_extra_rounds=10 ok rss_kb=12332 pss_kb=8816 hwm_kb=61476 threads=2 held=0 children=0
+L7 after_extra_rounds=100 ok rss_kb=12344 pss_kb=8843 hwm_kb=61488 threads=2 held=0 children=0
+L7 after_extra_rounds=100 ok rss_kb=12344 pss_kb=8843 hwm_kb=61496 threads=2 held=0 children=0
+L7 start ok rss_kb=10772 pss_kb=7256 hwm_kb=10772 threads=2 held=0
+L7 rss_growth_between_100_round_snapshots_kb=0
+L7 killed pid=2681163 gone=true children_left=0 wait_ms=0.2
+L7 rlimit_cpu=2s response=None wall_ms=2159 killed_by_signal=Some(24)
+[uscita] 0
+[stato dopo 14:44:16] load: 0.98 1.17 1.02
+[stato dopo] io: some avg10=0.06 avg60=0.03 avg300=0.00 total=22873651883
+[stato dopo] cpu: some avg10=0.00 avg60=0.01 avg300=0.03 total=2579949679
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L7-3
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.7%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

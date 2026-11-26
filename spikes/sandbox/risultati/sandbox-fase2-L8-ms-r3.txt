@@ -1,0 +1,46 @@
+[stato prima 14:44:20] load: 0.98 1.17 1.02
+[stato prima] io: some avg10=0.19 avg60=0.06 avg300=0.01 total=22873676841
+[stato prima] cpu: some avg10=0.00 avg60=0.01 avg300=0.02 total=2579958629
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L8-3
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.2%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.03
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+L8 cfg=epoch nodes_ran: A=none B=none
+L8 cfg=epoch control: scan B for B's value, from B itself:  ok hits=10 read_bytes=27979776
+L8 cfg=epoch control: scan B for B's value, from the driver: hits=10 read_mb=26
+L8 cfg=epoch control: scan A for A's value, from A itself:  ok hits=10 read_bytes=27979776
+L8 cfg=epoch TEST: scan A for B's value, from A itself:   ok hits=0 read_bytes=27979776
+L8 cfg=epoch TEST: scan A for B's value, from the driver: hits=0 read_mb=27
+L8 cfg=epoch TEST: scan B for A's value, from B itself:   ok hits=0 read_bytes=27979776
+L8 cfg=epoch TEST: scan B for A's value, from the driver: hits=0 read_mb=27
+L8 cfg=epoch REPORTED: A (sibling process) reads B's memory for B's value: err Permission denied (os error 13)
+L8 cfg=epoch after free, A's value still in A (same tenant): ok hits=27 read_bytes=27992064
+L8 cfg=epoch after free, B's value in A: ok hits=0 read_bytes=27992064
+L8 cfg=pool+epoch nodes_ran: A=none B=none
+L8 cfg=pool+epoch control: scan B for B's value, from B itself:  ok hits=10 read_bytes=2330787840
+L8 cfg=pool+epoch control: scan B for B's value, from the driver: hits=10 read_mb=2223
+L8 cfg=pool+epoch control: scan A for A's value, from A itself:  ok hits=10 read_bytes=2330787840
+L8 cfg=pool+epoch TEST: scan A for B's value, from A itself:   ok hits=0 read_bytes=2331021312
+L8 cfg=pool+epoch TEST: scan A for B's value, from the driver: hits=0 read_mb=2223
+L8 cfg=pool+epoch TEST: scan B for A's value, from B itself:   ok hits=0 read_bytes=2331021312
+L8 cfg=pool+epoch TEST: scan B for A's value, from the driver: hits=0 read_mb=2223
+L8 cfg=pool+epoch REPORTED: A (sibling process) reads B's memory for B's value: err Permission denied (os error 13)
+L8 cfg=pool+epoch after free, A's value still in A (same tenant): ok hits=15 read_bytes=2332004352
+L8 cfg=pool+epoch after free, B's value in A: ok hits=0 read_bytes=2332004352
+[uscita] 0
+[stato dopo 14:44:32] load: 0.92 1.15 1.01
+[stato dopo] io: some avg10=0.05 avg60=0.05 avg300=0.00 total=22873676849
+[stato dopo] cpu: some avg10=0.00 avg60=0.01 avg300=0.02 total=2579974952
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L8-3
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2
