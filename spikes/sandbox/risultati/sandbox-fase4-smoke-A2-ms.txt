@@ -1,0 +1,242 @@
+[stato prima 17:39:30] load: 0.60 0.76 0.74
+[stato prima] io: some avg10=0.09 avg60=0.09 avg300=0.07 total=22890009074
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2594912804
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: A2-smoke
+[stato prima] binario sha256: 618771629751aee5d56623833050c257ba6430a5458a2d35e47e12cd10d25c2e
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.06
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27023024 swap_usato_kb=2041576 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931925
+[stato prima] orologio minisheep UTC: 2026-11-26T16:39:34
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+A0 kernel=7.2.4-arch1-2 lsm=capability,landlock,lockdown,yama,bpf
+A0 landlock_abi_kernel=10 (syscall landlock_create_ruleset VERSION)
+A0 landlock_crate=0.4.7 conosce_fino_a=V9 seccompiler=0.5.0
+A0 yama_ptrace_scope=1
+A0 userns: unprivileged_userns_clone=1 max_user_namespaces=126131 apparmor_restrict_unprivileged_userns=assente (sysctl letti, non cambiati)
+A0 unshare(CLONE_NEWUSER|CLONE_NEWNS) in un figlio usa-e-getta: riuscito
+A0 core_pattern=|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+A2 eng=strong role=jq mode=none probe=key_file => LEAK ACCESS bytes=32 hits=1
+A2 eng=strong role=jq mode=none probe=db_file => LEAK ACCESS bytes=53 hits=1
+A2 eng=strong role=jq mode=none probe=config_file => LEAK ACCESS bytes=51 hits=1
+A2 eng=strong role=jq mode=none probe=tenantB_file => LEAK ACCESS bytes=32 hits=1
+A2 eng=strong role=jq mode=none probe=tenantB_dir => LEAK ACCESS entries=1
+A2 eng=strong role=jq mode=none probe=eng_environ => denied err=EACCES
+A2 eng=strong role=jq mode=none probe=eng_maps => denied err=EACCES
+A2 eng=strong role=jq mode=none probe=eng_cmdline => LEAK ACCESS bytes=224 hits=0
+A2 eng=strong role=jq mode=none probe=eng_mem => denied err=EACCES
+A2 eng=strong role=jq mode=none probe=eng_process_vm_readv => denied err=EPERM
+A2 eng=strong role=jq mode=none probe=eng_ptrace => denied err=EPERM
+A2 eng=strong role=jq mode=none probe=eng_signal => LEAK ACCESS
+A2 eng=strong role=jq mode=none probe=inherited_fds => LEAK ACCESS readable_fds=1 hits=1
+A2 eng=strong role=jq mode=none probe=unix_socket_path => LEAK ACCESS
+A2 eng=strong role=jq mode=none probe=unix_socket_abstract => LEAK ACCESS
+A2 eng=strong role=jq mode=none probe=tcp_engine_port => LEAK ACCESS
+A2 eng=strong role=jq mode=none probe=exec => LEAK exec_ok
+A2 eng=strong role=jq mode=none probe=write_cache => LEAK ACCESS
+A2 eng=strong role=jq mode=none probe=fork => LEAK ACCESS
+A2 eng=strong role=jq mode=none probe=stat_key_file => LEAK ACCESS len=32
+A2 eng=strong role=jq mode=none probe=own_tenant_file => LEAK ACCESS bytes=17 hits=0
+A2sum eng=strong role=jq mode=none judged=19 leaks=14 ["key_file", "db_file", "config_file", "tenantB_file", "tenantB_dir", "eng_cmdline", "eng_signal", "inherited_fds", "unix_socket_path", "unix_socket_abstract", "tcp_engine_port", "exec", "write_cache", "fork"] meta_visible=["stat_key_file"] controls=["own_tenant_file:allowed"]
+A2 eng=strong role=jq mode=full probe=key_file => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=db_file => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=config_file => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=tenantB_file => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=tenantB_dir => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=eng_environ => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=eng_maps => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=eng_cmdline => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=eng_mem => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=eng_process_vm_readv => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=eng_ptrace => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=eng_signal => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=inherited_fds => denied readable_fds=0 hits=0
+A2 eng=strong role=jq mode=full probe=unix_socket_path => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=unix_socket_abstract => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=tcp_engine_port => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=exec => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=write_cache => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=fork => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=stat_key_file => KILLED(SIGSYS)
+A2 eng=strong role=jq mode=full probe=own_tenant_file => KILLED(SIGSYS)
+A2sum eng=strong role=jq mode=full judged=19 leaks=0 [] meta_visible=[] controls=["own_tenant_file:denied"]
+A2 eng=strong role=callhttp mode=none probe=key_file => LEAK ACCESS bytes=32 hits=1
+A2 eng=strong role=callhttp mode=none probe=db_file => LEAK ACCESS bytes=53 hits=1
+A2 eng=strong role=callhttp mode=none probe=config_file => LEAK ACCESS bytes=51 hits=1
+A2 eng=strong role=callhttp mode=none probe=tenantB_file => LEAK ACCESS bytes=32 hits=1
+A2 eng=strong role=callhttp mode=none probe=tenantB_dir => LEAK ACCESS entries=1
+A2 eng=strong role=callhttp mode=none probe=eng_environ => denied err=EACCES
+A2 eng=strong role=callhttp mode=none probe=eng_maps => denied err=EACCES
+A2 eng=strong role=callhttp mode=none probe=eng_cmdline => LEAK ACCESS bytes=224 hits=0
+A2 eng=strong role=callhttp mode=none probe=eng_mem => denied err=EACCES
+A2 eng=strong role=callhttp mode=none probe=eng_process_vm_readv => denied err=EPERM
+A2 eng=strong role=callhttp mode=none probe=eng_ptrace => denied err=EPERM
+A2 eng=strong role=callhttp mode=none probe=eng_signal => LEAK ACCESS
+A2 eng=strong role=callhttp mode=none probe=inherited_fds => denied readable_fds=0 hits=0
+A2 eng=strong role=callhttp mode=none probe=unix_socket_path => LEAK ACCESS
+A2 eng=strong role=callhttp mode=none probe=unix_socket_abstract => LEAK ACCESS
+A2 eng=strong role=callhttp mode=none probe=tcp_engine_port => LEAK ACCESS
+A2 eng=strong role=callhttp mode=none probe=exec => LEAK exec_ok
+A2 eng=strong role=callhttp mode=none probe=write_cache => LEAK ACCESS
+A2 eng=strong role=callhttp mode=none probe=fork => LEAK ACCESS
+A2 eng=strong role=callhttp mode=none probe=stat_key_file => LEAK ACCESS len=32
+A2 eng=strong role=callhttp mode=none probe=own_tenant_file => LEAK ACCESS bytes=17 hits=0
+A2sum eng=strong role=callhttp mode=none judged=19 leaks=13 ["key_file", "db_file", "config_file", "tenantB_file", "tenantB_dir", "eng_cmdline", "eng_signal", "unix_socket_path", "unix_socket_abstract", "tcp_engine_port", "exec", "write_cache", "fork"] meta_visible=["stat_key_file"] controls=["own_tenant_file:allowed"]
+A2 eng=strong role=callhttp mode=full probe=key_file => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=db_file => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=config_file => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=tenantB_file => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=tenantB_dir => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=eng_environ => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=eng_maps => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=eng_cmdline => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=eng_mem => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=eng_process_vm_readv => KILLED(SIGSYS)
+A2 eng=strong role=callhttp mode=full probe=eng_ptrace => KILLED(SIGSYS)
+A2 eng=strong role=callhttp mode=full probe=eng_signal => KILLED(SIGSYS)
+A2 eng=strong role=callhttp mode=full probe=inherited_fds => denied readable_fds=0 hits=0
+A2 eng=strong role=callhttp mode=full probe=unix_socket_path => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=unix_socket_abstract => denied err=EPERM
+A2 eng=strong role=callhttp mode=full probe=tcp_engine_port => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=exec => KILLED(SIGSYS)
+A2 eng=strong role=callhttp mode=full probe=write_cache => denied err=EACCES
+A2 eng=strong role=callhttp mode=full probe=fork => KILLED(SIGSYS)
+A2 eng=strong role=callhttp mode=full probe=stat_key_file => LEAK ACCESS len=32
+A2 eng=strong role=callhttp mode=full probe=own_tenant_file => denied err=EACCES
+A2sum eng=strong role=callhttp mode=full judged=19 leaks=0 [] meta_visible=["stat_key_file"] controls=["own_tenant_file:denied"]
+A2 eng=weak role=jq mode=none probe=key_file => LEAK ACCESS bytes=32 hits=1
+A2 eng=weak role=jq mode=none probe=db_file => LEAK ACCESS bytes=53 hits=1
+A2 eng=weak role=jq mode=none probe=config_file => LEAK ACCESS bytes=51 hits=1
+A2 eng=weak role=jq mode=none probe=tenantB_file => LEAK ACCESS bytes=32 hits=1
+A2 eng=weak role=jq mode=none probe=tenantB_dir => LEAK ACCESS entries=1
+A2 eng=weak role=jq mode=none probe=eng_environ => LEAK ACCESS bytes=804 hits=1
+A2 eng=weak role=jq mode=none probe=eng_maps => LEAK ACCESS bytes=3859 hits=0
+A2 eng=weak role=jq mode=none probe=eng_cmdline => LEAK ACCESS bytes=224 hits=0
+A2 eng=weak role=jq mode=none probe=eng_mem => LEAK ACCESS hits=3 read_bytes=26300416
+A2 eng=weak role=jq mode=none probe=eng_process_vm_readv => LEAK ACCESS bytes=32 hits=1
+A2 eng=weak role=jq mode=none probe=eng_ptrace => LEAK ACCESS
+A2 eng=weak role=jq mode=none probe=eng_signal => LEAK ACCESS
+A2 eng=weak role=jq mode=none probe=inherited_fds => denied readable_fds=0 hits=0
+A2 eng=weak role=jq mode=none probe=unix_socket_path => LEAK ACCESS
+A2 eng=weak role=jq mode=none probe=unix_socket_abstract => LEAK ACCESS
+A2 eng=weak role=jq mode=none probe=tcp_engine_port => LEAK ACCESS
+A2 eng=weak role=jq mode=none probe=exec => LEAK exec_ok
+A2 eng=weak role=jq mode=none probe=write_cache => LEAK ACCESS
+A2 eng=weak role=jq mode=none probe=fork => LEAK ACCESS
+A2 eng=weak role=jq mode=none probe=stat_key_file => LEAK ACCESS len=32
+A2 eng=weak role=jq mode=none probe=own_tenant_file => LEAK ACCESS bytes=17 hits=0
+A2sum eng=weak role=jq mode=none judged=19 leaks=18 ["key_file", "db_file", "config_file", "tenantB_file", "tenantB_dir", "eng_environ", "eng_maps", "eng_cmdline", "eng_mem", "eng_process_vm_readv", "eng_ptrace", "eng_signal", "unix_socket_path", "unix_socket_abstract", "tcp_engine_port", "exec", "write_cache", "fork"] meta_visible=["stat_key_file"] controls=["own_tenant_file:allowed"]
+A2 eng=weak role=jq mode=full probe=key_file => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=db_file => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=config_file => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=tenantB_file => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=tenantB_dir => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=eng_environ => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=eng_maps => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=eng_cmdline => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=eng_mem => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=eng_process_vm_readv => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=eng_ptrace => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=eng_signal => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=inherited_fds => denied readable_fds=0 hits=0
+A2 eng=weak role=jq mode=full probe=unix_socket_path => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=unix_socket_abstract => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=tcp_engine_port => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=exec => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=write_cache => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=fork => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=stat_key_file => KILLED(SIGSYS)
+A2 eng=weak role=jq mode=full probe=own_tenant_file => KILLED(SIGSYS)
+A2sum eng=weak role=jq mode=full judged=19 leaks=0 [] meta_visible=[] controls=["own_tenant_file:denied"]
+A2 eng=weak role=callhttp mode=none probe=key_file => LEAK ACCESS bytes=32 hits=1
+A2 eng=weak role=callhttp mode=none probe=db_file => LEAK ACCESS bytes=53 hits=1
+A2 eng=weak role=callhttp mode=none probe=config_file => LEAK ACCESS bytes=51 hits=1
+A2 eng=weak role=callhttp mode=none probe=tenantB_file => LEAK ACCESS bytes=32 hits=1
+A2 eng=weak role=callhttp mode=none probe=tenantB_dir => LEAK ACCESS entries=1
+A2 eng=weak role=callhttp mode=none probe=eng_environ => LEAK ACCESS bytes=804 hits=1
+A2 eng=weak role=callhttp mode=none probe=eng_maps => LEAK ACCESS bytes=3859 hits=0
+A2 eng=weak role=callhttp mode=none probe=eng_cmdline => LEAK ACCESS bytes=224 hits=0
+A2 eng=weak role=callhttp mode=none probe=eng_mem => LEAK ACCESS hits=3 read_bytes=26300416
+A2 eng=weak role=callhttp mode=none probe=eng_process_vm_readv => LEAK ACCESS bytes=32 hits=1
+A2 eng=weak role=callhttp mode=none probe=eng_ptrace => LEAK ACCESS
+A2 eng=weak role=callhttp mode=none probe=eng_signal => LEAK ACCESS
+A2 eng=weak role=callhttp mode=none probe=inherited_fds => denied readable_fds=0 hits=0
+A2 eng=weak role=callhttp mode=none probe=unix_socket_path => LEAK ACCESS
+A2 eng=weak role=callhttp mode=none probe=unix_socket_abstract => LEAK ACCESS
+A2 eng=weak role=callhttp mode=none probe=tcp_engine_port => LEAK ACCESS
+A2 eng=weak role=callhttp mode=none probe=exec => LEAK exec_ok
+A2 eng=weak role=callhttp mode=none probe=write_cache => LEAK ACCESS
+A2 eng=weak role=callhttp mode=none probe=fork => LEAK ACCESS
+A2 eng=weak role=callhttp mode=none probe=stat_key_file => LEAK ACCESS len=32
+A2 eng=weak role=callhttp mode=none probe=own_tenant_file => LEAK ACCESS bytes=17 hits=0
+A2sum eng=weak role=callhttp mode=none judged=19 leaks=18 ["key_file", "db_file", "config_file", "tenantB_file", "tenantB_dir", "eng_environ", "eng_maps", "eng_cmdline", "eng_mem", "eng_process_vm_readv", "eng_ptrace", "eng_signal", "unix_socket_path", "unix_socket_abstract", "tcp_engine_port", "exec", "write_cache", "fork"] meta_visible=["stat_key_file"] controls=["own_tenant_file:allowed"]
+A2 eng=weak role=callhttp mode=full probe=key_file => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=db_file => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=config_file => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=tenantB_file => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=tenantB_dir => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=eng_environ => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=eng_maps => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=eng_cmdline => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=eng_mem => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=eng_process_vm_readv => KILLED(SIGSYS)
+A2 eng=weak role=callhttp mode=full probe=eng_ptrace => KILLED(SIGSYS)
+A2 eng=weak role=callhttp mode=full probe=eng_signal => KILLED(SIGSYS)
+A2 eng=weak role=callhttp mode=full probe=inherited_fds => denied readable_fds=0 hits=0
+A2 eng=weak role=callhttp mode=full probe=unix_socket_path => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=unix_socket_abstract => denied err=EPERM
+A2 eng=weak role=callhttp mode=full probe=tcp_engine_port => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=exec => KILLED(SIGSYS)
+A2 eng=weak role=callhttp mode=full probe=write_cache => denied err=EACCES
+A2 eng=weak role=callhttp mode=full probe=fork => KILLED(SIGSYS)
+A2 eng=weak role=callhttp mode=full probe=stat_key_file => LEAK ACCESS len=32
+A2 eng=weak role=callhttp mode=full probe=own_tenant_file => denied err=EACCES
+A2sum eng=weak role=callhttp mode=full judged=19 leaks=0 [] meta_visible=["stat_key_file"] controls=["own_tenant_file:denied"]
+A2yama engine=dump0+yama unconfined_aux probe=eng_environ => denied err=EACCES
+A2yama engine=dump0+yama unconfined_aux probe=eng_maps => denied err=EACCES
+A2yama engine=dump0+yama unconfined_aux probe=eng_cmdline => LEAK ACCESS bytes=224 hits=0
+A2yama engine=dump0+yama unconfined_aux probe=eng_mem => denied err=EACCES
+A2yama engine=dump0+yama unconfined_aux probe=eng_process_vm_readv => denied err=EPERM
+A2yama engine=dump0+yama unconfined_aux probe=eng_ptrace => denied err=EPERM
+A2yama engine=dump0+yama unconfined_aux probe=inherited_fds => denied readable_fds=0 hits=0
+A2yama engine=dump1+yama unconfined_aux probe=eng_environ => LEAK ACCESS bytes=804 hits=1
+A2yama engine=dump1+yama unconfined_aux probe=eng_maps => LEAK ACCESS bytes=3859 hits=0
+A2yama engine=dump1+yama unconfined_aux probe=eng_cmdline => LEAK ACCESS bytes=224 hits=0
+A2yama engine=dump1+yama unconfined_aux probe=eng_mem => denied err=EACCES
+A2yama engine=dump1+yama unconfined_aux probe=eng_process_vm_readv => denied err=EPERM
+A2yama engine=dump1+yama unconfined_aux probe=eng_ptrace => denied err=EPERM
+A2yama engine=dump1+yama unconfined_aux probe=inherited_fds => denied readable_fds=0 hits=0
+A2yama engine=dump0+noyama unconfined_aux probe=eng_environ => denied err=EACCES
+A2yama engine=dump0+noyama unconfined_aux probe=eng_maps => denied err=EACCES
+A2yama engine=dump0+noyama unconfined_aux probe=eng_cmdline => LEAK ACCESS bytes=224 hits=0
+A2yama engine=dump0+noyama unconfined_aux probe=eng_mem => denied err=EACCES
+A2yama engine=dump0+noyama unconfined_aux probe=eng_process_vm_readv => denied err=EPERM
+A2yama engine=dump0+noyama unconfined_aux probe=eng_ptrace => denied err=EPERM
+A2yama engine=dump0+noyama unconfined_aux probe=inherited_fds => denied readable_fds=0 hits=0
+A2yama engine=dump1+noyama unconfined_aux probe=eng_environ => LEAK ACCESS bytes=804 hits=1
+A2yama engine=dump1+noyama unconfined_aux probe=eng_maps => LEAK ACCESS bytes=3859 hits=0
+A2yama engine=dump1+noyama unconfined_aux probe=eng_cmdline => LEAK ACCESS bytes=224 hits=0
+A2yama engine=dump1+noyama unconfined_aux probe=eng_mem => LEAK ACCESS hits=3 read_bytes=26300416
+A2yama engine=dump1+noyama unconfined_aux probe=eng_process_vm_readv => LEAK ACCESS bytes=32 hits=1
+A2yama engine=dump1+noyama unconfined_aux probe=eng_ptrace => LEAK ACCESS
+A2yama engine=dump1+noyama unconfined_aux probe=inherited_fds => denied readable_fds=0 hits=0
+A2environ engine=dump1 variabile_gia_tolta unconfined_aux => LEAK ACCESS bytes=804 hits=1
+[uscita] 0
+[stato dopo 17:39:35] load: 0.55 0.75 0.74
+[stato dopo] io: some avg10=0.06 avg60=0.09 avg300=0.07 total=22890009087
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2594924173
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: A2-smoke
+[stato dopo] binario sha256: 618771629751aee5d56623833050c257ba6430a5458a2d35e47e12cd10d25c2e
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27023480 swap_usato_kb=2041576 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931925
+[stato dopo] orologio minisheep UTC: 2026-11-26T16:39:39
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

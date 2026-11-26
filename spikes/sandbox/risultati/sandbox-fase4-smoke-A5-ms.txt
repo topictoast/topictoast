@@ -1,0 +1,59 @@
+[stato prima 17:39:57] load: 0.87 0.80 0.75
+[stato prima] io: some avg10=0.00 avg60=0.06 avg300=0.06 total=22890036624
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2594970897
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: A5-smoke
+[stato prima] binario sha256: 618771629751aee5d56623833050c257ba6430a5458a2d35e47e12cd10d25c2e
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.04
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27028220 swap_usato_kb=2041568 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931925
+[stato prima] orologio minisheep UTC: 2026-11-26T16:40:01
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+A0 kernel=7.2.4-arch1-2 lsm=capability,landlock,lockdown,yama,bpf
+A0 landlock_abi_kernel=10 (syscall landlock_create_ruleset VERSION)
+A0 landlock_crate=0.4.7 conosce_fino_a=V9 seccompiler=0.5.0
+A0 yama_ptrace_scope=1
+A0 userns: unprivileged_userns_clone=1 max_user_namespaces=126131 apparmor_restrict_unprivileged_userns=assente (sysctl letti, non cambiati)
+A0 unshare(CLONE_NEWUSER|CLONE_NEWNS) in un figlio usa-e-getta: riuscito
+A0 core_pattern=|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+A5 avviati 15 ausiliari (3 tenant x 5 ruoli) in 92 ms
+A5 stand-in motore (questo processo, NON il motore vero) RSS_kb=6444
+A5 attivi N=1 aux_rss_kb=45344 (di cui light=18636) standin_kb=6444 somma_con_standin_MB=50.6 somma_con_stima_motore_26.5MB=70.8
+A5 attivi ruolo=validation rss_kb min=6640 max=6692 medio=6668
+A5 attivi ruolo=jq rss_kb min=6656 max=6704 medio=6684
+A5 attivi ruolo=callhttp rss_kb min=6596 max=6820 medio=6676
+A5 attivi ruolo=light rss_kb min=18636 max=18788 medio=18717
+A5 attivi ruolo=stream rss_kb min=6492 max=6728 medio=6610
+A5 controllo_senza_confinamento ruolo=validation rss_kb=6336 pss_kb=930
+A5 controllo_senza_confinamento ruolo=jq rss_kb=6404 pss_kb=940
+A5 controllo_senza_confinamento ruolo=callhttp rss_kb=6396 pss_kb=925
+A5 controllo_senza_confinamento ruolo=light rss_kb=18968 pss_kb=4779
+A5 controllo_senza_confinamento ruolo=stream rss_kb=6236 pss_kb=920
+A5 attesa di 5 s senza esecuzioni (arresto per inattività)
+A5 fermi_prima_dello_stop N=1 aux_rss_kb=45344 (di cui light=18636) standin_kb=6444 somma_con_standin_MB=50.6 somma_con_stima_motore_26.5MB=70.8
+A5 fermi_prima_dello_stop ruolo=validation rss_kb min=6640 max=6692 medio=6668
+A5 fermi_prima_dello_stop ruolo=jq rss_kb min=6656 max=6704 medio=6684
+A5 fermi_prima_dello_stop ruolo=callhttp rss_kb min=6596 max=6820 medio=6676
+A5 fermi_prima_dello_stop ruolo=light rss_kb min=18636 max=18788 medio=18717
+A5 fermi_prima_dello_stop ruolo=stream rss_kb min=6492 max=6728 medio=6610
+A5 arresto per inattività di 15 ausiliari in 4 ms; ausiliari rimasti: 0
+A5 dopo_lo_stop standin_kb=6460 somma_con_stima_motore_26.5MB=26.5
+[uscita] 0
+[stato dopo 17:40:07] load: 0.81 0.79 0.75
+[stato dopo] io: some avg10=0.14 avg60=0.08 avg300=0.06 total=22890092079
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2595003185
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: A5-smoke
+[stato dopo] binario sha256: 618771629751aee5d56623833050c257ba6430a5458a2d35e47e12cd10d25c2e
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 35.2%; core 8-11 occupati: 4.2%
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26983544 swap_usato_kb=2041568 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931925
+[stato dopo] orologio minisheep UTC: 2026-11-26T16:40:11
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2
