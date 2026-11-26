@@ -260,3 +260,11 @@ verificata).
     aveva la parte nativa (esaurimento e fork bomb), che qui si prova dentro il guest e resta nel guest.
 12. **Nota di metodo**: l'agente non poteva essere il binario dinamico di fase 2 (glibc più vecchia nel guest: ipotesi, non
     provato); si è costruito statico con glibc, 32 MB, e il disco dell'agente è da 64 MiB.
+
+## Revisione (2026-11-26, coordinatore)
+
+- **Valori riletti sui file grezzi:** S1 (lettura larga javy statico p50 1,47 ms; lettura stretta javy statico p50 16,6 ms, p99 18,5 ms), S2 (ripristino `rust-p1` p50 13,6 ms, p99 19,4 ms), S3 (microVM ripristinata RSS 31,0 MB, avviata a freddo 65,0 MB): uguali al testo. Hash del binario `c8d744c80372524c…` in 54 righe dei 27 file misurati; la prima corsa misurata parte alle 16:26:04, dopo il commit delle regole delle 16:25:53.
+- **S1 è la lettura b («passa con riserva»):** il limite di 10 ms regge solo se il modulo è già nella microVM, o per moduli piccoli; un artefatto da 3,7 MB consegnato a una microVM generica del pool costa 16,6 ms al p50 in ogni corsa. Per l'ADR: dove si tiene l'artefatto (dentro la microVM riservata al tenant, o nello snapshot) decide se il limite di NFR-12 regge.
+- **Script committati dopo le corse:** `ms-run.sh` (righe di stato in più), `chain3.sh` e `run3.sh` (ordine delle corse) sono entrati nel commit dei risultati, dopo le corse (fuori dalle regole). Non cambiano i valori misurati: il binario e i moduli hanno l'impronta registrata in ogni file.
+- **Kernel del guest:** quello degli artefatti di test di Firecracker lascia aprire `/dev/mem` e `/proc/kcore` a root nel guest. Il kernel che topictoast distribuirà va configurato senza (per l'ADR, con la domanda su chi fornisce kernel e disco).
+- **Difese assenti senza root:** jailer, cgroup, namespace di rete. Il VMM gira come utente normale con il suo filtro seccomp attivo. Le fughe dal VMM non si misurano.
