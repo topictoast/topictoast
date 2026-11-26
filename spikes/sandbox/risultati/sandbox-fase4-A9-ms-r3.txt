@@ -1,0 +1,51 @@
+[stato prima 18:20:21] load: 1.40 1.41 1.06
+[stato prima] io: some avg10=0.06 avg60=0.03 avg300=0.02 total=22895178829
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2599477270
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: A9-3
+[stato prima] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.5%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26963848 swap_usato_kb=2040972 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931971
+[stato prima] orologio minisheep UTC: 2026-11-26T17:20:25
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 15 s
+A0 kernel=7.2.4-arch1-2 lsm=capability,landlock,lockdown,yama,bpf
+A0 landlock_abi_kernel=10 (syscall landlock_create_ruleset VERSION)
+A0 landlock_crate=0.4.7 conosce_fino_a=V9 seccompiler=0.5.0
+A0 yama_ptrace_scope=1
+A0 userns: unprivileged_userns_clone=1 max_user_namespaces=126131 apparmor_restrict_unprivileged_userns=assente (sysctl letti, non cambiati)
+A0 unshare(CLONE_NEWUSER|CLONE_NEWNS) in un figlio usa-e-getta: riuscito
+A0 core_pattern=|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+A9 regola: limite_wasm = min(richiesto, T - T/10), T < 10 ms rifiutato: Err("E_TASK_TIMEOUT_TOO_SMALL") Err("E_TASK_TIMEOUT_TOO_SMALL")
+A9 T=10ms module=loop limit_wasm=9ms reps=30 stopped_before_T=30 error_names_limit=30 classes={"cpu_time_limit": 30} elapsed_ms n=30 p50=8.995 p90=9.025 p99=9.189 max=9.189
+A9 T=10ms module=growmem limit_wasm=9ms reps=30 stopped_before_T=30 error_names_limit=30 classes={"memory_limit": 30} elapsed_ms n=30 p50=0.012 p90=0.016 p99=0.139 max=0.139
+A9 control_senza_vincolo T=10ms: scatta il timer del task (errore non nomina il limite del nodo) dopo 10.3 ms
+A9 T=100ms module=loop limit_wasm=90ms reps=30 stopped_before_T=30 error_names_limit=30 classes={"cpu_time_limit": 30} elapsed_ms n=30 p50=89.999 p90=90.056 p99=90.191 max=90.191
+A9 T=100ms module=growmem limit_wasm=90ms reps=30 stopped_before_T=30 error_names_limit=30 classes={"memory_limit": 30} elapsed_ms n=30 p50=0.014 p90=0.017 p99=0.038 max=0.038
+A9 control_senza_vincolo T=100ms: scatta il timer del task (errore non nomina il limite del nodo) dopo 100.6 ms
+A9 T=1000ms module=loop limit_wasm=900ms reps=30 stopped_before_T=30 error_names_limit=30 classes={"cpu_time_limit": 30} elapsed_ms n=30 p50=899.997 p90=900.044 p99=900.223 max=900.223
+A9 T=1000ms module=growmem limit_wasm=900ms reps=30 stopped_before_T=30 error_names_limit=30 classes={"memory_limit": 30} elapsed_ms n=30 p50=0.013 p90=0.016 p99=0.042 max=0.042
+A9 control_senza_vincolo T=1000ms: scatta il timer del task (errore non nomina il limite del nodo) dopo 1001.6 ms
+A9 T=5000ms module=loop limit_wasm=4500ms reps=30 stopped_before_T=30 error_names_limit=30 classes={"cpu_time_limit": 30} elapsed_ms n=30 p50=4499.992 p90=4500.075 p99=4500.226 max=4500.226
+A9 T=5000ms module=growmem limit_wasm=4500ms reps=30 stopped_before_T=30 error_names_limit=30 classes={"memory_limit": 30} elapsed_ms n=30 p50=0.013 p90=0.017 p99=0.041 max=0.041
+A9 control_senza_vincolo T=5000ms: scatta il timer del task (errore non nomina il limite del nodo) dopo 5005.7 ms
+A9 T=1ms: Err("E_TASK_TIMEOUT_TOO_SMALL")
+[uscita] 0
+[stato dopo 18:23:17] load: 1.69 1.46 1.13
+[stato dopo] io: some avg10=0.00 avg60=0.00 avg300=0.00 total=22895328497
+[stato dopo] cpu: some avg10=0.18 avg60=0.03 avg300=0.00 total=2599635367
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: A9-3
+[stato dopo] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 1.5%; core 8-11 occupati: 3.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.19
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26910524 swap_usato_kb=2040932 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931972
+[stato dopo] orologio minisheep UTC: 2026-11-26T17:23:21
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

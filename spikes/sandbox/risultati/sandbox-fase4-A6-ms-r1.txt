@@ -1,0 +1,93 @@
+[stato prima 18:08:32] load: 0.90 0.70 0.61
+[stato prima] io: some avg10=0.00 avg60=0.02 avg300=0.01 total=22893900939
+[stato prima] cpu: some avg10=0.03 avg60=0.05 avg300=0.00 total=2597677889
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: A6-1
+[stato prima] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.5%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.03
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26988856 swap_usato_kb=2041184 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931958
+[stato prima] orologio minisheep UTC: 2026-11-26T17:08:37
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+A0 kernel=7.2.4-arch1-2 lsm=capability,landlock,lockdown,yama,bpf
+A0 landlock_abi_kernel=10 (syscall landlock_create_ruleset VERSION)
+A0 landlock_crate=0.4.7 conosce_fino_a=V9 seccompiler=0.5.0
+A0 yama_ptrace_scope=1
+A0 userns: unprivileged_userns_clone=1 max_user_namespaces=126131 apparmor_restrict_unprivileged_userns=assente (sysctl letti, non cambiati)
+A0 unshare(CLONE_NEWUSER|CLONE_NEWNS) in un figlio usa-e-getta: riuscito
+A0 core_pattern=|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+A6 role=validation mod=- mode=full fork_to_first_work_ms n=200 p50=0.924 p90=1.038 p99=1.217 max=1.299
+A6 role=validation mod=- mode=full fork_to_ready+hello_ms n=200 p50=0.918 p90=1.030 p99=1.210 max=1.290
+A6 role=validation mod=- mode=full confinement_setup_ms n=200 p50=0.206 p90=0.239 p99=0.275 max=0.305
+A6 role=validation mod=- mode=full spawn_call_ms n=200 p50=0.326 p90=0.398 p99=0.490 max=0.522
+A6 role=validation mod=- mode=none fork_to_first_work_ms n=200 p50=0.672 p90=0.786 p99=0.865 max=2.284
+A6 role=validation mod=- mode=none fork_to_ready+hello_ms n=200 p50=0.663 p90=0.776 p99=0.856 max=2.273
+A6 role=validation mod=- mode=none confinement_setup_ms n=200 p50=0.000 p90=0.000 p99=0.000 max=0.006
+A6 role=validation mod=- mode=none spawn_call_ms n=200 p50=0.298 p90=0.399 p99=0.491 max=1.828
+A6 role=jq mod=- mode=full fork_to_first_work_ms n=200 p50=0.922 p90=1.009 p99=1.139 max=1.359
+A6 role=jq mod=- mode=full fork_to_ready+hello_ms n=200 p50=0.912 p90=0.999 p99=1.130 max=1.351
+A6 role=jq mod=- mode=full confinement_setup_ms n=200 p50=0.204 p90=0.241 p99=0.265 max=0.286
+A6 role=jq mod=- mode=full spawn_call_ms n=200 p50=0.326 p90=0.400 p99=0.449 max=0.507
+A6 role=jq mod=- mode=none fork_to_first_work_ms n=200 p50=0.654 p90=0.754 p99=0.820 max=0.898
+A6 role=jq mod=- mode=none fork_to_ready+hello_ms n=200 p50=0.644 p90=0.748 p99=0.810 max=0.888
+A6 role=jq mod=- mode=none confinement_setup_ms n=200 p50=0.000 p90=0.000 p99=0.000 max=0.005
+A6 role=jq mod=- mode=none spawn_call_ms n=200 p50=0.262 p90=0.377 p99=0.431 max=0.450
+A6 role=callhttp mod=- mode=full fork_to_first_work_ms n=200 p50=0.905 p90=1.010 p99=1.128 max=1.234
+A6 role=callhttp mod=- mode=full fork_to_ready+hello_ms n=200 p50=0.843 p90=0.940 p99=1.033 max=1.089
+A6 role=callhttp mod=- mode=full confinement_setup_ms n=200 p50=0.230 p90=0.269 p99=0.308 max=0.340
+A6 role=callhttp mod=- mode=full spawn_call_ms n=200 p50=0.195 p90=0.289 p99=0.408 max=0.427
+A6 role=callhttp mod=- mode=none fork_to_first_work_ms n=200 p50=0.742 p90=0.820 p99=0.864 max=0.882
+A6 role=callhttp mod=- mode=none fork_to_ready+hello_ms n=200 p50=0.684 p90=0.761 p99=0.805 max=0.818
+A6 role=callhttp mod=- mode=none confinement_setup_ms n=200 p50=0.000 p90=0.000 p99=0.001 max=0.001
+A6 role=callhttp mod=- mode=none spawn_call_ms n=200 p50=0.308 p90=0.376 p99=0.406 max=0.421
+A6 role=stream mod=- mode=full fork_to_first_work_ms n=200 p50=3.827 p90=4.576 p99=5.385 max=6.560
+A6 role=stream mod=- mode=full fork_to_ready+hello_ms n=200 p50=1.171 p90=1.429 p99=1.792 max=3.654
+A6 role=stream mod=- mode=full confinement_setup_ms n=200 p50=0.237 p90=0.277 p99=0.340 max=0.400
+A6 role=stream mod=- mode=full spawn_call_ms n=200 p50=0.378 p90=0.534 p99=1.001 max=2.779
+A6 role=stream mod=- mode=none fork_to_first_work_ms n=200 p50=3.864 p90=4.495 p99=6.821 max=7.850
+A6 role=stream mod=- mode=none fork_to_ready+hello_ms n=200 p50=0.992 p90=1.291 p99=1.831 max=3.245
+A6 role=stream mod=- mode=none confinement_setup_ms n=200 p50=0.001 p90=0.001 p99=0.001 max=0.002
+A6 role=stream mod=- mode=none spawn_call_ms n=200 p50=0.402 p90=0.595 p99=1.371 max=2.902
+A6 role=light mod=empty mode=full fork_to_first_work_ms n=200 p50=2.349 p90=2.540 p99=2.758 max=3.684
+A6 role=light mod=empty mode=full fork_to_ready+hello_ms n=200 p50=2.274 p90=2.467 p99=2.657 max=3.556
+A6 role=light mod=empty mode=full confinement_setup_ms n=200 p50=0.252 p90=0.298 p99=0.426 max=0.439
+A6 role=light mod=empty mode=full spawn_call_ms n=200 p50=0.441 p90=0.497 p99=0.609 max=0.740
+A6 role=light mod=empty mode=none fork_to_first_work_ms n=200 p50=2.066 p90=2.228 p99=2.494 max=2.643
+A6 role=light mod=empty mode=none fork_to_ready+hello_ms n=200 p50=1.989 p90=2.134 p99=2.409 max=2.484
+A6 role=light mod=empty mode=none confinement_setup_ms n=200 p50=0.001 p90=0.001 p99=0.001 max=0.001
+A6 role=light mod=empty mode=none spawn_call_ms n=200 p50=0.422 p90=0.468 p99=0.526 max=0.581
+A6 role=light mod=rust-p1 mode=full fork_to_first_work_ms n=200 p50=2.689 p90=2.856 p99=3.043 max=3.116
+A6 role=light mod=rust-p1 mode=full fork_to_ready+hello_ms n=200 p50=2.308 p90=2.493 p99=2.646 max=2.756
+A6 role=light mod=rust-p1 mode=full confinement_setup_ms n=200 p50=0.256 p90=0.298 p99=0.446 max=0.453
+A6 role=light mod=rust-p1 mode=full spawn_call_ms n=200 p50=0.442 p90=0.501 p99=0.627 max=0.704
+A6 role=light mod=rust-p1 mode=none fork_to_first_work_ms n=200 p50=2.404 p90=2.585 p99=2.957 max=3.008
+A6 role=light mod=rust-p1 mode=none fork_to_ready+hello_ms n=200 p50=2.027 p90=2.186 p99=2.546 max=2.627
+A6 role=light mod=rust-p1 mode=none confinement_setup_ms n=200 p50=0.001 p90=0.001 p99=0.001 max=0.001
+A6 role=light mod=rust-p1 mode=none spawn_call_ms n=200 p50=0.432 p90=0.510 p99=0.630 max=0.907
+A6 role=light mod=javy-static mode=full fork_to_first_work_ms n=200 p50=5.528 p90=5.751 p99=5.997 max=6.758
+A6 role=light mod=javy-static mode=full fork_to_ready+hello_ms n=200 p50=2.481 p90=2.635 p99=2.757 max=3.483
+A6 role=light mod=javy-static mode=full confinement_setup_ms n=200 p50=0.263 p90=0.301 p99=0.432 max=0.503
+A6 role=light mod=javy-static mode=full spawn_call_ms n=200 p50=0.490 p90=0.600 p99=0.699 max=1.361
+A6 role=light mod=javy-static mode=none fork_to_first_work_ms n=200 p50=5.313 p90=5.566 p99=6.273 max=7.416
+A6 role=light mod=javy-static mode=none fork_to_ready+hello_ms n=200 p50=2.231 p90=2.360 p99=2.709 max=3.893
+A6 role=light mod=javy-static mode=none confinement_setup_ms n=200 p50=0.001 p90=0.001 p99=0.002 max=0.002
+A6 role=light mod=javy-static mode=none spawn_call_ms n=200 p50=0.505 p90=0.603 p99=0.762 max=0.934
+[uscita] 0
+[stato dopo 18:08:44] load: 0.85 0.70 0.61
+[stato dopo] io: some avg10=0.83 avg60=0.20 avg300=0.05 total=22894053328
+[stato dopo] cpu: some avg10=0.85 avg60=0.20 avg300=0.04 total=2597873580
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: A6-1
+[stato dopo] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.5%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.05
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26921184 swap_usato_kb=2041180 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931958
+[stato dopo] orologio minisheep UTC: 2026-11-26T17:08:49
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

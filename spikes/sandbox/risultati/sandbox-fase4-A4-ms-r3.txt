@@ -1,0 +1,297 @@
+[stato prima 18:08:18] load: 0.71 0.66 0.59
+[stato prima] io: some avg10=0.00 avg60=0.03 avg300=0.01 total=22893876847
+[stato prima] cpu: some avg10=0.15 avg60=0.07 avg300=0.01 total=2597652871
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: A4-3
+[stato prima] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.2%; core 8-11 occupati: 0.5%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26980972 swap_usato_kb=2041188 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931958
+[stato prima] orologio minisheep UTC: 2026-11-26T17:08:22
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+A0 kernel=7.2.4-arch1-2 lsm=capability,landlock,lockdown,yama,bpf
+A0 landlock_abi_kernel=10 (syscall landlock_create_ruleset VERSION)
+A0 landlock_crate=0.4.7 conosce_fino_a=V9 seccompiler=0.5.0
+A0 yama_ptrace_scope=1
+A0 userns: unprivileged_userns_clone=1 max_user_namespaces=126131 apparmor_restrict_unprivileged_userns=assente (sysctl letti, non cambiati)
+A0 unshare(CLONE_NEWUSER|CLONE_NEWNS) in un figlio usa-e-getta: riuscito
+A0 core_pattern=|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+A4 role=validation mode=fb (Landlock forzato assente) confined: role=validation mode=fb env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=forced_off seccomp_syscalls=23 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=seccomp-senza-open t_confine_us=210
+A4 role=validation kernel_snapshot: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=1
+A4 role=validation work: Ok("ok role=validation len=100")
+A4 role=validation mode=fb-nouserns STARTED level: role=validation mode=fbnouserns env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=forced_off seccomp_syscalls=23 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=seccomp-senza-open t_confine_us=194
+A4 role=jq mode=fb (Landlock forzato assente) confined: role=jq mode=fb env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=forced_off seccomp_syscalls=23 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=seccomp-senza-open t_confine_us=220
+A4 role=jq kernel_snapshot: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=1
+A4 role=jq work: Ok("ok role=jq len=100")
+A4 role=jq mode=fb-nouserns STARTED level: role=jq mode=fbnouserns env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=forced_off seccomp_syscalls=23 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=seccomp-senza-open t_confine_us=198
+A4 role=callhttp mode=fb (Landlock forzato assente) confined: role=callhttp mode=fb env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=forced_off userns=root_vuota seccomp_syscalls=29 seccomp_action=KILL_PROCESS,_TSYNC userns_active=1 level=userns+seccomp t_confine_us=647
+A4 role=callhttp kernel_snapshot: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=1
+A4 role=callhttp work: Ok("ok role=callhttp ca_bytes=14 reply_bytes=3")
+A4 role=callhttp mode=fb-nouserns REFUSED exit=78 refused code=E_AUX_CONFINEMENT_UNAVAILABLE role=callhttp reason=Landlock_assente_e_namespace_utente_non_consentiti_(simulato)
+A4 engine log (error): ausiliario callhttp non avviato: confinamento non disponibile; nessuna modalità senza confinamento
+A4 operator warning: il ruolo callhttp è disabilitato finché Landlock o i namespace utente non sono disponibili; coded refusal: E_AUX_CONFINEMENT_UNAVAILABLE
+A4 role=light mode=fb (Landlock forzato assente) confined: role=light mode=fb env_vars=0 inherited_fds=9 closed_fds=0 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=forced_off seccomp_syscalls=26 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=seccomp-senza-open t_confine_us=199
+A4 role=light kernel_snapshot: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=10
+A4 role=light work: load empty: ok load_us=59
+A4 role=light work: load rust-p1: ok load_us=252
+A4 role=light work: load javy-static: ok load_us=2824
+A4 role=light work: load loop: ok load_us=26
+A4 role=light work: load growmem: ok load_us=22
+A4 role=light work: load recurse: ok load_us=19
+A4 role=light work: load table: ok load_us=17
+A4 role=light work: load probe: ok load_us=192
+A4 role=light work: load bigmem: ok load_us=22
+A4 role=light work: run rust-p1: ok t_inst_us=24 t_start_us=25 t_total_us=61 outlen=39 errlen=0 logs=3 emits=1 fail=none
+A4 role=light work: run javy-static: ok t_inst_us=9 t_start_us=10 t_total_us=155 outlen=39 errlen=0 logs=3 emits=1 fail=none
+A4 role=light work: run loop: ok t_inst_us=7 t_start_us=8 t_total_us=19734 outlen=0 errlen=0 logs=0 emits=0 fail=cpu_time_limit msg=error while executing at wasm backtrace: |     0:     0x31
+A4 role=light work: run growmem: ok t_inst_us=15 t_start_us=17 t_total_us=21 outlen=0 errlen=0 logs=0 emits=0 fail=memory_limit msg=error while executing at wasm backtrace: |     0:     0x38 - 
+A4 role=light work: run recurse: ok t_inst_us=4 t_start_us=4 t_total_us=238 outlen=0 errlen=0 logs=0 emits=0 fail=stack_limit msg=error while executing at wasm backtrace: |     0: <unknown>!f |
+A4 role=light work: run table: ok t_inst_us=6 t_start_us=6 t_total_us=12 outlen=0 errlen=0 logs=0 emits=0 fail=table_limit msg=error while executing at wasm backtrace: |     0:     0x3e - <un
+A4 role=light work: run probe: ok t_inst_us=10 t_start_us=10 t_total_us=58 outlen=331 errlen=0 logs=0 emits=0 fail=none
+A4 role=light work: run bigmem: ok t_inst_us=0 t_start_us=0 t_total_us=4 outlen=0 errlen=0 logs=0 emits=0 fail=memory_limit msg=memory limit exceeded: requested 2621440000 bytes, cap 64 MiB
+A4 role=light mode=fb-nouserns STARTED level: role=light mode=fbnouserns env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=forced_off seccomp_syscalls=26 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=seccomp-senza-open t_confine_us=264
+A4 role=stream mode=fb (Landlock forzato assente) confined: role=stream mode=fb env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=forced_off userns=root_vuota seccomp_syscalls=30 seccomp_action=KILL_PROCESS,_TSYNC userns_active=1 level=userns+seccomp t_confine_us=767
+A4 role=stream kernel_snapshot: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=unlimited threads=1
+A4 role=stream work: Ok("ok role=stream file_bytes=4096 reply_bytes=3")
+A4 role=stream mode=fb-nouserns REFUSED exit=78 refused code=E_AUX_CONFINEMENT_UNAVAILABLE role=stream reason=Landlock_assente_e_namespace_utente_non_consentiti_(simulato)
+A4 engine log (error): ausiliario stream non avviato: confinamento non disponibile; nessuna modalità senza confinamento
+A4 operator warning: il ruolo stream è disabilitato finché Landlock o i namespace utente non sono disponibili; coded refusal: E_AUX_CONFINEMENT_UNAVAILABLE
+A4 eng=strong role=validation mode=fb probe=key_file => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=db_file => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=config_file => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=tenantB_file => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=tenantB_dir => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=eng_environ => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=eng_maps => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=eng_cmdline => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=eng_mem => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=eng_process_vm_readv => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=eng_ptrace => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=eng_signal => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=inherited_fds => denied readable_fds=0 hits=0
+A4 eng=strong role=validation mode=fb probe=unix_socket_path => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=unix_socket_abstract => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=tcp_engine_port => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=exec => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=write_cache => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=fork => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=stat_key_file => KILLED(SIGSYS)
+A4 eng=strong role=validation mode=fb probe=own_tenant_file => KILLED(SIGSYS)
+A4sum eng=strong role=validation mode=fb leaks=0 [] controls=["own_tenant_file:denied"]
+A4 eng=strong role=jq mode=fb probe=key_file => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=db_file => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=config_file => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=tenantB_file => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=tenantB_dir => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=eng_environ => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=eng_maps => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=eng_cmdline => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=eng_mem => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=eng_process_vm_readv => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=eng_ptrace => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=eng_signal => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=inherited_fds => denied readable_fds=0 hits=0
+A4 eng=strong role=jq mode=fb probe=unix_socket_path => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=unix_socket_abstract => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=tcp_engine_port => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=exec => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=write_cache => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=fork => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=stat_key_file => KILLED(SIGSYS)
+A4 eng=strong role=jq mode=fb probe=own_tenant_file => KILLED(SIGSYS)
+A4sum eng=strong role=jq mode=fb leaks=0 [] controls=["own_tenant_file:denied"]
+A4 eng=strong role=callhttp mode=fb probe=key_file => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=db_file => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=config_file => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=tenantB_file => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=tenantB_dir => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=eng_environ => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=eng_maps => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=eng_cmdline => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=eng_mem => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=eng_process_vm_readv => KILLED(SIGSYS)
+A4 eng=strong role=callhttp mode=fb probe=eng_ptrace => KILLED(SIGSYS)
+A4 eng=strong role=callhttp mode=fb probe=eng_signal => KILLED(SIGSYS)
+A4 eng=strong role=callhttp mode=fb probe=inherited_fds => denied readable_fds=0 hits=0
+A4 eng=strong role=callhttp mode=fb probe=unix_socket_path => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=unix_socket_abstract => LEAK ACCESS
+A4 eng=strong role=callhttp mode=fb probe=tcp_engine_port => LEAK ACCESS
+A4 eng=strong role=callhttp mode=fb probe=exec => KILLED(SIGSYS)
+A4 eng=strong role=callhttp mode=fb probe=write_cache => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=fork => KILLED(SIGSYS)
+A4 eng=strong role=callhttp mode=fb probe=stat_key_file => denied err=ENOENT
+A4 eng=strong role=callhttp mode=fb probe=own_tenant_file => denied err=ENOENT
+A4sum eng=strong role=callhttp mode=fb leaks=2 ["unix_socket_abstract", "tcp_engine_port"] controls=["own_tenant_file:denied"]
+A4 eng=strong role=light mode=fb probe=key_file => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=db_file => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=config_file => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=tenantB_file => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=tenantB_dir => START-FAILED(KILLED(SIGSYS))
+A4 eng=strong role=light mode=fb probe=eng_environ => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=eng_maps => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=eng_cmdline => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=eng_mem => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=eng_process_vm_readv => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=eng_ptrace => START-FAILED(KILLED(SIGSYS))
+A4 eng=strong role=light mode=fb probe=eng_signal => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=inherited_fds => START-FAILED(KILLED(SIGSYS))
+A4 eng=strong role=light mode=fb probe=unix_socket_path => START-FAILED(KILLED(SIGSYS))
+A4 eng=strong role=light mode=fb probe=unix_socket_abstract => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=tcp_engine_port => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=exec => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=write_cache => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=fork => KILLED(SIGSYS)
+A4 eng=strong role=light mode=fb probe=stat_key_file => LEAK ACCESS len=32
+A4 eng=strong role=light mode=fb probe=own_tenant_file => START-FAILED(KILLED(SIGSYS))
+A4sum eng=strong role=light mode=fb leaks=0 [] controls=["own_tenant_file:denied"]
+A4 eng=strong role=stream mode=fb probe=key_file => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=db_file => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=config_file => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=tenantB_file => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=tenantB_dir => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=eng_environ => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=eng_maps => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=eng_cmdline => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=eng_mem => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=eng_process_vm_readv => KILLED(SIGSYS)
+A4 eng=strong role=stream mode=fb probe=eng_ptrace => KILLED(SIGSYS)
+A4 eng=strong role=stream mode=fb probe=eng_signal => KILLED(SIGSYS)
+A4 eng=strong role=stream mode=fb probe=inherited_fds => denied readable_fds=0 hits=0
+A4 eng=strong role=stream mode=fb probe=unix_socket_path => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=unix_socket_abstract => LEAK ACCESS
+A4 eng=strong role=stream mode=fb probe=tcp_engine_port => LEAK ACCESS
+A4 eng=strong role=stream mode=fb probe=exec => KILLED(SIGSYS)
+A4 eng=strong role=stream mode=fb probe=write_cache => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=fork => KILLED(SIGSYS)
+A4 eng=strong role=stream mode=fb probe=stat_key_file => denied err=ENOENT
+A4 eng=strong role=stream mode=fb probe=own_tenant_file => LEAK ACCESS bytes=17 hits=0
+A4sum eng=strong role=stream mode=fb leaks=2 ["unix_socket_abstract", "tcp_engine_port"] controls=["own_tenant_file:allowed"]
+A4 eng=weak role=validation mode=fb probe=key_file => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=db_file => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=config_file => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=tenantB_file => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=tenantB_dir => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=eng_environ => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=eng_maps => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=eng_cmdline => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=eng_mem => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=eng_process_vm_readv => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=eng_ptrace => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=eng_signal => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=inherited_fds => denied readable_fds=0 hits=0
+A4 eng=weak role=validation mode=fb probe=unix_socket_path => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=unix_socket_abstract => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=tcp_engine_port => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=exec => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=write_cache => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=fork => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=stat_key_file => KILLED(SIGSYS)
+A4 eng=weak role=validation mode=fb probe=own_tenant_file => KILLED(SIGSYS)
+A4sum eng=weak role=validation mode=fb leaks=0 [] controls=["own_tenant_file:denied"]
+A4 eng=weak role=jq mode=fb probe=key_file => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=db_file => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=config_file => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=tenantB_file => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=tenantB_dir => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=eng_environ => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=eng_maps => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=eng_cmdline => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=eng_mem => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=eng_process_vm_readv => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=eng_ptrace => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=eng_signal => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=inherited_fds => denied readable_fds=0 hits=0
+A4 eng=weak role=jq mode=fb probe=unix_socket_path => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=unix_socket_abstract => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=tcp_engine_port => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=exec => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=write_cache => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=fork => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=stat_key_file => KILLED(SIGSYS)
+A4 eng=weak role=jq mode=fb probe=own_tenant_file => KILLED(SIGSYS)
+A4sum eng=weak role=jq mode=fb leaks=0 [] controls=["own_tenant_file:denied"]
+A4 eng=weak role=callhttp mode=fb probe=key_file => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=db_file => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=config_file => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=tenantB_file => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=tenantB_dir => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=eng_environ => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=eng_maps => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=eng_cmdline => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=eng_mem => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=eng_process_vm_readv => KILLED(SIGSYS)
+A4 eng=weak role=callhttp mode=fb probe=eng_ptrace => KILLED(SIGSYS)
+A4 eng=weak role=callhttp mode=fb probe=eng_signal => KILLED(SIGSYS)
+A4 eng=weak role=callhttp mode=fb probe=inherited_fds => denied readable_fds=0 hits=0
+A4 eng=weak role=callhttp mode=fb probe=unix_socket_path => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=unix_socket_abstract => LEAK ACCESS
+A4 eng=weak role=callhttp mode=fb probe=tcp_engine_port => LEAK ACCESS
+A4 eng=weak role=callhttp mode=fb probe=exec => KILLED(SIGSYS)
+A4 eng=weak role=callhttp mode=fb probe=write_cache => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=fork => KILLED(SIGSYS)
+A4 eng=weak role=callhttp mode=fb probe=stat_key_file => denied err=ENOENT
+A4 eng=weak role=callhttp mode=fb probe=own_tenant_file => denied err=ENOENT
+A4sum eng=weak role=callhttp mode=fb leaks=2 ["unix_socket_abstract", "tcp_engine_port"] controls=["own_tenant_file:denied"]
+A4 eng=weak role=light mode=fb probe=key_file => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=db_file => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=config_file => START-FAILED(KILLED(SIGSYS))
+A4 eng=weak role=light mode=fb probe=tenantB_file => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=tenantB_dir => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=eng_environ => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=eng_maps => START-FAILED(KILLED(SIGSYS))
+A4 eng=weak role=light mode=fb probe=eng_cmdline => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=eng_mem => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=eng_process_vm_readv => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=eng_ptrace => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=eng_signal => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=inherited_fds => START-FAILED(KILLED(SIGSYS))
+A4 eng=weak role=light mode=fb probe=unix_socket_path => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=unix_socket_abstract => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=tcp_engine_port => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=exec => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=write_cache => START-FAILED(KILLED(SIGSYS))
+A4 eng=weak role=light mode=fb probe=fork => KILLED(SIGSYS)
+A4 eng=weak role=light mode=fb probe=stat_key_file => LEAK ACCESS len=32
+A4 eng=weak role=light mode=fb probe=own_tenant_file => KILLED(SIGSYS)
+A4sum eng=weak role=light mode=fb leaks=0 [] controls=["own_tenant_file:denied"]
+A4 eng=weak role=stream mode=fb probe=key_file => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=db_file => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=config_file => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=tenantB_file => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=tenantB_dir => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=eng_environ => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=eng_maps => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=eng_cmdline => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=eng_mem => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=eng_process_vm_readv => KILLED(SIGSYS)
+A4 eng=weak role=stream mode=fb probe=eng_ptrace => KILLED(SIGSYS)
+A4 eng=weak role=stream mode=fb probe=eng_signal => KILLED(SIGSYS)
+A4 eng=weak role=stream mode=fb probe=inherited_fds => denied readable_fds=0 hits=0
+A4 eng=weak role=stream mode=fb probe=unix_socket_path => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=unix_socket_abstract => LEAK ACCESS
+A4 eng=weak role=stream mode=fb probe=tcp_engine_port => LEAK ACCESS
+A4 eng=weak role=stream mode=fb probe=exec => KILLED(SIGSYS)
+A4 eng=weak role=stream mode=fb probe=write_cache => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=fork => KILLED(SIGSYS)
+A4 eng=weak role=stream mode=fb probe=stat_key_file => denied err=ENOENT
+A4 eng=weak role=stream mode=fb probe=own_tenant_file => LEAK ACCESS bytes=17 hits=0
+A4sum eng=weak role=stream mode=fb leaks=2 ["unix_socket_abstract", "tcp_engine_port"] controls=["own_tenant_file:allowed"]
+[uscita] 0
+[stato dopo 18:08:23] load: 0.98 0.71 0.61
+[stato dopo] io: some avg10=0.00 avg60=0.03 avg300=0.01 total=22893892365
+[stato dopo] cpu: some avg10=0.08 avg60=0.06 avg300=0.00 total=2597668773
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: A4-3
+[stato dopo] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26972840 swap_usato_kb=2041184 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931958
+[stato dopo] orologio minisheep UTC: 2026-11-26T17:08:27
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

@@ -1,0 +1,78 @@
+[stato prima 18:06:35] load: 0.52 0.58 0.56
+[stato prima] io: some avg10=0.00 avg60=0.03 avg300=0.01 total=22893660266
+[stato prima] cpu: some avg10=0.00 avg60=0.02 avg300=0.00 total=2597317225
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: A1-1
+[stato prima] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 10.6%; core 8-11 occupati: 3.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.04
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26981832 swap_usato_kb=2041212 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931958
+[stato prima] orologio minisheep UTC: 2026-11-26T17:06:39
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+A0 kernel=7.2.4-arch1-2 lsm=capability,landlock,lockdown,yama,bpf
+A0 landlock_abi_kernel=10 (syscall landlock_create_ruleset VERSION)
+A0 landlock_crate=0.4.7 conosce_fino_a=V9 seccompiler=0.5.0
+A0 yama_ptrace_scope=1
+A0 userns: unprivileged_userns_clone=1 max_user_namespaces=126131 apparmor_restrict_unprivileged_userns=assente (sysctl letti, non cambiati)
+A0 unshare(CLONE_NEWUSER|CLONE_NEWNS) in un figlio usa-e-getta: riuscito
+A0 core_pattern=|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+A1 role=validation confined: role=validation mode=full env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=FullyEnforced_nnp=1_all_threads=1_effective=V9_kernel=10 landlock_rules=fs_handled=all_net_handled=bind+connect_scope=signal+abstract_unix_rules= seccomp_syscalls=23 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=landlock+seccomp t_confine_us=230
+A1 role=validation kernel_snapshot_before_first_input: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=1
+A1 role=validation allowlist_syscalls_in_file=23
+A1 role=validation work: Ok("ok role=validation len=100")
+A1 role=validation work_all_ok=true
+A1 role=jq confined: role=jq mode=full env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=FullyEnforced_nnp=1_all_threads=1_effective=V9_kernel=10 landlock_rules=fs_handled=all_net_handled=bind+connect_scope=signal+abstract_unix_rules= seccomp_syscalls=23 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=landlock+seccomp t_confine_us=256
+A1 role=jq kernel_snapshot_before_first_input: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=1
+A1 role=jq allowlist_syscalls_in_file=23
+A1 role=jq work: Ok("ok role=jq len=100")
+A1 role=jq work_all_ok=true
+A1 role=callhttp confined: role=callhttp mode=full env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=FullyEnforced_nnp=1_all_threads=1_effective=V9_kernel=10 landlock_rules=fs_handled=all_net_handled=bind+connect_scope=signal+abstract_unix_rules=ro,tcp seccomp_syscalls=29 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=landlock+seccomp t_confine_us=228
+A1 role=callhttp kernel_snapshot_before_first_input: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=1
+A1 role=callhttp allowlist_syscalls_in_file=29
+A1 role=callhttp work: Ok("ok role=callhttp ca_bytes=14 reply_bytes=3")
+A1 role=callhttp work_all_ok=true
+A1 role=light confined: role=light mode=full env_vars=0 inherited_fds=9 closed_fds=0 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=FullyEnforced_nnp=1_all_threads=1_effective=V9_kernel=10 landlock_rules=fs_handled=all_net_handled=bind+connect_scope=signal+abstract_unix_rules= seccomp_syscalls=26 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=landlock+seccomp t_confine_us=242
+A1 role=light kernel_snapshot_before_first_input: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=10
+A1 role=light allowlist_syscalls_in_file=26
+A1 role=light work: load empty: ok load_us=55
+A1 role=light work: load rust-p1: ok load_us=244
+A1 role=light work: load javy-static: ok load_us=2469
+A1 role=light work: load loop: ok load_us=31
+A1 role=light work: load growmem: ok load_us=26
+A1 role=light work: load recurse: ok load_us=20
+A1 role=light work: load table: ok load_us=17
+A1 role=light work: load probe: ok load_us=196
+A1 role=light work: load bigmem: ok load_us=20
+A1 role=light work: run rust-p1: ok t_inst_us=23 t_start_us=25 t_total_us=65 outlen=39 errlen=0 logs=3 emits=1 fail=none
+A1 role=light work: run javy-static: ok t_inst_us=10 t_start_us=10 t_total_us=166 outlen=39 errlen=0 logs=3 emits=1 fail=none
+A1 role=light work: run loop: ok t_inst_us=8 t_start_us=9 t_total_us=19841 outlen=0 errlen=0 logs=0 emits=0 fail=cpu_time_limit msg=error while executing at wasm backtrace: |     0:     0x31
+A1 role=light work: run growmem: ok t_inst_us=7 t_start_us=7 t_total_us=10 outlen=0 errlen=0 logs=0 emits=0 fail=memory_limit msg=error while executing at wasm backtrace: |     0:     0x38 - <u
+A1 role=light work: run recurse: ok t_inst_us=4 t_start_us=4 t_total_us=225 outlen=0 errlen=0 logs=0 emits=0 fail=stack_limit msg=error while executing at wasm backtrace: |     0: <unknown>!f |
+A1 role=light work: run table: ok t_inst_us=6 t_start_us=7 t_total_us=13 outlen=0 errlen=0 logs=0 emits=0 fail=table_limit msg=error while executing at wasm backtrace: |     0:     0x3e - <un
+A1 role=light work: run probe: ok t_inst_us=15 t_start_us=16 t_total_us=53 outlen=331 errlen=0 logs=0 emits=0 fail=none
+A1 role=light work: run bigmem: ok t_inst_us=0 t_start_us=0 t_total_us=3 outlen=0 errlen=0 logs=0 emits=0 fail=memory_limit msg=memory limit exceeded: requested 2621440000 bytes, cap 64 MiB
+A1 role=light work_all_ok=true
+A1 role=stream confined: role=stream mode=full env_vars=0 inherited_fds=2 closed_fds=2 rlimits=core=0_nofile=64_cpu=3600_fsize=0|stream:unlimited dumpable=0 no_new_privs=1 abi_raw=10 landlock=FullyEnforced_nnp=1_all_threads=1_effective=V9_kernel=10 landlock_rules=fs_handled=all_net_handled=bind+connect_scope=signal+abstract_unix_rules=rw,tcp seccomp_syscalls=30 seccomp_action=KILL_PROCESS,_TSYNC userns_active=0 level=landlock+seccomp t_confine_us=242
+A1 role=stream kernel_snapshot_before_first_input: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=unlimited threads=1
+A1 role=stream allowlist_syscalls_in_file=30
+A1 role=stream work: Ok("ok role=stream file_bytes=4096 reply_bytes=3")
+A1 role=stream work_all_ok=true
+[uscita] 0
+[stato dopo 18:06:40] load: 0.48 0.57 0.56
+[stato dopo] io: some avg10=0.44 avg60=0.12 avg300=0.03 total=22893696092
+[stato dopo] cpu: some avg10=0.00 avg60=0.02 avg300=0.00 total=2597331238
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: A1-1
+[stato dopo] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 2.0%; core 8-11 occupati: 1.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-2 0.05
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26941284 swap_usato_kb=2041208 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931958
+[stato dopo] orologio minisheep UTC: 2026-11-26T17:06:44
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2
