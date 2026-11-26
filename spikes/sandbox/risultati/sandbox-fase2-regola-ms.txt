@@ -115,7 +115,9 @@ L8 un processo per tenant (FR-16). Scenario `sentinel`, due ausiliari A e B (J e
   Non misurati: core dump, swap.
   Si riporta solo la presenza o assenza, mai il valore. Corse: 3.
 
-L9 TypeScript e Rust girano (FR-15). Scenario `l9`, J, modulo per modulo. Giudicato: esito senza errori, uscita
+L9 TypeScript e Rust girano (FR-15). Scenario `l9`, J, modulo per modulo; si giudicano i cinque moduli con la
+  logica del nodo (javy statico e dinamico, Rust wasip1, unknown, wasip2); il modulo vuoto è solo il pavimento
+  di L1-L4 e non ha uscita attesa. Giudicato: esito senza errori, uscita
   esatta `{"greeting":"hello topictoast","sum":5}`, tre righe di log con livelli 0, 1, 2 in ordine, una sola
   scrittura `emit events {"sum":5}`; nel solo `rust-unknown` l'uscita passa dalla funzione `output` dell'host.
   Riportato: dimensione del `.wasm` e dell'artefatto nativo; avvio e memoria sono L1 e L3. Corse: 3. Non coperto:
