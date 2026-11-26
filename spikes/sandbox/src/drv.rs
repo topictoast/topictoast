@@ -9,22 +9,22 @@ use std::os::unix::process::CommandExt;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::time::{Duration, Instant};
 
-type A = HashMap<String, String>;
+pub(crate) type A = HashMap<String, String>;
 
-fn arg<'a>(a: &'a A, k: &str, d: &'a str) -> &'a str {
+pub(crate) fn arg<'a>(a: &'a A, k: &str, d: &'a str) -> &'a str {
     a.get(k).map(String::as_str).unwrap_or(d)
 }
 
-fn argn<T: std::str::FromStr>(a: &A, k: &str, d: T) -> T {
+pub(crate) fn argn<T: std::str::FromStr>(a: &A, k: &str, d: T) -> T {
     a.get(k).and_then(|v| v.parse().ok()).unwrap_or(d)
 }
 
-fn list<'a>(a: &'a A, k: &str, d: &'a str) -> Vec<&'a str> {
+pub(crate) fn list<'a>(a: &'a A, k: &str, d: &'a str) -> Vec<&'a str> {
     arg(a, k, d).split(',').filter(|s| !s.is_empty()).collect()
 }
 
 /// Lega il processo ai core indicati (`1-4`, `8-11`, `3`).
-fn pin(cpus: &str) {
+pub(crate) fn pin(cpus: &str) {
     let mut set: libc::cpu_set_t = unsafe { std::mem::zeroed() };
     for part in cpus.split(',') {
         let (lo, hi) = part
@@ -41,21 +41,24 @@ fn pin(cpus: &str) {
     unsafe { libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &set) };
 }
 
-fn aux_cpus() -> String {
+pub(crate) fn aux_cpus() -> String {
     std::env::var("SBX_AUX_CPUS").unwrap_or_else(|_| "1-4".into())
 }
 
 /// Un processo ausiliario pilotato dal pilota (stand-in del motore).
-struct Aux {
-    child: Child,
-    tx: ChildStdin,
-    rx: BufReader<ChildStdout>,
-    pid: String,
+pub(crate) struct Aux {
+    pub(crate) child: Child,
+    pub(crate) tx: ChildStdin,
+    pub(crate) rx: BufReader<ChildStdout>,
+    pub(crate) pid: String,
 }
 
 impl Aux {
     /// Avvia l'ausiliario e attende `ready`; restituisce anche i microsecondi da fork a `ready`.
-    fn spawn(cfg: &str, extra: impl FnOnce(&mut Command)) -> std::io::Result<(Aux, u128)> {
+    pub(crate) fn spawn(
+        cfg: &str,
+        extra: impl FnOnce(&mut Command),
+    ) -> std::io::Result<(Aux, u128)> {
         let exe = std::env::current_exe()?;
         let mut c = Command::new(exe);
         c.args(["aux", cfg])
@@ -86,7 +89,7 @@ impl Aux {
     }
 
     /// Invia una riga e legge la risposta; `None` se l'ausiliario è morto (EOF).
-    fn try_send(&mut self, line: &str) -> Option<String> {
+    pub(crate) fn try_send(&mut self, line: &str) -> Option<String> {
         writeln!(self.tx, "{line}").ok()?;
         self.tx.flush().ok()?;
         let mut r = String::new();
@@ -96,37 +99,37 @@ impl Aux {
         }
     }
 
-    fn send(&mut self, line: &str) -> String {
+    pub(crate) fn send(&mut self, line: &str) -> String {
         self.try_send(line).unwrap_or_else(|| "DEAD".into())
     }
 
-    fn alive(&mut self) -> bool {
+    pub(crate) fn alive(&mut self) -> bool {
         self.send("ping") == "ok"
     }
 
     /// Ferma l'ausiliario: `quit` e attesa; il PID è quello salvato all'avvio.
-    fn stop(mut self) {
+    pub(crate) fn stop(mut self) {
         let _ = writeln!(self.tx, "quit");
         let _ = self.tx.flush();
         let _ = self.child.wait();
     }
 }
 
-fn field<'a>(r: &'a str, k: &str) -> Option<&'a str> {
+pub(crate) fn field<'a>(r: &'a str, k: &str) -> Option<&'a str> {
     let p = format!("{k}=");
     r.split_whitespace()
         .find_map(|t| t.strip_prefix(p.as_str()))
 }
 
-fn fnum(r: &str, k: &str) -> u128 {
+pub(crate) fn fnum(r: &str, k: &str) -> u128 {
     field(r, k).and_then(|v| v.parse().ok()).unwrap_or(0)
 }
 
-fn fail_of(r: &str) -> String {
+pub(crate) fn fail_of(r: &str) -> String {
     r.split(" fail=").nth(1).unwrap_or("?").to_string()
 }
 
-fn pct(v: &mut [f64], p: f64) -> f64 {
+pub(crate) fn pct(v: &mut [f64], p: f64) -> f64 {
     if v.is_empty() {
         return f64::NAN;
     }
@@ -135,7 +138,7 @@ fn pct(v: &mut [f64], p: f64) -> f64 {
 }
 
 /// Riga di riepilogo in millisecondi.
-fn summ(label: &str, us: &[u128]) -> String {
+pub(crate) fn summ(label: &str, us: &[u128]) -> String {
     let mut v: Vec<f64> = us.iter().map(|x| *x as f64 / 1000.0).collect();
     format!(
         "{label} n={} p50={:.3} p90={:.3} p99={:.3} max={:.3}",
@@ -147,7 +150,7 @@ fn summ(label: &str, us: &[u128]) -> String {
     )
 }
 
-fn fresh() -> String {
+pub(crate) fn fresh() -> String {
     let mut b = [0u8; 16];
     std::fs::File::open("/dev/urandom")
         .unwrap()
@@ -156,18 +159,18 @@ fn fresh() -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
-fn mask(s: &str) -> String {
+pub(crate) fn mask(s: &str) -> String {
     s.bytes().map(|b| format!("{:02x}", b ^ 0x5A)).collect()
 }
 
-struct Env {
-    wasm: String,
-    cache: String,
-    out: String,
+pub(crate) struct Env {
+    pub(crate) wasm: String,
+    pub(crate) cache: String,
+    pub(crate) out: String,
 }
 
 impl Env {
-    fn new(a: &A) -> Env {
+    pub(crate) fn new(a: &A) -> Env {
         let h = std::env::var("HOME").unwrap_or_default();
         Env {
             wasm: arg(a, "wasm", &format!("{h}/ttspikesandbox/wasm")).to_string(),
@@ -177,7 +180,7 @@ impl Env {
     }
 
     /// Compila `<wasm>/<file>.wasm` con il sottocomando `compile` (processo a parte, come in produzione).
-    fn compile(&self, file: &str, cfg: &str, comp: bool) -> String {
+    pub(crate) fn compile(&self, file: &str, cfg: &str, comp: bool) -> String {
         let exe = std::env::current_exe().unwrap();
         let mut c = Command::new(exe);
         c.args([
@@ -199,7 +202,7 @@ impl Env {
     }
 
     /// Prepara il modulo `m` per la configurazione `cfg` e restituisce la riga `load` per l'ausiliario.
-    fn load_line(&self, m: &str, cfg: &str) -> String {
+    pub(crate) fn load_line(&self, m: &str, cfg: &str) -> String {
         let comp = m == "rust-p2";
         let r = self.compile(m, cfg, comp);
         let path = field(&r, "path").unwrap_or_else(|| panic!("compilazione di {m}: {r}"));
@@ -215,7 +218,7 @@ impl Env {
         l
     }
 
-    fn input(&self) -> String {
+    pub(crate) fn input(&self) -> String {
         let p = format!("{}/input.json", self.out);
         std::fs::create_dir_all(&self.out).unwrap();
         std::fs::write(&p, r#"{"a":2,"b":3,"name":"topictoast"}"#).unwrap();
@@ -223,7 +226,7 @@ impl Env {
     }
 }
 
-const MODS: &str = "empty,javy-static,javy-dynamic,rust-p1,rust-unknown,rust-p2";
+pub(crate) const MODS: &str = "empty,javy-static,javy-dynamic,rust-p1,rust-unknown,rust-p2";
 
 pub fn main(args: &[String]) {
     let scen = args[0].as_str();
@@ -750,7 +753,7 @@ fn sentinel(env: &Env, a: &A) {
     }
 }
 
-fn hex(s: &str) -> Vec<u8> {
+pub(crate) fn hex(s: &str) -> Vec<u8> {
     (0..s.len() / 2)
         .map(|i| u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap())
         .collect()

@@ -42,30 +42,84 @@ fn ticker_loop(engine: wasmtime::Engine, active: Arc<AtomicBool>) {
     }
 }
 
+/// Motore, orologio dell'epoca e tutto ciò che sopravvive tra una connessione e l'altra.
+pub struct Rig {
+    pub rt: Rt,
+    active: Arc<AtomicBool>,
+    ticker: Option<std::thread::JoinHandle<()>>,
+}
+
+impl Rig {
+    pub fn new(cfg: &str) -> Rig {
+        let rt = Rt::new(Opts::parse(cfg)).expect("engine");
+        let active = Arc::new(AtomicBool::new(false));
+        let ticker = if rt.opts.epoch {
+            let h = std::thread::Builder::new().name("ticker".into());
+            let (e, a) = (rt.engine.clone(), active.clone());
+            Some(h.spawn(move || ticker_loop(e, a)).unwrap())
+        } else {
+            None
+        };
+        Rig { rt, active, ticker }
+    }
+}
+
 pub fn main(cfg: &str) {
-    let rt = Rt::new(Opts::parse(cfg)).expect("engine");
-    let active = Arc::new(AtomicBool::new(false));
-    let ticker = if rt.opts.epoch {
-        let h = std::thread::Builder::new().name("ticker".into());
-        let (e, a) = (rt.engine.clone(), active.clone());
-        Some(h.spawn(move || ticker_loop(e, a)).unwrap())
-    } else {
-        None
-    };
-    let mut mods: HashMap<String, Loaded> = HashMap::new();
-    let mut held: Vec<Box<dyn std::any::Any>> = vec![];
+    let rig = Rig::new(cfg);
     let out = std::io::stdout();
     let mut out = out.lock();
     writeln!(out, "ready").unwrap();
     out.flush().unwrap();
-    for line in std::io::stdin().lock().lines() {
+    let inp = std::io::stdin();
+    serve(&rig, &mut inp.lock(), &mut out, 1, false);
+}
+
+/// Serve un canale: stdin/stdout nella sandbox leggera, una connessione vsock nell'agente del guest.
+/// `out_fd` è il descrittore su cui il marcatore `started` esce subito prima di entrare nel guest
+/// (richiesta `mark=1`). `guest`: abilita i comandi `native`, che esistono solo dentro la microVM.
+pub fn serve(rig: &Rig, r: &mut dyn BufRead, out: &mut dyn Write, out_fd: i32, guest: bool) {
+    let (rt, active, ticker) = (&rig.rt, &rig.active, &rig.ticker);
+    let mut mods: HashMap<String, Loaded> = HashMap::new();
+    let mut held: Vec<Box<dyn std::any::Any>> = vec![];
+    let mut raw = String::new();
+    loop {
+        raw.clear();
+        if r.read_line(&mut raw).unwrap_or(0) == 0 {
+            break;
+        }
         let t0 = Instant::now();
-        let line = line.unwrap();
+        let line = raw.trim_end().to_string();
         let cmd = line.split_whitespace().next().unwrap_or("");
         let m = kv(&line);
         let reply = match cmd {
             "ping" => "ok".to_string(),
             "quit" => break,
+            // trasferimento di byte (fase 3): `put path=<p> len=<n>` seguito da n byte; `cat path=<p>`
+            "put" => {
+                let n: usize = num(&m, "len", 0);
+                let mut b = vec![0u8; n];
+                match r
+                    .read_exact(&mut b)
+                    .and_then(|_| std::fs::write(m["path"], &b))
+                {
+                    Ok(()) => "ok".to_string(),
+                    Err(e) => format!("err {e}"),
+                }
+            }
+            "cat" => match std::fs::read(m["path"]) {
+                Ok(b) => {
+                    let w = out
+                        .write_all(format!("ok len={}\n", b.len()).as_bytes())
+                        .and_then(|_| out.write_all(&b))
+                        .and_then(|_| out.flush());
+                    if w.is_err() {
+                        break;
+                    }
+                    continue;
+                }
+                Err(e) => format!("err {e}"),
+            },
+            "native" => crate::agent::native(&m, guest),
             "free" => {
                 held.clear();
                 "ok".into()
@@ -146,6 +200,11 @@ pub fn main(cfg: &str) {
                 if let Some(t) = &ticker {
                     t.thread().unpark();
                 }
+                START_FD.set(if m.get("mark") == Some(&"1") {
+                    out_fd
+                } else {
+                    -1
+                });
                 let r = match mods.get(m["name"]) {
                     Some(l) => rt.run(l, &q, t0, if hold { Some(&mut held) } else { None }),
                     None => RunRes {
@@ -153,6 +212,7 @@ pub fn main(cfg: &str) {
                         ..Default::default()
                     },
                 };
+                START_FD.set(-1);
                 active.store(false, Ordering::Release);
                 if let Some(p) = m.get("out").filter(|p| **p != "-") {
                     let mut s = format!(
@@ -188,8 +248,10 @@ pub fn main(cfg: &str) {
             }
             _ => "err unknown command".into(),
         };
-        writeln!(out, "{reply}").unwrap();
-        out.flush().unwrap();
+        // un interlocutore che chiude a metà non ferma il servizio (nell'agente è il PID 1)
+        if writeln!(out, "{reply}").and_then(|_| out.flush()).is_err() {
+            break;
+        }
     }
 }
 

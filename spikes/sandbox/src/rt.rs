@@ -215,6 +215,19 @@ fn add_comp_host_fns(l: &mut CLinker<CompHost>) -> Result<()> {
     Ok(())
 }
 
+thread_local! {
+    /// Fd su cui scrivere `started\n` subito prima di entrare nel guest (-1: nessuno). Serve alla fase 3 per
+    /// misurare, dall'host, l'istante in cui il nodo inizia.
+    pub static START_FD: std::cell::Cell<i32> = const { std::cell::Cell::new(-1) };
+}
+
+fn mark_start() {
+    let fd = START_FD.get();
+    if fd >= 0 {
+        unsafe { libc::write(fd, b"started\n".as_ptr().cast(), 8) };
+    }
+}
+
 pub enum Loaded {
     Core(InstancePre<CoreHost>),
     /// Modulo javy a collegamento dinamico: il plugin di QuickJS si istanzia a ogni esecuzione, nello stesso store.
@@ -380,6 +393,7 @@ impl Rt {
                         Err(_) => inst.get_typed_func::<(), ()>(&mut store, "run")?,
                     };
                     res.t_start_us = t0.elapsed().as_micros();
+                    mark_start();
                     f.call(&mut store, ())
                 })();
                 let r = match r {
@@ -410,6 +424,7 @@ impl Rt {
                         .instantiate(&mut store)?;
                     res.t_inst_us = t0.elapsed().as_micros();
                     res.t_start_us = res.t_inst_us;
+                    mark_start();
                     cmd.wasi_cli_run()
                         .call_run(&mut store)?
                         .map_err(|_| Error::msg("guest returned error"))

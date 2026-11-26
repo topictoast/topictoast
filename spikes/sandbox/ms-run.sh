@@ -27,6 +27,9 @@ state() {
   st=$(docker stats --no-stream --format '{{.Name}} {{.CPUPerc}}' 2>/dev/null)
   echo "[stato $1] cpu runner max: $(echo "$st" | tr -d '%' | sort -k2 -n -r | head -1)"
   echo "[stato $1] governor cpu1: $(cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor 2>/dev/null)"
+  echo "[stato $1] memoria: MemAvailable_kb=$(awk "/^MemAvailable/{print \$2}" /proc/meminfo) swap_usato_kb=$(awk "/^SwapTotal/{t=\$2} /^SwapFree/{f=\$2} END{print t-f}" /proc/meminfo) $(head -1 /proc/pressure/memory)"
+  echo "[stato $1] orologio minisheep UTC: $(date -u +%FT%T)"
+  echo "[stato $1] processi firecracker visibili (non nostri prima della corsa): $(pgrep -c firecracker 2>/dev/null)"
   echo "[stato $1] ptrace_scope: $(cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null || echo assente); kernel: $(uname -r)"
 }
 i=0
@@ -51,4 +54,4 @@ done
   echo "[uscita] $?"
   state dopo
 } >"$OUT" 2>&1
-grep -E "^(\[stato prima|\[macchina|\[uscita|L[0-9])" "$OUT" | cut -c1-200 | head -${SHOW:-25}
+grep -E "^(\[stato prima|\[macchina|\[uscita|L[0-9]|S[0-9])" "$OUT" | cut -c1-200 | head -${SHOW:-25}

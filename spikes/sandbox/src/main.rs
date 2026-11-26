@@ -6,14 +6,18 @@
 //!   drive <scenario> [k=v ...]      pilota di carico e di prova (vedi drv.rs)
 //! Codice da buttare: non è un prototipo del prodotto.
 
+mod agent;
 mod aux;
 mod drv;
+mod fcdrv;
 mod hostile;
 mod rt;
 
 fn main() {
     let a: Vec<String> = std::env::args().collect();
     match a.get(1).map(String::as_str) {
+        Some("agent") => agent::main(),
+        Some("fc") => fcdrv::main(&a[2..]),
         Some("aux") => aux::main(a.get(2).map(String::as_str).unwrap_or("epoch")),
         Some("compile") => compile_cmd(&a[2..]),
         Some("mkguests") => {
