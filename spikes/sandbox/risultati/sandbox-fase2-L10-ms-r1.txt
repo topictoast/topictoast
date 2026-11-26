@@ -1,0 +1,67 @@
+[stato prima 14:32:16] load: 0.85 0.84 0.64
+[stato prima] io: some avg10=0.08 avg60=0.08 avg300=0.02 total=22872664586
+[stato prima] cpu: some avg10=0.00 avg60=0.01 avg300=0.03 total=2578266125
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L10-1
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.2%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.04
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+L10 mod=javy-static in_bytes=1239385 wall_ms=438 validate_ms=5 compile_ms=422 maxrss_mb=72 killed_at_cap=false status=exit 0 result=ok
+L10 mod=javy-static in_bytes=1239385 wall_ms=470 validate_ms=4 compile_ms=457 maxrss_mb=71 killed_at_cap=false status=exit 0 result=ok
+L10 mod=javy-static in_bytes=1239385 wall_ms=471 validate_ms=4 compile_ms=458 maxrss_mb=71 killed_at_cap=false status=exit 0 result=ok
+L10 mod=rust-p1 in_bytes=91370 wall_ms=40 validate_ms=0 compile_ms=35 maxrss_mb=23 killed_at_cap=false status=exit 0 result=ok
+L10 mod=rust-p1 in_bytes=91370 wall_ms=37 validate_ms=0 compile_ms=34 maxrss_mb=22 killed_at_cap=false status=exit 0 result=ok
+L10 mod=rust-p1 in_bytes=91370 wall_ms=39 validate_ms=0 compile_ms=35 maxrss_mb=22 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-100k in_bytes=100532 wall_ms=93 validate_ms=1 compile_ms=88 maxrss_mb=27 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-100k in_bytes=100532 wall_ms=93 validate_ms=1 compile_ms=88 maxrss_mb=27 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-100k in_bytes=100532 wall_ms=93 validate_ms=1 compile_ms=88 maxrss_mb=27 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-1m in_bytes=1014737 wall_ms=859 validate_ms=4 compile_ms=837 maxrss_mb=140 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-1m in_bytes=1014737 wall_ms=816 validate_ms=4 compile_ms=797 maxrss_mb=141 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-1m in_bytes=1014737 wall_ms=831 validate_ms=4 compile_ms=811 maxrss_mb=140 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-10m in_bytes=10040242 wall_ms=7546 validate_ms=33 compile_ms=7411 maxrss_mb=1140 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-10m in_bytes=10040242 wall_ms=7661 validate_ms=32 compile_ms=7524 maxrss_mb=1141 killed_at_cap=false status=exit 0 result=ok
+L10 mod=syn-10m in_bytes=10040242 wall_ms=7879 validate_ms=32 compile_ms=7743 maxrss_mb=1138 killed_at_cap=false status=exit 0 result=ok
+L10 as=512MiB mod=syn-1m in_bytes=1014737 wall_ms=827 validate_ms=5 compile_ms=804 maxrss_mb=138 killed_at_cap=false status=exit 0 result=ok
+L10 as=512MiB mod=syn-1m in_bytes=1014737 wall_ms=818 validate_ms=4 compile_ms=801 maxrss_mb=138 killed_at_cap=false status=exit 0 result=ok
+L10 as=512MiB mod=syn-1m in_bytes=1014737 wall_ms=823 validate_ms=4 compile_ms=804 maxrss_mb=140 killed_at_cap=false status=exit 0 result=ok
+L10 as=512MiB mod=hostile-straight in_bytes=0 wall_ms=1222 validate_ms=0 compile_ms=0 maxrss_mb=203 killed_at_cap=false status=signal 6 result=
+L10 as=512MiB mod=hostile-straight in_bytes=0 wall_ms=1214 validate_ms=0 compile_ms=0 maxrss_mb=200 killed_at_cap=false status=signal 6 result=
+L10 as=512MiB mod=hostile-straight in_bytes=0 wall_ms=1220 validate_ms=0 compile_ms=0 maxrss_mb=200 killed_at_cap=false status=signal 6 result=
+L10 as=512MiB mod=hostile-ifs in_bytes=0 wall_ms=5832 validate_ms=0 compile_ms=0 maxrss_mb=205 killed_at_cap=false status=signal 6 result=
+L10 as=512MiB mod=hostile-ifs in_bytes=0 wall_ms=5627 validate_ms=0 compile_ms=0 maxrss_mb=204 killed_at_cap=false status=signal 6 result=
+L10 as=512MiB mod=hostile-ifs in_bytes=0 wall_ms=5823 validate_ms=0 compile_ms=0 maxrss_mb=206 killed_at_cap=false status=signal 6 result=
+L10 hostile mod=hostile-nest in_bytes=60057 wall_ms=48 validate_ms=1 compile_ms=43 maxrss_mb=33 killed_at_cap=false status=exit 0 result=ok
+L10 hostile mod=hostile-nest in_bytes=60057 wall_ms=24 validate_ms=1 compile_ms=19 maxrss_mb=33 killed_at_cap=false status=exit 0 result=ok
+L10 hostile mod=hostile-nest in_bytes=60057 wall_ms=23 validate_ms=1 compile_ms=20 maxrss_mb=33 killed_at_cap=false status=exit 0 result=ok
+L10 hostile mod=hostile-brtable in_bytes=0 wall_ms=7 validate_ms=0 compile_ms=0 maxrss_mb=14 killed_at_cap=false status=exit 1 result=err failed to compile: wasm[0]::function[0]: WebAssembly translation error: Unsupported feature: `br
+L10 hostile mod=hostile-brtable in_bytes=0 wall_ms=7 validate_ms=0 compile_ms=0 maxrss_mb=14 killed_at_cap=false status=exit 1 result=err failed to compile: wasm[0]::function[0]: WebAssembly translation error: Unsupported feature: `br
+L10 hostile mod=hostile-brtable in_bytes=0 wall_ms=7 validate_ms=0 compile_ms=0 maxrss_mb=14 killed_at_cap=false status=exit 1 result=err failed to compile: wasm[0]::function[0]: WebAssembly translation error: Unsupported feature: `br
+L10 hostile mod=hostile-straight in_bytes=0 wall_ms=10065 validate_ms=0 compile_ms=0 maxrss_mb=1901 killed_at_cap=true status=signal 9 result=
+L10 hostile mod=hostile-straight in_bytes=0 wall_ms=10067 validate_ms=0 compile_ms=0 maxrss_mb=1901 killed_at_cap=true status=signal 9 result=
+L10 hostile mod=hostile-straight in_bytes=0 wall_ms=10065 validate_ms=0 compile_ms=0 maxrss_mb=1903 killed_at_cap=true status=signal 9 result=
+L10 hostile mod=hostile-ifs in_bytes=0 wall_ms=10012 validate_ms=0 compile_ms=0 maxrss_mb=577 killed_at_cap=true status=signal 9 result=
+L10 hostile mod=hostile-ifs in_bytes=0 wall_ms=10012 validate_ms=0 compile_ms=0 maxrss_mb=584 killed_at_cap=true status=signal 9 result=
+L10 hostile mod=hostile-ifs in_bytes=0 wall_ms=10011 validate_ms=0 compile_ms=0 maxrss_mb=576 killed_at_cap=true status=signal 9 result=
+L10 other-tenant during hostile compiles:
+   B t_start_ms n=12062 p50=0.056 p90=0.061 p99=0.094 max=0.184
+   B rtt_ms n=12062 p50=0.232 p90=0.325 p99=0.402 max=0.673
+L10 malformed truncated-javy bytes=619692 wall_ms=3 maxrss_mb=9 killed=false status=exit 1 -> err unexpected end-of-file (at offset 0x97141)
+L10 malformed zeros-1m bytes=1048576 wall_ms=2 maxrss_mb=9 killed=false status=exit 1 -> err magic header not detected: bad magic number - expected=[ |     0x0, |     0x61, |     0x73, |     0x6d, | ] actual=[
+L10 malformed header-only bytes=8 wall_ms=3 maxrss_mb=10 killed=false status=exit 0 -> ok path=/home/white_sheep/ttspikesandbox/out/cache/93a44bbb96c751218e4c00d479e4c14358122a389acca16205b1e4d0dc5f9476-7406
+L10 malformed garbage-after-header bytes=5008 wall_ms=3 maxrss_mb=8 killed=false status=exit 1 -> err malformed section id (at offset 0x8)
+[uscita] 0
+[stato dopo 14:34:11] load: 1.67 1.25 0.83
+[stato dopo] io: some avg10=0.00 avg60=0.01 avg300=0.00 total=22872793102
+[stato dopo] cpu: some avg10=0.00 avg60=0.01 avg300=0.01 total=2578493608
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L10-1
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.05
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

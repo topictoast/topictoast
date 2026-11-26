@@ -1,0 +1,84 @@
+[stato prima 14:34:49] load: 1.35 1.21 0.83
+[stato prima] io: some avg10=0.00 avg60=0.00 avg300=0.00 total=22872868902
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.01 total=2578574982
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L2-2
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 35.5%; core 8-11 occupati: 1.7%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.03
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+L2 cfg=epoch mod=empty failures=0
+   spawn_to_ready_ms n=200 p50=0.879 p90=0.974 p99=1.296 max=1.830
+   load_ms n=200 p50=0.071 p90=0.080 p99=0.195 max=0.229
+   cold_to_node_start_ms n=200 p50=0.993 p90=1.089 p99=1.434 max=2.025
+   cold_to_node_done_ms n=200 p50=0.996 p90=1.091 p99=1.437 max=2.029
+L2 cfg=epoch mod=javy-static failures=0
+   spawn_to_ready_ms n=200 p50=1.124 p90=1.188 p99=1.433 max=1.513
+   load_ms n=200 p50=2.931 p90=3.089 p99=3.280 max=3.648
+   cold_to_node_start_ms n=200 p50=4.176 p90=4.373 p99=4.636 max=4.789
+   cold_to_node_done_ms n=200 p50=4.415 p90=4.627 p99=4.883 max=5.102
+L2 cfg=epoch mod=javy-dynamic failures=0
+   spawn_to_ready_ms n=200 p50=1.016 p90=1.096 p99=1.232 max=1.426
+   load_ms n=200 p50=0.228 p90=0.319 p99=0.372 max=0.584
+   cold_to_node_start_ms n=200 p50=1.371 p90=1.478 p99=1.619 max=1.881
+   cold_to_node_done_ms n=200 p50=1.596 p90=1.712 p99=1.848 max=2.162
+L2 cfg=epoch mod=rust-p1 failures=0
+   spawn_to_ready_ms n=200 p50=1.009 p90=1.099 p99=1.310 max=3.854
+   load_ms n=200 p50=0.292 p90=0.386 p99=0.434 max=0.639
+   cold_to_node_start_ms n=200 p50=1.392 p90=1.518 p99=1.757 max=4.299
+   cold_to_node_done_ms n=200 p50=1.515 p90=1.648 p99=1.889 max=4.425
+L2 cfg=epoch mod=rust-unknown failures=0
+   spawn_to_ready_ms n=200 p50=0.915 p90=0.997 p99=1.059 max=1.170
+   load_ms n=200 p50=0.256 p90=0.359 p99=0.399 max=0.406
+   cold_to_node_start_ms n=200 p50=1.264 p90=1.351 p99=1.422 max=1.557
+   cold_to_node_done_ms n=200 p50=1.295 p90=1.384 p99=1.454 max=1.592
+L2 cfg=epoch mod=rust-p2 failures=0
+   spawn_to_ready_ms n=200 p50=1.006 p90=1.090 p99=1.198 max=1.338
+   load_ms n=200 p50=0.367 p90=0.472 p99=0.582 max=0.589
+   cold_to_node_start_ms n=200 p50=1.486 p90=1.610 p99=1.741 max=1.947
+   cold_to_node_done_ms n=200 p50=1.607 p90=1.753 p99=1.940 max=2.120
+L2 cfg=pool+epoch mod=empty failures=0
+   spawn_to_ready_ms n=200 p50=1.873 p90=1.973 p99=2.200 max=2.252
+   load_ms n=200 p50=0.074 p90=0.183 p99=0.267 max=0.308
+   cold_to_node_start_ms n=200 p50=2.004 p90=2.159 p99=2.369 max=2.418
+   cold_to_node_done_ms n=200 p50=2.008 p90=2.180 p99=2.377 max=2.421
+L2 cfg=pool+epoch mod=javy-static failures=0
+   spawn_to_ready_ms n=200 p50=2.072 p90=2.403 p99=2.611 max=2.671
+   load_ms n=200 p50=2.668 p90=2.761 p99=3.168 max=3.570
+   cold_to_node_start_ms n=200 p50=4.918 p90=5.306 p99=5.650 max=6.151
+   cold_to_node_done_ms n=200 p50=5.262 p90=5.664 p99=6.186 max=6.615
+L2 cfg=pool+epoch mod=javy-dynamic failures=0
+   spawn_to_ready_ms n=200 p50=1.996 p90=2.334 p99=2.849 max=3.095
+   load_ms n=200 p50=0.259 p90=0.348 p99=0.845 max=1.085
+   cold_to_node_start_ms n=200 p50=2.438 p90=2.828 p99=3.287 max=3.552
+   cold_to_node_done_ms n=200 p50=2.880 p90=3.318 p99=3.711 max=3.980
+L2 cfg=pool+epoch mod=rust-p1 failures=0
+   spawn_to_ready_ms n=200 p50=2.059 p90=2.496 p99=2.906 max=3.215
+   load_ms n=200 p50=0.376 p90=0.450 p99=0.956 max=1.424
+   cold_to_node_start_ms n=200 p50=2.553 p90=3.041 p99=3.674 max=4.107
+   cold_to_node_done_ms n=200 p50=2.894 p90=3.411 p99=4.081 max=4.435
+L2 cfg=pool+epoch mod=rust-unknown failures=0
+   spawn_to_ready_ms n=200 p50=2.019 p90=2.366 p99=3.182 max=4.729
+   load_ms n=200 p50=0.344 p90=0.428 p99=0.520 max=0.634
+   cold_to_node_start_ms n=200 p50=2.476 p90=2.921 p99=3.631 max=5.275
+   cold_to_node_done_ms n=200 p50=2.665 p90=3.114 p99=3.830 max=5.486
+L2 cfg=pool+epoch mod=rust-p2 failures=0
+   spawn_to_ready_ms n=200 p50=1.976 p90=2.301 p99=2.749 max=3.063
+   load_ms n=200 p50=0.445 p90=0.528 p99=0.660 max=1.047
+   cold_to_node_start_ms n=200 p50=2.706 p90=3.181 p99=3.498 max=3.793
+   cold_to_node_done_ms n=200 p50=2.840 p90=3.327 p99=3.638 max=3.927
+[uscita] 0
+[stato dopo 14:35:01] load: 1.51 1.25 0.85
+[stato dopo] io: some avg10=0.00 avg60=0.00 avg300=0.00 total=22872875970
+[stato dopo] cpu: some avg10=1.10 avg60=0.25 avg300=0.06 total=2578804020
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L2-2
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.0%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

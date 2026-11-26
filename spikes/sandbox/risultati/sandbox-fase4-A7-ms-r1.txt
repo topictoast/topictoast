@@ -1,0 +1,52 @@
+[stato prima 18:09:25] load: 0.89 0.72 0.62
+[stato prima] io: some avg10=0.57 avg60=0.46 avg300=0.13 total=22894437528
+[stato prima] cpu: some avg10=0.77 avg60=0.56 avg300=0.15 total=2598307656
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: A7-1
+[stato prima] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 1.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.05
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26976748 swap_usato_kb=2041172 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931959
+[stato prima] orologio minisheep UTC: 2026-11-26T17:09:29
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+A0 kernel=7.2.4-arch1-2 lsm=capability,landlock,lockdown,yama,bpf
+A0 landlock_abi_kernel=10 (syscall landlock_create_ruleset VERSION)
+A0 landlock_crate=0.4.7 conosce_fino_a=V9 seccompiler=0.5.0
+A0 yama_ptrace_scope=1
+A0 userns: unprivileged_userns_clone=1 max_user_namespaces=126131 apparmor_restrict_unprivileged_userns=assente (sysctl letti, non cambiati)
+A0 unshare(CLONE_NEWUSER|CLONE_NEWNS) in un figlio usa-e-getta: riuscito
+A0 core_pattern=|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+A7 phase=ctrl idle_stop=0 cold_ppm=10000 activities=20000 requested_cold=226 cold_restarts_observed=0 idle_stops=0 errors=0 max_sched_lag_us=1452 rate=1000/s secs=20 hot=20 coldset=64 idle_ms=1000
+A7 phase=ctrl start_latency_ms all: p50=0.252 p90=0.304 p99=0.352 p99.9=0.496 max=2.735
+A7 phase=ctrl start_latency_ms warm_only: p50=0.252 p99=0.352 max=2.735
+A7 phase=idle idle_stop=1 cold_ppm=10000 activities=20000 requested_cold=226 cold_restarts_observed=226 idle_stops=216 errors=0 max_sched_lag_us=3040 rate=1000/s secs=20 hot=20 coldset=64 idle_ms=1000
+A7 phase=idle start_latency_ms all: p50=0.199 p90=0.317 p99=3.414 p99.9=5.249 max=6.323
+A7 phase=idle start_latency_ms warm_only: p50=0.197 p99=0.375 max=3.375
+A7 phase=idle start_latency_ms cold_only: n=226 p50=4.564 p90=5.230 p99=6.009 max=6.323
+A7 phase=idle idle_stop=1 cold_ppm=5000 activities=20000 requested_cold=122 cold_restarts_observed=122 idle_stops=119 errors=0 max_sched_lag_us=779 rate=1000/s secs=20 hot=20 coldset=64 idle_ms=1000
+A7 phase=idle start_latency_ms all: p50=0.210 p90=0.301 p99=0.373 p99.9=5.198 max=7.006
+A7 phase=idle start_latency_ms warm_only: p50=0.209 p99=0.346 max=2.261
+A7 phase=idle start_latency_ms cold_only: n=122 p50=4.905 p90=5.394 p99=6.855 max=7.006
+A7 phase=idle idle_stop=1 cold_ppm=1000 activities=20000 requested_cold=20 cold_restarts_observed=20 idle_stops=19 errors=0 max_sched_lag_us=39 rate=1000/s secs=20 hot=20 coldset=64 idle_ms=1000
+A7 phase=idle start_latency_ms all: p50=0.203 p90=0.332 p99=0.386 p99.9=0.653 max=6.135
+A7 phase=idle start_latency_ms warm_only: p50=0.203 p99=0.384 max=0.653
+A7 phase=idle start_latency_ms cold_only: n=20 p50=4.940 p90=5.318 p99=6.135 max=6.135
+[uscita] 0
+[stato dopo 18:10:51] load: 0.80 0.72 0.63
+[stato dopo] io: some avg10=0.00 avg60=0.14 avg300=0.11 total=22894507627
+[stato dopo] cpu: some avg10=0.00 avg60=0.13 avg300=0.10 total=2598561083
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: A7-1
+[stato dopo] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26843476 swap_usato_kb=2041096 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931964
+[stato dopo] orologio minisheep UTC: 2026-11-26T17:10:55
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

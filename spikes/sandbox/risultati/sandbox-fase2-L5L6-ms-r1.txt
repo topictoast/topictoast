@@ -1,0 +1,60 @@
+[stato prima 14:30:01] load: 1.01 0.80 0.60
+[stato prima] io: some avg10=0.18 avg60=0.04 avg300=0.00 total=22872484391
+[stato prima] cpu: some avg10=0.00 avg60=0.14 avg300=0.06 total=2578110207
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L5L6-1
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 7.0%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.03
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+ok load_us=91 verify_us=22
+ok load_us=40 verify_us=16
+ok load_us=42 verify_us=16
+L5 loop cfg=epoch limit_ms=100 n=30 overshoot_ms p50=-0.14 p99=0.07 max=0.07 min=-0.31 alive=true
+   outcome: cpu_time_limit msg=error while executing at wasm backtrace: |     0:     0x31 - <unknown>!<wasm function 0>: w
+L5 loop cfg=epoch limit_ms=1000 n=30 overshoot_ms p50=-0.16 p99=-0.10 max=-0.10 min=-0.47 alive=true
+   outcome: cpu_time_limit msg=error while executing at wasm backtrace: |     0:     0x31 - <unknown>!<wasm function 0>: w
+L5 copyloop(16MiB copies) cfg=epoch limit_ms=100 n=30 overshoot_ms p50=-0.13 p99=0.22 max=0.22 min=-0.55 alive=true
+   outcome: cpu_time_limit msg=error while executing at wasm backtrace: |     0:     0x40 - <unknown>!<wasm function 0>: w
+L5 copybig(one 1GiB copy, mem_mb=2048) cfg=epoch limit_ms=100 n=5 overshoot_ms p50=90.04 p99=95.76 max=95.76 min=86.02 alive=true
+   outcome: cpu_time_limit msg=error while executing at wasm backtrace: |     0:     0x3e - <unknown>!<wasm function 0>: w
+ok load_us=91 verify_us=22
+L5 fuel=100000000 wall_ms=14.4 ns_per_fuel=0.144 outcome=cpu_fuel_limit msg=error while executing at wasm backtrace: |     0:     0x31 - <unknown>!<wasm function 0>: wasm trap: all fuel consumed by WebAssembly
+L5 fuel=1000000000 wall_ms=138.0 ns_per_fuel=0.138 outcome=cpu_fuel_limit msg=error while executing at wasm backtrace: |     0:     0x31 - <unknown>!<wasm function 0>: wasm trap: all fuel consumed by WebAssembly
+ok load_us=90 verify_us=22
+L5 loop(fuel huge) cfg=epoch+fuel limit_ms=100 n=10 overshoot_ms p50=-0.13 p99=0.06 max=0.06 min=-0.20 alive=true
+   outcome: cpu_time_limit msg=error while executing at wasm backtrace: |     0:     0x31 - <unknown>!<wasm function 0>: w
+ok load_us=98 verify_us=26
+ok load_us=41 verify_us=16
+ok load_us=71 verify_us=17
+ok load_us=53 verify_us=15
+L6 growmem cfg=epoch limit_ms=2000 n=10 overshoot_ms p50=-1993.60 p99=-1993.34 max=-1993.34 min=-1993.77 alive=true
+   outcome: memory_limit msg=error while executing at wasm backtrace: |     0:     0x38 - <unknown>!<wasm function 0>: mem
+L6 table cfg=epoch limit_ms=2000 n=10 overshoot_ms p50=-1999.99 p99=-1999.96 max=-1999.96 min=-1999.99 alive=true
+   outcome: table_limit msg=error while executing at wasm backtrace: |     0:     0x3e - <unknown>!<wasm function 0>: tabl
+L6 recurse cfg=epoch limit_ms=2000 n=10 overshoot_ms p50=-1999.90 p99=-1999.69 max=-1999.69 min=-1999.90 alive=true
+   outcome: stack_limit msg=error while executing at wasm backtrace: |     0: <unknown>!f |     1:     0x32 - <unknown>!f 
+L6 bigmem cfg=epoch limit_ms=2000 n=10 overshoot_ms p50=-2000.00 p99=-2000.00 max=-2000.00 min=-2000.00 alive=true
+   outcome: memory_limit msg=memory limit exceeded: requested 2621440000 bytes, cap 64 MiB
+L6 aux_rss_mb before=10.5 after=12.1 threads before=2 after=2
+L5/L6 other-tenant phase=control secs=20
+   B t_start_ms n=3993 p50=0.060 p90=0.066 p99=0.094 max=0.190
+   B rtt_ms n=3993 p50=0.299 p90=0.375 p99=0.426 max=0.868
+L5/L6 other-tenant phase=hostile secs=20
+   B t_start_ms n=4013 p50=0.055 p90=0.060 p99=0.072 max=0.145
+   B rtt_ms n=4013 p50=0.213 p90=0.253 p99=0.339 max=0.562
+[uscita] 0
+[stato dopo 14:31:23] load: 1.04 0.86 0.64
+[stato dopo] io: some avg10=0.00 avg60=0.01 avg300=0.00 total=22872530650
+[stato dopo] cpu: some avg10=0.00 avg60=0.03 avg300=0.04 total=2578189237
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L5L6-1
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-2 0.03
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

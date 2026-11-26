@@ -1,0 +1,41 @@
+[stato prima 16:16:35] load: 0.74 0.53 0.43
+[stato prima] io: some avg10=0.19 avg60=0.12 avg300=0.04 total=22881748602
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2586444498
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: S8-smoke
+[stato prima] binario sha256: 3394fdd3210b7de0ac3139e05c822779d7ef6ef69baf9e4e07f3529038befe3a
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.2%; core 8-11 occupati: 0.5%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.03
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27253340 swap_usato_kb=2165224 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931095
+[stato prima] orologio minisheep UTC: 2026-11-26T15:16:39
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+S0 host_kernel=7.2.4-arch1-2 firecracker_sha256=b33f46cd6d88834cf6a4f8d184f08f219809c636236bffd286d233a60602a2ba kernel_sha256=e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2 rootfs_sha256=68321e0482baeb3844dafe8a6b08a6902401a7afc41fbfd8c3d9ea08aadd244f agent_drive_sha256=7e7b156381eec9789561874dfbc58f124d2af10beb9231699f7246ceb838ed1a
+S8 firecracker_version=Firecracker v1.18.0
+S8 cold_boot_to_ping_ms=53.7
+S8 seccomp_vmm=fc_api:2,fc_vcpu:2,firecracker-v1.:2,kvm-nx-lpage-re:2
+S8 guest_kernel=Linux version 6.1.155+ (root@c3d8009cd6d2) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04.2)
+S8 guest_info ok procs=49 memtotal_kb=107256 memavail_kb=86388 uid=0 cpus=1
+S8 load ok load_us=716 verify_us=189
+S8 node outcome=none outlen=39
+S8 snapshot_create_total_ms=1638
+S8 restore_to_ping_ms=7.5 snapshot_load_api_ms=4.6
+S8 after_restore_node none
+[uscita] 0
+[stato dopo 16:16:41] load: 0.76 0.53 0.43
+[stato dopo] io: some avg10=0.22 avg60=0.14 avg300=0.04 total=22881755120
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2586452980
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: S8-smoke
+[stato dopo] binario sha256: 3394fdd3210b7de0ac3139e05c822779d7ef6ef69baf9e4e07f3529038befe3a
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 1.2%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.03
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27263820 swap_usato_kb=2165076 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931095
+[stato dopo] orologio minisheep UTC: 2026-11-26T15:16:45
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

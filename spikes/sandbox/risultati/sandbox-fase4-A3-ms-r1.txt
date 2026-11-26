@@ -1,0 +1,68 @@
+[stato prima 18:06:44] load: 0.52 0.58 0.56
+[stato prima] io: some avg10=0.29 avg60=0.11 avg300=0.03 total=22893696093
+[stato prima] cpu: some avg10=0.00 avg60=0.01 avg300=0.00 total=2597338997
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: A3-1
+[stato prima] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 2.0%; core 8-11 occupati: 0.7%
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26965496 swap_usato_kb=2041208 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931958
+[stato prima] orologio minisheep UTC: 2026-11-26T17:06:48
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+A0 kernel=7.2.4-arch1-2 lsm=capability,landlock,lockdown,yama,bpf
+A0 landlock_abi_kernel=10 (syscall landlock_create_ruleset VERSION)
+A0 landlock_crate=0.4.7 conosce_fino_a=V9 seccompiler=0.5.0
+A0 yama_ptrace_scope=1
+A0 userns: unprivileged_userns_clone=1 max_user_namespaces=126131 apparmor_restrict_unprivileged_userns=assente (sysctl letti, non cambiati)
+A0 unshare(CLONE_NEWUSER|CLONE_NEWNS) in un figlio usa-e-getta: riuscito
+A0 core_pattern=|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+A3 role=validation env_inside=ok leak=0 env_vars=0 dumpable_inside=ok leak=0 dumpable=0 outside: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=1
+A3 role=validation limits_core: Max core file size        0                    0                    bytes     
+A3 role=validation limits_core_ll: Max core file size        0                    0                    bytes     
+A3 role=validation crash_in_ll_mode_(hardening_only): KILLED(sig11) core_dumped_flag=false core_files_found=0
+A3 role=validation ipc_version_999: exit_code=Some(3) (atteso 3) in 878 us stderr=ipc version mismatch: want 1, got Some("999")
+A3 role=validation control_none dumpable_inside=ok leak=0 dumpable=1 status_seccomp=0 seccomp_filters=0 status_nnp=0 environ_owner_uid=1000 lim_core=unlimited lim_nofile=1024 lim_fsize=unlimited threads=1
+A3 role=jq env_inside=ok leak=0 env_vars=0 dumpable_inside=ok leak=0 dumpable=0 outside: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=1
+A3 role=jq limits_core: Max core file size        0                    0                    bytes     
+A3 role=jq limits_core_ll: Max core file size        0                    0                    bytes     
+A3 role=jq crash_in_ll_mode_(hardening_only): KILLED(sig11) core_dumped_flag=false core_files_found=0
+A3 role=jq ipc_version_999: exit_code=Some(3) (atteso 3) in 999 us stderr=ipc version mismatch: want 1, got Some("999")
+A3 role=jq control_none dumpable_inside=ok leak=0 dumpable=1 status_seccomp=0 seccomp_filters=0 status_nnp=0 environ_owner_uid=1000 lim_core=unlimited lim_nofile=1024 lim_fsize=unlimited threads=1
+A3 role=callhttp env_inside=ok leak=0 env_vars=0 dumpable_inside=ok leak=0 dumpable=0 outside: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=1
+A3 role=callhttp limits_core: Max core file size        0                    0                    bytes     
+A3 role=callhttp limits_core_ll: Max core file size        0                    0                    bytes     
+A3 role=callhttp crash_in_ll_mode_(hardening_only): KILLED(sig11) core_dumped_flag=false core_files_found=0
+A3 role=callhttp ipc_version_999: exit_code=Some(3) (atteso 3) in 995 us stderr=ipc version mismatch: want 1, got Some("999")
+A3 role=callhttp control_none dumpable_inside=ok leak=0 dumpable=1 status_seccomp=0 seccomp_filters=0 status_nnp=0 environ_owner_uid=1000 lim_core=unlimited lim_nofile=1024 lim_fsize=unlimited threads=1
+A3 role=light env_inside=ok leak=0 env_vars=0 dumpable_inside=ok leak=0 dumpable=0 outside: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=0 threads=10
+A3 role=light limits_core: Max core file size        0                    0                    bytes     
+A3 role=light limits_core_ll: Max core file size        0                    0                    bytes     
+A3 role=light crash_in_ll_mode_(hardening_only): KILLED(sig11) core_dumped_flag=false core_files_found=0
+A3 role=light ipc_version_999: exit_code=Some(3) (atteso 3) in 2100 us stderr=ipc version mismatch: want 1, got Some("999")
+A3 role=light control_none dumpable_inside=ok leak=0 dumpable=1 status_seccomp=0 seccomp_filters=0 status_nnp=0 environ_owner_uid=1000 lim_core=unlimited lim_nofile=1024 lim_fsize=unlimited threads=10
+A3 role=stream env_inside=ok leak=0 env_vars=0 dumpable_inside=ok leak=0 dumpable=0 outside: status_seccomp=2 seccomp_filters=1 status_nnp=1 environ_owner_uid=0 lim_core=0 lim_nofile=64 lim_fsize=unlimited threads=1
+A3 role=stream limits_core: Max core file size        0                    0                    bytes     
+A3 role=stream limits_core_ll: Max core file size        0                    0                    bytes     
+A3 role=stream crash_in_ll_mode_(hardening_only): KILLED(sig11) core_dumped_flag=false core_files_found=0
+A3 role=stream ipc_version_999: exit_code=Some(3) (atteso 3) in 992 us stderr=ipc version mismatch: want 1, got Some("999")
+A3 role=stream control_none dumpable_inside=ok leak=0 dumpable=1 status_seccomp=0 seccomp_filters=0 status_nnp=0 environ_owner_uid=1000 lim_core=unlimited lim_nofile=1024 lim_fsize=unlimited threads=1
+A3 core_pattern=|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+[uscita] 0
+[stato dopo 18:06:49] load: 0.48 0.57 0.56
+[stato dopo] io: some avg10=0.16 avg60=0.10 avg300=0.03 total=22893696107
+[stato dopo] cpu: some avg10=0.00 avg60=0.01 avg300=0.00 total=2597349011
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: A3-1
+[stato dopo] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.7%; core 8-11 occupati: 2.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26966464 swap_usato_kb=2041204 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931958
+[stato dopo] orologio minisheep UTC: 2026-11-26T17:06:53
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

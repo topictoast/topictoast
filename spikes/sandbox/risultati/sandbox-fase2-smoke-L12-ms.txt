@@ -1,0 +1,73 @@
+[stato prima 14:27:04] load: 0.86 0.60 0.50
+[stato prima] io: some avg10=0.00 avg60=0.04 avg300=0.02 total=22872228717
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2577505241
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L12-smoke
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.5%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.04
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+ok load_us=290 verify_us=185
+L12 probe outcome: none
+L12 sentinel key: present_in_guest_output=false
+L12 sentinel db: present_in_guest_output=false
+L12 sentinel cfg: present_in_guest_output=false
+L12 sentinel tenantB: present_in_guest_output=false
+L12 sentinel env_aux: present_in_guest_output=false
+L12 sentinel env_engine: present_in_guest_output=false
+   stdout=fs <dir>/key negato No such file or directory (os error 44)
+   fs <dir>/db negato No such file or directory (os error 44)
+   fs <dir>/cfg negato No such file or directory (os error 44)
+   fs <dir>/tenantB/data negato No such file or directory (os error 44)
+   fs /proc/<engine>/environ negato No such file or directory (os error 44)
+   fs /proc/<engine>/mem negato No such file or directory (os error 44)
+   fs /proc/<engine>/maps negato No such file or directory (os error 44)
+   fs /proc/2585202/environ negato No such file or directory (os error 44)
+   fs /proc/2585202/mem negato No such file or directory (os error 44)
+   fs /proc/self/environ negato No such file or directory (os error 44)
+   fs /proc/self/mem negato No such file or directory (os error 44)
+   fs /proc/self/fd/3 negato No such file or directory (os error 44)
+   fs /proc/self/fd/3 negato No such file or directory (os error 44)
+   fs /etc/passwd negato No such file or directory (os error 44)
+   fs / negato No such file or directory (os error 44)
+   fs . negato No such file or directory (os error 44)
+   env count 0
+   tcp negato operation not supported on this platform
+   udp negato operation not supported on this platform
+   proc negato operation not supported on this platform
+   fd 3 negato
+   fd 4 negato
+   fd 5 negato
+   fd 6 negato
+   fd 7 negato
+   fd 8 negato
+   fd 9 negato
+   fd 10 negato
+   fd 11 negato
+   fd 12 negato
+   fd 13 negato
+   fd 14 negato
+   fd 15 negato
+   
+   stderr=
+   host_output=
+L12 sock: none outlen=3 errlen=0 logs=0 wall_ms=0.1 alive=true
+   errno bytes (sock_accept, sock_send, path_open dirfd=3): [8, 8, 8]
+L12 evilimport: load refused: err unknown import: `env::escape` has not been defined
+L12 logflood: log_limit msg=error while executing at wasm backtrace: |     0:     0x55 - <unknown>!<wasm function 1>: log limit exceeded: more than 1048576 bytes outlen=0 errlen=0 logs=16 wall_ms=1.2 alive=true
+L12 errflood: cpu_time_limit msg=error while executing at wasm backtrace: |     0:     0x72 - <unknown>!<wasm function 1>: wasm trap: interrupt outlen=0 errlen=1048576 logs=0 wall_ms=3002.1 alive=true
+[uscita] 0
+[stato dopo 14:27:11] load: 0.81 0.60 0.50
+[stato dopo] io: some avg10=0.00 avg60=0.03 avg300=0.01 total=22872228727
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2577510596
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L12-smoke
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.15
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

@@ -1,0 +1,166 @@
+Spike S-2, fase 2 (livello leggero): regole di lettura, fissate PRIMA delle corse misurate
+==========================================================================================
+
+Questo file viene committato prima di ogni corsa misurata. Le soglie sono quelle decise da Marco il
+2026-11-26 e non cambiano dopo una corsa. Nessuna corsa si scarta dopo averla vista: si scarta solo
+per i motivi di invalidità scritti qui sotto, e una corsa in più si aggiunge come file nuovo (r4, r5, ...),
+senza togliere le precedenti.
+
+Strumenti
+---------
+- Codice: commit 33d68a4 (`spikes/sandbox`, crate `sbxspike`), toolchain 1.99.1, wasmtime e wasmtime-wasi
+  50.0.3 (eccezione di sicurezza, RUSTSEC-2026-0566...0573 e 0587), javy 9.1.0 (CLI dal rilascio ufficiale,
+  impronta verificata: per la CLI non esiste un crate su crates.io), plugin di javy con `javy-plugin-api`
+  7.1.0, `wit-bindgen` 0.63.0, `serde_json` 1.0.154.
+- Il binario si costruisce sul portatile e si copia su minisheep (glibc 2.44 su tutte e due). Ogni file grezzo
+  porta l'impronta sha256 del binario e un'impronta unica dell'insieme dei moduli `.wasm` usati.
+- Corse solo su minisheep, in `~/ttspikesandbox`, con `run.sh` che chiama `ms-run.sh`. Ausiliari e compilatore
+  sui core 1-4, pilota di carico sui core 8-11. I 12 container dei runner non si toccano; si leggono soltanto.
+- Configurazione giudicata «J»: allocazione su richiesta, copy-on-write della memoria attivo, interruzione per
+  epoca (tick da 1 ms, solo mentre c'è una richiesta in corso), senza combustibile, tetti dello store: memoria
+  64 MiB, tabelle 10.000 elementi, pila 512 KiB (predefinita), righe di log 1 MiB per esecuzione, stdout e stderr
+  1 MiB ciascuno. Le altre configurazioni (pooling, senza copy-on-write, combustibile) si riportano e non
+  cambiano il verdetto: se J non passa e un'altra sì, il verdetto resta «non passa» e si scrive quale passa.
+- Interfaccia dell'host offerta al nodo: `topictoast.log`, `topictoast.emit`, `topictoast.input`,
+  `topictoast.output` e WASI p1 senza file system, senza ambiente, senza rete (componenti: WIT
+  `topictoast:node/host` più WASI p2 con le stesse restrizioni). Nient'altro.
+
+Validità di un file grezzo
+--------------------------
+Un file vale per i verdetti solo se tutte queste condizioni sono vere:
+1. `[stato prima HH:MM:SS]` è successivo all'ora del commit di questo file (registrata nei risultati);
+2. `[stato prima] binario sha256` è presente ed è quello del binario dichiarato nei risultati;
+3. cancello della macchina ferma come in `spikes/bus/ms-run.sh`: carico a 1 minuto < 1,5 e pressione I/O
+   `some avg10` < 1 % all'avvio; se la corsa parte con `[macchina non ferma]`, il file si tiene e si riporta,
+   ma non conta per i verdetti;
+4. `[uscita] 0` e nessun `panicked`; una corsa interrotta dal limite di 590 s (`[uscita] 124`) non vale.
+Si leggono anche i core occupati (`[stato prima] core 1-4 occupati`), il governor e la CPU dei runner: sono
+riportati, e una corsa con i core 1-4 occupati oltre il 30 % all'avvio non vale (stessa regola dei runner attivi).
+Una riga con un valore che è la soglia o la supera è giudicata sul numero esatto del file, senza arrotondare.
+
+Letture a, b, c (uguali per ogni riga di tempo o di conteggio)
+--------------------------------------------------------------
+- a: la soglia regge in ogni corsa valida (almeno 3) e per ogni modulo o caso giudicato: **passa**.
+- b: regge nella mediana delle corse ma non in tutte, oppure regge solo nella lettura larga e non in quella
+  stretta dichiarata nella riga: **passa con riserva**; si scrive quale corsa o quale lettura manca.
+- c: non regge nella maggior parte delle corse, o un caso giudicato non ha mai retto: **non passa**.
+Con meno di 3 corse valide una riga si riporta ma non si giudica («non giudicata»).
+I percentili sono quelli del pilota: valori ordinati, indice `round((n-1)*p)`.
+
+Le righe
+--------
+L1 avvio a caldo (NFR-12). Scenario `warm`, 1.000 esecuzioni per modulo dopo 100 di riscaldamento, ausiliario
+  già avviato, sei moduli: vuoto, javy statico, javy dinamico, Rust wasip1, Rust unknown, Rust wasip2.
+  Giudicato: `t_start` (dalla lettura della richiesta da parte dell'ausiliario all'ingresso del guest in
+  `_start` o `run`: store, contesto WASI, istanziazione; per javy dinamico anche l'istanza del plugin) in J:
+  p50 ≤ 10 ms e p99 ≤ 25 ms, per ognuno dei sei moduli. Lettura stretta (b): `t_total` (fino alla fine del nodo
+  di prova, compresa l'inizializzazione del guest) con le stesse soglie. Solo riportato: `t_inst`, round trip
+  del pilota, e le configurazioni `pool+epoch`, `nocow+epoch`, `fuel`. Corse: 3. Non coperto: un nodo che
+  lavora davvero, più richieste insieme, il percorso del motore vero (gRPC, bus).
+
+L2 avvio a freddo di un ausiliario per tenant. Scenario `cold`, 200 avvii per modulo e per corsa
+  (fork/exec, `Engine`, lettura e verifica dell'impronta della cache, `deserialize_file`, prima esecuzione).
+  Giudicato: `cold_to_node_start` in J: p50 ≤ 100 ms e p99 ≤ 250 ms per modulo. Lettura stretta (b):
+  `cold_to_node_done`. Riportato: le parti (`spawn_to_ready`, `load`) e `pool+epoch`. Corse: 3. Non coperto: file
+  della cache non in memoria (la cache appena scritta è nella page cache), il tempo di Landlock e seccomp
+  (fase 4), il lancio da systemd.
+
+L3 memoria per istanza (NFR-12). Scenario `mem`, N = 1, 10, 50 istanze tenute vive nello stesso processo dopo
+  aver eseguito il nodo di prova. Giudicato: massimo, su N e su moduli, di `per_instance_rss_mb` in J ≤ 64 MB
+  (la RSS è la lettura prudente; la PSS si riporta). Riportato: base e picco (`hwm`) del processo, `pool+epoch`.
+  Il caso peggiore (il guest usa tutto il tetto) è in L6. Corse: 3.
+
+L4 ausiliario fermo (NFR-1). Scenario `idle`, N = 1, 5, 20 ausiliari, ognuno con un modulo caricato e una
+  esecuzione fatta, fermi per 2 s; moduli vuoto, javy statico, Rust wasip1; più la riga «solo Engine».
+  Giudicato: RSS massima di un ausiliario ≤ 20 MB (lettura stretta (b): anche la PSS ≤ 20 MB) e somma delle PSS
+  di N ausiliari ≤ 80 MB per N = 1 e 5. N = 20 si riporta (non si giudica: la risposta attesa è l'arresto per
+  inattività, fase 4). La parte del motore dentro gli 80 MB non è misurabile (il motore non esiste): il verdetto
+  sulla somma è una condizione necessaria e si scrive il margine che resta. La somma delle RSS si riporta e,
+  se supera 80 MB per N = 5, si scrive. Corse: 3.
+
+L5 limite di CPU (FR-17). Scenario `limits`, 30 esecuzioni per caso. Giudicato in J (epoca): il ciclo infinito
+  si ferma sempre con classe `cpu_time_limit` e sforamento = `t_total` − limite, con limite 100 ms e 1.000 ms,
+  e le copie da 16 MiB senza fine con limite 100 ms: massimo dello sforamento ≤ 50 ms in ogni corsa
+  (uno sforamento negativo, fino a un tick, è la fase dell'orologio e vale come rispettato). Il nome del limite
+  è la classe dell'errore (`cpu_time_limit`); il testo per l'utente lo costruisce il motore. Solo riportato:
+  combustibile (nanosecondi per unità e classe `cpu_fuel_limit`), epoca più combustibile (chi scatta per primo),
+  la copia in blocco da 1 GiB (buco noto dell'epoca, nessuna soglia). Corse: 3.
+
+L6 limite di memoria (FR-17). Stesso scenario `limits`, 10 esecuzioni per caso con tetto 64 MiB. Giudicato:
+  `growmem`, `table`, `recurse`, `bigmem` finiscono con classe `memory_limit`, `table_limit`, `stack_limit`,
+  `memory_limit`, l'ausiliario risponde ancora dopo ogni serie e nessuna serie lo ferma. Altro tenant: un
+  secondo ausiliario B esegue il nodo a 200/s per 20 s mentre l'ausiliario A esegue i moduli ostili (fase
+  `hostile`) e per 20 s da solo (fase `control`): giudicato p99 di `t_start` di B ≤ 25 ms nella fase `hostile`;
+  riportato anche il confronto con `control` e il round trip. Riportato: RSS e thread prima e dopo, picco.
+  Non coperto: tetto di memoria del processo intero (nessun cgroup senza root; il tetto è per istanza), `RLIMIT_AS`.
+  Corse: 3 (lo stesso file di L5).
+
+L7 nessun residuo (FR-17). Scenario `residue`, 4 moduli ostili in giri (10, 100, 100). Giudicato: thread
+  invariati, nessun processo figlio, crescita della RSS tra il secondo e il terzo gruppo da 100 giri ≤ 2 MB;
+  dopo `kill` del PID salvato il processo e i suoi figli non ci sono più; con `RLIMIT_CPU` di 2 s su un
+  ausiliario senza epoca né combustibile il ciclo infinito termina per segnale entro 3 s. Riportato: picco.
+  Corse: 3.
+
+L8 un processo per tenant (FR-16). Scenario `sentinel`, due ausiliari A e B (J e `pool+epoch`), valori
+  sentinella casuali per ogni corsa, 128 bit, passati mascherati con XOR 0x5A così che chi cerca non tenga mai
+  una copia in chiaro. Metodo: lettura della memoria leggibile del processo da due vie, dal processo stesso
+  (`/proc/self/mem`) e dal pilota (`/proc/<pid>/mem`: su minisheep Yama `ptrace_scope` vale 1, che consente di
+  leggere la memoria dei propri discendenti; il pilota è il genitore dei due ausiliari, quindi la seconda via
+  funziona; dove fosse negata si riporta solo la prima). Giudicato: il valore di B in A e
+  il valore di A in B compaiono 0 volte con tutte e due le vie, mentre il controllo positivo (il valore di B in
+  B, e di A in A, con l'istanza tenuta viva) compare almeno 1 volta. Riportato soltanto: dopo il rilascio delle
+  istanze, quante copie del valore restano nello stesso processo (stesso tenant; mostra che la memoria non si
+  azzera, quindi il confine è il processo e non la pulizia della memoria); e l'ausiliario A (processo non
+  antenato di B) che legge la memoria di B: lo nega Yama, non topictoast, quindi si riporta senza giudicarlo.
+  Non misurati: core dump, swap.
+  Si riporta solo la presenza o assenza, mai il valore. Corse: 3.
+
+L9 TypeScript e Rust girano (FR-15). Scenario `l9`, J, modulo per modulo; si giudicano i cinque moduli con la
+  logica del nodo (javy statico e dinamico, Rust wasip1, unknown, wasip2); il modulo vuoto è solo il pavimento
+  di L1-L4 e non ha uscita attesa. Giudicato: esito senza errori, uscita
+  esatta `{"greeting":"hello topictoast","sum":5}`, tre righe di log con livelli 0, 1, 2 in ordine, una sola
+  scrittura `emit events {"sum":5}`; nel solo `rust-unknown` l'uscita passa dalla funzione `output` dell'host.
+  Riportato: dimensione del `.wasm` e dell'artefatto nativo; avvio e memoria sono L1 e L3. Corse: 3. Non coperto:
+  comodità dell'autore del nodo, ComponentizeJS (non costruito: formato modulo core deciso), wasmi (non
+  costruito, era solo un confronto).
+
+L10 validazione e compilazione (FR-15, NFR-8). Scenario `compile`, sottocomando `compile` in un processo a parte
+  sui core 1-4, 3 ripetizioni per file e per corsa, tetto di 10 s dopo il quale il pilota lo uccide per PID.
+  Giudicato: ogni modulo da circa 1 MB (javy statico 1,2 MB e sintetico da 1,01 MB) validato e compilato in
+  ≤ 1.000 ms di tempo reale e ≤ 256 MB di RSS massima (`ru_maxrss`), in tutte le ripetizioni; moduli ostili per
+  il compilatore (`hostile-nest`, `hostile-brtable`, `hostile-straight`, `hostile-ifs`): ognuno finisce (ok,
+  errore o ucciso) entro 10 s più 500 ms, mentre il tenant B tiene p99 di `t_start` ≤ 25 ms; byte malformati
+  (troncato, zeri, solo intestazione, spazzatura): rifiutati o accettati, mai terminati da segnale. Riportato:
+  100 KB e 10 MB, RSS dei moduli ostili (se supera i 256 MB si scrive), le righe con tetto di memoria virtuale
+  `RLIMIT_AS` 512 MiB (esito: errore, uscita o segnale). Corse: 3. Non coperto: compilazione in parallelo di più
+  tenant, `Module::validate` con funzioni abilitanti diverse da quelle predefinite.
+
+L11 cache nativa (NFR-8). Scenario `cache`. Giudicato: con la verifica dell'impronta registrata dal compilatore,
+  ogni artefatto modificato (un byte nell'intestazione, a metà, all'ultimo byte; troncato; un `.wasm` al posto del
+  cwasm) è rifiutato e quello intatto è caricato ed eseguito; un artefatto compilato con una configurazione
+  diversa (`fuel`, `epoch+nocow`) è rifiutato da wasmtime; un cwasm caricato al posto del modulo è rifiutato dal
+  compilatore. Riportato (non giudicato): cosa carica wasmtime senza la verifica, `pool+epoch` che accetta un
+  artefatto di `epoch`. Non misurato: un artefatto di un'altra versione di wasmtime (serve una seconda
+  costruzione; resta «ipotesi» dalla documentazione di wasmtime), permessi della cartella e Landlock (fase 4).
+  Corse: 3.
+
+L12 codice ostile noto (NFR-8). Scenario `probe`. Giudicato: nessuno dei 6 valori sentinella (file della chiave,
+  database, configurazione, cartella di un altro tenant, ambiente dell'ausiliario, ambiente del «motore») compare
+  nell'uscita del guest; ogni apertura di percorso del guest (`/proc/<motore>/{environ,mem,maps}`,
+  `/proc/<ausiliario>/{environ,mem}`, `/proc/self/*`, file dei sentinella, `/etc/passwd`, `/`, `.`) è `negato`;
+  `std::net` TCP e UDP e la creazione di processi sono `negati`; ambiente del guest vuoto (0 variabili); i
+  descrittori 3-15 `negati` (un descrittore del file della chiave resta aperto e ereditato dall'ausiliario);
+  `sock` (accept, send, path_open su descrittori che non esistono) restituisce errno diversi da 0; `evilimport`
+  è rifiutato al caricamento con il nome dell'importazione non offerta; `logflood` finisce con classe
+  `log_limit`; `errflood` non supera il tetto di stderr (`errlen` ≤ 1 MiB) e si ferma per il tempo; l'ausiliario
+  risponde dopo ogni modulo. Registrazione: i rifiuti dell'host (limite, importazione non offerta) tornano come
+  classe di errore e si contano come «registrati»; i rifiuti di WASI (errno dentro il guest) non sono visibili
+  all'host e si riportano come lacuna, non come fallimento. Fuori portata: la rete interna tramite una funzione
+  `http` dell'host (non esiste nel prototipo: il filtro degli indirizzi è M-30); si misura solo che il guest non
+  può aprire socket e non può importare altro. Non coperto: Landlock e seccomp (fase 4), cioè la lettura della
+  chiave da parte dell'ausiliario stesso, che qui gira con lo stesso utente e potrebbe leggerla. Corse: 3.
+
+Come si scrivono i risultati
+----------------------------
+`spikes/sandbox/fase2-risultati.md`, una sezione per riga: valore, soglia, verdetto, etichetta «misurata»
+(con i file grezzi) oppure «ipotesi», e cosa non è coperto. Le cause si scrivono «misurata» o «ipotesi».

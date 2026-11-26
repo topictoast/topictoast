@@ -1,0 +1,42 @@
+[stato prima 14:46:52] load: 1.28 1.33 1.10
+[stato prima] io: some avg10=0.00 avg60=0.19 avg300=0.09 total=22874257083
+[stato prima] cpu: some avg10=0.00 avg60=0.02 avg300=0.02 total=2580297073
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L11-3
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.2%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+L11 cwasm bytes=292880 sha=8749c9869e6ea4d7
+L11 wasmtime version string in artifact at offset None
+L11 intact [verified] load: ok load_us=304 verify_us=212 | run: none stdout_ok=true
+L11 intact [UNVERIFIED] load: ok load_us=74 verify_us=0 | run: none stdout_ok=true
+L11 header (byte 16 flipped) [verified] load: err sha mismatch
+L11 header (byte 16 flipped) [UNVERIFIED] load: ok load_us=80 verify_us=0 | run: none stdout_ok=true
+L11 middle (byte 146440 flipped) [verified] load: err sha mismatch
+L11 middle (byte 146440 flipped) [UNVERIFIED] load: ok load_us=144 verify_us=0 | run: none stdout_ok=true
+L11 last-byte (byte 292879 flipped) [verified] load: err sha mismatch
+L11 last-byte (byte 292879 flipped) [UNVERIFIED] load: ok load_us=92 verify_us=0 | run: none stdout_ok=true
+L11 truncated to half [verified] load: err sha mismatch
+L11 truncated to half [UNVERIFIED] load: err failed deserialization for: /home/white_sheep/ttspikesandbox/out/l11/case.cwasm: failed to parse section h
+L11 plain wasm bytes in place of cwasm [verified] load: err sha mismatch
+L11 plain wasm bytes in place of cwasm [UNVERIFIED] load: err failed deserialization for: /home/white_sheep/ttspikesandbox/out/l11/case.cwasm: failed to parse precompil
+L11 artifact(epoch) loaded by engine cfg=fuel: err failed deserialization for: /home/white_sheep/ttspikesandbox/out/cache/3f51d050680f63e8a2d1aa9da5a6879fe4c56c256623d6fe1a3093cc252f0045-
+L11 artifact(epoch) loaded by engine cfg=pool+epoch: ok load_us=302 verify_us=216
+L11 artifact(epoch) loaded by engine cfg=epoch+nocow: err failed deserialization for: /home/white_sheep/ttspikesandbox/out/cache/3f51d050680f63e8a2d1aa9da5a6879fe4c56c256623d6fe1a3093cc252f0045-
+L11 cwasm uploaded as if it were a module -> compile: err magic header not detected: bad magic number - expected=[ |     0x0, |     0x61, |     0x73, |     0x6d, | ] actual=[ |     0x7f, |     0
+[uscita] 0
+[stato dopo 14:46:56] load: 1.18 1.31 1.09
+[stato dopo] io: some avg10=0.00 avg60=0.18 avg300=0.08 total=22874275155
+[stato dopo] cpu: some avg10=0.00 avg60=0.02 avg300=0.02 total=2580301112
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L11-3
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.06
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

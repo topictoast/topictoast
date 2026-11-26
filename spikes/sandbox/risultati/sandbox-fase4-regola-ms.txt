@@ -1,0 +1,203 @@
+Spike S-2, fase 4 (processi ausiliari confinati): regole di lettura, fissate PRIMA delle corse misurate
+=======================================================================================================
+
+Questo file viene committato prima di ogni corsa misurata. Le soglie sono quelle decise da Marco il 2026-11-26 e non
+cambiano dopo una corsa; per le righe senza soglia di Marco valgono i criteri della sezione 8 di `fase1-tavolino.md`
+(«Fase 4: processi ausiliari»). Nessuna corsa si scarta dopo averla vista: si scarta solo per i motivi di invalidità
+scritti qui sotto. Le corse di prova (`-smoke-` nel nome) non contano e restano nei file.
+
+Scelte già prese da Marco (2026-11-26), non si riaprono
+-------------------------------------------------------
+- Librerie di confinamento: crate `landlock` 0.4.7 (`MIT OR Apache-2.0`; la 0.4.8 è troppo recente) e `seccompiler`
+  0.5.0 (`Apache-2.0 OR BSD-3-Clause`). Nessun'altra dipendenza nuova.
+- Dove Landlock manca e seccomp, limiti di risorse e namespace utente senza privilegi non bastano, un ausiliario che
+  tocca contenuto dei tenant **rifiuta di avviarsi** (fallisce chiuso: errore nel registro del motore, avviso
+  all'operatore, rifiuto con codice). Nessuna modalità senza confinamento nel prodotto.
+- Soglie: riavvio a freddo dopo l'arresto per inattività p50 ≤ 100 ms e p99 ≤ 250 ms, con l'impostazione del
+  confinamento inclusa (A6); con l'arresto per inattività attivo e riavvii a freddo nel carico, p99 di avvio a 1.000
+  attività/s ≤ 25 ms (NFR-2) **e** al massimo 2 ms peggiore del controllo con ausiliari sempre accesi (A7); NFR-1: somma
+  degli RSS dei processi di topictoast ≤ 80 MB, bus escluso (A5); le altre righe con i criteri della sezione 8.
+- Ambito: nessun motore vero. A5 misura gli ausiliari più un processo finto (il pilota); la parte del motore vera si
+  riporta solo come **stima etichettata**, 26,5 MB, dallo spike del bus (altro binario). A7 gira sul percorso della
+  sandbox (il pilota fa da motore, lo stesso processo leggero della fase 2), non sul percorso completo (gRPC, bus).
+  `call http` ha bisogno della rete: il filtro degli indirizzi è M-30 e **non** si misura qui; si misura solo ciò che il
+  confinamento toglie (filesystem, segnali, socket UNIX, e la porta TCP del motore, che Landlock vede per numero).
+
+Che cosa è il codice (per chi legge i risultati)
+-------------------------------------------------
+Crate `spikes/sandbox`, stesso binario `sbxspike`, sottocomandi nuovi `role <nome>` (un ausiliario) e `drive4 <scenario>`
+(il motore finto e le prove). Un sottocomando per ruolo di AD-6: `validation`, `jq`, `callhttp`, `light`, `stream`.
+`light` è la sandbox leggera **vera** (wasmtime 50.0.3, stesso `serve` della fase 2). `validation`, `jq`, `callhttp` e
+`stream` sono **stub**: applicano il profilo di confinamento del loro ruolo prima di leggere una riga (Landlock,
+seccomp con lista consentita, limiti di risorse, `PR_SET_DUMPABLE=0`, `PR_SET_NO_NEW_PRIVS`, ambiente vuoto,
+descrittori ereditati chiusi), poi rispondono a `ping`, a `work` (le syscall che il ruolo vero userebbe: file, socket) e
+alle prove ostili. **Gli stub misurano il confinamento, non il lavoro del ruolo**: il loro RSS è un minimo, non una
+stima di jaq, di un client HTTP o di DataFusion.
+Il motore finto (il pilota) possiede segreti **finti** generati a ogni corsa (file della chiave, la stessa chiave
+nell'ambiente di avvio, tolta con `remove_var` come in AD-6, e in memoria; file del database; configurazione; una
+cartella per due tenant): mai scritti nel repository né stampati; i file grezzi riportano solo presenza o assenza.
+Le liste di syscall consentite sono state **scoperte** con gdb (`catch syscall`, non c'è strace) sul lavoro legittimo
+del ruolo dopo il punto di confinamento (`discover.sh`), sommate a una base scelta a mano (`allow/base.txt`); i file
+`allow/<ruolo>.txt` sono nel commit del codice. Filtrano solo il numero della syscall, non gli argomenti.
+Ordine nel ruolo: (1) chiusura dei descrittori ereditati e limiti (core 0, nofile 64, cpu 3600 s, no_new_privs);
+(2) solo per `light`: motore wasmtime, thread dell'epoca e un'esecuzione di riscaldamento (crea il runtime tokio di
+wasmtime-wasi: thread, epoll, lettura dei cgroup); (3) `RLIMIT_FSIZE=0` (non per `stream`); (4) Landlock su tutti i
+thread (o il ripiego), `PR_SET_DUMPABLE=0`; (5) seccomp su tutti i thread (TSYNC, `KILL_PROCESS`); poi `confined ...` e
+`ready`; il motore manda `hello ipc=<n>` solo dopo.
+Modalità di prova nel binario (non esisterebbero nel prodotto): `none` (nessun confinamento, controllo positivo), `ll`
+(solo Landlock), `sc` (solo seccomp), `fb` (Landlock finto assente: percorso del ripiego forzato), `fb-nouserns`
+(Landlock e namespace utente finti assenti). Il prodotto ha solo `full`, che sceglie il ripiego da solo.
+
+Strumenti, versioni, macchina
+-----------------------------
+- Codice: commit `fb80d92` (2026-11-26 18:05:57 CET; prima versione `2d0002b`), toolchain 1.99.1, wasmtime e wasmtime-wasi 50.0.3 (eccezione di
+  sicurezza come in fase 2), `landlock` =0.4.7, `seccompiler` =0.5.0. Il crate `landlock` 0.4.7 conosce le ABI fino
+  alla V9; il kernel di minisheep riporta ABI 10: la sezione dei risultati riporta tutte e due.
+- Binario `sbxspike4`, costruito sul portatile con `CARGO_TARGET_DIR=/home/white_sheep/.cache/cargo-targets/topictoast-spike-sandbox-2`
+  e copiato su minisheep: sha256 `647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa`.
+- Macchina: minisheep (x86_64, Intel Core Ultra 9 185H, 22 core, kernel 7.2.4-arch1-2, LSM `capability,landlock,lockdown,
+  yama,bpf`, Yama `ptrace_scope` = 1, governor `powersave`). Ausiliari sui core 1-4, pilota sui core 8-11. I 12 container
+  dei runner non si toccano. Niente `sudo` né impostazioni di sistema cambiate (le sysctl dei namespace utente si
+  **leggono** soltanto; la prova reale è un `unshare` in un figlio usa-e-getta). Si fermano solo processi propri per PID
+  salvato.
+- Script usati dalle corse, tutti già nel commit del codice: `run4.sh`, `chain4.sh`, `smoke4.sh`, `discover.sh`, `env.sh`,
+  `ms-run.sh` (immutato dalla fase 3), liste in `allow/`.
+- Esecuzione: `./chain4.sh <n>` per n = 1, 2, 3 (righe A1, A3, A2, A4, A9, A6, A7, A5, una corsa e un file grezzo ciascuna,
+  `risultati/sandbox-fase4-<riga>-ms-r<n>.txt`). A0 (ABI, Yama, namespace utente) è l'intestazione di ogni file.
+  A8 non ha file proprio: si ricava da A5, A6 e A7.
+
+Validità di un file grezzo
+--------------------------
+Un file vale per i verdetti solo se tutte queste condizioni sono vere:
+1. `[stato prima HH:MM:SS]` (ora locale di minisheep, CET) è successivo all'ora del commit di questo file (registrata nei
+   risultati; gli orologi di portatile e minisheep sono stati confrontati prima del commit);
+2. `[stato prima] binario sha256` è `647b6bc8…b53d0ccfa` e `moduli sha256 (insieme)` è lo stesso in tutti i file;
+3. cancello della macchina ferma come in fase 2 e 3 (`ms-run.sh`): carico a 1 minuto < 1,5 e pressione I/O `some avg10` <
+   1 % all'avvio; se la corsa parte con `[macchina non ferma]` il file si tiene e si riporta ma non conta;
+4. core 1-4 occupati al massimo il 30 % all'avvio (`[stato prima] core 1-4 occupati`); core 8-11 riportati;
+5. `[uscita] 0`, nessun `panicked`; `MemAvailable` ≥ 20 GB;
+6. controlli positivi presenti: A2, nella variante `weak` con modalità `none`, per ognuno dei 5 ruoli, le prove
+   `key_file`, `eng_environ`, `eng_maps`, `eng_mem`, `eng_process_vm_readv` e `eng_ptrace` devono risultare `LEAK`
+   (altrimenti le prove non sarebbero in grado di vedere una fuga: la corsa non vale); A7: la fase di controllo ha 0
+   riavvii a freddo e quella con arresto per inattività almeno l'80 % dei riavvii richiesti, 0 errori, ≥ 19.000 attività;
+7. per ogni riga, almeno 3 corse valide (r1-r3).
+Una corsa non valida si rifà **una sola volta** come file nuovo (r4, o il numero successivo); i due file restano e si
+riportano entrambi. Se anche la rifatta non vale, la riga è «non giudicata». Con meno di 3 corse valide una riga si riporta
+ma non si giudica. I percentili sono quelli del pilota: valori ordinati, indice `round((n-1)*p)`. Una riga con un valore
+che è la soglia o la supera si giudica sul numero esatto del file, senza arrotondare.
+
+Letture a, b, c (valgono per ogni riga, salvo dove la riga scrive altro)
+-----------------------------------------------------------------------
+- a: la soglia regge in ogni corsa valida (almeno 3) e per ogni ruolo o caso giudicato nella lettura **larga**: passa.
+- b: regge nella lettura larga ma non nella stretta dichiarata nella riga, oppure regge nella mediana delle corse ma non in
+  tutte: **passa con riserva**; si scrive quale corsa, ruolo o lettura manca.
+- c: non regge nella lettura larga, o in più della metà delle corse, o un caso giudicato non ha mai retto: **non passa**.
+
+Le righe: giudicato contro riportato
+------------------------------------
+A1 (S-2 / AD-6), scenario `a1`, 3 corse. Per ognuno dei 5 ruoli in modalità `full`.
+  Giudicato (larga): prima di mandare qualunque riga, lo stato del kernel letto dal motore (`/proc/<pid>/status` e
+  `limits`) dice `Seccomp: 2`, `Seccomp_filters: 1`, `NoNewPrivs: 1`, proprietario di `/proc/<pid>/environ` uguale a root
+  (= `PR_SET_DUMPABLE=0`), `Max core file size` 0, `Max open files` 64; il rapporto `confined` riporta Landlock
+  `FullyEnforced` (con tutti i thread) e `env_vars=0`; il lavoro legittimo del ruolo gira senza `KILLED` (il lavoro del
+  `light` comprende i limiti di CPU, memoria, tabella e pila del guest e il guest ostile `probe`). Stretta: per `light`
+  tutti i nodi di fase 2 danno lo stesso esito di fase 2 (classi `cpu_time_limit`, `memory_limit`, `stack_limit`,
+  `table_limit`, `none` per i nodi sani). Riportati: ABI (kernel e crate), regole Landlock, numero di syscall consentite,
+  tempo di confinamento, thread del processo.
+A2 (NFR-8, S-2), scenario `a2`, 3 corse (i segreti finti si rigenerano a ogni corsa). Per ruolo (5) e modalità (`none`, `ll`,
+  `sc`, `full`, `fb`) e per due varianti del motore finto: `strong` (come AD-6: dumpable 0, Yama attivo) e `weak`
+  (dumpable 1 e `PR_SET_PTRACER_ANY`: spegne Yama e il dumpable per isolare ciò che fa il confinamento da solo). 19 prove
+  giudicate, ognuna in un ausiliario nuovo (una prova uccisa da seccomp non lascia un processo): file della chiave,
+  database, configurazione, file e cartella di un altro tenant; `/proc/<motore>/{environ,maps,cmdline}`, lettura della
+  memoria del motore (`/proc/<pid>/mem` e `process_vm_readv`), `ptrace`, segnale `SIGUSR1` al motore; descrittori
+  ereditati (un descrittore del file della chiave aperto dal motore senza CLOEXEC); socket UNIX con percorso e astratto
+  del motore; connessione TCP alla porta interna del motore; `exec`; scrittura nella cartella della cache nativa; `fork`.
+  Riportate, non giudicate: `stat` del file della chiave (Landlock non lo limita: metadati), lettura di un file del proprio
+  tenant (controllo: deve riuscire solo dove il ruolo ha il permesso, cioè `stream`).
+  Giudicato (larga): modalità `full`, **entrambe** le varianti del motore, tutti i 5 ruoli: 0 fughe su 19, in ogni corsa.
+  Stretta: anche `fb` (ripiego), vedi A4. Una prova «negata» è: errno di rifiuto, oppure processo ucciso da SIGSYS.
+  Riportati: per ogni cella il risultato; per ogni negazione lo strato che la produce, ricavato dal confronto tra le
+  modalità (`none` = sistema e dumpable/Yama; `ll` = Landlock; `sc` = seccomp; `full`); l'attribuzione di Yama e del
+  dumpable con ausiliario non confinato e quattro varianti del motore (`A2yama`); `/proc/<motore>/environ` dopo
+  `remove_var` della chiave. Non coperto: fughe dal kernel (exploit), canali laterali, `call http` verso indirizzi
+  interni (M-30), core dump veri (A3), lettura da un processo non figlio (Yama lo nega al sistema, vedi sopra).
+A3 (AD-6), scenario `a3`, 3 corse, 5 ruoli. Giudicato: ambiente vuoto visto dall'interno (`env_vars=0`); dumpable 0 visto
+  dal fuori; `RLIMIT_CORE` 0; un arresto anomalo (SIGSEGV) con solo il rafforzamento (modalità `ll`) non produce core dump
+  (stato di uscita senza il bit di core e nessun file `core*` nella cartella di lavoro e nella cartella della corsa);
+  versione dell'IPC diversa (`ipc=999`): l'ausiliario esce con codice 3 prima di rispondere a qualunque altra richiesta, in
+  meno di 100 ms; versione giusta: parte. Riportati: `core_pattern` della macchina (è una pipe a systemd-coredump:
+  **nessun controllo positivo del core dump** per non attivarlo su una macchina condivisa; il verdetto sul core è quindi
+  «nessun core nelle condizioni dichiarate», la causa «RLIMIT_CORE 0 e dumpable 0» è ipotesi dalla documentazione del
+  kernel), il controllo `none`.
+A4 (S-2 ripiego), scenario `a4`, 3 corse. Percorso forzato senza Landlock (`fb`) per i 5 ruoli, entrambe le varianti del
+  motore, e `fb-nouserns`. Letture, dichiarate prima: a = nel ripiego tutte le 19 prove sono negate per tutti i ruoli, e
+  `fb-nouserns` rifiuta (uscita 78, rifiuto con codice `E_AUX_CONFINEMENT_UNAVAILABLE`, errore nel registro del motore,
+  avviso all'operatore) esattamente i ruoli che aprono file o socket (`callhttp`, `stream`) e avvia gli altri;
+  b = tutto come in a **salvo** le due prove di rete (socket UNIX astratto e porta TCP del motore) per i ruoli che hanno
+  bisogno della rete: passa con riserva (il ripiego con namespace utente non può isolare la rete di un ruolo che la
+  usa); c = qualunque altra fuga, o un ruolo rifiutato che non dovrebbe esserlo, o un ruolo che parte senza
+  confinamento. Riportati: ABI e sysctl dei namespace utente (letti), `unshare` reale in un figlio usa-e-getta, livello
+  di confinamento di ogni ruolo nel ripiego.
+A5 (NFR-1, FR-50), scenario `a5`, 3 corse. 20 tenant × 5 ruoli = 100 ausiliari confinati e caldi (`light` con un nodo
+  caricato ed eseguito, gli altri dopo un `work`), poi 60 s senza esecuzioni, poi l'arresto di tutti. Somme per N = 1, 5, 20
+  tenant. Il processo del motore è finto: la somma giudicata usa la **stima etichettata** del motore, 26,5 MB, dallo spike
+  del bus (altro binario, ipotesi per la parte del motore); si riporta anche la somma con l'RSS del pilota. Giudicato,
+  lettura larga: somma dopo l'arresto per inattività (solo il motore: 26,5 MB) ≤ 80 MB e somma con N = 1 tenant e tutti i
+  suoi ruoli attivi (stima più misurato) ≤ 80 MB; stretta: anche N = 5. N = 20 è riportato, non giudicato. Riportati: RSS
+  per ruolo (min, max, media), PSS dei processi non confinati (un processo non ispezionabile non lascia leggere
+  `smaps_rollup`), thread. Gli stub non sono i ruoli veri: l'RSS degli stub è un minimo.
+A6 (FR-50, PRD §11 n.9), scenario `a6`, 3 corse, n = 200 avvii per caso dopo 10 di riscaldamento. Ogni avvio: fork/exec, motore
+  (per `light`: motore wasmtime, riscaldamento, caricamento), confinamento, `hello`, primo lavoro; l'ausiliario precedente si
+  ferma (`quit`) prima del successivo (= riavvio dopo l'arresto per inattività; page cache calda). Casi: `validation`, `jq`,
+  `callhttp`, `stream`, `light` con `empty`, `rust-p1`, `javy-static` (fino a «il nodo inizia»). Giudicato: p50 ≤ 100 ms e
+  p99 ≤ 250 ms del tempo da fork a primo lavoro, modalità `full`, per ogni caso in ogni corsa (larga = stretta). Riportati:
+  p90 e massimo; tempo di impostazione del confinamento (`t_confine_us`); gli stessi casi in modalità `none` (costo del
+  confinamento); fork a pronto. Non coperto: page cache fredda, systemd, il binario del motore vero (più grande).
+A7 (SM-C2, NFR-2), scenario `a7`, 3 corse, ogni corsa con 4 fasi di 20 s a 1.000 attività/s (carico aperto, istante di
+  riferimento = l'istante pianificato, non quello di invio), 20 tenant caldi più un insieme rotante di 64 tenant freddi,
+  tenant scelti con un generatore fisso; ogni attività è un'esecuzione del nodo `rust-p1` in un ausiliario `light`
+  confinato; «avvio» = dall'istante pianificato al marcatore `started` subito prima del guest. Fasi: `ctrl` (ausiliari
+  sempre accesi, 1 % di richieste al gruppo freddo), `idle` con 1 % di riavvii a freddo (10.000 ppm), `idle` con 0,5 %,
+  `idle` con 0,1 %. Arresto per inattività dopo 1 s (invece di 60 s: accelerato, dichiarato). Giudicato: fase `idle` 1 %:
+  p99 ≤ 25 ms **e** p99 − p99(`ctrl` della stessa corsa) ≤ 2 ms, in ogni corsa. Entrambe le condizioni sono necessarie:
+  se regge solo la prima la riga **non passa** (è la soglia di Marco). Riportati: le fasi 0,5 % e 0,1 %, p50/p90/p99/p99,9/max,
+  avvio a freddo da solo, ritardo massimo del pianificatore, numero di riavvii. Non coperto: percorso del motore (gRPC, bus),
+  tenant realmente concorrenti su molti core, 60 s di inattività vera.
+A8 (FR-16), nessun file proprio: derivato da A5 (RSS per tenant e per ruolo con 1, 5, 20 tenant) e da A6/A7 (avvio a freddo di
+  ogni ruolo e con 20 tenant caldi). Giudicato come «dentro A5 e A7»: passa se A5 e A7 passano nelle stesse condizioni.
+A9 (M-27), scenario `a9`, 3 corse. Regola del motore finto: limite wasm = min(richiesto, T − T/10), un timeout T < 10 ms è
+  rifiutato con `E_TASK_TIMEOUT_TOO_SMALL`. Per T in {10, 100, 1.000, 5.000} ms, 30 esecuzioni di `loop` (limite richiesto
+  «senza limite») e di `growmem`: giudicato, il nodo si ferma prima di T e la classe dell'errore nomina il limite
+  (`cpu_time_limit`, `memory_limit`) in 30 su 30, in ogni corsa. Controllo: senza la regola scatta il timer del task e
+  l'errore non nomina il limite del nodo. T = 1 ms rifiutato. Riportato: tempi di arresto.
+
+Cosa non è misurabile qui (da riportare nell'ADR)
+-------------------------------------------------
+Il motore vero (RSS, avvio, gRPC, bus); il lavoro dei ruoli veri (jq, client HTTP, validatore, DataFusion): gli stub non lo
+misurano; il filtro degli indirizzi di `call http` (M-30); cgroup e namespace di rete (senza root: nel ripiego con
+namespace utente la rete resta quella del sistema); arm64 (NFR-10: i numeri delle syscall sono x86_64); kernel più vecchi
+senza Landlock (solo percorso forzato, non un kernel vero); sistemi con AppArmor che vieta i namespace utente (qui la
+sysctl non esiste); fughe dal kernel e canali laterali.
+Il ripiego con `fb` è un percorso forzato dal programma, non un kernel senza Landlock: la rilevazione vera (la syscall
+risponde ENOSYS o EOPNOTSUPP) è codice scritto ma non provato su un kernel che la nega.
+
+Come si scrivono i risultati
+----------------------------
+`spikes/sandbox/fase4-risultati.md`, in italiano, una sezione per riga: valore, soglia, verdetto, «misurata» (con file
+grezzo) oppure «ipotesi», e cosa non è coperto; più la sezione dell'ABI Landlock di minisheep e la sezione «Cosa contraddice
+o corregge le fasi 1-3». Il commit finale di queste regole è registrato nei risultati con l'ora, insieme all'ora del primo
+`[stato prima]`.
+
+Modifica prima delle corse che contano (2026-11-26, dopo le 18:05 CET)
+----------------------------------------------------------------------
+Le prime corse misurate (binario `61877162…10d25c2e`, commit `2d0002b`, regole `c993cdc`, `[stato prima]` 17:43:28 per A1,
+17:43:36 A3, 17:43:45 A2, 17:53:44 A4) hanno mostrato un difetto del pilota, non del confinamento: nella fase `weak`
+delle prove (A2) ogni prova di connessione riuscita (modalità `none`, `ll`, `sc`) lasciava una connessione non accettata
+nella coda del socket UNIX astratto del motore finto (coda di 8); alla nona `connect` si bloccava e la corsa moriva per il
+limite di 590 s (`[uscita] 124`: A2 r1 e il tentativo di dividerla per ruoli, A2a r1: invalide per la regola 5). Il codice
+è stato corretto (code di ascolto da 4096; `PTRACE_SEIZE` al posto di `PTRACE_ATTACH` nella prova di `ptrace`, che non manda
+`SIGSTOP` al motore) nel commit `fb80d92`, e il binario è cambiato (sha256 qui sopra). Le corse fatte col binario
+vecchio (A1, A3, A4 r1: valide ma con altro binario; A2 r1 e A2a r1: invalide) restano nei file `-primafix-` e si
+riportano, **non contano** per i verdetti. Tutte le righe si rifanno da zero col binario nuovo: 3 corse valide per riga,
+`chain4.sh` come scritto (A2 intera, senza divisione). Corsa di prova col binario nuovo: `smoke-A2full` (1.050 celle in
+11 s, `[uscita] 0`). Questo commit delle regole precede ogni corsa col binario nuovo.

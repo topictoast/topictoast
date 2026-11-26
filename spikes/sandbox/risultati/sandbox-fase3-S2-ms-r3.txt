@@ -1,0 +1,45 @@
+[stato prima 16:37:26] load: 0.58 0.74 0.62
+[stato prima] io: some avg10=0.12 avg60=0.05 avg300=0.03 total=22883944624
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2588613374
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: S2-3
+[stato prima] binario sha256: c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27049864 swap_usato_kb=2130496 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931106
+[stato prima] orologio minisheep UTC: 2026-11-26T15:37:30
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+S0 host_kernel=7.2.4-arch1-2 firecracker_sha256=b33f46cd6d88834cf6a4f8d184f08f219809c636236bffd286d233a60602a2ba kernel_sha256=e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2 rootfs_sha256=68321e0482baeb3844dafe8a6b08a6902401a7afc41fbfd8c3d9ea08aadd244f agent_drive_sha256=754da5fd45f7018dbae8bf4671a5f83263e6db4eb539db92e683805fdb63c075
+S2 mod=rust-p1 how=restore fork->first_ping_ms n=30 p50=9.924 p90=13.284 p99=15.739 max=15.739
+S2 mod=rust-p1 how=restore ping->node_started_ms n=30 p50=4.721 p90=5.167 p99=5.773 max=5.773
+S2 mod=rust-p1 how=restore fork->node_started_ms n=30 p50=14.428 p90=17.717 p99=21.040 max=21.040
+S2 mod=rust-p1 how=restore snapshot_load_api_ms n=30 p50=6.308 p90=9.499 p99=12.140 max=12.140
+S2 mod=rust-p1 how=boot fork->first_ping_ms n=20 p50=55.061 p90=58.731 p99=62.170 max=62.170
+S2 mod=rust-p1 how=boot ping->node_started_ms n=20 p50=1.538 p90=1.652 p99=3.378 max=3.378
+S2 mod=rust-p1 how=boot fork->node_started_ms n=20 p50=57.059 p90=60.211 p99=63.775 max=63.775
+S2 mod=javy-static how=restore fork->first_ping_ms n=10 p50=9.181 p90=11.287 p99=14.902 max=14.902
+S2 mod=javy-static how=restore ping->node_started_ms n=10 p50=15.273 p90=17.939 p99=18.244 max=18.244
+S2 mod=javy-static how=restore fork->node_started_ms n=10 p50=24.364 p90=26.707 p99=29.727 max=29.727
+S2 mod=javy-static how=restore snapshot_load_api_ms n=10 p50=5.765 p90=9.484 p99=11.277 max=11.277
+S2 mod=javy-static how=boot fork->first_ping_ms n=10 p50=54.989 p90=59.014 p99=60.323 max=60.323
+S2 mod=javy-static how=boot ping->node_started_ms n=10 p50=8.044 p90=8.549 p99=9.590 max=9.590
+S2 mod=javy-static how=boot fork->node_started_ms n=10 p50=63.318 p90=67.563 p99=68.367 max=68.367
+[uscita] 0
+[stato dopo 16:37:47] load: 0.74 0.76 0.63
+[stato dopo] io: some avg10=0.40 avg60=0.13 avg300=0.05 total=22884019889
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2588665223
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: S2-3
+[stato dopo] binario sha256: c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.5%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27193080 swap_usato_kb=2129912 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931106
+[stato dopo] orologio minisheep UTC: 2026-11-26T15:37:51
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

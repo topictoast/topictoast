@@ -1,0 +1,84 @@
+[stato prima 14:23:46] load: 0.59 0.49 0.47
+[stato prima] io: some avg10=0.02 avg60=0.06 avg300=0.01 total=22871918180
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2577214028
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L1-smoke
+[stato prima] binario sha256: 86cbccf7d914eebe9d73063a6c3e3d7f42903a606e42a4427e02e4b82a30e588
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+L1 cfg=epoch mod=empty warmup=10 failures=0
+   t_start_ms n=100 p50=0.004 p90=0.004 p99=0.005 max=0.006
+   t_inst_ms n=100 p50=0.004 p90=0.004 p99=0.005 max=0.006
+   t_total_ms n=100 p50=0.004 p90=0.004 p99=0.005 max=0.006
+   rtt_ms n=100 p50=0.011 p90=0.014 p99=0.020 max=0.024
+L1 cfg=epoch mod=javy-static warmup=10 failures=0
+   t_start_ms n=100 p50=0.010 p90=0.011 p99=0.012 max=0.016
+   t_inst_ms n=100 p50=0.010 p90=0.011 p99=0.011 max=0.016
+   t_total_ms n=100 p50=0.067 p90=0.069 p99=0.076 max=0.076
+   rtt_ms n=100 p50=0.083 p90=0.089 p99=0.096 max=0.099
+L1 cfg=epoch mod=javy-dynamic warmup=10 failures=0
+   t_start_ms n=100 p50=0.024 p90=0.026 p99=0.031 max=0.031
+   t_inst_ms n=100 p50=0.024 p90=0.026 p99=0.030 max=0.031
+   t_total_ms n=100 p50=0.079 p90=0.085 p99=0.094 max=0.105
+   rtt_ms n=100 p50=0.096 p90=0.103 p99=0.119 max=0.121
+L1 cfg=epoch mod=rust-p1 warmup=10 failures=0
+   t_start_ms n=100 p50=0.008 p90=0.010 p99=0.011 max=0.013
+   t_inst_ms n=100 p50=0.007 p90=0.010 p99=0.011 max=0.012
+   t_total_ms n=100 p50=0.018 p90=0.021 p99=0.028 max=0.029
+   rtt_ms n=100 p50=0.030 p90=0.035 p99=0.040 max=0.047
+L1 cfg=epoch mod=rust-unknown warmup=10 failures=0
+   t_start_ms n=100 p50=0.007 p90=0.008 p99=0.011 max=0.012
+   t_inst_ms n=100 p50=0.006 p90=0.007 p99=0.010 max=0.011
+   t_total_ms n=100 p50=0.026 p90=0.028 p99=0.031 max=0.031
+   rtt_ms n=100 p50=0.038 p90=0.042 p99=0.048 max=0.048
+L1 cfg=epoch mod=rust-p2 warmup=10 failures=0
+   t_start_ms n=100 p50=0.011 p90=0.011 p99=0.015 max=0.016
+   t_inst_ms n=100 p50=0.011 p90=0.011 p99=0.015 max=0.016
+   t_total_ms n=100 p50=0.022 p90=0.024 p99=0.028 max=0.032
+   rtt_ms n=100 p50=0.035 p90=0.038 p99=0.044 max=0.050
+L1 cfg=pool+epoch mod=empty warmup=10 failures=0
+   t_start_ms n=100 p50=0.002 p90=0.003 p99=0.003 max=0.009
+   t_inst_ms n=100 p50=0.002 p90=0.002 p99=0.003 max=0.008
+   t_total_ms n=100 p50=0.003 p90=0.003 p99=0.003 max=0.009
+   rtt_ms n=100 p50=0.008 p90=0.010 p99=0.015 max=0.020
+L1 cfg=pool+epoch mod=javy-static warmup=10 failures=0
+   t_start_ms n=100 p50=0.006 p90=0.007 p99=0.008 max=0.008
+   t_inst_ms n=100 p50=0.006 p90=0.007 p99=0.007 max=0.008
+   t_total_ms n=100 p50=0.066 p90=0.078 p99=0.098 max=0.099
+   rtt_ms n=100 p50=0.080 p90=0.094 p99=0.115 max=0.120
+L1 cfg=pool+epoch mod=javy-dynamic warmup=10 failures=0
+   t_start_ms n=100 p50=0.021 p90=0.023 p99=0.027 max=0.032
+   t_inst_ms n=100 p50=0.020 p90=0.022 p99=0.026 max=0.031
+   t_total_ms n=100 p50=0.080 p90=0.085 p99=0.095 max=0.109
+   rtt_ms n=100 p50=0.094 p90=0.101 p99=0.110 max=0.130
+L1 cfg=pool+epoch mod=rust-p1 warmup=10 failures=0
+   t_start_ms n=100 p50=0.004 p90=0.004 p99=0.005 max=0.008
+   t_inst_ms n=100 p50=0.004 p90=0.004 p99=0.005 max=0.006
+   t_total_ms n=100 p50=0.013 p90=0.014 p99=0.018 max=0.019
+   rtt_ms n=100 p50=0.023 p90=0.026 p99=0.033 max=0.035
+L1 cfg=pool+epoch mod=rust-unknown warmup=10 failures=0
+   t_start_ms n=100 p50=0.005 p90=0.005 p99=0.007 max=0.009
+   t_inst_ms n=100 p50=0.005 p90=0.005 p99=0.006 max=0.009
+   t_total_ms n=100 p50=0.024 p90=0.024 p99=0.026 max=0.028
+   rtt_ms n=100 p50=0.032 p90=0.035 p99=0.038 max=0.041
+L1 cfg=pool+epoch mod=rust-p2 warmup=10 failures=0
+   t_start_ms n=100 p50=0.008 p90=0.008 p99=0.009 max=0.011
+   t_inst_ms n=100 p50=0.008 p90=0.008 p99=0.009 max=0.011
+   t_total_ms n=100 p50=0.017 p90=0.018 p99=0.019 max=0.021
+   rtt_ms n=100 p50=0.027 p90=0.029 p99=0.031 max=0.038
+[uscita] 0
+[stato dopo 14:23:53] load: 0.54 0.48 0.46
+[stato dopo] io: some avg10=0.13 avg60=0.09 avg300=0.02 total=22871921332
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2577239055
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L1-smoke
+[stato dopo] binario sha256: 86cbccf7d914eebe9d73063a6c3e3d7f42903a606e42a4427e02e4b82a30e588
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 9.3%; core 8-11 occupati: 0.5%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

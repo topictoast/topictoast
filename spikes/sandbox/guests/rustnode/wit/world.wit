@@ -1,0 +1,10 @@
+package topictoast:node@1.0.0;
+
+interface host {
+    log: func(level: u32, msg: string);
+    emit: func(channel: string, event: string);
+}
+
+world node {
+    import host;
+}

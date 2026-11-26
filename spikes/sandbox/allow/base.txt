@@ -1,0 +1,26 @@
+# Base comune a ogni ruolo (x86_64): ciò che serve a qualunque programma Rust che alloca, dorme e risponde su una pipe.
+# Non contiene: open/openat, stat, socket, connect, kill, tgkill, ptrace, process_vm_readv, execve, fork, clone, mount, ioctl.
+# Scelta a mano (non scoperta), così che le prove ostili non muoiano per colpa della loro stessa allocazione.
+0 read
+1 write
+3 close
+8 lseek
+9 mmap
+10 mprotect
+11 munmap
+12 brk
+14 rt_sigprocmask
+15 rt_sigreturn
+24 sched_yield
+25 mremap
+28 madvise
+60 exit
+131 sigaltstack
+186 gettid
+202 futex
+219 restart_syscall
+228 clock_gettime
+230 clock_nanosleep
+231 exit_group
+318 getrandom
+334 rseq

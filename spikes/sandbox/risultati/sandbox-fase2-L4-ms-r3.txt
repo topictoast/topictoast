@@ -1,0 +1,40 @@
+[stato prima 14:41:54] load: 1.25 1.38 1.06
+[stato prima] io: some avg10=0.00 avg60=0.03 avg300=0.00 total=22873470112
+[stato prima] cpu: some avg10=0.42 avg60=0.25 avg300=0.06 total=2579786201
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: L4-3
+[stato prima] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+L4 cfg=epoch mod=empty n=1 rss_max_mb=10.9 pss_max_mb=7.4 rss_sum_mb=10.9 pss_sum_mb=7.4 threads=2
+L4 cfg=epoch mod=empty n=5 rss_max_mb=11.1 pss_max_mb=2.7 rss_sum_mb=54.5 pss_sum_mb=12.3 threads=2
+   marginal_pss_mb_per_tenant(vs previous N)=1.24
+L4 cfg=epoch mod=empty n=20 rss_max_mb=11.3 pss_max_mb=1.4 rss_sum_mb=219.2 pss_sum_mb=25.4 threads=2
+   marginal_pss_mb_per_tenant(vs previous N)=0.95
+L4 cfg=epoch mod=javy-static n=1 rss_max_mb=14.6 pss_max_mb=11.1 rss_sum_mb=14.6 pss_sum_mb=11.1 threads=6
+L4 cfg=epoch mod=javy-static n=5 rss_max_mb=14.9 pss_max_mb=3.6 rss_sum_mb=72.9 pss_sum_mb=17.0 threads=6
+   marginal_pss_mb_per_tenant(vs previous N)=1.45
+L4 cfg=epoch mod=javy-static n=20 rss_max_mb=14.9 pss_max_mb=1.7 rss_sum_mb=293.1 pss_sum_mb=33.6 threads=6
+   marginal_pss_mb_per_tenant(vs previous N)=1.18
+L4 cfg=epoch mod=rust-p1 n=1 rss_max_mb=11.8 pss_max_mb=8.4 rss_sum_mb=11.8 pss_sum_mb=8.4 threads=6
+L4 cfg=epoch mod=rust-p1 n=5 rss_max_mb=12.2 pss_max_mb=2.9 rss_sum_mb=59.3 pss_sum_mb=13.9 threads=6
+   marginal_pss_mb_per_tenant(vs previous N)=1.35
+L4 cfg=epoch mod=rust-p1 n=20 rss_max_mb=12.1 pss_max_mb=1.5 rss_sum_mb=236.1 pss_sum_mb=28.1 threads=6
+   marginal_pss_mb_per_tenant(vs previous N)=1.04
+L4 bare(engine only, no module) rss_mb=9.3 pss_mb=5.9
+[uscita] 0
+[stato dopo 14:42:18] load: 0.94 1.30 1.04
+[stato dopo] io: some avg10=0.04 avg60=0.04 avg300=0.00 total=22873533925
+[stato dopo] cpu: some avg10=0.03 avg60=0.16 avg300=0.05 total=2579833384
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: L4-3
+[stato dopo] binario sha256: 53e7b4e7f8e472473f335049fd0b97a4e1f150ba86004a6574d1ab268c81b4cc
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

@@ -1,0 +1,15 @@
+# Plugin di javy con le funzioni dell'host (log, emit). Fuori dai workspace e dal gate.
+[package]
+name = "sbx-javy-plugin"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+name = "sbx_javy_plugin"
+crate-type = ["cdylib"]
+
+[dependencies]
+javy-plugin-api = "=7.1.0"

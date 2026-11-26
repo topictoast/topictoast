@@ -1,0 +1,22 @@
+# Spike S-2 fase 2: livello leggero. Crate autonomo, fuori dai workspace e dal gate. Codice da buttare.
+[package]
+name = "sbxspike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+# eccezione di sicurezza alla regola delle due settimane: RUSTSEC-2026-0566..0573 e 0587 (corretti in 50.0.2 e 50.0.3)
+wasmtime = { version = "=50.0.3", default-features = false, features = ["std", "cranelift", "runtime", "pooling-allocator", "component-model", "parallel-compilation"] }
+wasmtime-wasi = { version = "=50.0.3", default-features = false, features = ["p1", "p2"] }
+libc = "=0.2.191"
+sha2 = "=0.11.1"
+wat = "=1.263.0"
+# fase 4: confinamento (decise da Marco 2026-11-26; landlock 0.4.8 è troppo recente)
+landlock = "=0.4.7"
+seccompiler = { version = "=0.5.0", default-features = false }
+
+[profile.release]
+debug = false

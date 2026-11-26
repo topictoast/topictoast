@@ -1,0 +1,36 @@
+[stato prima 16:28:23] load: 0.61 0.48 0.45
+[stato prima] io: some avg10=0.00 avg60=0.05 avg300=0.04 total=22883010725
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2587564939
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: S9-1
+[stato prima] binario sha256: c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-3 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27242312 swap_usato_kb=2145448 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931099
+[stato prima] orologio minisheep UTC: 2026-11-26T15:28:27
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+S0 host_kernel=7.2.4-arch1-2 firecracker_sha256=b33f46cd6d88834cf6a4f8d184f08f219809c636236bffd286d233a60602a2ba kernel_sha256=e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2 rootfs_sha256=68321e0482baeb3844dafe8a6b08a6902401a7afc41fbfd8c3d9ea08aadd244f agent_drive_sha256=754da5fd45f7018dbae8bf4671a5f83263e6db4eb539db92e683805fdb63c075
+S9 mod=javy-static load_ok=true light_outcome=none strong_outcome=none identical=true bytes=145 light_sha=53fb0bc5af7e473a strong_sha=53fb0bc5af7e473a
+S9 mod=javy-dynamic load_ok=true light_outcome=none strong_outcome=none identical=true bytes=145 light_sha=53fb0bc5af7e473a strong_sha=53fb0bc5af7e473a
+S9 mod=rust-p1 load_ok=true light_outcome=none strong_outcome=none identical=true bytes=145 light_sha=53fb0bc5af7e473a strong_sha=53fb0bc5af7e473a
+S9 mod=rust-unknown load_ok=true light_outcome=none strong_outcome=none identical=true bytes=145 light_sha=b0958dd6a510127f strong_sha=b0958dd6a510127f
+S9 mod=rust-p2 load_ok=true light_outcome=none strong_outcome=none identical=true bytes=145 light_sha=53fb0bc5af7e473a strong_sha=53fb0bc5af7e473a
+[uscita] 0
+[stato dopo 16:28:31] load: 0.56 0.47 0.45
+[stato dopo] io: some avg10=0.32 avg60=0.14 avg300=0.06 total=22883058330
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2587599872
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: S9-1
+[stato dopo] binario sha256: c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 13.0%; core 8-11 occupati: 2.2%
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27182796 swap_usato_kb=2145220 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931099
+[stato dopo] orologio minisheep UTC: 2026-11-26T15:28:35
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

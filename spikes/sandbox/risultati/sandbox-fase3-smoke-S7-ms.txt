@@ -1,0 +1,41 @@
+[stato prima 16:17:02] load: 0.76 0.56 0.44
+[stato prima] io: some avg10=0.02 avg60=0.09 avg300=0.04 total=22881799972
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2586492472
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: S7-smoke
+[stato prima] binario sha256: 3394fdd3210b7de0ac3139e05c822779d7ef6ef69baf9e4e07f3529038befe3a
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.2%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27237688 swap_usato_kb=2164528 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931095
+[stato prima] orologio minisheep UTC: 2026-11-26T15:17:06
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+S0 host_kernel=7.2.4-arch1-2 firecracker_sha256=b33f46cd6d88834cf6a4f8d184f08f219809c636236bffd286d233a60602a2ba kernel_sha256=e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2 rootfs_sha256=68321e0482baeb3844dafe8a6b08a6902401a7afc41fbfd8c3d9ea08aadd244f agent_drive_sha256=7e7b156381eec9789561874dfbc58f124d2af10beb9231699f7246ceb838ed1a
+S7 variant=real device=/dev/kvm strong_available=true detect_ms n=1000 p50=0.000 p90=0.000 p99=0.000 max=0.009
+S7 variant=missing device=<simulated> strong_available=false detect_ms n=1000 p50=0.000 p90=0.000 p99=0.001 max=0.009
+S7 variant=missing [avviso operatore] sandbox forte non disponibile (<out>/nonexistent/kvm: No such file or directory (os error 2)); uso la sandbox leggera
+S7 variant=missing fallback: aux_spawn_ms=1.50 load_ok=true node_outcome=none t_start_ms=0.070 decision_to_node_done_ms=35.18
+S7 variant=noperm_file device=<simulated> strong_available=false detect_ms n=1000 p50=0.000 p90=0.000 p99=0.000 max=0.009
+S7 variant=noperm_file [avviso operatore] sandbox forte non disponibile (<out>/kvm-noperm: Permission denied (os error 13)); uso la sandbox leggera
+S7 variant=noperm_file fallback: aux_spawn_ms=1.09 load_ok=true node_outcome=none t_start_ms=0.052 decision_to_node_done_ms=33.45
+S7 variant=not_kvm_device device=<simulated> strong_available=false detect_ms n=1000 p50=0.001 p90=0.001 p99=0.001 max=0.011
+S7 variant=not_kvm_device [avviso operatore] sandbox forte non disponibile (/dev/null: non è KVM (KVM_GET_API_VERSION = -1)); uso la sandbox leggera
+S7 variant=not_kvm_device fallback: aux_spawn_ms=0.98 load_ok=true node_outcome=none t_start_ms=0.052 decision_to_node_done_ms=33.63
+[uscita] 0
+[stato dopo 16:17:06] load: 0.94 0.60 0.46
+[stato dopo] io: some avg10=0.01 avg60=0.08 avg300=0.03 total=22881799980
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2586497724
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: S7-smoke
+[stato dopo] binario sha256: 3394fdd3210b7de0ac3139e05c822779d7ef6ef69baf9e4e07f3529038befe3a
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.0%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27256712 swap_usato_kb=2164420 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931095
+[stato dopo] orologio minisheep UTC: 2026-11-26T15:17:11
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

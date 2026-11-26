@@ -1,0 +1,63 @@
+[stato prima 18:25:46] load: 0.73 1.10 1.04
+[stato prima] io: some avg10=0.01 avg60=0.03 avg300=0.00 total=22895540297
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2599873230
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: A5-3
+[stato prima] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.2%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26979132 swap_usato_kb=2040896 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931972
+[stato prima] orologio minisheep UTC: 2026-11-26T17:25:50
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+A0 kernel=7.2.4-arch1-2 lsm=capability,landlock,lockdown,yama,bpf
+A0 landlock_abi_kernel=10 (syscall landlock_create_ruleset VERSION)
+A0 landlock_crate=0.4.7 conosce_fino_a=V9 seccompiler=0.5.0
+A0 yama_ptrace_scope=1
+A0 userns: unprivileged_userns_clone=1 max_user_namespaces=126131 apparmor_restrict_unprivileged_userns=assente (sysctl letti, non cambiati)
+A0 unshare(CLONE_NEWUSER|CLONE_NEWNS) in un figlio usa-e-getta: riuscito
+A0 core_pattern=|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+A5 avviati 100 ausiliari (20 tenant x 5 ruoli) in 264 ms
+A5 stand-in motore (questo processo, NON il motore vero) RSS_kb=6848
+A5 attivi N=1 aux_rss_kb=45208 (di cui light=18508) standin_kb=6848 somma_con_standin_MB=50.8 somma_con_stima_motore_26.5MB=70.6
+A5 attivi N=5 aux_rss_kb=226460 (di cui light=93140) standin_kb=6848 somma_con_standin_MB=227.8 somma_con_stima_motore_26.5MB=247.7
+A5 attivi N=20 aux_rss_kb=906024 (di cui light=375400) standin_kb=6848 somma_con_standin_MB=891.5 somma_con_stima_motore_26.5MB=911.3
+A5 attivi ruolo=validation rss_kb min=6316 max=6736 medio=6535
+A5 attivi ruolo=jq rss_kb min=6300 max=6764 medio=6532
+A5 attivi ruolo=callhttp rss_kb min=6528 max=6924 medio=6729
+A5 attivi ruolo=light rss_kb min=18508 max=19100 medio=18770
+A5 attivi ruolo=stream rss_kb min=6508 max=6936 medio=6733
+A5 controllo_senza_confinamento ruolo=validation rss_kb=6348 pss_kb=723
+A5 controllo_senza_confinamento ruolo=jq rss_kb=6572 pss_kb=722
+A5 controllo_senza_confinamento ruolo=callhttp rss_kb=6492 pss_kb=717
+A5 controllo_senza_confinamento ruolo=light rss_kb=18792 pss_kb=2146
+A5 controllo_senza_confinamento ruolo=stream rss_kb=6228 pss_kb=726
+A5 attesa di 60 s senza esecuzioni (arresto per inattività)
+A5 fermi_prima_dello_stop N=1 aux_rss_kb=45208 (di cui light=18508) standin_kb=6848 somma_con_standin_MB=50.8 somma_con_stima_motore_26.5MB=70.6
+A5 fermi_prima_dello_stop N=5 aux_rss_kb=226460 (di cui light=93140) standin_kb=6848 somma_con_standin_MB=227.8 somma_con_stima_motore_26.5MB=247.7
+A5 fermi_prima_dello_stop N=20 aux_rss_kb=906024 (di cui light=375400) standin_kb=6848 somma_con_standin_MB=891.5 somma_con_stima_motore_26.5MB=911.3
+A5 fermi_prima_dello_stop ruolo=validation rss_kb min=6316 max=6736 medio=6535
+A5 fermi_prima_dello_stop ruolo=jq rss_kb min=6300 max=6764 medio=6532
+A5 fermi_prima_dello_stop ruolo=callhttp rss_kb min=6528 max=6924 medio=6729
+A5 fermi_prima_dello_stop ruolo=light rss_kb min=18508 max=19100 medio=18770
+A5 fermi_prima_dello_stop ruolo=stream rss_kb min=6508 max=6936 medio=6733
+A5 arresto per inattività di 100 ausiliari in 23 ms; ausiliari rimasti: 0
+A5 dopo_lo_stop standin_kb=6860 somma_con_stima_motore_26.5MB=26.5
+[uscita] 0
+[stato dopo 18:26:51] load: 0.52 0.96 0.99
+[stato dopo] io: some avg10=0.16 avg60=0.08 avg300=0.01 total=22895683484
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2599965602
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: A5-3
+[stato dopo] binario sha256: 647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.7%
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26836156 swap_usato_kb=2040880 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931972
+[stato dopo] orologio minisheep UTC: 2026-11-26T17:26:55
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

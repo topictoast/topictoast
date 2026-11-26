@@ -1,0 +1,116 @@
+[stato prima 16:19:34] load: 0.58 0.56 0.46
+[stato prima] io: some avg10=0.05 avg60=0.08 avg300=0.06 total=22882149174
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2586710191
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: S5-smoke
+[stato prima] binario sha256: 88bca490c985b2895d5753ddc203c07e58e4d4a9e9a25bbd6742b2f21338f85d
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.03
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27077604 swap_usato_kb=2160108 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931095
+[stato prima] orologio minisheep UTC: 2026-11-26T15:19:38
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+S0 host_kernel=7.2.4-arch1-2 firecracker_sha256=b33f46cd6d88834cf6a4f8d184f08f219809c636236bffd286d233a60602a2ba kernel_sha256=e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2 rootfs_sha256=68321e0482baeb3844dafe8a6b08a6902401a7afc41fbfd8c3d9ea08aadd244f agent_drive_sha256=b665ee6b1b27726492a8f8d317b7825e02415b99f9b731491e3983ec397ac6e3
+S5 host_before mem_available_mb=26436 swap_free_mb=1986 load=0.53 0.55 0.46 1/1291 2993398
+S5 load probe ok load_us=1503 verify_us=160
+S5 probe outcome: none
+S5 sentinel key: present_in_guest_output=false
+S5 sentinel db: present_in_guest_output=false
+S5 sentinel cfg: present_in_guest_output=false
+S5 sentinel tenantB: present_in_guest_output=false
+S5 sentinel env_vmm: present_in_guest_output=false
+S5 sentinel env_driver: present_in_guest_output=false
+S5 probe lines_denied=36 fs_opened=0
+   stdout=fs /home/white_sheep/ttspikesandbox/out/fc3/l12/key negato No such file or directory (os error 44)
+   fs /home/white_sheep/ttspikesandbox/out/fc3/l12/db negato No such file or directory (os error 44)
+   fs /home/white_sheep/ttspikesandbox/out/fc3/l12/cfg negato No such file or directory (os error 44)
+   fs /home/white_sheep/ttspikesandbox/out/fc3/l12/tenantB/data negato No such file or directory (os error 44)
+   fs /proc/2993352/environ negato No such file or directory (os error 44)
+   fs /proc/2993352/mem negato No such file or directory (os error 44)
+   fs /proc/2993445/environ negato No such file or directory (os error 44)
+   fs /proc/2993445/mem negato No such file or directory (os error 44)
+   fs /proc/self/fd/3 negato No such file or directory (os error 44)
+   fs /proc/self/environ negato No such file or directory (os error 44)
+   fs /proc/self/mem negato No such file or directory (os error 44)
+   fs /proc/1/environ negato No such file or directory (os error 44)
+   fs /proc/1/mem negato No such file or directory (os error 44)
+   fs /proc/kcore negato No such file or directory (os error 44)
+   fs /dev/vda negato No such file or directory (os error 44)
+   fs /dev/mem negato No such file or directory (os error 44)
+   fs /dev/agent/sbxspike negato No such file or directory (os error 44)
+   fs /etc/passwd negato No such file or directory (os error 44)
+   fs / negato No such file or directory (os error 44)
+   fs . negato No such file or directory (os error 44)
+   env count 0
+   tcp negato operation not supported on this platform
+   udp negato operation not supported on this platform
+   proc negato operation not supported on this platform
+   fd 3 negato
+   fd 4 negato
+   fd 5 negato
+   fd 6 negato
+   fd 7 negato
+   fd 8 negato
+   fd 9 negato
+   fd 10 negato
+   fd 11 negato
+   fd 12 negato
+   fd 13 negato
+   fd 14 negato
+   fd 15 negato
+   
+   stderr=
+   host_output=
+S5 sock: none outlen=3 errlen=0 logs=0 wall_ms=0.1 alive=true
+S5 evilimport load refused: err unknown import: `env::escape` has not been defined
+S5 logflood: log_limit msg=error while executing at wasm backtrace: |     0:     0x55 - <unknown>!<wasm function 1>: log limit exceed outlen=0 errlen=0 logs=16 wall_ms=2.8 alive=true
+S5 errflood: cpu_time_limit msg=error while executing at wasm backtrace: |     0:     0x72 - <unknown>!<wasm function 1>: wasm trap:  outlen=0 errlen=1048576 logs=0 wall_ms=3003.9 alive=true
+S5 native_fs ok files=7092 bytes=557134048 cut=false host_hits=[0, 0, 0, 0, 0, 0] ctl_hits=1 dev_mem=opened dev_kvm=err2 proc_kcore=opened
+S5 native_net ok ifaces= tcp[127.0.0.1]=err101 tcp[169.254.169.254]=err101 tcp[10.0.0.1]=err101 tcp[192.168.0.1]=err101 tcp[93.184.216.34]=err101 udp[8.8.8.8]=err101 vsock_host_connected_ports=[7000] refused=68 other_err=0
+S5 host_listener_7000_got_connection=true
+S5 native_write ok /etc/sbx-write-test=open_err30 /dev/agent/sbx-write-test=open_err30 /dev/vda=write_err1 /dev/vdb=write_err1
+S5 seccomp_vmm=fc_api:2,fc_vcpu:2,firecracker-v1.:2,kvm-nx-lpage-re:2
+S5 vmm_user_uid=1000 env_of_vmm_has_only_declared_vars=true
+S5 guest_info ok procs=49 memtotal_kb=107256 memavail_kb=82188 uid=0 cpus=1
+S5 neighbor phase=control B rtt_ms n=1801 p50=0.687 p90=0.947 p99=1.003 max=1.967
+S5 neighbor phase=control B guest t_start_ms n=1801 p50=0.100 p90=0.175 p99=0.202 max=0.749
+S5 hostile=spin reply=[ok spun children=1 secs=6] agent_alive_after=true vmm_exited_by_itself=None wall_ms=7040
+S5 hostile=spin host: vmm_rss_peak_mb=35.5 vmm_cpu_s=5.98 host_mem_available_min_drop_mb=24
+S5 hostile=spin neighbor B rtt_ms n=1401 p50=0.390 p90=0.477 p99=0.727 max=2.265
+S5 hostile=spin neighbor B guest t_start_ms n=1401 p50=0.065 p90=0.092 p99=0.167 max=0.904
+S5 hostile=spin residue: kill_ms=20.1 proc_gone=true dir_gone=true host_mem_available_recovered_mb_delta=29
+S5 hostile=forkbomb reply=[ok forks=780 fails=56445 procs_peak=835 drain_ms=20019 ok procs=436 memtotal_kb=107256 memavail_kb=84028 uid=0 cpus=1] agent_alive_after=true vmm_exited_by_itself=None wall_ms=27087
+S5 hostile=forkbomb host: vmm_rss_peak_mb=122.0 vmm_cpu_s=5.96 host_mem_available_min_drop_mb=202
+S5 hostile=forkbomb neighbor B rtt_ms n=5413 p50=0.737 p90=0.936 p99=1.007 max=2.092
+S5 hostile=forkbomb neighbor B guest t_start_ms n=5413 p50=0.147 p90=0.174 p99=0.199 max=0.829
+S5 hostile=forkbomb residue: kill_ms=22.4 proc_gone=true dir_gone=true host_mem_available_recovered_mb_delta=8
+S5 hostile=oom_child reply=[ok oom_child exited=false signaled=true sig=9 ms=73 ok procs=49 memtotal_kb=107256 memavail_kb=87656 uid=0 cpus=1] agent_alive_after=true vmm_exited_by_itself=None wall_ms=1106
+S5 hostile=oom_child host: vmm_rss_peak_mb=30.2 vmm_cpu_s=0.00 host_mem_available_min_drop_mb=24
+S5 hostile=oom_child neighbor B rtt_ms n=216 p50=0.712 p90=0.862 p99=1.047 max=2.194
+S5 hostile=oom_child neighbor B guest t_start_ms n=216 p50=0.151 p90=0.168 p99=0.202 max=0.830
+S5 hostile=oom_child residue: kill_ms=27.7 proc_gone=true dir_gone=true host_mem_available_recovered_mb_delta=-29
+S5 hostile=oom_agent reply=[DEAD] agent_alive_after=false vmm_exited_by_itself=None wall_ms=2129
+S5 hostile=oom_agent host: vmm_rss_peak_mb=119.4 vmm_cpu_s=1.08 host_mem_available_min_drop_mb=113
+S5 hostile=oom_agent neighbor B rtt_ms n=419 p50=0.454 p90=0.755 p99=0.870 max=2.250
+S5 hostile=oom_agent neighbor B guest t_start_ms n=419 p50=0.089 p90=0.161 p99=0.179 max=0.869
+S5 hostile=oom_agent residue: kill_ms=0.2 proc_gone=true dir_gone=true host_mem_available_recovered_mb_delta=-45
+S5 host_after mem_available_min_mb=26191 mem_available_now_mb=26378 swap_free_mb=1987 load=0.53 0.55 0.46 1/1291 2996490
+S5 host_images_unchanged rootfs=true agent_drive=true kernel=true
+[uscita] 0
+[stato dopo 16:20:34] load: 0.53 0.55 0.46
+[stato dopo] io: some avg10=0.00 avg60=0.02 avg300=0.04 total=22882220174
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2586824433
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: S5-smoke
+[stato dopo] binario sha256: 88bca490c985b2895d5753ddc203c07e58e4d4a9e9a25bbd6742b2f21338f85d
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.5%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27049144 swap_usato_kb=2158616 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931095
+[stato dopo] orologio minisheep UTC: 2026-11-26T15:20:38
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2
