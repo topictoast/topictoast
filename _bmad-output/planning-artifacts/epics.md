@@ -982,7 +982,7 @@ Lo sprint 1 parte solo quando tutte le voci sono chiuse.
 
 | Voce | Cosa | Chi | Epiche da ricontrollare |
 | --- | --- | --- | --- |
-| S-1 Bus (AR-9…AR-13) | Iggy o Valkey; tre collegamenti dei worker; ripresa e aggiornamento; trasporto delle righe di log dei worker (FR-59); chiude AR-93, AR-94, AR-95 | architettura | 1, 2, 3, 5, 6, 10, 11, 13 |
+| S-1 Bus (AR-9…AR-13) | Iggy o Valkey; tre collegamenti dei worker; ripresa e aggiornamento; trasporto delle righe di log dei worker (FR-59); chiusa il 2026-11-26 (ADR del bus), AR-93, AR-94 e AR-95 restano aperte | architettura | 1, 2, 3, 5, 6, 10, 11, 13 |
 | S-2 Sandbox (AR-14…AR-16) | livello leggero e microVM; riavvio a freddo; chi riavvia il motore (AR-103) | architettura | 1, 10, 13 |
 | S-3 Pipeline stream (AR-17…AR-19) | DataFusion con stato, finestre, watermark, checkpoint sul caso UJ-3 | architettura | 11 |
 | S-4 Kit nel browser (AR-20, AR-21) | validatore `wasm32-wasip1` su Chromium, Firefox, Safari; soglie di peso e avvio (AR-107) | architettura, Marco | 6, 12 |
@@ -1139,7 +1139,7 @@ minuti con la guida rapida, e il benchmark pubblico dimostra gli obiettivi.
 | AR-90 | Epic 3 |
 | AR-91 | Epic 12 |
 | AR-92 | chiusa (FR-59): Epic 2, 3, 4, 5, 6, 8, 10, 13 |
-| AR-93, AR-94, AR-95 | S-1 |
+| AR-93, AR-94, AR-95 | non chiuse da S-1 (ADR del bus, 2026-11-26): AR-93 prima della prima storia di «Esegui», AR-94 nella prima storia Postgres, AR-95 nella prima storia di aggiornamento (FR-51); scadenze nelle Open Questions della spine |
 | AR-96 | Prima dello sprint 1 |
 | AR-97 | Epic 1, che decide per tutti i JSON dei tenant elencati |
 | AR-98 | Epic 1 |

@@ -43,7 +43,8 @@ Una sola approvazione per tutto il blocco. Ogni voce indica il meccanismo del PR
   codici, nel dominio, copre errori, motivi di attesa e motivi di salto; arriva ai tipi TS
   tramite lo schema OpenAPI (AD-12).
 - **C-8 Tempo reale.** SSE; un client che si ricollega riprende da `Last-Event-ID`. L'id
-  dell'evento è il token opaco della posizione del bus; origine, filtro e trasporto degli eventi
+  dell'evento è il token opaco della posizione del bus (generazione del bus, topic, partizione e
+  offset, AD-18); origine, filtro e trasporto degli eventi
   seguono AD-18 e AD-19.
 - **C-9 Metriche e log (FR-52).** Metriche in formato OpenMetrics su `/metrics`. Log JSON su
   stdout, una riga per evento. Mai segreti, token, chiavi o cookie. Mai nemmeno nomi visualizzati
@@ -68,16 +69,18 @@ Una sola approvazione per tutto il blocco. Ogni voce indica il meccanismo del PR
   pezzo, AD-17), così due oggetti non condividono mai chiave e nonce. Così non si raggiunge
   il limite dei nonce di AES-GCM, e la chiave del tenant ruota tramite l'id. Il formato è uno
   solo, nel dominio, e lo usano motore, proiettore, processo delle pipeline stream e archivio dei
-  payload; S-1 ne misura il costo. I segreti si risolvono alla consegna e non vengono mai scritti nei messaggi del bus. La chiave principale
+  payload; costo misurato in S-1 (ADR del bus). I segreti si risolvono alla consegna e non vengono mai scritti nei messaggi del bus. La chiave principale
   viene da un file o da una variabile d'ambiente; si genera solo se il deposito delle chiavi è
   vuoto, e il motore ne conserva l'impronta: se la chiave presente non corrisponde, rifiuta di
   partire con un codice (AD-7). La chiave generata sta fuori dalle directory dati di topictoast e
   del bus. Ruotare la chiave principale (FR-34) vuol dire cifrare di nuovo le chiavi dei tenant,
   senza conservare la vecchia busta.
 - **C-13 Cancellazione del tenant (M-39).** Input, output ed eventi dei tenant sono cifrati con
-  la chiave del tenant, nel formato di C-12, su bus, file e checkpoint. Eliminare un tenant vuol dire cancellarne la
+  la chiave del tenant, nel formato di C-12, su bus, file e checkpoint; unica eccezione l'intestazione
+  in chiaro degli eventi di stato, con un elenco chiuso di identificativi e numeri e mai nomi (AD-2).
+  Eliminare un tenant vuol dire cancellarne la
   chiave (cancellazione crittografica), seguita da una pulizia asincrona. Il costo della
-  cifratura si misura nello spike del bus. Ordine (AD-7, FR-31): si fermano pipeline stream,
+  cifratura è misurato in S-1 (ADR del bus). Ordine (AD-7, FR-31): si fermano pipeline stream,
   esecuzioni, pianificazioni, sandbox riservate e stream SSE del tenant, e se ne rifiutano le
   richieste; si scrive sul bus l'evento lapide del tenant; si cancella la chiave; si cancellano
   le righe del database tramite l'adattatore del repository e i nodi caricati; poi la pulizia
