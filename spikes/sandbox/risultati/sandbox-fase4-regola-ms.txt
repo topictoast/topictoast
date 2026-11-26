@@ -50,11 +50,11 @@ Modalità di prova nel binario (non esisterebbero nel prodotto): `none` (nessun 
 
 Strumenti, versioni, macchina
 -----------------------------
-- Codice: commit `2d0002b` (2026-11-26 17:41:44 CET), toolchain 1.99.1, wasmtime e wasmtime-wasi 50.0.3 (eccezione di
+- Codice: commit `fb80d92` (2026-11-26 18:05:57 CET; prima versione `2d0002b`), toolchain 1.99.1, wasmtime e wasmtime-wasi 50.0.3 (eccezione di
   sicurezza come in fase 2), `landlock` =0.4.7, `seccompiler` =0.5.0. Il crate `landlock` 0.4.7 conosce le ABI fino
   alla V9; il kernel di minisheep riporta ABI 10: la sezione dei risultati riporta tutte e due.
 - Binario `sbxspike4`, costruito sul portatile con `CARGO_TARGET_DIR=/home/white_sheep/.cache/cargo-targets/topictoast-spike-sandbox-2`
-  e copiato su minisheep: sha256 `618771629751aee5d56623833050c257ba6430a5458a2d35e47e12cd10d25c2e`.
+  e copiato su minisheep: sha256 `647b6bc83e000621d26746ab260e90698f62a78ebaf96134748cd6bb53d0ccfa`.
 - Macchina: minisheep (x86_64, Intel Core Ultra 9 185H, 22 core, kernel 7.2.4-arch1-2, LSM `capability,landlock,lockdown,
   yama,bpf`, Yama `ptrace_scope` = 1, governor `powersave`). Ausiliari sui core 1-4, pilota sui core 8-11. I 12 container
   dei runner non si toccano. Niente `sudo` né impostazioni di sistema cambiate (le sysctl dei namespace utente si
@@ -71,7 +71,7 @@ Validità di un file grezzo
 Un file vale per i verdetti solo se tutte queste condizioni sono vere:
 1. `[stato prima HH:MM:SS]` (ora locale di minisheep, CET) è successivo all'ora del commit di questo file (registrata nei
    risultati; gli orologi di portatile e minisheep sono stati confrontati prima del commit);
-2. `[stato prima] binario sha256` è `61877162…10d25c2e` e `moduli sha256 (insieme)` è lo stesso in tutti i file;
+2. `[stato prima] binario sha256` è `647b6bc8…b53d0ccfa` e `moduli sha256 (insieme)` è lo stesso in tutti i file;
 3. cancello della macchina ferma come in fase 2 e 3 (`ms-run.sh`): carico a 1 minuto < 1,5 e pressione I/O `some avg10` <
    1 % all'avvio; se la corsa parte con `[macchina non ferma]` il file si tiene e si riporta ma non conta;
 4. core 1-4 occupati al massimo il 30 % all'avvio (`[stato prima] core 1-4 occupati`); core 8-11 riportati;
@@ -187,3 +187,17 @@ Come si scrivono i risultati
 grezzo) oppure «ipotesi», e cosa non è coperto; più la sezione dell'ABI Landlock di minisheep e la sezione «Cosa contraddice
 o corregge le fasi 1-3». Il commit finale di queste regole è registrato nei risultati con l'ora, insieme all'ora del primo
 `[stato prima]`.
+
+Modifica prima delle corse che contano (2026-11-26, dopo le 18:05 CET)
+----------------------------------------------------------------------
+Le prime corse misurate (binario `61877162…10d25c2e`, commit `2d0002b`, regole `c993cdc`, `[stato prima]` 17:43:28 per A1,
+17:43:36 A3, 17:43:45 A2, 17:53:44 A4) hanno mostrato un difetto del pilota, non del confinamento: nella fase `weak`
+delle prove (A2) ogni prova di connessione riuscita (modalità `none`, `ll`, `sc`) lasciava una connessione non accettata
+nella coda del socket UNIX astratto del motore finto (coda di 8); alla nona `connect` si bloccava e la corsa moriva per il
+limite di 590 s (`[uscita] 124`: A2 r1 e il tentativo di dividerla per ruoli, A2a r1: invalide per la regola 5). Il codice
+è stato corretto (code di ascolto da 4096; `PTRACE_SEIZE` al posto di `PTRACE_ATTACH` nella prova di `ptrace`, che non manda
+`SIGSTOP` al motore) nel commit `fb80d92`, e il binario è cambiato (sha256 qui sopra). Le corse fatte col binario
+vecchio (A1, A3, A4 r1: valide ma con altro binario; A2 r1 e A2a r1: invalide) restano nei file `-primafix-` e si
+riportano, **non contano** per i verdetti. Tutte le righe si rifanno da zero col binario nuovo: 3 corse valide per riga,
+`chain4.sh` come scritto (A2 intera, senza divisione). Corsa di prova col binario nuovo: `smoke-A2full` (1.050 celle in
+11 s, `[uscita] 0`). Questo commit delle regole precede ogni corsa col binario nuovo.
