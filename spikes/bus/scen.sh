@@ -63,7 +63,7 @@ NSE() { nsenter -U --preserve-credentials -m -t $EP "$@"; }
 
 start_engine() {
   : > out/engine.log
-  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} meta=${META:-0} aux=${AUX:-0} exec_timeout_ms=${EXEC_TIMEOUT:-0} stop_delay_ms=${STOP_DELAY:-0} fan_slow=${FANSLOW:-0} proj_serial=${PROJ_SERIAL:-0} lag_max_ms=${LAG_MAX:-0} proj_delay_ms=${PROJ_DELAY:-0} proj_delay_from_s=${PROJ_FROM:-15} proj_delay_secs=${PROJ_SECS:-20} >> out/engine.log 2>&1 &
+  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} meta=${META:-0} aux=${AUX:-0} exec_timeout_ms=${EXEC_TIMEOUT:-0} stop_delay_ms=${STOP_DELAY:-0} fan_slow=${FANSLOW:-0} proj_serial=${PROJ_SERIAL:-0} eng_writes_per_s=${ENG_WRITES:-0} lag_max_ms=${LAG_MAX:-0} proj_delay_ms=${PROJ_DELAY:-0} proj_delay_from_s=${PROJ_FROM:-15} proj_delay_secs=${PROJ_SECS:-20} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
@@ -83,6 +83,30 @@ logcheck_loop() {
   [ -n "$SPIKE_SECRET" ] && echo "marker_in_engine_log: $(cat out/engine.log out/engine-pre.log 2>/dev/null | grep -cF "$SPIKE_SECRET")"
   echo "-- log dei task a fine corsa (contatori del motore, SQL per attività dei due tenant): $("$BIN" stats dir=out | grep -E '^(tasklog|sql_per_activity_tenant)' | tr '\n' ' ')"
 }
+# blocco E5: rapporto del criterio «zero SQLITE_BUSY» a 10.000 att./s (scena thr10k): busy del proiettore e del motore, portata dei minuti 2-5,
+# rifiuti per causa, latenza delle scritture del motore, attesa del mutex dei proiettori, SQL per attivita', dimensione del WAL.
+busy10k_report() {
+  J() { echo "JUDGE $1 valore=$2 atteso=$3 $([ "$2" = "$3" ] && echo PASS || echo FAIL)"; }
+  ST=$("$BIN" stats dir=out)
+  BH=$(echo "$ST" | grep -oE 'busy_hits=[0-9]+' | head -1 | cut -d= -f2); EB=$(echo "$ST" | grep -oE 'eng_busy=[0-9]+' | cut -d= -f2)
+  BT=$(( ${BH:-0} + ${EB:-0} ))
+  echo "-- busy: proiettore (busy_hits) ${BH:-0}, motore (eng_busy) ${EB:-0}; scritture del motore riuscite $(echo "$ST" | grep -oE 'eng_writes=[0-9]+'), altri errori $(echo "$ST" | grep -oE 'eng_err=[0-9]+')"
+  echo "-- righe del registro del motore con 'database is locked' o SQLITE_BUSY (fuori da MIN e LAG10): $(grep -vE '^(MIN|LAG10)' out/engine.log | grep -ciE 'database is locked|SQLITE_BUSY')"
+  if [ "${PROJ_SERIAL:-0}" = 1 ]; then J "1 busy (proiettore + motore)" "$BT" 0; else echo "-- (riportato, braccio a due scrittori, non giudicato) busy totale: $BT"; fi
+  J "2 verify OK" "${ok:-0}" 1
+  # portata: media di act_s dei minuti 2-5 dalle righe MIN; valida per il busy se >= 9.900 e 0 perse (verify OK)
+  MEAN=$(grep '^MIN' out/engine.log | sed -E 's/^MIN t=([0-9]+) act_s=([0-9]+).*/\1 \2/' | awk '$1>=2 && $1<=5{s+=$2; n++} END{if (n) printf "%.1f", s/n; else print 0}')
+  echo "-- portata: media dei minuti 2-5 = $MEAN att./s; minuti: $(grep '^MIN' out/engine.log | sed -E 's/^MIN t=([0-9]+) act_s=([0-9]+).*/\1:\2/' | tr '\n' ' ')"
+  echo "VALIDITA portata $([ "$(awk -v m="$MEAN" 'BEGIN{print (m>=9900)}')" = 1 ] && [ "${ok:-0}" = 1 ] && echo "VALIDA" || echo "NON VALIDA PER LA PORTATA")"
+  echo "-- rifiuti per codice: $(grep '^errors_by_type' out/load.txt 2>/dev/null)"
+  echo "-- E_PROJECTION_DOWN per causa: $(echo "$ST" | grep -oE 'down_busy=[0-9]+ down_other=[0-9]+')"
+  echo "-- latenza delle scritture del motore: $(echo "$ST" | grep '^eng_write_latency' | cut -c1-120)"
+  echo "-- attesa del mutex dei proiettori: $(echo "$ST" | grep '^proj_lock_wait' | cut -c1-120)"
+  echo "-- SQL per attivita': $(echo "$ST" | grep -oE 'sql_per_activity=[0-9.]+ rows_per_activity=[0-9.]+ wal_bytes_per_activity=[0-9.]+'); file spike.db-wal: $(stat -c %s out/spike.db-wal 2>/dev/null || echo assente) byte, spike.db: $(stat -c %s out/spike.db 2>/dev/null) byte, righe tenant_secret: $(sqlite3 out/spike.db 'SELECT count(*) FROM tenant_secret' 2>/dev/null)"
+  echo "-- start_ready e proj_lag: $(echo "$ST" | grep -E '^(start_ready |proj_lag )' | cut -c1-110 | tr '\n' ';')"
+  echo "-- ritardo del tick: $(echo "$ST" | grep -oE 'tick_lag_max_ms=[0-9]+ over1s_ms=[0-9]+')"
+}
+
 # blocco E4c: rapporto del database lento ma attivo, dai registri del motore (LAG10, LAG_OVER1S, PROJ_DELAY_*, PROJECTION_LAG_*, ACC), dal carico e da SQLite.
 # Gli istanti sono microsecondi della stessa macchina.
 slowdb_report() {
@@ -240,8 +264,9 @@ case $SC in
     $L rate=1000 kind=0 n=10 size=1024 secs=60 warm=5 tenants=ab ledger=out/ledger.txt "$@"
     echo "-- righe di errore del motore"; grep -vE "^(MIN|READY|ripresa|capns|FIRST_DONE)" out/engine.log | head -40
     # blocco D: VTRIES (predefinito 12 = 36 s) allunga l'attesa quando il motore ha una coda di lavoro da smaltire a fine carico
-    for i in $(seq 1 ${VTRIES:-12}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
-    aux_final ;;
+    ok=0; for i in $(seq 1 ${VTRIES:-12}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && ok=1 && break; sleep 3; done
+    aux_final
+    busy10k_report ;;
   thrmax) $L rate=2500 kind=0 n=10 size=1024 secs=30 warm=5 tenants=ab "$@" ;;
   size64k) $L rate=100 kind=0 n=5 size=65536 secs=30 warm=5 tenants=ab "$@" ;;
   size1m) $L rate=${RATE1M:-10} kind=0 n=5 size=1048576 secs=30 warm=5 tenants=ab "$@" ;;

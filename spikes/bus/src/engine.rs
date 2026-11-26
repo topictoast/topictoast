@@ -284,6 +284,12 @@ pub struct Lag {
     pub down_busy: AtomicU64,
     pub down_other: AtomicU64,
     pub last_fail_busy: AtomicBool,
+    /// Blocco E5: scritture del motore simulate (`eng_writes_per_s`): riuscite, con errore busy, con altro errore; latenza e attesa del mutex dei proiettori (µs).
+    pub eng_writes: AtomicU64,
+    pub eng_busy: AtomicU64,
+    pub eng_err: AtomicU64,
+    pub eng_lat: Mutex<Option<Histogram<u64>>>,
+    pub lock_wait: Mutex<Option<Histogram<u64>>>,
 }
 
 /// Il guardiano deve essere inserito? Sì sopra `max_us`; si rilascia a `max_us` o meno (stesso livello per inserire e rilasciare: IPOTESI,
@@ -2044,8 +2050,11 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
             // blocco E4d, `proj_serial=1`: un solo scrittore alla volta nel processo (AD-2: la proiezione la scrive UN proiettore); l'altro attende
             // qui invece che nel gestore di busy di SQLite. Il mutex copre tutta la transazione (BEGIN ... COMMIT, ritardo compreso).
             let r = {
+                let tw = Instant::now();
                 let _g = if sh.proj_serial {
-                    Some(sh.proj_lock.lock().await)
+                    let g = sh.proj_lock.lock().await;
+                    Canc::rec(&sh.lag.lock_wait, tw.elapsed().as_micros() as u64);
+                    Some(g)
                 } else {
                     None
                 };
@@ -2253,7 +2262,7 @@ impl pb::control_server::Control for Ctl {
         // blocco E2: latenza del passo e contatori dell'ausiliario (CPU della finestra: dall'ultimo `reset`)
         let aux_cpu = self.sh.aux.as_ref().map(|a| a.cpu_rss().0).unwrap_or(0.0);
         let text = format!(
-            "{text}\n{}\nlag tick_lag_now_ms={} tick_lag_max_ms={} over1s_ms={} busy_hits={} refused_lag={} pending_locs={} down_busy={} down_other={}\nstep_latency {}{}\naux_cpu_s_window={:.3} aux_cpu_per_1000_att={:.3}",
+            "{text}\n{}\nlag tick_lag_now_ms={} tick_lag_max_ms={} over1s_ms={} busy_hits={} refused_lag={} pending_locs={} down_busy={} down_other={}\neng_writes={} eng_busy={} eng_err={}\neng_write_latency {}\nproj_lock_wait {}\nstep_latency {}{}\naux_cpu_s_window={:.3} aux_cpu_per_1000_att={:.3}",
             self.sh.canc.text(),
             self.sh.lag.now_us.load(Relaxed) / 1000,
             self.sh.lag.max_us.load(Relaxed) / 1000,
@@ -2263,6 +2272,18 @@ impl pb::control_server::Control for Ctl {
             self.sh.pending_locs.lock().unwrap().len(),
             self.sh.lag.down_busy.load(Relaxed),
             self.sh.lag.down_other.load(Relaxed),
+            self.sh.lag.eng_writes.load(Relaxed),
+            self.sh.lag.eng_busy.load(Relaxed),
+            self.sh.lag.eng_err.load(Relaxed),
+            crate::fmt(self.sh.lag.eng_lat.lock().unwrap().get_or_insert_with(hist)),
+            crate::fmt(
+                self.sh
+                    .lag
+                    .lock_wait
+                    .lock()
+                    .unwrap()
+                    .get_or_insert_with(hist)
+            ),
             f(&m.step_done),
             self.sh
                 .aux
@@ -2686,6 +2707,54 @@ pub async fn main(
             pos.get(&topic_of(&TENANTS[ti])).copied().unwrap_or(0),
             tx.clone(),
         ));
+    }
+    // blocco E5: scritture del motore simulate (`eng_writes_per_s`): una riga di `tenant_secret` a ogni tick, in una transazione breve sullo
+    // stesso pool; con `proj_serial=1` prende lo STESSO mutex dei proiettori (una sola corsia di scrittura per processo), altrimenti no.
+    let eng_n: u64 = crate::arg("eng_writes_per_s", "0").parse().unwrap();
+    if eng_n > 0 {
+        let shw = sh.clone();
+        tokio::spawn(async move {
+            let mut tick = tokio::time::interval(Duration::from_micros(1_000_000 / eng_n));
+            let mut seq = 0u64;
+            loop {
+                tick.tick().await;
+                seq += 1;
+                let mut val = [0xA5u8; 256];
+                val[..8].copy_from_slice(&seq.to_le_bytes());
+                let t0 = Instant::now();
+                let _g = if shw.proj_serial {
+                    Some(shw.proj_lock.lock().await)
+                } else {
+                    None
+                };
+                let r = shw
+                    .db
+                    .put_secret(
+                        &TENANTS[(seq % 2) as usize],
+                        &format!("k{seq}"),
+                        &val,
+                        now_us(),
+                    )
+                    .await;
+                let l = &shw.lag;
+                match r {
+                    Ok(()) => {
+                        l.eng_writes.fetch_add(1, Relaxed);
+                        Canc::rec(&l.eng_lat, t0.elapsed().as_micros() as u64);
+                    }
+                    Err(e) => {
+                        let s = e.to_string();
+                        let low = s.to_lowercase();
+                        if low.contains("locked") || low.contains("busy") {
+                            l.eng_busy.fetch_add(1, Relaxed);
+                        } else {
+                            l.eng_err.fetch_add(1, Relaxed);
+                        }
+                        eprintln!("ENG_WRITE_ERR {}: {s}", now_us());
+                    }
+                }
+            }
+        });
     }
     // blocco E4c: ritardo della proiezione a intervalli di 100 ms, guardiano (`lag_max_ms`) e una riga `LAG10` ogni 10 s
     let sh4 = sh.clone();

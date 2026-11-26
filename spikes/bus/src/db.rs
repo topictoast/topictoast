@@ -85,6 +85,8 @@ impl Db {
             format!("CREATE TABLE IF NOT EXISTS activity(exec_id {b} NOT NULL, step BIGINT NOT NULL, tenant {b} NOT NULL, is_last BIGINT NOT NULL, ready_us BIGINT, done_us BIGINT, out_hash {b}, done_events BIGINT NOT NULL DEFAULT 0, out_seg BIGINT, out_off BIGINT, out_len BIGINT, PRIMARY KEY(exec_id, step))"),
             format!("CREATE TABLE IF NOT EXISTS timer(exec_id {b} NOT NULL, step BIGINT NOT NULL, kind BIGINT NOT NULL, attempt BIGINT NOT NULL, due_us BIGINT NOT NULL, PRIMARY KEY(exec_id, step))"),
             "CREATE INDEX IF NOT EXISTS execution_live ON execution(id) WHERE done_us IS NULL".to_string(),
+            // blocco E5: scritture del motore (segreti, chiavi avvolte) simulate; FK non applicabile nel prototipo: un segreto appartiene al tenant, non a un'esecuzione
+            format!("CREATE TABLE IF NOT EXISTS tenant_secret(tenant {b} NOT NULL, name TEXT NOT NULL, value {b} NOT NULL, ts BIGINT NOT NULL, PRIMARY KEY(tenant, name))"),
         ] {
             db.pool.execute(sqlx::AssertSqlSafe(ddl)).await?;
         }
@@ -105,6 +107,25 @@ impl Db {
         let r = c.execute(sqlx::AssertSqlSafe(sql.to_string())).await?;
         self.rows.fetch_add(r.rows_affected(), Relaxed);
         Ok(())
+    }
+
+    /// Blocco E5: una riga di `tenant_secret` in una transazione breve sullo stesso pool (scrittura del motore simulata: segreto o chiave avvolta
+    /// opaca). Nessuna chiave esterna: il segreto appartiene al tenant, non a un'esecuzione, quindi non punta a righe non ancora proiettate.
+    pub async fn put_secret(&self, tenant: &Uid, name: &str, value: &[u8], ts: u64) -> Res<()> {
+        let mut c = self.pool.acquire().await?;
+        self.run(&mut c, "BEGIN").await?;
+        let sql = format!(
+            "INSERT INTO tenant_secret(tenant,name,value,ts) VALUES (X'{}','{name}',X'{}',{ts})",
+            crate::crypto::hex(tenant),
+            crate::crypto::hex(value)
+        );
+        match self.run(&mut c, &sql).await {
+            Ok(()) => self.run(&mut c, "COMMIT").await,
+            Err(e) => {
+                let _ = c.execute("ROLLBACK").await;
+                Err(e)
+            }
+        }
     }
 
     /// Applica un gruppo di eventi del topic e la nuova posizione (la prossima da leggere), in una transazione.
