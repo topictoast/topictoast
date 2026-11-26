@@ -256,3 +256,12 @@ l'ausiliario ha lo stesso utente e potrebbe leggere i file della chiave; la prov
 7. **Pooling**: conferma la fase 1 (spazio virtuale per slot: 2,3 GB per processo, avvio a freddo da 1,4 a 2,5 ms
    più lento) e aggiunge che non serve: senza pooling `t_start` è già 0,01 ms. Resta fuori per FR-16.
 8. **Memory_init_cow**: spenta, javy parte 15 volte più lento (0,15 ms contro 0,01): non è un parametro da toccare.
+
+## Revisione (2026-11-26, coordinatore)
+
+- **Valori riletti sui file grezzi:** L1 (javy dinamico, il peggiore, `t_start` p50 0,023-0,024 ms e p99 0,035-0,036 ms), L2 (javy statico p50 4,16-4,17 ms, p99 4,59-4,70 ms), L4 (somme di RSS e PSS per N = 1, 5, 20), L5 (sforamento massimo 0,22 ms; la copia unica da 1 GiB 86-96 ms), L8 (0 occorrenze nelle prove, 10 nei controlli), L10 (modulo sintetico da 1 MB 820-829 ms e 139-140 MB): uguali al testo. Hash del binario `53e7b4e7f8e47247…` in tutti i 68 punti in cui compare.
+- **Ordine:** il commit finale delle regole è delle 14:28:17 e la prima corsa misurata parte alle 14:28:32; il commit del codice `33d68a4` arriva dopo la prima stesura delle regole ma prima di ogni corsa misurata, quindi è ammesso.
+- **L2, corsa r2 non valida e r4 aggiunta:** le regole scritte non prevedono la corsa sostitutiva (fuori dalle regole, come nello spike del bus). Il verdetto non dipende da questo: anche r2 passa (javy statico p50 4,18 ms, p99 4,64 ms).
+- **L4 contro NFR-1 (riserva):** NFR-1 è una somma di RSS. Con 5 ausiliari fermi la somma delle RSS è 54,9-73,2 MB senza il motore; con il motore misurato nello spike del bus (26,5 MB, altro binario) si arriva a circa 81-100 MB, sopra gli 80 MB. La somma regge solo in PSS. Quindi a riposo NFR-1 vale solo se gli ausiliari dei tenant si fermano per inattività (FR-50): è la fase 4 (stima da due misure diverse, ipotesi).
+- **Avvio a freddo:** misurato con il binario piccolo dello spike e la cache nella page cache; l'ausiliario vero è un sottocomando del binario del motore, più grande (ipotesi: tempi più alti, da rimisurare con il binario vero).
+- **Sequenze di 64 cifre esadecimali nei file grezzi:** sono nomi dei file della cache (impronte dei moduli), non segreti. I valori sentinella di L8 e L12 non compaiono.
