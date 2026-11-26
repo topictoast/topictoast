@@ -7,7 +7,7 @@ paradigm: 'hexagonal (porte e adattatori, costituzione III); log del bus come fo
 scope: 'topictoast v1 intero: motore, bus, persistenza, worker e SDK, sandbox dei nodi, pipeline stream, kit frontend, dashboard'
 status: final
 created: '2026-11-20'
-updated: '2026-11-23'
+updated: '2026-11-26'
 binds:
   - 'FR-1…FR-5, FR-56 (definizione dei workflow)'
   - 'FR-6…FR-11, FR-59 (esecuzione, log dei task)'
@@ -61,33 +61,79 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
 - **Binds:** FR-12, FR-16, FR-50, FR-54, NFR-1, NFR-15; motore, bus, database, processi ausiliari, worker.
 - **Prevents:** unità che aggiungono servizi da installare o processi non gestiti dal motore.
 - **Rule:** un motore Rust a nodo singolo, senza HA del centro nella v1, che riparte da solo entro
-  30 s (NFR-15). Il bus è un servizio separato. Database: SQLite incorporato oppure Postgres, a
-  scelta dell'integratore. Ogni altro processo di topictoast (sandbox leggera, processi
-  ausiliari, pool microVM opzionale dove c'è KVM) lo avvia e lo ferma il motore. I worker sono
-  processi dell'integratore sempre attivi, anche remoti su TLS, che registrano funzioni con
-  manifest. L'installazione predefinita non chiede Kubernetes, KVM né root e ascolta solo su
-  localhost. I worker scalano in orizzontale; motore e bus in verticale fino a NFR-3.
+  30 s (NFR-15). Il bus è Apache Iggy, un servizio separato a nodo singolo (ADR del bus). Database:
+  SQLite incorporato oppure Postgres, a scelta dell'integratore. Ogni altro processo di topictoast
+  (sandbox leggera, processi ausiliari, pool microVM opzionale dove c'è KVM) lo avvia e lo ferma il
+  motore. I worker sono processi dell'integratore sempre attivi, anche remoti, che registrano
+  funzioni con manifest e si collegano solo al motore, su gRPC con TLS (AD-12): mai al bus.
+  L'installazione predefinita non chiede Kubernetes, KVM né root e ascolta solo su localhost. I
+  worker scalano in orizzontale; motore e bus in verticale fino a NFR-3.
 
 ### AD-2 — Verità sul log del bus, database come proiezione [ADOPTED]
 
-- **Binds:** FR-9, FR-32, FR-41, FR-48, NFR-2, NFR-4, NFR-6, NFR-15, SM-2; motore, proiettore, API e dashboard che leggono il database, spike del bus.
-- **Prevents:** due verità; unità che scrivono lo stato nel database in modo sincrono; lavoro accettato perso per ritardo della proiezione o per un evento saltato; due motori sugli stessi bus e database.
+- **Binds:** FR-8, FR-9, FR-10, FR-32, FR-41, FR-48, FR-51, NFR-2, NFR-4, NFR-6, NFR-15, SM-2; motore, proiettore, API e dashboard che leggono il database, sentinella del bus.
+- **Prevents:** due verità; unità che scrivono lo stato nel database in modo sincrono; lavoro accettato perso per ritardo della proiezione o per un evento saltato; due motori sugli stessi bus e database; due scrittori che si bloccano sul file di SQLite; una consegna partita prima della decisione durevole che la causa; un annullamento confermato prima di essere durevole; due eventi terminali validi sulla stessa esecuzione; contenuto dei tenant in chiaro sul bus.
 - **Rule:** «accettato» (FR-9) = scrittura durevole sul log del bus prima della risposta. Il
-  database è una proiezione dello stato, scritta a gruppi da un solo scrittore (il proiettore),
-  indietro al massimo di 1 s; nessun'altra unità scrive lo stato proiettato. La proiezione è
-  idempotente. La ripresa (NFR-15) parte dall'ultima posizione del bus applicata nel database e
-  rilegge il bus da lì. Il bus non elimina mai posizioni dei topic di stato non ancora applicate
-  dal proiettore; i topic degli stream seguono la conservazione di FR-18 e il proiettore non li
-  legge. Con il database fermo o il disco pieno il motore smette di accettare lavoro nuovo e lo
-  rifiuta con un codice (C-7) e un avviso all'operatore (FR-48): il lavoro accettato non si perde
-  mai. Un evento che il proiettore non riesce ad applicare è un guasto, non un dato: il proiettore
-  si ferma su quella posizione, senza saltarla, e il motore rifiuta il lavoro nuovo come sopra.
-  Sul bus gli eventi di stato li scrive solo il motore, con ogni variante di collegamento di S-1:
-  i messaggi dei worker sono richieste che il motore giudica. Un solo motore per installazione:
-  all'avvio prende un lock esclusivo prima di scrivere su bus o database, e un secondo motore esce
-  con un codice. Il proiettore scrive solo quando ha qualcosa da applicare (SM-2). Segreti e chiavi
-  avvolte dei tenant non passano dal bus (C-12): li scrive il motore tramite l'adattatore del
-  repository, prima della risposta.
+  database è una proiezione dello stato, scritta a gruppi da un solo scrittore (il proiettore);
+  nessun'altra unità scrive lo stato proiettato. La proiezione è idempotente per chiave
+  dell'entità (esecuzione, attività, tentativo), mai per posizione del bus. La ripresa (NFR-15)
+  parte dall'ultima posizione del bus applicata nel database e rilegge il bus da lì. Sul bus gli
+  eventi di stato li scrive solo il motore: i messaggi dei worker sono richieste che il motore
+  giudica. Un solo motore per installazione: all'avvio prende un lock esclusivo prima di scrivere
+  su bus o database, e un secondo motore esce con un codice. Il proiettore scrive solo quando ha
+  qualcosa da applicare (SM-2).
+  - **Ritardo.** L'obiettivo è la proiezione indietro al massimo di 1 s. Il database è lento quando
+    le transazioni del proiettore riescono in ritardo, fermo quando falliscono. Con il database
+    lento il motore continua ad accettare e oltre 1 s avvisa l'operatore (FR-48); le letture dopo
+    una scrittura seguono AD-18. Con il database fermo o il disco pieno il motore smette di
+    accettare lavoro nuovo e lo rifiuta con un codice (C-7) e un avviso all'operatore: il lavoro
+    accettato non si perde mai. Con il disco dei dati del bus pieno il bus si ferma (fail-stop) e
+    il motore rifiuta con il codice del bus giù. Un evento che il proiettore non riesce ad
+    applicare è un guasto, non un dato: il proiettore si ferma su quella posizione, senza saltarla,
+    e il motore rifiuta il lavoro nuovo come sopra. I codici di rifiuto (database fermo, disco
+    pieno, bus giù, generazione sbagliata) stanno nel catalogo di C-7 con nomi a punti; i nomi
+    `E_*` dell'ADR sono del prototipo.
+  - **Scritture del motore nel database.** Segreti e chiavi avvolte dei tenant non passano dal bus
+    (C-12): li scrive il motore tramite l'adattatore del repository, prima della risposta, e
+    puntano solo a righe che il motore stesso scrive, mai a righe della proiezione (un test sullo
+    schema fallisce se una chiave esterna di una tabella del motore punta a una tabella della
+    proiezione). Con SQLite c'è una sola corsia di scrittura per processo: proiettore e scritture
+    del motore passano dallo stesso mutex.
+  - **Un solo punto di decisione per esecuzione.** Comandi, timer ed esiti dei worker di
+    un'esecuzione passano da un solo punto del motore, che controlla lo stato e scrive l'evento in
+    serie. Il primo evento terminale sul log (conclusa, fallita, annullata, scaduta) vince e i
+    successivi si rifiutano; la proiezione deriva lo stato dall'ordine del log, mai dall'ora.
+  - **Consegna.** Una consegna, l'avvio di un ausiliario o un evento partono solo dopo il gruppo
+    durevole che li causa (`Ready`, o il timer che ha rimesso in coda l'attività). L'evento della
+    scadenza del tentativo si scrive subito dopo l'invio, senza attenderlo, nella coda di scrittura
+    dell'esecuzione: le code sono FIFO per esecuzione, quindi la scadenza precede l'esito. Un crash
+    prima che la scadenza sia durevole fa riconsegnare l'attività con lo stesso `attemptId`
+    (C-2): è un doppione contato, mai una perdita.
+  - **Timer.** Scadenze dei tentativi, attese tra i tentativi, `wait` e scadenza dell'esecuzione
+    sono eventi sul log, al più uno per attività più quello dell'esecuzione. Il motore li arma in
+    memoria quando scrive l'evento che li causa; la tabella della proiezione serve solo alla
+    ripresa, che li ricostruisce dalle righe più il bus riletto. La scadenza dell'esecuzione
+    (FR-8) parte dall'accettazione.
+  - **Annullamento (FR-10).** Il comando diventa un evento durevole; solo dopo il motore risponde,
+    scarta i passi in attesa, manda lo `Stop` ai worker (AD-12) e annulla i timer. Un esito che
+    arriva dopo si rifiuta. Dopo un crash del motore tra l'evento e lo `Stop` lo stop è al meglio:
+    il worker può finire il tentativo, e il suo esito si rifiuta.
+  - **Forma sul bus.** Per ogni tenant un topic di stato e uno dei log (`state-` e `log-` più
+    l'identificativo interno, AD-5), una partizione ciascuno, con la durabilità per messaggio di
+    Iggy (`Persisted`); lo spegnimento improvviso dell'host è argomentato, non misurato. Solo la
+    credenziale del motore scrive sui topic di stato. Ogni evento di stato porta un'intestazione in
+    chiaro con un elenco chiuso di campi: tipo dell'evento, identificativo dell'esecuzione, indice
+    del passo, numero del tentativo, scadenza. Mai nomi scelti da un tenant o dall'integratore; un
+    test fallisce se compare un altro campo. È l'unica eccezione alla cifratura di C-13. Un
+    processo senza chiavi può seguirla in sola lettura (sentinella, ADR del bus).
+  - **Generazione e aggiornamento del bus (FR-51).** La generazione del bus sta in un topic proprio
+    e nella posizione applicata; un motore con una generazione diversa da quella del bus non parte,
+    con un codice. Aggiornare il bus = drain fino alla proiezione allineata, bus nuovo e vuoto,
+    riversamento dal database, generazione nuova; pausa entro 30 s.
+  - **Conservazione.** Il bus non elimina mai posizioni dei topic di stato non ancora applicate
+    dal proiettore: la soglia è la sua posizione, salvata prima di chiedere la cancellazione dei
+    segmenti, e nessun altro consumatore la sposta (non provato con il sentinella). I topic degli
+    stream seguono la conservazione di FR-18 e il proiettore non li legge.
 
 ### AD-3 — Input e output dei task fuori dal database [ADOPTED]
 
@@ -96,8 +142,9 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
 - **Rule:** input e output dei task viaggiano sul bus. Il proiettore scrive ogni payload
   nell'archivio dei payload (AD-17) quando lo applica, non solo per lo storico, indirizzato
   dall'impronta; il database tiene solo un riferimento tipizzato (impronta, dimensione). Le uscite
-  a monte si leggono dall'archivio, quindi il bus può scartare le posizioni già applicate anche
-  mentre un'esecuzione lunga è viva. L'indirizzo comprende l'identificativo interno del tenant
+  a monte si leggono dall'archivio, e finché un payload non è proiettato il motore lo serve dalla
+  propria memoria; quindi il bus può scartare le posizioni già applicate anche mentre
+  un'esecuzione lunga è viva. L'indirizzo comprende l'identificativo interno del tenant
   (AD-5); nessuna deduplicazione tra tenant. I payload nell'archivio sono cifrati con la chiave
   del tenant (AD-7).
 
@@ -167,7 +214,7 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
   cifrato porta una busta versionata con l'id della chiave; per ogni oggetto o segmento si deriva
   dalla chiave del tenant, con HKDF, la chiave che lo cifra in AES-256-GCM, e la chiave del tenant
   ruota tramite l'id. Il formato è uno solo, nel dominio, e lo usano motore, proiettore, processo
-  delle pipeline stream e archivio dei payload; S-1 ne misura il costo. La chiave principale si
+  delle pipeline stream e archivio dei payload; costo misurato in S-1 (ADR del bus). La chiave principale si
   genera solo con il deposito delle chiavi vuoto; il motore ne conserva l'impronta e, se la chiave
   presente non corrisponde, rifiuta di partire con un codice. Cartelle dei dati 0700 e file 0600; il motore non parte, con un codice, se la
   chiave principale o la cartella dei dati sono leggibili da altri utenti. Eliminare un tenant
@@ -247,7 +294,16 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
   non ha un bersaglio proprio: usa quei tipi tramite il client dell'API di `packages/core`
   (AD-15). Tempo reale (FR-41) con SSE (C-8, AD-18). Gli eventi degli stream si inviano in
   blocchi. Errori secondo C-7. Il protocollo dei worker è separato, con i tipi in
-  `crates/protocol`, e lo decide lo spike del bus.
+  `crates/protocol`: gRPC con TLS dal worker al motore, mai dal worker al bus (ADR del bus). Il
+  worker verifica sempre il certificato del motore (C-14); la credenziale del worker (C-11)
+  viaggia nel saluto e il motore la controlla a ogni sessione: non è legata alla connessione TLS,
+  perché il worker non ha un certificato proprio. Una sessione è una connessione autenticata: un
+  worker che si ricollega apre una sessione nuova, e i tentativi della vecchia scadono e si
+  rifanno (C-2). La revoca di una credenziale (C-11) chiude le sue sessioni aperte, e da lì i loro
+  esiti si rifiutano. Il motore manda consegne, conferme durevoli degli esiti e lo `Stop` di un
+  tentativo (annullamento o scadenza, AD-2); il worker manda esiti, battiti e righe di log
+  (AD-17). La versione di `tonic` la fissa la prima storia del collegamento (S-1 ha misurato
+  0.14.9).
 
 ### AD-13 — Pipeline stream su DataFusion, un processo ausiliario per tenant [ADOPTED]
 
@@ -259,7 +315,9 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
   ausiliario dedicato a quel tenant, attivo solo se il tenant ha pipeline attive (AD-6). Il motore
   gli passa solo la chiave di quel tenant, mai la chiave principale. Gli eventi stream di ogni
   tenant stanno su topic propri del tenant, nominati con il suo identificativo interno (AD-5); il
-  processo legge direttamente solo quelli, qualunque collegamento scelgano i worker.
+  processo legge direttamente solo quelli, con una credenziale del bus per tenant che ha il solo
+  permesso di lettura su quei topic (mai `read_stream`, che apre gli altri tenant). I permessi di
+  Iggy sono per numero di topic: creazione ed eliminazione del tenant li aggiornano (ADR del bus).
 
 ### AD-14 — Confine degli scenari BDD su due livelli [ADOPTED]
 
@@ -304,7 +362,7 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
   modulo per artefatto (costituzione IV): per il motore in `crates/adapters`, da cui passano
   `call http` e RustFS; per l'SDK Rust in `crates/sdk`, che CLI e benchmark usano. Nessun
   client (Rust o JS) dipende da `crates/engine` o `crates/adapters`: usa solo l'API del motore e il
-  protocollo dei worker, che va al motore o al bus secondo S-1. I processi ausiliari non ricevono
+  protocollo dei worker, che va al motore (AD-12). I processi ausiliari non ricevono
   mai la chiave principale; quello delle pipeline stream riceve solo la chiave del suo tenant
   (AD-6, AD-13). La validazione in JS passa solo da `packages/validator` (AD-11). La dashboard
   usa solo `packages/ui` e il client dell'API di `packages/core` (AD-15).
@@ -327,7 +385,7 @@ flowchart TB
   preact["packages/react"]
   psdk["packages/sdk"]
   dash["dashboard"]
-  wlink["collegamento dei worker: motore o bus, decide S-1"]
+  wlink["collegamento dei worker: gRPC con TLS verso il motore (AD-12)"]
 
   domain --> ows
   adapters --> domain
@@ -368,16 +426,18 @@ flowchart TB
   - Le righe viaggiano come i risultati del tentativo: stesso collegamento, stessa cifratura per
     tenant (C-13), stesso controllo di sessione (C-2). Una riga di un tentativo concluso o non più
     corrente è rifiutata.
-  - Un solo scrittore per tentativo, proiettore o motore secondo il trasporto scelto in S-1. Dà a
-    ogni riga un numero progressivo nel tentativo, applica il tetto di FR-59 e salva le righe a
-    pezzi nello spazio con nome, con nome fisso tenant/esecuzione/tentativo/numero del pezzo. Il
-    pezzo si crea solo se assente: riscriverlo con lo stesso contenuto, come nella riapplicazione
-    del proiettore (AD-2), non cambia nulla, e un pezzo non si sovrascrive mai. Un pezzo finale
-    chiude il log del tentativo.
+  - Un solo scrittore per tentativo: il motore (ADR del bus). Dà a ogni riga un numero progressivo
+    nel tentativo, applica il tetto di FR-59 e salva le righe a pezzi nello spazio con nome, con
+    nome fisso tenant/esecuzione/tentativo/numero del pezzo. Il pezzo si crea solo se assente: su
+    disco con un file temporaneo creato in esclusiva, `fdatasync` e un collegamento fisso sul nome;
+    su RustFS con `If-None-Match: *`. Riscriverlo con lo stesso contenuto, come nella
+    riapplicazione del proiettore (AD-2), non cambia nulla, e un pezzo non si sovrascrive mai. Il
+    riferimento al pezzo va sul topic dei log del tenant, non nel database. Un pezzo finale chiude
+    il log del tentativo.
   - La lettura ordina per numero, mai per l'ordine dell'archivio. Il tempo reale (AD-18) manda una
     riga quando il suo pezzo è scritto, con il suo numero; il client riprende chiedendo all'API le
-    righe dopo l'ultimo numero visto, senza buchi né doppioni. Lo scrittore chiude un pezzo entro
-    un intervallo che tiene l'1 s di FR-59, misurato in S-1.
+    righe dopo l'ultimo numero visto, senza buchi né doppioni. Un pezzo resta aperto al più 500 ms
+    (in S-1 una riga è leggibile entro 557 ms al p99).
   - I pezzi seguono conservazione ed eliminazione dell'esecuzione e del tenant (FR-31, C-13) e
     contano nello spazio del tenant (FR-30).
   - Il segnaposto dei segreti è una sola funzione pura del dominio, usata da SDK Rust, host della
@@ -399,8 +459,13 @@ flowchart TB
 - **Binds:** FR-5, FR-6, FR-26, FR-41, NFR-8; motore, API, nucleo JS, dashboard, SDK.
 - **Prevents:** eventi letti da una proiezione in ritardo; «Esecuzione non trovata» subito dopo «Esegui»; filtri di tenant e ruolo diversi tra risorse ed eventi; controlli fatti su uno stato vecchio.
 - **Rule:** il motore emette gli eventi SSE subito dopo la scrittura durevole sul bus, mai leggendo
-  la proiezione. Per i client la posizione del bus è un token opaco, che solo il dominio confronta;
-  l'id dell'evento SSE è quel token. Una risposta con un'istantanea porta il token della sua
+  la proiezione. La posizione del bus è la generazione del bus (cambia a ogni aggiornamento del
+  bus), il topic, la partizione e l'offset; con un topic e una partizione per tenant (AD-2)
+  l'offset dice al più il volume del tenant stesso. Per i client è un token opaco, che solo il
+  dominio confronta, e solo dentro la stessa generazione: un `Last-Event-ID` di un'altra
+  generazione vale come fuori dalla conservazione, e il token di una scrittura di una generazione
+  più vecchia vale come già raggiunto (l'aggiornamento parte con la proiezione allineata, AD-2).
+  L'id dell'evento SSE è quel token. Una risposta con un'istantanea porta il token della sua
   posizione (campo `position`, C-16), e lo stream SSE riprende da lì (`Last-Event-ID`); un
   `Last-Event-ID` fuori dalla conservazione riceve un errore C-7 che chiede di ricaricare
   l'istantanea. Un client può passare
@@ -412,7 +477,10 @@ flowchart TB
   campi per ruolo (per esempio gli identificativi dei worker); risposte ed eventi usano lo stesso
   tipo di vista per ruolo. I controlli di idempotenza (FR-6), di C-3, di C-4 e di `If-Match`
   (C-5) li fa il motore su tutto lo stato accettato: la proiezione fino alla posizione applicata
-  più il bus riletto da lì, mai la sola rilettura. Le righe e gli avvii scritti dal processo
+  più il bus riletto da lì, mai la sola rilettura. Lo stato accettato non ancora proiettato il
+  motore lo tiene in memoria dalla scrittura sul bus e lo ricostruisce in ripresa rileggendo il
+  bus: nel percorso caldo i controlli leggono la proiezione più quella memoria, senza rileggere il
+  bus, e controllo e scrittura per la stessa chiave stanno in una sezione serializzata. Le righe e gli avvii scritti dal processo
   delle pipeline stream passano dall'IPC del motore con un id deterministico (C-4).
 
 ### AD-19 — Kit nelle pagine dell'ospite [ADOPTED]
@@ -474,75 +542,16 @@ flowchart TB
 
 ### S-1 — Bus
 
-- **Aperto:** tecnologia del bus (M-11): Apache Iggy, candidato di partenza del PRD, contro
-  Valkey come livello caldo con scarico sul database (M-12); con Valkey lo scarico porta i
-  payload nell'archivio dei payload (AD-17) e nel database solo lo stato tipizzato. Collegamento
-  dei worker (M-13, M-14) fra tre varianti, con le attività sempre sul log del bus: (1) worker
-  diretti sui topic del bus, con ack, retry e timeout fatti dal motore tramite topic; (2) worker
-  dal motore su gRPC con TLS; (3) worker dal motore su QUIC p2p con iroh. Modalità di scrittura
-  durevole (M-18). Aggiornamento del bus senza perdite (M-17; Iggy 0.10 non legge i dati della
-  0.9). Spazio per tenant sul bus, sempre con l'identificativo interno (M-24, AD-5; per gli
-  eventi stream già fissato: topic propri del tenant, AD-13) e motivo di attesa dovuto alle
-  partizioni (T-66). Costo della cifratura per tenant nel formato di C-12 (chiave derivata con
-  HKDF per oggetto o segmento, AES-256-GCM; AD-7, C-13). Costo della chiamata verso i
-  processi ausiliari (AD-6). Timer durevoli sul log (attesa tra i tentativi, `wait`, scadenze di
-  C-3, battiti), ricostruiti in ripresa, con un caso
-  misurato: retry con attesa attraverso un crash iniettato. Trasporto delle righe di log dei
-  worker (FR-59), con il segnaposto dei segreti consegnati applicato prima del bus e
-  dell'archivio (C-12): chi è l'unico scrittore dei pezzi (AD-17), intervallo di chiusura di un
-  pezzo entro l'1 s di FR-59, creazione solo se assente su disco e su RustFS. Cosa porta una
-  consegna (input, contesto con proprietario, esecuzione e tentativo, segreti dichiarati risolti
-  alla consegna, C-12) e come un worker scrive su uno stream: tenant ricavato dal tentativo (C-2),
-  stessa strada e cifratura dei risultati (AD-17, AD-20). Benchmark di base
-  (M-49). Candidati, verificati 2026-11-21: Valkey 9.1.4 e iroh 1.4.2 (solo con l'eccezione di
-  sicurezza), tonic 0.14.9, redis 1.8.1.
-- **Misure per variante di collegamento:** latenza p50 e p99 di un passo del DAG, throughput al
-  ritmo di NFR-3, CPU del motore, payload da 1 KB a 1 MB, comportamento con un'attività lenta. Le
-  corse di NFR-2 e NFR-3 comprendono `if`, mappatura jq e controllo di input e output
-  nell'ausiliario (FR-53).
-- **Criteri:** lettura delle uscite a monte dall'archivio dei payload con la proiezione indietro
-  fino a 1 s (E-4, AD-3), misurata contro NFR-2; scrittura durevole per accettazione entro NFR-2
-  (p50 ≤ 5 ms, p99 ≤ 25 ms); NFR-3
-  (≥ 10.000 attività/s); NFR-4 (≤ 5 istruzioni SQL per attività, scarico compreso, con SQLite e
-  con Postgres, righe e WAL contati per attività) e SM-2; NFR-1 (≤ 80 MB con SQLite, bus e
-  ausiliari attivi compresi); NFR-6 (zero perdite con guasto iniettato, database fermo e disco
-  pieno compresi, lavoro nuovo rifiutato con codice come vuole AD-2); NFR-15 (ripresa entro 30 s
-  con rilettura del bus); proiezione idempotente (AD-2); FR-51 (aggiornamento senza perdite);
-  chiamata tra processi sul percorso caldo entro NFR-2; un'attività lenta non porta altri tenant
-  oltre NFR-2 (FR-13); un worker che scrive righe di log fino al tetto non porta le altre
-  esecuzioni oltre NFR-2 e lascia NFR-4 invariato (FR-59); bus con autenticazione obbligatoria
-  anche da localhost, credenziali
-  generate all'installazione, nessun valore predefinito del candidato accettato (FR-12, FR-50).
-  Decidono i numeri.
-- **Criteri non numerici della variante (1)**, riportati nell'ADR accanto ai numeri: come arrivano
-  a un worker diretto i segreti (mai sul bus, C-12) e la decifratura con la chiave del tenant,
-  con il giro in più misurato dentro NFR-2; chi applica concorrenza, quote e credenziali dei
-  worker (FR-12, FR-13, FR-30); compatibilità tra aggiornamenti del bus (FR-51, PRD §6); come le
-  righe di log di un worker diretto seguono la strada e la cifratura dei suoi risultati (C-13)
-  senza portare un segreto sul bus né saltare il ricontrollo del motore (FR-59, C-12).
-  Condizioni di sicurezza: nessuna chiave dei tenant né segreto ai worker; C-11 applicabile dal
-  bus; eventi di stato scritti solo dal motore (regola di AD-2). Se ne manca una, la variante è
-  esclusa qualunque siano i numeri (D-1, decisione di Marco).
-- **Da fissare e provare nell'ADR, per candidato e variante:**
-  - posizione del bus codificata per partizione (topic, partizione, offset), posizione applicata
-    salvata per partizione nella stessa transazione del gruppo, token opaco per i client che non
-    rivela il volume degli altri tenant, ordine tra eventi (AD-18, C-8);
-  - conservazione legata alla posizione del proiettore, verificata (AD-2);
-  - comportamento con il database lento ma attivo, quando la proiezione supera 1 s (AD-2);
-  - come i controlli di AD-18 raggiungono lo stato accettato più vecchio della rilettura, con il
-    costo dentro NFR-4 e SM-2;
-  - con SQLite, scritture del motore (segreti, chiavi avvolte) e gruppi del proiettore senza
-    `SQLITE_BUSY` né chiavi esterne verso righe non ancora proiettate;
-  - nessun effetto esterno (consegna, avvio di un ausiliario, evento) prima della scrittura
-    durevole della decisione che lo causa;
-  - consegna dell'annullamento (FR-10) e dell'arresto per timeout dell'esecuzione;
-  - per il processo delle pipeline stream, una credenziale del bus per tenant in sola lettura sui
-    topic del tenant; se il bus non la sa imporre, il motore alimenta il processo;
-  - varianti (2) e (3): credenziale di worker legata alla connessione e controllata a ogni
-    collegamento, verifica del server obbligatoria nell'SDK; con iroh, relay e scoperta esterni
-    spenti nella configurazione predefinita e identità del nodo legata a C-11.
-- **ADR:** `docs/decisions/YYYY-MM-DD-bus.md`; aggiorna AD-1, AD-2, AD-3, AD-17, AD-18, C-8 e il
-  protocollo dei worker (AD-12).
+- **Chiuso il 2026-11-26:** [ADR del bus](../../decisions/2026-11-26-bus.md), accettata da Marco,
+  con le misure in `spikes/bus/`. Bus Apache Iggy (AD-1); worker dal motore su gRPC con TLS (AD-12);
+  consegna dopo il gruppo durevole che la causa, timer durevoli, annullamento, database lento e
+  corsia unica di scrittura con SQLite (AD-2); uscite a monte (AD-3); log dei task (AD-17);
+  posizione del bus (AD-18). I worker diretti sui topic del bus escono a tavolino; iroh esce sui
+  numeri e resta una direzione futura sotto gRPC per i worker dietro NAT.
+- **Criteri mancati, registrati nell'ADR:** accettazione p99 oltre 25 ms (34 ms con la consegna
+  scelta, 29-38 ms anche senza timer in una serie); avvio p99 oltre 25 ms con un tenant vicino a
+  500 att./s che scrive righe (FR-59) e in una serie anche da solo; RAM a riposo oltre NFR-1 (Iggy
+  in deroga, l'ausiliario oltre). Quello che resta aperto è nelle Open Questions.
 
 ### S-2 — Sandbox
 
@@ -632,7 +641,7 @@ blocco di `review-decisions.md` (E-6); C-19 è del 2026-11-23. Testo completo in
 | Versioni | C-5: pubblicazione con `If-Match` (ETag della versione di base), rifiutata se superata; versione di un nodo compilato = impronta SHA-256 del contenuto. |
 | Protocollo dei worker | C-6: versione dichiarata alla registrazione; in 0.y.z stessa minor, dopo la 1.0 stessa major; incompatibile = rifiuto con codice. |
 | Errori | C-7: `application/problem+json` (RFC 9457) con `errors[]`; ogni errore ha `code` stabile in inglese a punti, `params`, `path` (JSON Pointer), `line` e `column` facoltativi e, se riguarda un task, il percorso dei nomi dei task; un solo catalogo di codici nel dominio (errori, motivi di attesa e di salto), esportato in TS tramite OpenAPI; stesso formato nel motore e nel kit. |
-| Tempo reale | C-8: SSE secondo AD-18 e AD-19; un client che si ricollega riprende da `Last-Event-ID`, cioè dal token opaco della posizione del bus. |
+| Tempo reale | C-8: SSE secondo AD-18 e AD-19; un client che si ricollega riprende da `Last-Event-ID`, cioè dal token opaco della posizione del bus (generazione, topic, partizione, offset). |
 | Metriche e log | C-9: OpenMetrics su `/metrics`, che fuori da localhost segue C-14; log JSON su stdout, una riga per evento; mai segreti, token, chiavi, cookie, nomi visualizzati né input e output delle attività (FR-52); lo stderr degli ausiliari non entra nei log così com'è: il motore registra solo il codice C-7 e gli identificativi. |
 | Schemi | C-10: oggetti chiusi salvo `additionalProperties: true`; `integer` distinto da `number`; `null` diverso da assente, ammesso solo se il tipo lo include; predefiniti applicati dopo la validazione. |
 | Credenziali dei worker | C-11: una per worker, revocabile una per una, limitabile a funzioni e tenant, distinta da quelle di tenant e integratore. |
@@ -664,8 +673,8 @@ blocco di `review-decisions.md` (E-6); C-19 è del 2026-11-23. Testo completo in
 | SQLite (incluso tramite libsqlite3-sys 0.39.1, fissato nel lockfile) | 3.54 |
 | testcontainers | 0.28.0 |
 | wiremock | 0.6.5 |
-| Apache Iggy server (candidato, decide S-1) | server-0.10.0 |
-| iggy, crate client (candidato, decide S-1) | 0.12.0 |
+| Apache Iggy server (bus, ADR del bus) | server-0.10.0 |
+| iggy, crate client (ADR del bus) | 0.12.0 |
 | RustFS (adattatore facoltativo, AD-17) | 1.0.4 |
 | PostgreSQL 18 (alternativa a SQLite, minima) | 18.7 |
 | PostgreSQL 19 (alternativa a SQLite, minima; fissabile dal 2026-11-30) | 19.0 |
@@ -716,7 +725,7 @@ flowchart LR
     projector["Proiettore: scrittore unico dello stato proiettato"]
     helpers["Processi ausiliari senza chiave, sottocomandi del binario del motore: validazione, jq, call http, sandbox leggera"]
     streams["Processo delle pipeline stream, uno per tenant: DataFusion, solo la chiave del suo tenant"]
-    bus["Bus: log, fonte di verità"]
+    bus["Bus Apache Iggy: log, fonte di verità"]
     db[("Database: SQLite incorporato o Postgres")]
     files[("Archivio dei payload: disco, o RustFS facoltativo")]
     microvm["Pool microVM opzionale, con KVM"]
@@ -729,8 +738,7 @@ flowchart LR
   kit -->|"HTTP JSON e SSE, diretto con CORS o tramite proxy dell'ospite"| engine
   dash -->|"HTTP JSON e SSE"| engine
   sdkcli -->|"HTTP JSON"| engine
-  workers -.->|"collegamento deciso da S-1"| engine
-  workers -.->|"collegamento deciso da S-1"| bus
+  workers -->|"gRPC con TLS (AD-12)"| engine
   engine -->|"scrittura durevole"| bus
   bus --> projector
   projector --> db
@@ -751,7 +759,7 @@ flowchart LR
 flowchart TB
   subgraph prod ["Produzione v1: un host Linux x86_64 o arm64"]
     svc1["topictoast: un binario per motore e processi ausiliari"]
-    svc2["bus"]
+    svc2["bus Apache Iggy"]
     sqlite[("SQLite incorporato")]
     payloads[("archivio dei payload: directory su disco")]
     kvm["pool microVM, solo con KVM"]
@@ -764,8 +772,7 @@ flowchart TB
 
   hostbrowser -->|"TLS, CORS o proxy dell'ospite (AD-19)"| svc1
   opbrowser -->|"TLS fuori da localhost"| svc1
-  remote -.->|"collegamento deciso da S-1"| svc1
-  remote -.->|"collegamento deciso da S-1"| svc2
+  remote -->|"gRPC con TLS (AD-12)"| svc1
   svc1 --> svc2
   svc1 --> sqlite
   svc1 -.->|"in alternativa"| pg
@@ -790,7 +797,8 @@ Involucro operativo:
   con indirizzo d'ascolto e TLS fissati in modo esplicito (AD-19).
 - **Piattaforme:** Linux x86_64 e arm64 (NFR-10, [ASSUMPTION] del PRD).
 - **Aggiornamenti:** migrazione automatica dello stato (FR-51); l'aggiornamento del bus senza
-  perdite è un criterio di S-1; ogni cambio della spec OWS è una migrazione (AD-4).
+  perdite segue la procedura dell'ADR del bus (drain, bus nuovo e vuoto, riversamento dal database,
+  generazione nuova, pausa entro 30 s); ogni cambio della spec OWS è una migrazione (AD-4).
 - **Backup e ripristino coerenti di database e bus:** fuori dalla v1, limite documentato (NFR-6).
 - **Osservabilità e trasporto:** C-9, C-14.
 - **Formato di distribuzione, supervisione del riavvio:** domande aperte (Open Questions).
@@ -830,8 +838,8 @@ docs/
 | Capability / Area | Lives in | Governed by |
 | --- | --- | --- |
 | Definizione dei workflow: FR-1…FR-5, FR-56 | `crates/ows` (modello), `crates/domain` (validatore); motore (versioni) | AD-4, AD-8, AD-9, AD-10, AD-11, AD-20, C-5 |
-| Esecuzione: FR-6…FR-11, FR-59 | motore, bus, proiettore, archivio dei payload, SDK, host della sandbox | AD-2, AD-3, AD-9, AD-17, AD-18, C-2, C-3, C-4, C-9, C-12, S-1 (annullamento di FR-10, trasporto delle righe di log) |
-| Worker: FR-12…FR-14, FR-55 | motore, adattatore del collegamento dei worker, SDK | AD-1, AD-10, AD-20, C-6, C-11, S-1 |
+| Esecuzione: FR-6…FR-11, FR-59 | motore, bus, proiettore, archivio dei payload, SDK, host della sandbox | AD-2, AD-3, AD-9, AD-17, AD-18, C-2, C-3, C-4, C-9, C-12, ADR del bus |
+| Worker: FR-12…FR-14, FR-55 | motore, adattatore del collegamento dei worker, SDK | AD-1, AD-10, AD-12, AD-20, C-6, C-11 |
 | Nodi personalizzati e sandbox: FR-15…FR-17, FR-54 | processi ausiliari, pool microVM | AD-6, AD-16, AD-20, C-5, S-2 |
 | Pipeline stream: FR-18…FR-25 | processo ausiliario per tenant con DataFusion, bus, archivio dei payload | AD-6, AD-7, AD-13, AD-17, C-4, S-3 |
 | Separazione tra tenant: FR-26…FR-31 | adattatore del repository, API, eventi in tempo reale | AD-5, AD-7, AD-13, AD-18, C-13, C-15 |
@@ -853,7 +861,7 @@ docs/
 | M-08 manifest senza worker o conteso (PRD §11 n.10) | lo decide una sola unità: la registrazione nel motore | spec della storia di registrazione (FR-12, FR-55) |
 | M-09 effetti di un cambio di manifest o di schema di un sotto-workflow (PRD §11 n.11) | lo decide una sola unità: le versioni nel motore | spec delle storie delle versioni (FR-5, FR-15, FR-55) |
 | Regola di compatibilità tra campi degli schemi (PRD §11 n.16, FR-40) | una sola implementazione, nel validatore del dominio (AD-10) | spec delle storie delle versioni (FR-5, FR-55) |
-| M-10 controllo di input e output a ogni attività | il costo si misura nelle corse di NFR-2 e NFR-3 | benchmark di base (S-1) e storia di FR-55 |
+| M-10 controllo di input e output a ogni attività | costo misurato in S-1 come effetto netto: avvio p99 20,05 contro 19,55 ms a 1.000 att./s, 10.000 att./s tenute su bigsheep (ADR del bus) | storia di FR-55 |
 | M-19 due orologi per attività | dipende dalla spec di FR-8 | spec di FR-8 |
 | M-23 quote e storico delle esecuzioni dell'integratore (PRD §11 n.19) | comportamento di prodotto dentro AD-5 | spec della storia delle quote (FR-30, FR-46) |
 | M-29 interprete jq: meccanismo | AD-6 fissa dove gira. Vincoli: interprete in Rust puro, compilabile per `wasm32-wasip1` (AD-11); elenco chiuso e documentato delle funzioni ammesse (FR-17 vieta già `$ENV`, `env`, `input_filename`, `import`, `include`), ogni altra rifiutata dallo stesso validatore anche nel browser; limiti di profondità per ricorsione e dati | spec della prima storia che usa jq, validazione (FR-4) o esecuzione |
@@ -870,8 +878,11 @@ docs/
 | T-68 dashboard con canale in tempo reale interrotto | il canale è fissato (C-8, AD-18) | spec della dashboard |
 | Ricerca per valore tra gli elementi di un fan-out (A-5 della UX, oltre gli FR) | i payload stanno fuori dal database (AD-3): serve una scelta di prodotto | spec della storia del fan-out |
 | AMB-1, AMB-5, AMB-6, AMB-9 (ambiguità del PRD) | comportamento di prodotto, non struttura | spec delle storie che le toccano |
-| Versioni delle librerie non ancora scelte (runtime async, server HTTP, JWT, client gRPC o iroh, interprete jq, generatore OpenAPI dai tipi Rust, generatore dei tipi TS da OpenAPI, TypeScript, Vite) | nessun codice di prodotto prima dello sprint 1 | fissate dalla prima storia che le usa, con la regola delle due settimane |
+| Versioni delle librerie non ancora scelte (runtime async, server HTTP, JWT, gRPC dei worker (tonic; S-1 ha misurato 0.14.9), interprete jq, generatore OpenAPI dai tipi Rust, generatore dei tipi TS da OpenAPI, TypeScript, Vite) | nessun codice di prodotto prima dello sprint 1 | fissate dalla prima storia che le usa, con la regola delle due settimane |
 | Migrazioni dello schema e linea del dialetto nell'adattatore unico (generico sul database di sqlx, `Any` o SQL per dialetto) | il driver è fissato (sqlx) e AD-5 fissa un solo adattatore; vincoli: la credenziale che applica le migrazioni è del proprietario dello schema, distinta dall'utente dell'applicazione (costituzione V), una cartella di migrazioni per dialetto e un test di parità dello schema tra SQLite e Postgres; `AssertSqlSafe` di sqlx solo dentro l'adattatore e filtro del tenant sempre come parametro legato | spec della prima storia che crea lo schema (Epic 1), ripresa da quella di Postgres |
+| Battito del motore sul bus, per distinguere nel sentinella il motore fermo dal motore che tace (oggi `engine-silent` scatta anche quando il lavoro aspetta legittimamente) | il sentinella è un prototipo; nessuna storia lo chiede | quando una storia porta il sentinella o il monitoraggio delle esecuzioni ferme |
+| Durata massima di un gruppo del proiettore e priorità delle scritture del motore sul mutex di SQLite (in S-1 una scrittura del motore aspetta fino a 49 ms al p99) | il mutex è fissato (AD-2); il tetto si misura | spec della prima storia del proiettore (Epic 1) |
+| RustFS: creazione solo se assente provata con due PUT in sequenza sulla 1.0.4; PUT concorrenti e la 1.0.5 non provati | RustFS è facoltativo (AD-17) | spec della storia dell'adattatore RustFS |
 | HA del centro e cluster del bus, backup e ripristino coerenti, rotazione della chiave di firma, OAuth (dove vive il rinnovo dei token rispetto ad AD-6 e alla costituzione IV si decide con OAuth) | fuori dalla v1 (PRD §8.2) | dopo la v1 |
 | Funzione di analisi dello storico ed esportazione in Parquet (AD-17), con la prova della cifratura per tenant dei Parquet (datafusion 55.2.0 ha `parquet_encryption`) | AD-17 fissa formato, motore e cifratura; nel PRD non c'è la funzione; scelta di Marco (memlog) | quando il PRD la definisce |
 
@@ -884,9 +895,15 @@ docs/
 | M-37: risoluzione e forma delle connessioni (sotto-workflow dell'integratore chiamato da un tenant, nomi di piattaforma, due connessioni della stessa piattaforma) e forma della connessione e dei segreti di un task senza manifest (`call http`) nel documento, con i vincoli di AD-20; C-12 e C-13 non lo coprono | spec (PRD §11 n.14) | spec della storia delle connessioni (FR-29, FR-33) |
 | T-58: librerie di canvas, layout del DAG ed editor di codice. Candidate `@xyflow/react` (fissabile 12.12.1; valutare la 13.x, fissabile dal 2026-11-30), `@dagrejs/dagre`, CodeMirror 6; elkjs escluso per scelta (copyleft). Criteri: quelli di T-58 del triage, tastiera e lettori di schermo come vuole la UX (provati con NVDA e un telefono), direzione da sinistra a destra e dall'alto in basso, prestazioni con il massimo di task di NFR-14, CSP dell'ospite (AD-19), gate della skill sugli stili in linea | architettura | Update della spine o skill del kit, prima della prima storia del kit |
 | Editor: le posizioni dei nodi fanno parte della versione (FR-5) e dell'export? A cosa si legano (percorso dei nomi dei task) e in che unità? I moduli dei costrutti (`call http`, `wait`, `switch`, fan-out…) si generano da una descrizione dei campi esportata dal dominio nel linguaggio di AD-10, o si scrivono a mano con un test di parità contro il validatore? | architettura | prima della prima storia dell'editor |
-| Ambito della verità sul bus: quali risorse, oltre alle esecuzioni, passano dal bus (workflow, tenant, quote, pianificazioni, credenziali dei worker); dove si fanno, oltre a idempotenza, C-3, C-4 e `If-Match` (AD-18), gli altri controlli sullo stato più recente (quote di FR-30, concorrenza di FR-13, credenziali revocate di C-11, segreto presente all'avvio di FR-33, riferimenti all'eliminazione di FR-58, una pianificazione per workflow di FR-57); da dove l'API legge input e output di un'esecuzione viva (bus o archivio dei payload); quale stato operativo vive solo in memoria nel motore (vitalità dei worker, uso delle quote, metriche delle pipeline stream) e quale si proietta (fasi delle attività, motivi di attesa, ultimo uso dei segreti) | architettura | S-1, con il costo dentro NFR-4 |
-| Proiettore sotto RLS con Postgres: come scrive gruppi con righe di più tenant senza `BYPASSRLS`, quale politica di lettura ha l'operatore (FR-46), quante istruzioni costa per gruppo. Da provare con `FORCE ROW LEVEL SECURITY` su ogni tabella dei tenant (il proprietario delle tabelle altrimenti salta l'RLS) e il tenant impostato solo per la transazione | architettura | S-1, misurato dentro NFR-4 |
-| Versione del formato di messaggi del bus, payload, checkpoint ed export, che il motore nuovo deve rileggere dopo un aggiornamento (FR-51, PRD §6) | architettura | S-1, con un aggiornamento a esecuzioni in corso |
+| Ambito della verità sul bus: quali risorse, oltre alle esecuzioni, passano dal bus (workflow, tenant, quote, pianificazioni, credenziali dei worker); dove si fanno, oltre a idempotenza, C-3, C-4 e `If-Match` (AD-18), gli altri controlli sullo stato più recente (quote di FR-30, concorrenza di FR-13, credenziali revocate di C-11, segreto presente all'avvio di FR-33, riferimenti all'eliminazione di FR-58, una pianificazione per workflow di FR-57); da dove l'API legge input e output di un'esecuzione viva (bus o archivio dei payload); quale stato operativo vive solo in memoria nel motore (vitalità dei worker, uso delle quote, metriche delle pipeline stream) e quale si proietta (fasi delle attività, motivi di attesa, ultimo uso dei segreti). S-1 ha misurato solo le esecuzioni; per i controlli di AD-18 ha solo argomentato che il motore tiene in memoria lo stato accettato non ancora proiettato | architettura | per i controlli delle esecuzioni, Update della spine prima della prima storia di «Esegui» (sprint 1); per ogni altra risorsa, prima della sua prima storia; costo dentro NFR-4 (S-1 non l'ha chiusa) |
+| Postgres, non provato in S-1: proiettore sotto RLS (come scrive gruppi con righe di più tenant senza `BYPASSRLS`, quale politica di lettura ha l'operatore, FR-46, quante istruzioni costa per gruppo; da provare con `FORCE ROW LEVEL SECURITY` su ogni tabella dei tenant e il tenant impostato solo per la transazione), NFR-4 con la consegna scelta e i timer, codice dei timer, aggiornamento del bus, disco pieno del volume | architettura | spec della prima storia Postgres, misurato dentro NFR-4 (S-1 non l'ha chiusa) |
+| Versione del formato di payload, checkpoint ed export che il motore nuovo deve rileggere dopo un aggiornamento (FR-51, PRD §6). I messaggi del bus non si rileggono tra versioni: l'aggiornamento parte da un bus nuovo e vuoto e riversa dal database (ADR del bus) | architettura | spec della prima storia di aggiornamento (FR-51) |
+| Tetto della memoria del motore quando il database resta lento a lungo (si accetta e si avvisa, AD-2): oltre quale ritardo o memoria vale la regola del database fermo. Misurato solo un rallentamento di 25 s (+13 MB a 9,7 s di ritardo) | architettura | prima della prima storia del proiettore (Epic 1) |
+| Latenza con tutti i pezzi insieme: accettazione p99 oltre 25 ms; avvio p99 di un tenant tra 19,7 e 25,6 ms in serie diverse e oltre 25 ms con un vicino rumoroso (FR-59); consegna scelta, scrittore unico, ausiliario, log e sentinella mai misurati insieme, scrittore unico a 10.000 att./s solo per 5 minuti (ADR del bus) | architettura; Marco per i limiti | benchmark di base (FR-53) sul motore completo, prima del rilascio della v1 |
+| Riallineamento del PRD dopo S-1: NFR-1 (deroga per Iggy; con l'ausiliario 113,8 MB a riposo, oltre la deroga), FR-8 (la scadenza dell'esecuzione parte dall'accettazione), FR-10 (dopo un crash del motore lo stop è al meglio) | Marco | Update del PRD prima dello sprint 1 |
+| Cancellazione del tenant contro il proiettore unico (C-13 contro AD-2): con la chiave cancellata il proiettore non decifra gli eventi non ancora applicati e si ferma per tutti; C-13 non dice chi cancella le righe proiettate. Proposta della revisione: la lapide è un evento che il proiettore applica in ordine, cancellando lui le righe e scartando gli eventi del tenant; la chiave e il topic si cancellano dopo | Marco (C-13 è approvata) | prima della storia di eliminazione del tenant (FR-31) |
+| Numerazione delle righe di log: l'ADR dei log la dà allo scrittore; lo spike l'ha data al worker (numero del pezzo = primo numero di riga, conferma cumulativa, rinvio delle righe non confermate) e l'ha provata con il crash del motore; righe arrivate dopo un annullamento o una scadenza | Marco (ADR dei log approvata) | spec della prima storia dei log dei task (FR-59) |
+| Battiti e ripresa: un evento durevole a ogni battito (come nello spike) costa 100.000 eventi al secondo con 50.000 tentativi in volo, non misurato; finestra di 2 s dopo la ripresa prima di dichiarare scaduto un tentativo in volo (ipotesi, nessuna corsa senza) | architettura | spec della prima storia con i battiti dei tentativi (FR-14) |
 | Primo avvio: chi firma la credenziale `aud = sdk` per SDK e CLI, da dove arriva la prima credenziale di worker (C-11), come lo sviluppatore di un tenant ottiene una credenziale per caricare un nodo (FR-15), riuso del nome esterno di un tenant eliminato (FR-31; identificativo interno in AD-5), dove si scrivono le credenziali del primo avvio (C-14: mai su stdout né nei log; il motore ne conserva solo un'impronta lenta, file con permessi 0600), durata e rinnovo dei certificati generati al primo avvio (C-14) | architettura | prima dello sprint 1: servono agli scenari di contratto e dell'SDK (AD-14) |
 | Altri JSON dei tenant: letterali dei documenti (`set`, `with`, corpo di `call http`), input delle esecuzioni e delle pianificazioni, errori conservati, righe emesse e trattenute delle pipeline stream, moduli compilati dei nodi. Proposta: archivio dei payload, riferimento tipizzato, cifratura per tenant, righe trattenute durevoli | architettura | prima della prima storia che salva uno qualunque di questi dati (FR-15, FR-24, FR-40, FR-57) |
 | Fase operativa del motore (in ripresa dall'istante d'inizio, attivo, lavoro nuovo rifiutato con il motivo) come risorsa ed evento; l'API si apre prima di rileggere il bus? «Esegui» durante la ripresa (T-60) | architettura | prima della prima storia che la usa (API, kit o dashboard) |
