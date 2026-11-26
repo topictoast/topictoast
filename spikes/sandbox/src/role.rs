@@ -293,14 +293,12 @@ pub fn probe(m: &HashMap<&str, &str>) -> String {
             }
         }
         "ptrace" => {
-            let r = unsafe { libc::ptrace(libc::PTRACE_ATTACH, pid, 0, 0) };
+            // SEIZE non manda il SIGSTOP dell'ATTACH: non ferma il motore, ma prova lo stesso permesso di ptrace
+            let r = unsafe { libc::ptrace(libc::PTRACE_SEIZE, pid, 0, 0) };
             if r < 0 {
                 denied(&std::io::Error::last_os_error())
             } else {
-                unsafe {
-                    libc::waitpid(pid, std::ptr::null_mut(), 0);
-                    libc::ptrace(libc::PTRACE_DETACH, pid, 0, 0);
-                }
+                unsafe { libc::ptrace(libc::PTRACE_DETACH, pid, 0, 0) };
                 "ok leak=1".into()
             }
         }

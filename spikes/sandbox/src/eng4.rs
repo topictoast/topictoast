@@ -125,6 +125,11 @@ impl Eng {
             el.local_addr().unwrap().port(),
             bl.local_addr().unwrap().port(),
         );
+        // le prove che riescono lasciano connessioni in coda: con la coda piena `connect` si bloccherebbe
+        unsafe {
+            libc::listen(ul.as_raw_fd(), 4096);
+            libc::listen(il.as_raw_fd(), 4096);
+        }
         serve_ok(el);
         serve_ok(bl);
         unsafe { libc::signal(libc::SIGUSR1, on_usr1 as *const () as usize) };
@@ -206,7 +211,7 @@ fn abstract_listener(name: &str) -> i32 {
         }
         let len = (2 + 1 + name.len()) as u32;
         libc::bind(fd, (&a as *const libc::sockaddr_un).cast(), len);
-        libc::listen(fd, 8);
+        libc::listen(fd, 4096);
         fd
     }
 }
