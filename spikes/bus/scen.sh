@@ -24,8 +24,9 @@ case $SC in cancel|cancel-crash|exectimeout) TRIM=0; WL="worklog=out/work.log st
 [ "$SC" = cancel ] && { NOWORKER=1; CAP=4; FANSLOW=1; }
 [ "$SC" = cancel-crash ] && { CAP=4096; STOP_DELAY=${STOP_DELAY:-4000}; }
 [ "$SC" = exectimeout ] && { EXEC_TIMEOUT=${EXEC_TIMEOUT:-3000}; CAP=4096; }
-case $SC in slowdb|slowdb-guard|slowdb-crash) PB=${SLOWPB:-50}; PROJ_DELAY=${PROJ_DELAY:-20}; PROJ_FROM=${PROJ_FROM:-15}; PROJ_SECS=${PROJ_SECS:-25} ;; esac
-[ "$SC" = slowdb-guard ] && LAG_MAX=${LAG_MAX:-1000}
+case $SC in slowdb|slowdb-serial|slowdb-serial-guard|slowdb-serial-crash) PB=${SLOWPB:-50}; PROJ_DELAY=${PROJ_DELAY:-20}; PROJ_FROM=${PROJ_FROM:-15}; PROJ_SECS=${PROJ_SECS:-25} ;; esac
+[ "$SC" = slowdb-serial-guard ] && LAG_MAX=${LAG_MAX:-1000}
+case $SC in slowdb-serial*) PROJ_SERIAL=1 ;; esac
 # blocco D (log dei task): profilo delle righe dei worker (LOGA, LOGB = NxL: N righe da L byte per tentativo, tenant A e B),
 # pausa tra le due metà (LOGSPLIT), tetto (LOGLINES, LOGBYTES), ritardo della conferma (ACKHOLD), sostituzione del segreto
 # (REDACT=0 la spegne: corsa di controllo), LOGMARK=1 genera un segreto sintetico per corsa (mai da .env, mai stampato)
@@ -62,7 +63,7 @@ NSE() { nsenter -U --preserve-credentials -m -t $EP "$@"; }
 
 start_engine() {
   : > out/engine.log
-  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} meta=${META:-0} aux=${AUX:-0} exec_timeout_ms=${EXEC_TIMEOUT:-0} stop_delay_ms=${STOP_DELAY:-0} fan_slow=${FANSLOW:-0} lag_max_ms=${LAG_MAX:-0} proj_delay_ms=${PROJ_DELAY:-0} proj_delay_from_s=${PROJ_FROM:-15} proj_delay_secs=${PROJ_SECS:-20} >> out/engine.log 2>&1 &
+  $ENGPFX $TS_ENG "$BIN" engine bus=$BUS db="$DBURL" dir=out cap=$CAP trim=$TRIM link=${LINK:-grpc} proj_batch=$PB wconn=${WCONN:-$WDEF} kgroups=${KGROUPS:-4} maxb=${MAXB:-1024} minb=${MINB:-64} grace_ms=${GRACE:-2000} lease_ms=${LEASE:-0} rec_delay_ms=${REC_DELAY:-0} log_lines=${LOGLINES:-100} log_bytes=${LOGBYTES:-16384} log_close_ms=${LOGCLOSE:-500} log_ack_hold_ms=${ACKHOLD:-0} redact=${REDACT:-1} meta=${META:-0} aux=${AUX:-0} exec_timeout_ms=${EXEC_TIMEOUT:-0} stop_delay_ms=${STOP_DELAY:-0} fan_slow=${FANSLOW:-0} proj_serial=${PROJ_SERIAL:-0} lag_max_ms=${LAG_MAX:-0} proj_delay_ms=${PROJ_DELAY:-0} proj_delay_from_s=${PROJ_FROM:-15} proj_delay_secs=${PROJ_SECS:-20} >> out/engine.log 2>&1 &
   EP=$!
   i=0; until grep -q READY out/engine.log; do i=$((i+1)); [ $i -gt 300 ] && { echo "motore non partito"; cat out/engine.log; stop_all; exit 1; }; sleep 0.2; done
   echo "engine pid=$EP $(grep READY out/engine.log)"
@@ -95,6 +96,8 @@ slowdb_report() {
   echo "-- ritardo acceso (PROJ_DELAY_ON) $ON; spento (PROJ_DELAY_OFF) ${OFF:-non nel registro}; ritardo sopra 1 s (LAG_OVER1S) ${O1:-mai}: $([ -n "$O1" ] && [ -n "$ON" ] && ms $ON $O1 || echo n.a.) ms dopo l'accensione; sotto 1 s di nuovo (LAG_UNDER1S) ${U1:-mai}: $([ -n "$U1" ] && [ -n "$OFF" ] && ms $OFF $U1 || echo n.a.) ms dopo lo spegnimento (recupero)"
   echo "-- contatori finali: $("$BIN" stats dir=out | grep -E '^lag ' )"
   echo "-- start_ready e proj_lag: $("$BIN" stats dir=out | grep -E '^(start_ready |proj_lag )' | cut -c1-110 | tr '\n' ';')"
+  echo "-- accettazioni offerte e rifiutate (frazione), per codice: $(grep -E '^offered=' out/load.txt | sed -E 's/offered=([0-9]+) accepted=([0-9]+).*/offerte \1 riuscite \2/') ; $(grep '^errors_by_type' out/load.txt)"
+  echo "-- E_PROJECTION_DOWN per causa dell'ultimo errore del proiettore (busy / altro): $("$BIN" stats dir=out | grep -oE 'down_busy=[0-9]+ down_other=[0-9]+')"
   echo "-- errori di database «locked/busy» arrivati al proiettore e righe 'proiezione ferma': $(echo "$ELOG" | grep -ciE 'locked|busy') ; $(echo "$ELOG" | grep -c '^proiezione ferma')"
   # conservazione: nessuna posizione tagliata oltre quella applicata (il proiettore esce con E_POSIZIONE_PERSA se la lettura non parte da dove ha applicato)
   J "posizioni del bus tagliate oltre la posizione applicata (righe E_POSIZIONE_PERSA)" "$(echo "$ELOG" | grep -c E_POSIZIONE_PERSA)" 0
@@ -108,6 +111,7 @@ slowdb_report() {
     set -- $R
     J "accettazioni riuscite tra inserimento e rilascio del guardiano" "$1" 0
     echo "-- inserimenti del guardiano: $2; accettazioni riuscite in tutto: $3; righe di inserimento/rilascio:"; echo "$ELOG" | grep -E '^PROJECTION_LAG_(ENGAGE|RELEASE)'
+    echo "$ELOG" | grep -E '^PROJECTION_LAG_(ENGAGE|RELEASE)' | awk '$1=="PROJECTION_LAG_ENGAGE"{s=$NF} $1=="PROJECTION_LAG_RELEASE"&&s{d[++n]=($NF-s)/1000; s=0} END{if (n) {m=asort(d); printf "-- cicli di inserimento/rilascio: %d; intervallo con il guardiano inserito (ms): minimo %.0f, mediana %.0f, massimo %.0f\n", n, d[1], d[int((n+1)/2)], d[n]} else print "-- cicli di inserimento/rilascio: 0"}'
     echo "-- (controllo del conteggio) rifiuti del motore con E_PROJECTION_LAG: $("$BIN" stats dir=out | grep -oE 'refused_lag=[0-9]+')"
   fi
 }
@@ -275,17 +279,17 @@ case $SC in
     for i in $(seq 1 ${VTRIES:-12}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && break; sleep 3; done
     sleep 2; sentinel_stop
     cancel_report ;;
-  slowdb|slowdb-guard)
+  slowdb|slowdb-serial|slowdb-serial-guard)
     # Blocco E4c, database lento ma attivo (AD-2): 1.000 att./s (100 esec./s da 10 passi, due tenant), tetto 512, trim acceso. Il proiettore tiene
     # il lock di scrittura di SQLite per `proj_delay_ms` dentro ogni transazione, prima del COMMIT, da `proj_delay_from_s` (dalla prima applicazione)
-    # per `proj_delay_secs`; poi si rilascia e il ritardo rientra. `slowdb-guard`: `lag_max_ms=1000` (il secondo di AD-2).
+    # per `proj_delay_secs`; poi si rilascia e il ritardo rientra. `slowdb-serial` e `slowdb-serial-guard`: un solo scrittore (`proj_serial=1`); `slowdb-serial-guard`: `lag_max_ms=1000` (il secondo di AD-2).
     $L rate=100 kind=0 n=10 size=1024 tenants=ab secs=${LSECS:-60} warm=5 ledger=out/ledger.txt "$@" > out/load.txt
     cat out/load.txt | grep -E '^(load|offered|errors_by_type|accept_rtt|accept_engine|start_ready |activities_per_s)'
     ok=0; for i in $(seq 1 ${VTRIES:-20}); do "$BIN" verify db="$DBURL" bus=$BUS dir=out ledger=out/ledger.txt light=1 && ok=1 && break; sleep 3; done
     J() { echo "JUDGE $1 valore=$2 atteso=$3 $([ "$2" = "$3" ] && echo PASS || echo FAIL)"; }
     J "verify OK (0 accettate perse)" "$ok" 1
     slowdb_report ;;
-  slowdb-crash)
+  slowdb-serial-crash)
     # Blocco E4c: come `slowdb` (guardiano spento) ma `kill -9` del motore quando il ritardo del tick supera KILLLAG ms (3.000 se non detto), durante la
     # tenuta; riavvio SENZA ritardo. Si riportano kill -> READY e gli eventi riletti accanto al limite di 30 s di NFR-15.
     $L rate=100 kind=0 n=10 size=1024 tenants=ab secs=${LSECS:-60} warm=5 stats=0 ledger=out/ledger.txt "$@" > out/load.txt &

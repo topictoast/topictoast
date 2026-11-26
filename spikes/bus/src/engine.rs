@@ -14,7 +14,10 @@ use bytes::Bytes;
 use hdrhistogram::Histogram;
 use sha2::Digest;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::{
+    AtomicBool, AtomicU32, AtomicU64,
+    Ordering::{Relaxed, SeqCst},
+};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, oneshot};
@@ -202,6 +205,9 @@ pub struct Shared {
     pub lag_max_ms: u64,
     pub unapplied_ts: [AtomicU64; 2],
     pub lag: Lag,
+    /// Blocco E4d: i due proiettori scrivono uno alla volta (`proj_serial=1`).
+    pub proj_serial: bool,
+    pub proj_lock: tokio::sync::Mutex<()>,
 }
 
 /// Contatori di annullamento e scadenza dell'esecuzione (blocco E4).
@@ -274,6 +280,10 @@ pub struct Lag {
     pub refused: AtomicU64,
     /// Errori «database is locked» o busy arrivati fino al proiettore (solo riportati: il criterio busy è della tappa successiva).
     pub busy_hits: AtomicU64,
+    /// Rifiuti `E_PROJECTION_DOWN` per causa dell'ultimo errore del proiettore: busy (lock di SQLite) e altro; `last_fail_busy` è quella causa (blocco E4d).
+    pub down_busy: AtomicU64,
+    pub down_other: AtomicU64,
+    pub last_fail_busy: AtomicBool,
 }
 
 /// Il guardiano deve essere inserito? Sì sopra `max_us`; si rilascia a `max_us` o meno (stesso livello per inserire e rilasciare: IPOTESI,
@@ -1100,11 +1110,22 @@ impl Engine {
                     }
                     if self.sh.failing.load(Relaxed) > 0 {
                         self.sh.m.lock().unwrap().refused += 1;
+                        // causa dell'ULTIMO errore del proiettore: busy (lock di SQLite) o altro (blocco E4d, solo riportato)
+                        let busy = self.sh.lag.last_fail_busy.load(Relaxed);
+                        let c = if busy {
+                            &self.sh.lag.down_busy
+                        } else {
+                            &self.sh.lag.down_other
+                        };
+                        c.fetch_add(1, Relaxed);
                         let _ = reply.send(Err(Status::unavailable("E_PROJECTION_DOWN")));
                         continue;
                     }
+                    // istante di ricezione preso PRIMA di leggere il segno del guardiano: con il segno scritto prima dell'istante di inserimento,
+                    // un'accettazione con istante dentro [inserimento, rilascio] vede sempre il guardiano acceso (blocco E4d)
+                    let t_acc = now_us();
                     // blocco E4c: proiezione troppo indietro (guardiano acceso con `lag_max_ms`): codice proprio, stesso percorso di rifiuto
-                    if self.sh.lag.guard.load(Relaxed) {
+                    if self.sh.lag.guard.load(SeqCst) {
                         self.sh.m.lock().unwrap().refused += 1;
                         self.sh.lag.refused.fetch_add(1, Relaxed);
                         let _ = reply.send(Err(Status::unavailable("E_PROJECTION_LAG")));
@@ -1112,7 +1133,7 @@ impl Engine {
                     }
                     if self.sh.lag_max_ms > 0 {
                         // istante di ricezione di ogni accettazione riuscita: la corsa verifica che nessuna cada tra inserimento e rilascio
-                        eprintln!("ACC {}", now_us());
+                        eprintln!("ACC {t_acc}");
                     }
                     let ts = self.bts;
                     let exec = *uuid::Uuid::now_v7().as_bytes();
@@ -1873,9 +1894,11 @@ async fn recover(
 /// `E_PROJECTION_DOWN`) e, se il testo dice spazio finito, anche `full` (`E_STORAGE_FULL`). Il log riporta ogni passaggio una volta.
 fn storage_fail(sh: &Shared, failing: &mut bool, full: &mut bool, topic: &str, e: &str) {
     let lower = e.to_lowercase();
-    if lower.contains("locked") || lower.contains("busy") {
+    let busy = lower.contains("locked") || lower.contains("busy");
+    if busy {
         sh.lag.busy_hits.fetch_add(1, Relaxed);
     }
+    sh.lag.last_fail_busy.store(busy, Relaxed);
     let is_full = lower.contains("no space")
         || lower.contains("disk is full")
         || lower.contains("could not extend");
@@ -2018,10 +2041,19 @@ async fn projector(sh: Arc<Shared>, ti: usize, start: u64, tx: mpsc::Sender<Msg>
         // transazione; con il database giù si ritenta per sempre, rifiutando lavoro nuovo (AD-2)
         let td = Instant::now();
         loop {
-            match crate::db::TENANT
-                .scope(ti, sh.db.apply(&topic, next, &evs, &locs))
-                .await
-            {
+            // blocco E4d, `proj_serial=1`: un solo scrittore alla volta nel processo (AD-2: la proiezione la scrive UN proiettore); l'altro attende
+            // qui invece che nel gestore di busy di SQLite. Il mutex copre tutta la transazione (BEGIN ... COMMIT, ritardo compreso).
+            let r = {
+                let _g = if sh.proj_serial {
+                    Some(sh.proj_lock.lock().await)
+                } else {
+                    None
+                };
+                crate::db::TENANT
+                    .scope(ti, sh.db.apply(&topic, next, &evs, &locs))
+                    .await
+            };
+            match r {
                 Ok(()) => break,
                 Err(e) => {
                     storage_fail(
@@ -2221,7 +2253,7 @@ impl pb::control_server::Control for Ctl {
         // blocco E2: latenza del passo e contatori dell'ausiliario (CPU della finestra: dall'ultimo `reset`)
         let aux_cpu = self.sh.aux.as_ref().map(|a| a.cpu_rss().0).unwrap_or(0.0);
         let text = format!(
-            "{text}\n{}\nlag tick_lag_now_ms={} tick_lag_max_ms={} over1s_ms={} busy_hits={} refused_lag={} pending_locs={}\nstep_latency {}{}\naux_cpu_s_window={:.3} aux_cpu_per_1000_att={:.3}",
+            "{text}\n{}\nlag tick_lag_now_ms={} tick_lag_max_ms={} over1s_ms={} busy_hits={} refused_lag={} pending_locs={} down_busy={} down_other={}\nstep_latency {}{}\naux_cpu_s_window={:.3} aux_cpu_per_1000_att={:.3}",
             self.sh.canc.text(),
             self.sh.lag.now_us.load(Relaxed) / 1000,
             self.sh.lag.max_us.load(Relaxed) / 1000,
@@ -2229,6 +2261,8 @@ impl pb::control_server::Control for Ctl {
             self.sh.lag.busy_hits.load(Relaxed),
             self.sh.lag.refused.load(Relaxed),
             self.sh.pending_locs.lock().unwrap().len(),
+            self.sh.lag.down_busy.load(Relaxed),
+            self.sh.lag.down_other.load(Relaxed),
             f(&m.step_done),
             self.sh
                 .aux
@@ -2579,6 +2613,8 @@ pub async fn main(
         lag_max_ms: crate::arg("lag_max_ms", "0").parse().unwrap(),
         unapplied_ts: [0.into(), 0.into()],
         lag: Default::default(),
+        proj_serial: crate::arg("proj_serial", "0") == "1",
+        proj_lock: tokio::sync::Mutex::new(()),
         aux: if crate::arg("aux", "0") == "1" {
             Some(Arc::new(crate::auxp::Client::spawn().await))
         } else {
@@ -2684,15 +2720,15 @@ pub async fn main(
                 );
             }
             let want = guard_wanted(lag, max_us);
-            if want != l.guard.load(Relaxed) {
+            if want != l.guard.load(SeqCst) {
                 if want {
                     // prima il segno, poi l'istante: un'accettazione con istante >= quello scritto ha già visto il guardiano
-                    l.guard.store(true, Relaxed);
+                    l.guard.store(true, SeqCst);
                     eprintln!("PROJECTION_LAG_ENGAGE lag_ms={} {}", lag / 1000, now_us());
                 } else {
                     // prima l'istante, poi il segno: nessuna accettazione riuscita può cadere prima di questo istante col guardiano acceso
                     let t = now_us();
-                    l.guard.store(false, Relaxed);
+                    l.guard.store(false, SeqCst);
                     eprintln!("PROJECTION_LAG_RELEASE lag_ms={} {t}", lag / 1000);
                 }
             }
