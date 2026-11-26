@@ -1,0 +1,10 @@
+0 read
+1 write
+3 close
+41 socket
+42 connect
+44 sendto
+45 recvfrom
+231 exit_group
+257 openat
+332 statx

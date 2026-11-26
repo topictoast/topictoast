@@ -1,0 +1,17 @@
+0 read
+1 write
+3 close
+9 mmap
+10 mprotect
+11 munmap
+12 brk
+15 rt_sigreturn
+17 pread64
+131 sigaltstack
+186 gettid
+202 futex
+219 restart_syscall
+230 clock_nanosleep
+231 exit_group
+232 epoll_wait
+332 statx

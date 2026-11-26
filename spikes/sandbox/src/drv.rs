@@ -198,7 +198,11 @@ impl Env {
             })
         };
         let o = c.output().expect("compile");
-        String::from_utf8_lossy(&o.stdout).trim().to_string()
+        let so = String::from_utf8_lossy(&o.stdout).trim().to_string();
+        if so.is_empty() {
+            return format!("stderr: {}", String::from_utf8_lossy(&o.stderr).trim());
+        }
+        so
     }
 
     /// Prepara il modulo `m` per la configurazione `cfg` e restituisce la riga `load` per l'ausiliario.

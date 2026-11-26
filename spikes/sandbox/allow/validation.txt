@@ -1,0 +1,3 @@
+0 read
+1 write
+231 exit_group

@@ -330,6 +330,40 @@ impl Rt {
         }
     }
 
+    /// Carica un artefatto già aperto dal motore (fase 4: l'ausiliario confinato non apre file).
+    pub fn load_file(&self, f: std::fs::File, _comp: bool) -> Result<Loaded> {
+        // ponytail: solo moduli core (wasmtime 50.0.3 non ha `Component::deserialize_open_file`); i componenti
+        // si caricherebbero con `deserialize` dai byte già letti per la verifica.
+        let m = unsafe { Module::deserialize_open_file(&self.engine, f)? };
+        Ok(Loaded::Core(self.core.instantiate_pre(&m)?))
+    }
+
+    /// Fase 4: esegue una volta, prima del confinamento, un nodo minimo che scrive su stdout. Alla prima
+    /// scrittura wasmtime-wasi crea il suo runtime tokio (thread di lavoro, epoll, lettura dei cgroup per contare
+    /// i core): così quelle syscall restano fuori dalla lista consentita dell'ausiliario. Nessun dato di tenant.
+    pub fn warmup(&self) {
+        let wat = r#"(module
+  (import "wasi_snapshot_preview1" "fd_write" (func $w (param i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1) (data (i32.const 8) "x")
+  (func (export "_start")
+    (i32.store (i32.const 0) (i32.const 8)) (i32.store (i32.const 4) (i32.const 1))
+    (drop (call $w (i32.const 1) (i32.const 0) (i32.const 1) (i32.const 16)))))"#;
+        let bytes = wat::parse_str(wat).expect("wat");
+        let m = Module::new(&self.engine, &bytes).expect("warmup module");
+        let l = Loaded::Core(self.core.instantiate_pre(&m).expect("pre"));
+        let q = RunReq {
+            input: vec![],
+            args: vec![],
+            limit_ms: 1_000_000,
+            fuel: u64::MAX / 4,
+            mem_mb: 64,
+            log_cap: 1 << 20,
+            out_cap: 1 << 20,
+        };
+        let r = self.run(&l, &q, Instant::now(), None);
+        assert!(r.failure.is_none(), "warmup: {:?}", r.failure);
+    }
+
     pub fn run(
         &self,
         l: &Loaded,

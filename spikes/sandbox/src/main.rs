@@ -4,13 +4,18 @@
 //!   mkguests <dir>                  scrive i moduli WAT (vuoto e ostili) come .wasm
 //!   mkbig <kind> <n> <out>          modulo sintetico grande per L10
 //!   drive <scenario> [k=v ...]      pilota di carico e di prova (vedi drv.rs)
+//!   role <nome> k=v ...             ausiliario confinato della fase 4 (vedi role.rs, confine.rs)
+//!   drive4 <scenario> [k=v ...]     motore finto e pilota della fase 4 (vedi eng4.rs)
 //! Codice da buttare: non è un prototipo del prodotto.
 
 mod agent;
 mod aux;
+mod confine;
 mod drv;
+mod eng4;
 mod fcdrv;
 mod hostile;
+mod role;
 mod rt;
 
 fn main() {
@@ -51,6 +56,8 @@ fn main() {
             }
         }
         Some("drive") => drv::main(&a[2..]),
+        Some("drive4") => eng4::main(&a[2..]),
+        Some("role") => role::main(&a[2..]),
         _ => {
             eprintln!("uso: sbxspike aux|compile|mkguests|mkbig|drive ...");
             std::process::exit(2);
@@ -72,7 +79,7 @@ fn compile_cmd(a: &[String]) {
     }
     let rt_opts = rt::Opts::parse(kv.get("cfg").copied().unwrap_or("epoch"));
     let engine = rt::make_engine(&rt_opts).expect("engine");
-    let bytes = std::fs::read(&a[0]).expect("lettura del modulo");
+    let bytes = std::fs::read(&a[0]).unwrap_or_else(|e| panic!("lettura del modulo {}: {e}", a[0]));
     let t = std::time::Instant::now();
     match rt::compile(
         &engine,

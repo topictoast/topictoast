@@ -141,6 +141,40 @@ pub fn serve(rig: &Rig, r: &mut dyn BufRead, out: &mut dyn Write, out_fd: i32, g
                     Err(e) => format!("err {e}"),
                 }
             }
+            // fase 4: `path=fd:<n>`: il motore ha già aperto l'artefatto e lo passa come descrittore ereditato
+            // (l'ausiliario confinato non ha né il permesso né la syscall per aprire file)
+            "load" if m["path"].starts_with("fd:") => {
+                use std::os::fd::FromRawFd;
+                use std::os::unix::fs::FileExt;
+                let t = Instant::now();
+                let fdn: i32 = m["path"][3..].parse().unwrap_or(-1);
+                let f = unsafe { std::fs::File::from_raw_fd(fdn) };
+                let verify = m.get("sha").copied().unwrap_or("-");
+                let vr = if verify == "-" {
+                    Ok(())
+                } else {
+                    let mut b = vec![0u8; f.metadata().map(|x| x.len() as usize).unwrap_or(0)];
+                    f.read_exact_at(&mut b, 0)
+                        .map_err(|e| e.to_string())
+                        .and_then(|_| {
+                            if sha_hex(&b) == verify {
+                                Ok(())
+                            } else {
+                                Err("sha mismatch".to_string())
+                            }
+                        })
+                };
+                match vr.and_then(|_| {
+                    rt.load_file(f, m.get("kind") == Some(&"comp"))
+                        .map_err(|e| format!("{e:#}"))
+                }) {
+                    Ok(l) => {
+                        mods.insert(m["name"].to_string(), l);
+                        format!("ok load_us={}", t.elapsed().as_micros())
+                    }
+                    Err(e) => format!("err {}", e.replace('\n', " | ")),
+                }
+            }
             "load" => {
                 let path = std::path::Path::new(m["path"]);
                 let t = Instant::now();
@@ -180,6 +214,8 @@ pub fn serve(rig: &Rig, r: &mut dyn BufRead, out: &mut dyn Write, out_fd: i32, g
             }
             "run" => {
                 let input = match m.get("in") {
+                    // fase 4: ingresso in linea (senza spazi), l'ausiliario confinato non legge file
+                    _ if m.contains_key("inb") => m["inb"].as_bytes().to_vec(),
                     Some(&"-") | None => vec![],
                     Some(p) => std::fs::read(p).unwrap_or_default(),
                 };
@@ -246,6 +282,8 @@ pub fn serve(rig: &Rig, r: &mut dyn BufRead, out: &mut dyn Write, out_fd: i32, g
                     r.emits.len()
                 )
             }
+            // fase 4: prove ostili (`probe`) dentro l'ausiliario leggero confinato
+            "probe" => crate::role::probe(&m),
             _ => "err unknown command".into(),
         };
         // un interlocutore che chiude a metà non ferma il servizio (nell'agente è il PID 1)
