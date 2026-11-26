@@ -33,6 +33,8 @@ pub async fn run() {
     let cfg = RunCfg {
         seed,
         t0,
+        wall0: now_ms(),
+        rate,
         evrate,
         total: events + if flush_s > 0 { 1 } else { 0 },
         block: 1000,

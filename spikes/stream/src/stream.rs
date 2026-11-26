@@ -30,6 +30,8 @@ struct SRt {
     def: StreamDef,
     topic: String,
     pos: u64,
+    /// chiavi dei blocchi viste. ponytail: cresce con lo stream e si salva intero nel checkpoint; il prodotto
+    /// la pota con la conservazione (le chiavi piu' vecchie della conservazione non servono), parte 2.
     seen: HashSet<String>,
     dup_blocks: u64,
     events: u64,

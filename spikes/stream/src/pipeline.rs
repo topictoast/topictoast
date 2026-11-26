@@ -279,8 +279,12 @@ impl Pipe {
             Some((s, a, b)) => (s, Some((a, b))),
             None => (def.sql.clone(), None),
         };
-        let ts_name = sdef.event_time.clone().ok_or("lo stream non ha il tempo dell'evento")?;
-        let ts_idx = sdef.columns.iter().position(|c| c.name == ts_name).ok_or("colonna del tempo mancante")?;
+        // il tempo dell'evento serve solo alle pipeline con finestra
+        let ts_name = sdef.event_time.clone().unwrap_or_default();
+        let ts_idx = sdef.columns.iter().position(|c| c.name == ts_name).unwrap_or(0);
+        if win.is_some() && sdef.event_time.is_none() {
+            return err("una pipeline con finestra vuole lo stream con il tempo dell'evento");
+        }
         // schema esteso: colonne dello stream + colonne virtuali per rendere pianificabile il SQL
         let mut fields: Vec<Field> = sdef.schema().fields().iter().map(|f| f.as_ref().clone()).collect();
         for n in ["window_start", "window_end"] {
@@ -407,11 +411,6 @@ impl Pipe {
                         .build()?,
                 );
                 aggs.push(AggSpec { expr, cols: (first..first + n).collect() });
-            }
-            for (i, s) in layout.iter_mut().enumerate() {
-                if let Slot::Group(_) = s {
-                    let _ = i;
-                }
             }
             // slot degli aggregati dopo i gruppi
             for j in 0..aggs.len() {
@@ -807,12 +806,10 @@ impl Pipe {
         for (ws, win) in st.wins.iter_mut() {
             let n = win.keys.len();
             let mut cols: Vec<ArrayRef> = vec![Arc::new(BinaryArray::from_iter_values(win.keys.iter()))];
-            let mut shape = vec![];
             for a in win.accs.iter_mut() {
                 let s = a.state(EmitTo::All)?;
                 let idx: Vec<usize> = (0..n).collect();
                 a.merge_batch(&s, &idx, n)?;
-                shape.push(s.len());
                 cols.extend(s);
             }
             let fields: Vec<Field> = cols.iter().enumerate().map(|(i, c)| Field::new(format!("c{i}"), c.data_type().clone(), true)).collect();

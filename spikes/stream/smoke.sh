@@ -43,7 +43,7 @@ case $ID in
   c2)  SPEC=spec-c1.json; LOAD="--seed $SEED --events 600000 --rate 20000 --evrate 500 --past-s 1500 --flush-s 315 --late-ppm 2000 --late-s 400 --fut-ppm 500 --fut-s 120 --far-n 12345"; KILL=none ;;
   c3|c3k) SPEC=spec-c3.json; LOAD="--seed $SEED --events 300000 --rate 5000 --evrate 5000 --past-s 0"; KILL=none; [ "$ID" = c3k ] && KILL=quiet ;;
   c4)  SPEC=spec-c1.json; LOAD="--seed $SEED --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315"; KILL=c4 ;;
-  t1)  SPEC=spec-t1.json; LOAD="--seed $SEED --events 40000000 --rate 0 --evrate 50000 --past-s 100 --duration-s 120 --conns 16"; KILL=none ;;
+  t1)  SPEC=spec-t1.json; LOAD="--seed $SEED --events 200000000 --rate 0 --evrate 300000 --past-s 420 --duration-s 120 --conns 16"; KILL=none ;;
   *) echo "id sconosciuto"; exit 1 ;;
 esac
 # c1b e c1c si distinguono solo dal seme (terzo argomento di chiamata)

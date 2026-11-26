@@ -9,6 +9,9 @@ pub struct RunCfg {
     pub seed: u64,
     /// tempo dell'evento del primo evento (ms)
     pub t0: i64,
+    /// orologio all'avvio del carico e ritmo di invio (eventi/s): gli eventi futuri iniettati si contano da qui
+    pub wall0: i64,
+    pub rate: i64,
     /// eventi per secondo di tempo dell'evento
     pub evrate: i64,
     /// eventi totali, compreso quello di chiusura se `flush_ms > 0`
@@ -85,7 +88,7 @@ impl Gen {
         } else if r < c.late_ppm {
             ts -= c.late_ms;
         } else if r < c.late_ppm + c.fut_ppm {
-            ts += c.fut_ms;
+            ts = c.wall0 + (n as i64) * 1000 / c.rate.max(1) + c.fut_ms;
         }
         if n as i64 == c.far_n {
             ts += 365 * 86_400_000;

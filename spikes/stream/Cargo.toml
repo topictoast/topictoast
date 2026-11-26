@@ -16,14 +16,13 @@ serde_json = "=1.0.154"
 tokio = { version = "=1.54.1", features = ["full"] }
 iggy = "=0.12.0"
 sqlx = { version = "=0.9.1", default-features = false, features = ["runtime-tokio", "sqlite"] }
-hdrhistogram = "=7.6.0"
 aes-gcm = "=0.11.1"
 hkdf = "=0.13.0"
 sha2 = "=0.11.1"
 uuid = { version = "=1.29.1", features = ["v4"] }
 libc = "=0.2.191"
 bytes = "=1.12.1"
-# solo per il tipo `Url` del registro degli archivi di oggetti (gia' nel lock di DataFusion)
+# solo per il tipo `Url` del registro degli archivi di oggetti. 2.5.9 (2026-11-20, oltre le due settimane): corregge RUSTSEC-2026-0592, presente nella 2.5.8
 url = "=2.5.9"
 
 [profile.release]

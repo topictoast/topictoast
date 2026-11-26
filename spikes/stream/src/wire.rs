@@ -6,7 +6,6 @@
 
 use crate::spec::{ColType, StreamDef};
 use datafusion::arrow::array::*;
-use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::ipc::reader::StreamReader;
 use datafusion::arrow::ipc::writer::StreamWriter;
 use datafusion::arrow::record_batch::RecordBatch;
@@ -208,9 +207,4 @@ pub fn decode(plain: &[u8], decode_data: bool) -> Msg {
         events,
         batch,
     }
-}
-
-#[allow(dead_code)]
-pub fn schema_of(b: &RecordBatch) -> SchemaRef {
-    b.schema()
 }
