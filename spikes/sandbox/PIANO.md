@@ -5,7 +5,7 @@ Fonte dei criteri: spine, sezione «S-2 — Sandbox». Approccio a fasi deciso d
 
 | Fase | Cosa | Stato |
 | --- | --- | --- |
-| 1 | A tavolino: candidati e versioni dei due livelli, TS e Rust verso wasm, formato del modulo, cosa chiede root, Landlock e seccomp | da fare |
+| 1 | A tavolino: candidati e versioni dei due livelli, TS e Rust verso wasm, formato del modulo, cosa chiede root, Landlock e seccomp | chiusa (`fase1-tavolino.md`); Marco: modulo core e soglie della fase 2 (2026-11-26) |
 | 2 | Livello leggero (senza KVM né root): avvio, memoria, limiti, TS e Rust compilati, codice ostile, un'istanza per tenant | da fare |
 | 3 | Livello forte (microVM con pool): avvio con una sandbox libera, codice ostile, declassamento, parte del pool per tenant | da fare |
 | 4 | Processi ausiliari: Landlock e seccomp per ognuno, lettura della chiave per ogni sottocomando, arresto per inattività contro NFR-2, NFR-1 con gli ausiliari attivi | da fare |
