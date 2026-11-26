@@ -1757,3 +1757,58 @@ Il percorso `window_deliveries` (consegna fatta tra la ricezione e l'evento dure
 ### Comandi per rifare
 
 Su minisheep, in `~/ttspikebus` (binario `bin/busspike-cancel-75ab6cc`, `.env` da `./gen-env.sh`): `SENT=1 META=1 ARM_BIN=$HOME/ttspikebus/bin/busspike-cancel-75ab6cc ARM=CANCEL-<scena> ./brun.sh risultati/<file> ./scen.sh iggy sqlite <scena>`, con scena `cancel`, `cancel-load`, `cancel-crash`, `exectimeout` (con `TCRASH=1` per la variante con il crash).
+
+## Blocco E, database lento
+
+Il database lento ma attivo (AD-2) su **minisheep** (Iggy + SQLite, 1.000 att./s, tetto 512, trim acceso con segmenti da 1 MiB). Regole scritte prima: `risultati/iggy-sqlite-slowdb-regola-4-ms.txt` (commit `0759638`, emendato il 2026-11-26 dal commit `6f63c4d` prima delle corse misurate). Binario `bin/busspike-slowdb-4ab1fe1`, sha256 `47be4b2ee7224fdf`, uguale in tutti i file grezzi. Il ritardo e' D = 20 ms dentro la transazione del proiettore prima del `COMMIT` (SQLite tiene il lock di scrittura per D), `proj_batch` = 50, acceso da 15 s a 40 s dalla prima applicazione. Otto corse (4 scene x 2) una alla volta con `ms-run.sh`; ogni `[stato prima]` e' piu' tardo del commit dell'emendamento (01:23:14): da 01:23:30 a 01:40:10. File grezzi: `risultati/iggy-sqlite-slowdb-<scena>-4-ms-r<n>.txt` con scena `slowdb`, `slowdbserial`, `slowdbserialguard`, `slowdbserialcrash`.
+
+Layout: `slowdb` = due scrittori, come oggi (controllo); `slowdb-serial` = `proj_serial=1`; `slowdb-serial-guard` = `proj_serial=1` e `lag_max_ms=1000`; `slowdb-serial-crash` = `proj_serial=1`, `kill -9` con il ritardo del tick a circa 3 s, riavvio senza ritardo.
+
+### Reperto dei due scrittori (misurata)
+
+AD-2 prevede UN solo scrittore della proiezione; il prototipo ha due proiettori (uno per tenant) che si contendono il lock di scrittura di SQLite. Con il commit lento quello in attesa supera `busy_timeout` (300 ms), riceve «database is locked» e il motore lo legge come proiezione ferma: rifiuta le accettazioni con `E_PROJECTION_DOWN`. In `slowdb` (due scrittori) i `busy_hits` sono **22** (r1) e **20** (r2), e i rifiuti `E_PROJECTION_DOWN` sono **811** su 6.499 e **739** su 6.500, tutti con ultimo errore del proiettore di tipo busy (`down_busy` = 811 e 739, `down_other` = 0). Con `proj_serial=1` (un mutex nel processo intorno a tutta la transazione, ritardo compreso) i `busy_hits` sono **0** in tutte e 6 le corse seriali e i rifiuti `E_PROJECTION_DOWN` sono **0**. L'ipotesi scritta prima (`busy_hits` = 0 nei bracci seriali) e' confermata. File grezzi: `iggy-sqlite-slowdb-slowdb-4-ms-r1.txt`, `...-r2.txt` contro `iggy-sqlite-slowdb-slowdbserial-4-ms-r1.txt`, `...-r2.txt`. Il comportamento di oggi con il database lento mescola quindi il database lento e un layout a due scrittori che AD-2 non prescrive. **E' un'ipotesi, non un risultato, per la domanda sul busy a 10.000 att./s (tappa 5): qui il ritardo e' finto e il carico e' 1.000 att./s.**
+
+### Per corsa
+
+Tutti i punti giudicati sono **PASS in tutte e 8 le corse**: `verify OK` (anche dopo il riavvio nelle corse con crash, 0 accettate perse), 0 righe `E_POSIZIONE_PERSA` e primo offset leggibile non oltre la posizione applicata (trim non vuoto: primo offset leggibile tra 83.000 e 100.000 circa in ogni corsa), e 0 accettazioni riuscite dentro le finestre del guardiano nelle due corse con guardiano.
+
+| Scena, corsa | Pavimento fdatasync p50 / p99 (ms) | Offerte / riuscite | Rifiuti per codice | `busy_hits` | Picco ritardo del tick (ms) | Sopra 1 s (ms) | Recupero dopo lo spegnimento (ms) | Accettazione p50 / p99 (ms) | `start_ready` p99 (ms) | RSS motore (MB, inizio / fine) | `pending_locs` (massimo in un campione) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `slowdb` r1 | 2,82 / 4,01 | 6.499 / 5.688 | 811 `E_PROJECTION_DOWN` (busy) | 22 | 6.462 | 24.900 | 1.871 | 27,66 / 62,53 | 45,98 | 29,9 / 35,7 | 86 |
+| `slowdb` r2 | 7,74 / 17,90 | 6.500 / 5.761 | 739 `E_PROJECTION_DOWN` (busy) | 20 | 8.592 | 26.000 | 2.602 | 27,42 / 63,49 | 44,96 | 29,6 / 36,1 | 18 |
+| `slowdb-serial` r1 | 5,66 / 10,04 | 6.500 / 6.500 | 0 | 0 | 9.708 | 26.200 | 3.512 | 27,49 / 64,09 | 43,87 | 29,5 / 42,9 | 56 |
+| `slowdb-serial` r2 | 2,87 / 4,08 | 6.499 / 6.499 | 0 | 0 | 9.644 | 26.000 | 3.340 | 27,17 / 63,62 | 43,45 | 30,0 / 43,3 | 19 |
+| `slowdb-serial-guard` r1 | 2,94 / 4,04 | 6.499 / 5.472 | 1.027 `E_PROJECTION_LAG` | 0 | 1.944 | 10.100 | mai sopra 1 s dopo lo spegnimento | 28,19 / 63,52 | 45,89 | 29,5 / 31,0 | 50 |
+| `slowdb-serial-guard` r2 | 2,90 / 3,94 | 6.499 / 5.424 | 1.075 `E_PROJECTION_LAG` | 0 | 1.870 | 10.600 | mai sopra 1 s dopo lo spegnimento | 27,76 / 63,26 | 45,50 | 30,2 / 32,0 | 35 |
+| `slowdb-serial-crash` r1 | 2,60 / 4,10 | 6.500 / 6.485 | 0 (15 errori di connessione durante il riavvio) | 0 | 3.148 | 800 dopo il riavvio | 908 (da READY a sotto 1 s) | 27,42 / 67,45 | 46,21 | 30,5 / 36,0 | 0 |
+| `slowdb-serial-crash` r2 | 1,90 / 4,01 | 6.500 / 6.486 | 0 (14 errori di connessione durante il riavvio) | 0 | 3.135 | 800 dopo il riavvio | 908 (da READY a sotto 1 s) | 27,41 / 66,88 | 45,95 | 30,1 / 35,8 | 0 |
+
+L'RSS e' quello della riga `LAG10` a 10 s e a fine corsa. `pending_locs` e' la dimensione della mappa in memoria delle posizioni dei payload nei campioni da 10 s: resta nell'ordine delle decine in tutti i bracci (picco 86), cioe' **non cresce con il ritardo**; cio' che cresce col ritardo e' l'RSS (+13 MB nel braccio seriale senza guardiano, +6 MB con due scrittori che rifiutano, circa +1 MB con il guardiano).
+
+Giudizio sul guardiano (`slowdb-serial-guard`): 0 accettazioni riuscite dentro le finestre [inserimento, rilascio], con i tempi dell'emendamento (istante preso prima del segno, segno SeqCst). Cicli di inserimento/rilascio: **5** in tutte e due le corse; intervallo con il guardiano inserito: r1 minimo 1.921 ms, mediana 2.021 ms, massimo 2.222 ms; r2 minimo 2.122 ms, mediana 2.123 ms, massimo 2.222 ms. Frazione di accettazioni offerte rifiutate con `E_PROJECTION_LAG`: 1.027 su 6.499 (15,8 %) e 1.075 su 6.499 (16,5 %). Il livello di rilascio uguale a quello di inserimento e' un'**ipotesi** (nessuna isteresi): in queste corse produce cicli di circa 2 s di rifiuto con ritardo del tick che oscilla attorno a 1 s.
+
+Crash (`slowdb-serial-crash`, guardiano spento, kill a ritardo del tick di 3.138 ms e 3.142 ms): **kill -> READY 117 ms (r1) e 119 ms (r2)**, accanto al limite di recupero di **30.000 ms** di NFR-15; eventi riletti dal bus alla ripresa **9.771 (r1) e 9.795 (r2)** (nella corsa di prova 10.062); dal READY al ritorno sotto 1 s del ritardo **908 ms** in tutte e due. `verify OK` dopo il riavvio. Il tempo di recupero dopo un crash con un arretrato di 3 s non e' quindi una funzione del ritardo accumulato: il motore rilegge dal bus la posizione applicata e riparte in circa 0,1 s piu' circa 1 s di arretrato da riapplicare. (misurata; con il ritardo di 20 ms per transazione acceso fino al kill e spento al riavvio)
+
+### Cosa fa ogni layout quando il ritardo supera 1 s (misurata)
+
+- **Due scrittori, guardiano spento (oggi):** il ritardo supera 1 s dopo 1,3-1,6 s dall'accensione; il motore NON continua ad accettare: rifiuta 739-811 accettazioni su 6.500 con `E_PROJECTION_DOWN` per busy, il che limita la crescita del ritardo (picco 6,5-8,6 s). RSS +6 MB. Recupero 1,9-2,6 s (aiutato dai rifiuti, che riducono il lavoro in arrivo).
+- **Un scrittore, guardiano spento:** accetta tutto (0 rifiuti), il ritardo supera 1 s dopo 2,0 s e cresce per tutta la tenuta fino a 9,6-9,7 s; RSS +13 MB; `pending_locs` invariato; recupero 3,3-3,5 s dopo lo spegnimento. L'accettazione di lavoro che la proiezione non segue dura oltre i 10 s di ritardo, quindi il limite di AD-2 (1 s) e' rotto per tutta la tenuta senza nessun avviso.
+- **Un scrittore, guardiano a 1 s:** il ritardo non supera 1,9 s (1.944 e 1.870 ms), rifiuta il 16 % delle accettazioni con `E_PROJECTION_LAG` (codice dedicato), RSS +1 MB, nessun busy, `start_ready` p99 uguale agli altri bracci (45-46 ms). Lo sfarfallio (5 cicli da circa 2 s) e' un effetto del livello di rilascio uguale a quello di inserimento.
+- **Latenza di accettazione e `start_ready`:** uguali in tutti i bracci (p50 27-28 ms e p99 62-67 ms per l'accettazione, `start_ready` p99 43-46 ms). In questo blocco non c'e' una corsa senza ritardo accanto, quindi non si dice cosa il ritardo aggiunge; i valori sono accanto a NFR-2 (p99 25 ms, p50 5 ms) solo come riportati: il valore e' sopra quei limiti anche nei bracci seriali senza rifiuti (accettazione del motore `accept_engine` p50 27 ms, p99 62-64 ms, uguale in tutti i bracci); senza una corsa di confronto non si attribuisce al ritardo.
+
+### Due opzioni per l'ADR (non costruite, nessuna raccomandazione)
+
+- **A, continua ad accettare e il ritardo cresce.** Nessun rifiuto, nessuna perdita (`verify OK`), RSS che cresce (+13 MB in 25 s a 1.000 att./s con un arretrato di circa 9,6 s), limite di 1 s di AD-2 rotto per tutta la tenuta, recupero in pochi secondi dopo il rilascio. Serve un avviso al ritardo oltre 1 s (FR-48) per non farlo passare in silenzio.
+- **B, rifiuta oltre 1 s con `E_PROJECTION_LAG`.** Il ritardo resta sotto circa 2 s, RSS quasi invariato, ma circa il 16 % delle accettazioni offerte e' rifiutato in questo scenario, con rifiuti a ondate di circa 2 s finche' il livello di rilascio e' uguale a quello di inserimento. Serve una scelta sul livello di rilascio (isteresi) e sul codice per il cliente (C-7).
+
+### Conseguenza di disegno per AD-2: lo scrittore unico su SQLite
+
+Con SQLite la proiezione deve avere **un solo scrittore** per processo, non un proiettore per tenant: due scrittori sullo stesso file si contendono l'unico lock di scrittura e, appena un commit rallenta, uno finisce in «database is locked» oltre `busy_timeout` e il motore lo scambia per proiezione ferma, con rifiuti di accettazione che non dipendono dal ritardo ma dal layout. Un mutex nel processo (`proj_serial=1`) basta a evitarlo nel prototipo (0 busy, 0 rifiuti nei bracci seriali); con Postgres (MVCC) non c'e' un unico lock di scrittura e la conseguenza non vale. Il criterio sul busy a 10.000 att./s (tappa 5) va misurato con questo layout, non con due scrittori.
+
+### Non coperto
+
+Postgres; il database fermo (scena `dbdown`, gia' misurata) e il disco pieno; il criterio sul busy a 10.000 att./s; una corsa senza ritardo accanto (il costo del ritardo sulla latenza di accettazione); livelli di rilascio del guardiano diversi dall'inserimento; piu' di un motore; il ritardo con il worker rumoroso. La causa dei rifiuti `E_PROJECTION_DOWN` e' quella dell'ultimo errore registrato (con due proiettori puo' non essere quella del proiettore fermo).
+
+### Comandi per rifare
+
+Su minisheep, in `~/ttspikebus` (binario `bin/busspike-slowdb-4ab1fe1`, `.env` da `./gen-env.sh`): `IGGY_SEGMENT_SIZE=1048576 ARM_BIN=$HOME/ttspikebus/bin/busspike-slowdb-4ab1fe1 ARM=SLOWDB-<scena> ./brun.sh risultati/<file> ./scen.sh iggy sqlite <scena>` con scena `slowdb`, `slowdb-serial`, `slowdb-serial-guard`, `slowdb-serial-crash`.

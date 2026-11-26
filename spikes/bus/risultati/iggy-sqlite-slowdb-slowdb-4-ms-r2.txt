@@ -1,0 +1,57 @@
+[stato prima 01:32:36] load: 1.42 1.99 1.87
+[stato prima] io: some avg10=0.22 avg60=12.77 avg300=19.42 total=21891590010
+[stato prima] cpu: some avg10=0.00 avg60=0.81 avg300=1.22 total=2375078911
+[stato prima] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato prima] braccio: SLOWDB-slowdb
+[stato prima] binario sha256:47be4b2ee7224fdf
+[stato prima] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=7.74ms p99=17.90ms p99.9=48.80ms max=48.80ms over100ms=0
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 0.04
+[attesa] 45 s
+### iggy + sqlite: slowdb 
+cpu: motore/worker/bus/db=1-4 carico=8-11 wconn=1 kgroups=4 maxb=1024 minb=64
+engine pid=12940 READY recovered_ms=735 now_us=1795653166003875 gen=1
+load tenants=ab rate=100/s kind=0 n=10 size=1024 work_ms=0 warm=5s measured=60s
+offered=6500 accepted=5761 refused_E_PROJECTION_DOWN=739 errors=0 overload_skipped=0
+errors_by_type {"Unavailable:E_PROJECTION_DOWN": 739}
+accept_rtt_open_loop n=5262 p50=27.42ms p99=63.49ms p99.9=86.02ms max=107.07ms over100ms=1
+activities_per_s=876 accepted_per_s=88
+accept_engine n=5261 p50=26.99ms p99=63.13ms p99.9=85.76ms max=106.62ms over100ms=1
+start_ready n=52576 p50=17.70ms p99=44.99ms p99.9=66.05ms max=85.25ms over100ms=0
+verify: accettate=5761 concluse_nella_proiezione=5710 accettate_perse=51 attivita_concluse=57254 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=108 payload_illeggibili=0 light=true
+verify FALLITA
+verify: accettate=5761 concluse_nella_proiezione=5761 accettate_perse=0 attivita_concluse=57610 done_events!=1:0 attivita_aperte_in_esecuzioni_concluse=0 eventi_Done_sul_bus=0 duplicati_sul_bus=0 payload_decifrati=110 payload_illeggibili=0 light=true
+verify OK
+JUDGE verify OK (0 accettate perse) valore=1 atteso=1 PASS
+-- curva del ritardo a tick di 100 ms, finestre da 10 s (tick_lag_max_ms, tempo sopra 1 s, RSS, pending_locs, busy, rifiuti per ritardo, guardiano):
+LAG10 t=10 tick_lag_max_ms=290 over1s_ms=0 rss_kb=29604 pending_locs=18 busy_hits=0 refused_lag=0 guard=0
+LAG10 t=20 tick_lag_max_ms=2679 over1s_ms=2600 rss_kb=30768 pending_locs=0 busy_hits=3 refused_lag=0 guard=0
+LAG10 t=30 tick_lag_max_ms=4434 over1s_ms=10000 rss_kb=32640 pending_locs=0 busy_hits=13 refused_lag=0 guard=0
+LAG10 t=40 tick_lag_max_ms=8301 over1s_ms=10000 rss_kb=35808 pending_locs=0 busy_hits=20 refused_lag=0 guard=0
+LAG10 t=50 tick_lag_max_ms=8592 over1s_ms=3400 rss_kb=36128 pending_locs=0 busy_hits=20 refused_lag=0 guard=0
+LAG10 t=60 tick_lag_max_ms=294 over1s_ms=0 rss_kb=36136 pending_locs=0 busy_hits=20 refused_lag=0 guard=0
+-- ritardo acceso (PROJ_DELAY_ON) 1795653182348676; spento (PROJ_DELAY_OFF) 1795653207359717; ritardo sopra 1 s (LAG_OVER1S) 1795653183687359: 1338 ms dopo l'accensione; sotto 1 s di nuovo (LAG_UNDER1S) 1795653209961797: 2602 ms dopo lo spegnimento (recupero)
+-- contatori finali: lag tick_lag_now_ms=0 tick_lag_max_ms=8592 over1s_ms=26000 busy_hits=20 refused_lag=0 pending_locs=0 down_busy=739 down_other=0
+-- start_ready e proj_lag: start_ready n=52811 p50=17.70ms p99=44.96ms p99.9=66.05ms max=85.25ms over100ms=0;proj_lag n=163795 p50=192.51ms p99=8286.21ms p99.9=8593.41ms max=8634.37ms over100ms=130288;
+-- accettazioni offerte e rifiutate (frazione), per codice: offerte 6500 riuscite 5761 ; errors_by_type {"Unavailable:E_PROJECTION_DOWN": 739}
+-- E_PROJECTION_DOWN per causa dell'ultimo errore del proiettore (busy / altro): down_busy=739 down_other=0
+-- errori di database «locked/busy» arrivati al proiettore e righe 'proiezione ferma': 20 ; 20
+JUDGE posizioni del bus tagliate oltre la posizione applicata (righe E_POSIZIONE_PERSA) valore=0 atteso=0 PASS
+-- primo offset leggibile del bus per topic (trim non vuoto se > 0): state-0000000000007000800000000000000a 89276;state-0000000000007000800000000000000b 87408; posizione applicata: state-0000000000007000800000000000000b 89280;state-0000000000007000800000000000000a 89311;
+JUDGE primo offset leggibile oltre la posizione applicata (conteggio topic) valore=0 atteso=0 PASS
+MIN t=1 act_s=775 append_p50_ms=12.5 sub_p50_ms=8.3 lag_p50_ms=205 lag_p99_ms=8298 proj_read_p50_ms=0.4 proj_arch_p50_ms=3.8 proj_db_p50_ms=4.6 proj_groups=2923 held_max=0 tick_lag_max_ms=8592 pending_locs=55 io=[some avg10=36.10 avg60=30.11 avg300=23.09 total=21917809943]
+-- RSS dopo la corsa (motore, worker, bus)
+rss iggy 76048 kB
+rss pid=12940 36140 kB
+rss pid=13023 16776 kB
+-- conteggio file archivio: 118
+sql: SELECT count(*) FROM timer t JOIN activity a ON a.exec_id=t.exec_id AND a.step=t.step WHERE a.done_us IS NOT NULL
+timer_rows_for_finished_activities: 0; timer_rows_total: 0
+busy_hits_engine_log: 20
+[stato dopo 01:33:55] load: 3.70 2.51 2.06
+[stato dopo] io: some avg10=32.30 avg60=30.59 avg300=23.45 total=21920622732
+[stato dopo] cpu: some avg10=2.02 avg60=1.95 avg300=1.49 total=2377314797
+[stato dopo] container non nostri non in esecuzione stabile: 7; in esecuzione: 12
+[stato dopo] braccio: SLOWDB-slowdb
+[stato dopo] binario sha256:47be4b2ee7224fdf
+[stato dopo] pavimento fdatasync: fsync-floor /home/white_sheep/.cache: n=300 p50=2.83ms p99=3.54ms p99.9=4.38ms max=4.38ms over100ms=0
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.04
