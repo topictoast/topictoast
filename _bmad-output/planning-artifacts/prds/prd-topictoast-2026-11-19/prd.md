@@ -2,7 +2,7 @@
 title: topictoast — PRD
 status: final
 created: 2026-11-19
-updated: 2026-11-23
+updated: 2026-11-26
 ---
 
 # PRD: topictoast
@@ -495,6 +495,8 @@ Il workflow dichiara timeout per task e per l'intera esecuzione.
   l'attività per timeout del task e non consuma tentativi; resta comunque limitata da un tempo
   documentato (NFR-14). Un'attività rimasta in coda per quota più a lungo del timeout del suo
   task, una volta consegnata, si completa normalmente.
+- Il timeout dell'esecuzione conta dall'accettazione (FR-9): comprende l'attesa in coda e i
+  tentativi.
 
 #### FR-9: Durabilità
 
@@ -515,7 +517,9 @@ L'integratore e il tenant possono annullare un'esecuzione in coda o in esecuzion
 
 **Conseguenze:**
 - Nessuna nuova attività parte dopo l'annullamento; i worker e la sandbox ricevono la richiesta di
-  fermare le attività in corso.
+  fermare le attività in corso. Se topictoast si riavvia per un guasto subito dopo aver registrato
+  l'annullamento, la richiesta può non arrivare: l'attività in corso può arrivare in fondo, e il
+  suo esito viene scartato.
 - L'esecuzione risulta annullata nello storico, con chi l'ha annullata (ruolo e, se presente,
   nome visualizzato) e quando.
 
@@ -1345,7 +1349,7 @@ senza obiettivo.
 
 | ID | Requisito | Obiettivo v1 | Come si misura |
 |---|---|---|---|
-| NFR-1 | RAM a riposo | ≤ 80 MB | somma dell'RSS dei processi di topictoast in esecuzione (il motore e ogni processo ausiliario attivo) e del bus, con SQLite, 60 s dopo l'avvio, con l'insieme di dati dichiarato (tenant, workflow, storico), nessuna esecuzione né pipeline stream attiva; esclusi worker, stato delle pipeline stream e pool della sandbox forte (FR-54) |
+| NFR-1 | RAM a riposo | ≤ 80 MB | somma dell'RSS dei processi di topictoast in esecuzione (il motore e ogni processo ausiliario attivo), con SQLite, 60 s dopo l'avvio, con l'insieme di dati dichiarato (tenant, workflow, storico), nessuna esecuzione né pipeline stream attiva; esclusi worker, stato delle pipeline stream e pool della sandbox forte (FR-54); la RAM del bus si riporta accanto e non si giudica (nello spike del bus Iggy usa 72-76 MB a riposo) |
 | NFR-2 | Latenza di avvio delle attività | p50 ≤ 5 ms, p99 ≤ 25 ms | dal momento in cui l'attività è pronta (dipendenze soddisfatte) a quando il worker la riceve; worker sulla stessa macchina, carico di 1.000 attività/s |
 | NFR-3 | Throughput | ≥ 10.000 attività/s | attività vuote (la funzione risponde subito), worker sulla stessa macchina, sostenuto per 10 minuti; il p99 di avvio delle attività è riportato anche a questo ritmo |
 | NFR-4 | Carico sul database | ≤ 5 istruzioni SQL per attività | media sull'intero ciclo di vita dell'attività durante il test di NFR-3; il confronto con Hatchet, sullo stesso carico, è in SM-2 |

@@ -547,8 +547,8 @@ flowchart TB
   numeri e resta una direzione futura sotto gRPC per i worker dietro NAT.
 - **Criteri mancati, registrati nell'ADR:** accettazione p99 oltre 25 ms (34 ms con la consegna
   scelta, 29-38 ms anche senza timer in una serie); avvio p99 oltre 25 ms con un tenant vicino a
-  500 att./s che scrive righe (FR-59) e in una serie anche da solo; RAM a riposo oltre NFR-1 (Iggy
-  in deroga, l'ausiliario oltre). Quello che resta aperto è nelle Open Questions.
+  500 att./s che scrive righe (FR-59) e in una serie anche da solo; RAM a riposo con il bus oltre gli 80 MB (il PRD,
+  dal 2026-11-26, conta in NFR-1 solo i processi di topictoast: 40,3 MB misurati). Quello che resta aperto è nelle Open Questions.
 
 ### S-2 — Sandbox
 
@@ -897,7 +897,6 @@ docs/
 | Versione del formato di payload, checkpoint ed export che il motore nuovo deve rileggere dopo un aggiornamento (FR-51, PRD §6). I messaggi del bus non si rileggono tra versioni: l'aggiornamento parte da un bus nuovo e vuoto e riversa dal database (ADR del bus) | architettura | spec della prima storia di aggiornamento (FR-51) |
 | Tetto della memoria del motore quando il database resta lento a lungo (si accetta e si avvisa, AD-2): oltre quale ritardo o memoria vale la regola del database fermo. Misurato solo un rallentamento di 25 s (+13 MB a 9,7 s di ritardo) | architettura | prima della prima storia del proiettore (Epic 1) |
 | Latenza con tutti i pezzi insieme: accettazione p99 oltre 25 ms; avvio p99 di un tenant tra 19,7 e 25,6 ms in serie diverse e oltre 25 ms con un vicino rumoroso (FR-59); consegna scelta, scrittore unico, ausiliario, log e sentinella mai misurati insieme, scrittore unico a 10.000 att./s solo per 5 minuti (ADR del bus) | architettura; Marco per i limiti | benchmark di base (FR-53) sul motore completo, prima del rilascio della v1 |
-| Riallineamento del PRD dopo S-1: NFR-1 (deroga per Iggy; con l'ausiliario 113,8 MB a riposo, oltre la deroga), FR-8 (la scadenza dell'esecuzione parte dall'accettazione), FR-10 (dopo un crash del motore lo stop è al meglio) | Marco | Update del PRD prima dello sprint 1 |
 | Cancellazione del tenant contro il proiettore unico (C-13 contro AD-2): con la chiave cancellata il proiettore non decifra gli eventi non ancora applicati e si ferma per tutti; C-13 non dice chi cancella le righe proiettate. Proposta della revisione: la lapide è un evento che il proiettore applica in ordine, cancellando lui le righe e scartando gli eventi del tenant; la chiave e il topic si cancellano dopo | Marco (C-13 è approvata) | prima della storia di eliminazione del tenant (FR-31) |
 | Numerazione delle righe di log: l'ADR dei log la dà allo scrittore; lo spike l'ha data al worker (numero del pezzo = primo numero di riga, conferma cumulativa, rinvio delle righe non confermate) e l'ha provata con il crash del motore; righe arrivate dopo un annullamento o una scadenza | Marco (ADR dei log approvata) | spec della prima storia dei log dei task (FR-59) |
 | Esito da una sessione diversa (C-2 dice: solo dalla sessione del worker che ha ricevuto il tentativo): lo spike accetta l'esito da qualunque sessione se porta la consegna corrente, o una consegna di prima della ripresa, e su questo poggiano 0 attività rifatte dopo un aggiornamento e 0 tentativi doppi dopo un crash | Marco (C-2 è approvata) | spec della prima storia del collegamento dei worker |
