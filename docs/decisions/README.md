@@ -29,7 +29,7 @@ E-1…E-9 il 2026-11-21 (memlog, voci 62 e 63), e la PR della spine li porta su 
 | [2026-11-23-dependency-licenses.md](2026-11-23-dependency-licenses.md) | Licenze ammesse per le dipendenze: permissive e MPL-2.0 non modificata | Stack | accettata |
 | [2026-11-23-function-invocation.md](2026-11-23-function-invocation.md) | Funzioni e nodi chiamati dal catalogo predefinito di OWS, nodi con il prefisso `node.` | AD-20 | accettata |
 | [2026-11-23-task-logs.md](2026-11-23-task-logs.md) | Log dei task: pezzi per tentativo nell'archivio dei payload, segnaposto dei segreti all'origine e nel motore | AD-17 (esteso) | accettata |
-| [2026-11-26-bus.md](2026-11-26-bus.md) | Bus della v1 (S-1): Apache Iggy, worker dal motore su gRPC con TLS, consegna «invia prima, registra dopo», una corsia di scrittura con SQLite | AD-1, AD-2, AD-3, AD-12, AD-17, AD-18, C-8 | proposta |
+| [2026-11-26-bus.md](2026-11-26-bus.md) | Bus della v1 (S-1): Apache Iggy, worker dal motore su gRPC con TLS, consegna «invia prima, registra dopo», una corsia di scrittura con SQLite | AD-1, AD-2, AD-3, AD-12, AD-17, AD-18, C-8 | accettata |
 
 Gli spike S-1…S-4 chiudono ciascuno con un ADR misurato (`bus`, `sandbox`, `stream-pipelines`,
 `kit-browser`) che aggiorna gli AD indicati nella spine.
