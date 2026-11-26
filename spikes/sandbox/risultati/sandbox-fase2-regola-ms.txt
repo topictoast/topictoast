@@ -8,7 +8,7 @@ senza togliere le precedenti.
 
 Strumenti
 ---------
-- Codice: commit 9bc1d11 (`spikes/sandbox`, crate `sbxspike`), toolchain 1.99.1, wasmtime e wasmtime-wasi
+- Codice: commit 33d68a4 (`spikes/sandbox`, crate `sbxspike`), toolchain 1.99.1, wasmtime e wasmtime-wasi
   50.0.3 (eccezione di sicurezza, RUSTSEC-2026-0566...0573 e 0587), javy 9.1.0 (CLI dal rilascio ufficiale,
   impronta verificata: per la CLI non esiste un crate su crates.io), plugin di javy con `javy-plugin-api`
   7.1.0, `wit-bindgen` 0.63.0, `serde_json` 1.0.154.
@@ -104,12 +104,15 @@ L7 nessun residuo (FR-17). Scenario `residue`, 4 moduli ostili in giri (10, 100,
 L8 un processo per tenant (FR-16). Scenario `sentinel`, due ausiliari A e B (J e `pool+epoch`), valori
   sentinella casuali per ogni corsa, 128 bit, passati mascherati con XOR 0x5A così che chi cerca non tenga mai
   una copia in chiaro. Metodo: lettura della memoria leggibile del processo da due vie, dal processo stesso
-  (`/proc/self/mem`) e dal pilota (`/proc/<pid>/mem`, stesso utente: Yama `ptrace_scope` è assente su minisheep,
-  quindi la seconda via funziona; dove fosse negata si riporta solo la prima). Giudicato: il valore di B in A e
+  (`/proc/self/mem`) e dal pilota (`/proc/<pid>/mem`: su minisheep Yama `ptrace_scope` vale 1, che consente di
+  leggere la memoria dei propri discendenti; il pilota è il genitore dei due ausiliari, quindi la seconda via
+  funziona; dove fosse negata si riporta solo la prima). Giudicato: il valore di B in A e
   il valore di A in B compaiono 0 volte con tutte e due le vie, mentre il controllo positivo (il valore di B in
   B, e di A in A, con l'istanza tenuta viva) compare almeno 1 volta. Riportato soltanto: dopo il rilascio delle
   istanze, quante copie del valore restano nello stesso processo (stesso tenant; mostra che la memoria non si
-  azzera, quindi il confine è il processo e non la pulizia della memoria). Non misurati: core dump, swap.
+  azzera, quindi il confine è il processo e non la pulizia della memoria); e l'ausiliario A (processo non
+  antenato di B) che legge la memoria di B: lo nega Yama, non topictoast, quindi si riporta senza giudicarlo.
+  Non misurati: core dump, swap.
   Si riporta solo la presenza o assenza, mai il valore. Corse: 3.
 
 L9 TypeScript e Rust girano (FR-15). Scenario `l9`, J, modulo per modulo. Giudicato: esito senza errori, uscita
