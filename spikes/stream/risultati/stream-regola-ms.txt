@@ -1,0 +1,103 @@
+Spike S-3 (pipeline stream su DataFusion): regole di lettura, fissate PRIMA delle corse misurate
+================================================================================================
+
+Questo file viene committato prima di ogni corsa misurata. Le soglie sono quelle approvate da Marco il 2026-11-26
+(memlog dell'architettura, voci 177-179) e non cambiano dopo una corsa. Un emendamento è ammesso solo prima di ogni
+corsa misurata, oppure dopo come nota datata che non cambia nessuna soglia. Nessuna corsa si scarta dopo averla vista:
+si scarta solo per i motivi di invalidità scritti qui sotto. Le corse di prova (`-smoke-` nel nome) non contano e
+restano nei file.
+
+Scelte già prese da Marco (2026-11-26), non si riaprono
+-------------------------------------------------------
+- Spike tutto in un blocco: un piano unico (`PIANO.md`), soglie approvate una volta, correttezza prima del ritmo.
+- Caso: l'esempio di UJ-3 del PRD (conteggio per ASN su finestre fisse di 5 minuti, righe con più di 50 indicatori,
+  un avvio del workflow per riga), assunzione finché non arriva un caso reale.
+- Predefiniti: ritardo tollerato 10 s; tolleranza nel futuro 60 s; checkpoint ogni 10 s; attesa di quiete 30 s;
+  quota di stato 64 MiB per pipeline.
+- Destinazione stream: solo correttezza (C7), nessuna misura di ritmo.
+- RAM del processo per tenant: riportata, senza soglia (M1).
+- Avvio a freddo del ruolo: p50 ≤ 100 ms e p99 ≤ 250 ms, confinamento compreso (obiettivo dell'ADR della sandbox).
+
+Che cosa è il codice (si completa prima della prima corsa misurata)
+--------------------------------------------------------------------
+Crate `spikes/stream`, binario `streamspike`, toolchain 1.99.1, `datafusion` =55.2.0 con `default-features = false`
+e le sole funzioni `sql`, `datetime_expressions`, `string_expressions`, `unicode_expressions`, `recursive_protection`.
+Prima della prima corsa misurata si aggiungono qui, come emendamento datato: commit del codice, sha256 del binario,
+cartella di compilazione, esito di OSV sul `Cargo.lock` (nessun avviso aperto, o le versioni portate alla correzione
+con l'avviso citato), lista delle syscall del ruolo `stream` (file nel commit) e la macchina con i core assegnati.
+
+Componenti misurati, e solo loro:
+- `engine`: API di FR-18 a blocchi (al massimo 1.000 eventi o 1 MiB per blocco), istante di arrivo nel blocco, Arrow
+  IPC, cifratura C-12 con la chiave del tenant, append su Iggy e risposta 200 solo dopo la scrittura durevole;
+  avvii con idempotenza (chiave C-4) in SQLite con `synchronous=FULL`; supervisore dei processi per tenant; segnali
+  durevoli ogni secondo sugli stream senza blocchi.
+- `stream`: un processo per tenant, confinato con il profilo di prodotto (nessuna modalità di prova nelle corse
+  misurate, salvo i controlli positivi di V2 e A2 che lo dichiarano nel nome del file).
+- `load`: il generatore. Seme scritto nel file grezzo; registro di ogni blocco con la sua `Idempotency-Key` e l'esito
+  (200, errore, nessuna risposta); riprova un blocco senza risposta con la stessa chiave fino al 200.
+- `check`: l'oracolo, fuori dal percorso misurato.
+
+Definizioni
+-----------
+- **Accettato:** un blocco con risposta 200 nel registro del generatore. Un evento accettato è un evento di un blocco
+  accettato. Un blocco senza risposta e poi accettato alla riprova conta una volta.
+- **Oracolo:** dal seme e dal registro, `check` ricalcola ogni finestra chiusa (inizio, fine, gruppo, aggregati) con
+  le stesse regole di watermark, ritardo, futuro e quiete, scritte in modo indipendente dal codice della pipeline
+  (un ciclo semplice sugli eventi, senza DataFusion).
+- **Perso:** un evento accettato che l'oracolo conta in una finestra chiusa e la pipeline di verifica no.
+- **Contato due volte:** il conteggio di un gruppo della pipeline di verifica sopra quello dell'oracolo.
+- **Un avvio per riga:** l'insieme delle chiavi C-4 accettate dal motore uguale all'insieme delle righe dell'oracolo
+  (nessuna mancante, nessuna in più); i tentativi doppi assorbiti dall'idempotenza si contano e si riportano.
+- **Pipeline di verifica:** stessa finestra e stessi gruppi della query sotto prova, senza filtro e senza `HAVING`,
+  nello stesso processo. Si usa in C1-C4, T2 e S1; non in T1.
+- **Ritardo del consumatore:** ultima posizione accettata sullo stream meno posizione elaborata dalla pipeline, in
+  eventi, campionata ogni 5 s.
+
+Validità di una corsa
+---------------------
+Una corsa misurata è valida se tutte queste condizioni sono vere e scritte nel file grezzo:
+1. Cancello di quiete prima della corsa (lo stesso dello spike del bus): carico a 1 minuto < 1,5 e pressione I/O
+   `some avg10` < 1 %. Si registrano anche il pavimento di `fsync` e la pressione I/O, senza farne un cancello.
+2. Dati vuoti all'inizio: topic di Iggy, cartella dei checkpoint e database degli avvii appena creati.
+3. Il binario ha lo sha256 dichiarato qui; seme e parametri sono nel file.
+4. Nessun processo o container non proprio è stato toccato; i 12 container dei runner restano come prima (elenco
+   prima e dopo nel file).
+
+Si scarta, con il motivo scritto e la corsa rifatta una sola volta, solo per: cancello non passato all'inizio,
+binario diverso, guasto del generatore o dell'oracolo (non del sistema sotto prova), disco di minisheep pieno,
+interruzione a mano. Un crash, un blocco o un errore di `engine` o di `stream` è un risultato, mai un motivo per
+scartare.
+
+Prove, corse e verdetti
+-----------------------
+Le soglie sono quelle della tabella di `PIANO.md`, sezione 3. Qui il numero di corse e la lettura.
+
+- V1, V2, V3 (dialetto, barriere, memoria ostile): una corsa per query della lista. Supera se ogni query è
+  classificata come scritto. V2 riporta, per ogni query ostile, quale strato l'ha fermata con gli altri strati spenti.
+  V3 riporta anche il controllo con il solo pool di DataFusion (senza limite del sistema): che cosa succede, misurato.
+- A1 (avvio a freddo): 3 corse da 200 riavvii. Supera se p50 ≤ 100 ms e p99 ≤ 250 ms in tutte e tre.
+- A2 (confinamento): 3 corse. Supera se 0 fughe in tutte e tre; un controllo positivo senza confinamento deve trovare
+  le fughe (altrimenti la prova non vede nulla e la riga non supera).
+- C1-C7 (correttezza): 3 corse ciascuna, con semi diversi scritti prima. Supera se tutte e tre rispettano la soglia.
+  C4: 5 kill -9 per corsa (3 del processo per tenant, 2 del motore), a istanti presi dal seme, dentro finestre aperte.
+  C3: un kill del processo per tenant durante la quiete, confrontato con la stessa corsa senza kill.
+- I1 (isolamento): 3 coppie da 5 minuti, controllo e prova alternati (A da solo, poi A con B); l'ordine della prima
+  coppia si tira dal seme. Supera se la soglia vale in tutte e tre le coppie.
+- T1 (ritmo): 3 corse da 10 minuti. Supera se tutte e tre rispettano la soglia; **con riserva** se due su tre; non
+  supera se una o nessuna. Nessuna corsa in più senza Marco.
+- T2 (guasto a ritmo pieno): 2 corse da 10 minuti. Supera se 0 persi, 0 doppi e un avvio per riga in tutte e due.
+  Il ritmo di T2 si riporta e non si giudica (c'è la pipeline di verifica in più).
+- T3, M1: riportati, senza verdetto. La quota del motore vero in M1 è la stima di 26,5 MB dallo spike del bus,
+  etichettata come stima.
+- S1 (sentinella): dopo ogni corsa di T2. Supera se 0 occorrenze in chiaro e il controllo positivo la trova.
+
+Condizione di arresto
+---------------------
+Se C1 o C4 non superano, lo spike si ferma prima di I1, T1 e T2 e si torna da Marco con i numeri. Un'altra riga che
+non supera non ferma lo spike: si riporta e si prosegue.
+
+Che cosa si scrive nei risultati
+--------------------------------
+Per ogni riga: verdetto, valori letti sui file grezzi, nome del file. Ogni causa è «misurata» (con file grezzo) o
+«ipotesi»; un fatto visto senza file è «osservato senza file grezzo»; una corsa fuori da queste regole è «fuori dalle
+regole» e non conta per il verdetto.
