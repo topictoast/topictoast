@@ -1,0 +1,219 @@
+Spike S-2, fase 3 (livello forte, microVM Firecracker con pool): regole di lettura, fissate PRIMA delle corse misurate
+====================================================================================================================
+
+Questo file viene committato prima di ogni corsa misurata. Le soglie di S1, S2 e S3 sono quelle decise da Marco il
+2026-11-26 e non cambiano dopo una corsa; per le altre righe valgono i criteri della sezione 8 di `fase1-tavolino.md`
+(«Fase 3: livello forte»). Nessuna corsa si scarta dopo averla vista: si scarta solo per i motivi di invalidità scritti
+qui sotto. Le corse di prova (`-smoke-` nel nome) non contano e restano nei file.
+
+Scelte già prese da Marco (2026-11-26), non si riaprono
+-------------------------------------------------------
+- Firecracker v1.18.0 (tgz del rilascio ufficiale, impronta verificata prima di estrarre; si esegue solo il binario
+  `firecracker`; il jailer e gli altri file estratti non si eseguono).
+- Stesso formato di modulo del livello leggero (modulo core, wasmtime 50.0.3 nel guest, eccezione di sicurezza come in
+  fase 2).
+- Soglie: avvio con una microVM libera nel pool ≤ 10 ms (NFR-12); ripristino da snapshot con pool vuoto ≤ 200 ms;
+  microVM ferma nel pool ≤ 100 MB.
+
+Strumenti e metodi
+------------------
+- Codice: commit `27341f5` (`spikes/sandbox`, crate `sbxspike`, stesso crate della fase 2: sottocomandi `agent` e `fc`
+  nuovi), toolchain 1.99.1, wasmtime e wasmtime-wasi 50.0.3, nessuna dipendenza nuova. Il binario si costruisce sul
+  portatile con `RUSTFLAGS="-C target-feature=+crt-static"` per `x86_64-unknown-linux-gnu` (statico: gira uguale
+  sull'host e nel guest Ubuntu 24.04, che ha una glibc più vecchia di quella dell'host) e si copia su minisheep come
+  `sbxspike3`. Lo stesso file è il pilota sull'host e l'agente nel guest. sha256 del binario:
+  `c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2`.
+- Scaricamenti, solo su minisheep in `~/ttspikesandbox/fc/dl/`, solo i tre autorizzati: Firecracker v1.18.0 x86_64 (tgz
+  sha256 `1ac8eec866dd5eea14efecf6323e22b23eea24054545338a5b34bc5bca6623cd`, verificata col file `.sha256.txt` del
+  rilascio; binario `firecracker-v1.18.0-x86_64` sha256 `b33f46cd6d88834cf6a4f8d184f08f219809c636236bffd286d233a60602a2ba`),
+  kernel del guest `vmlinux-6.1.155` della CI di Firecracker (sha256
+  `e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2`), rootfs `ubuntu-24.04.squashfs` (sha256
+  `68321e0482baeb3844dafe8a6b08a6902401a7afc41fbfd8c3d9ea08aadd244f`): usati solo come immagini del guest. L'elenco
+  dei kernel supportati dell'host (5.10, 6.1, 6.18) non include il 7.2.4 di minisheep: è la riga S8.
+- Agente nel guest, in un disco ext4 a parte: `mkdrive.sh` copia il binario in una cartella e costruisce l'immagine con
+  `mkfs.ext4 -d` (nessun mount, nessun root; 64 MiB, senza giornale), montata in sola lettura come secondo disco
+  (`/dev/vdb`). Impronta dell'immagine usata in tutte le corse misurate: `754da5fd45f7018dbae8bf4671a5f83263e6db4eb539db92e683805fdb63c075`
+  (l'immagine non si ricostruisce tra una corsa e l'altra: ogni ricostruzione cambia l'impronta per le date interne).
+- Avvio del guest: il rootfs di CI (squashfs, sola lettura) è il disco di avvio; non ha `/mnt`, e non contiene l'agente.
+  Catena di avvio, provata: `init=/bin/sh -- -c "mkdir /dev/agent && mount -t ext4 -o ro,noload /dev/vdb /dev/agent && exec
+  /dev/agent/sbxspike agent"` (le virgolette passano intatte dalla riga di comando del kernel). L'agente è il PID 1,
+  monta `/proc` e `/tmp` (tmpfs), crea il motore wasmtime una volta, ascolta sul vsock (porta 5000). Argomenti del kernel:
+  `reboot=k panic=1 pci=off i8042.noaux i8042.nomux i8042.nopnp i8042.dumbkbd root=/dev/vda ro rootfstype=squashfs
+  sbx_guest=1 quiet loglevel=0` (senza console seriale nelle corse misurate; `sbx_guest=1` abilita i comandi `native`,
+  rifiutati sull'host). Una vCPU, 128 MiB salvo dove la riga dice altro.
+- Snapshot: avvio a freddo, attesa del ping sul vsock, 1,5 s di quiete, pausa, snapshot completo (`Full`) con l'agente in
+  `accept` e senza dati di tenant; mai dopo l'esecuzione di un nodo. Ripristino con `mem_backend` di tipo `File` (la
+  memoria si mappa `MAP_PRIVATE` dal file; il file resta nella page cache: la lettura da disco freddo non è coperta) e
+  `vsock_override` con un percorso per ogni microVM. Gli snapshot si creano dentro ogni corsa e si cancellano alla fine.
+- Collegamento host-guest solo sul vsock di Firecracker (socket Unix dell'host, `CONNECT 5000`). Nessuna rete, nessuna
+  scheda, nessun tap. Tutti i tempi giudicati sono dell'orologio dell'host (monotonico del pilota); gli orologi del guest
+  (dopo un ripristino sono fermi o fuori fase) non entrano in nessun tempo giudicato; i `t_start` del guest si riportano
+  come informazione.
+- Ogni VMM è un processo figlio del pilota, fermato solo col PID salvato (`kill` sul figlio, mai `pkill`); un panico del
+  pilota ferma le VMM ancora vive per PID. Le VMM e l'ausiliario leggero (ripiego di S7, S9) e il compilatore girano sui
+  core 1-4, il pilota sui core 8-11. Moduli: gli stessi della fase 2 (`~/ttspikesandbox/wasm`), precompilati
+  dall'host con lo stesso `compile` e mandati al guest sul vsock, che li verifica con l'impronta e li carica
+  (`Module::deserialize`: accettato dal guest senza ricompilare, provato).
+- I 12 container dei runner non si toccano. Nessun cambiamento di permessi, di impostazioni di sistema, di cgroup.
+
+Strati di difesa assenti perché non c'è root (da riportare nell'ADR)
+---------------------------------------------------------------------
+Senza root mancano: il jailer (chroot, pivot_root, mknod, unshare, cambio di uid/gid, cartelle cgroup); i cgroup (nessun
+tetto di CPU o di memoria sul processo della VMM: il tetto di RAM è la RAM del guest, quello di CPU è il numero di vCPU,
+e l'overhead della VMM non ha tetto); i namespace di rete e le regole `nft` di uscita (non c'è scheda, quindi il filtro
+dell'uscita e la regola M-30 per la rete della microVM non si possono nemmeno progettare qui); la delega dei cgroup.
+La VMM gira con lo stesso utente del pilota (uid 1000) e vede i file di quell'utente: una fuga dalla VMM atterrerebbe lì.
+Il filtro seccomp predefinito incorporato in Firecracker si carica senza privilegi e resta: la corsa S8 lo legge in
+`/proc/<pid>/task/*/status` e riporta ciò che si misura, non ciò che si assume. **Le fughe dalla VMM (exploit su virtio, sulla
+VMM o su KVM) non sono misurabili qui**: «hostile strong» misura solo ciò che fa il codice dentro il guest. Non si
+misurano nemmeno SMT e le mitigazioni di canale laterale dell'host, il rumore tra vicini a livello di cache, l'arm64
+(NFR-10), la lettura dello snapshot da disco freddo, l'uso di musl (il bersaglio `musl` non è installato nella toolchain
+e installarlo sarebbe uno scaricamento non autorizzato: l'agente è statico con glibc).
+
+Validità di un file grezzo
+--------------------------
+Un file vale per i verdetti solo se tutte queste condizioni sono vere:
+1. `[stato prima HH:MM:SS]` (ora locale di minisheep, CET) è successivo all'ora del commit di questo file (registrata nei
+   risultati; i due orologi, portatile e minisheep, sono stati confrontati prima del commit: 15:23:49 e 15:23:50 UTC);
+2. `[stato prima] binario sha256` è `c8d744c8…97e4b2`, e nella riga `S0` le impronte di Firecracker, kernel, rootfs e
+   disco dell'agente sono quelle scritte sopra;
+3. cancello della macchina ferma come in fase 2 (`ms-run.sh`): carico a 1 minuto < 1,5 e pressione I/O `some avg10` < 1 %
+   all'avvio; se la corsa parte con `[macchina non ferma]` il file si tiene e si riporta ma non conta;
+4. core 1-4 occupati al massimo il 30 % all'avvio (`[stato prima] core 1-4 occupati`); stessa regola dei runner attivi;
+5. `[uscita] 0`, nessun `panicked`, nessun `ABORT` nelle righe `S...` (il pilota si ferma da solo se la memoria
+   disponibile dell'host scende sotto 10 GiB o lo swap usato cresce di oltre 512 MiB: una corsa fermata così non vale, si
+   riporta e **si ferma tutto il lavoro** in attesa di una decisione);
+6. all'avvio nessun processo `firecracker` visibile (`[stato prima] processi firecracker visibili` = 0) e `MemAvailable` ≥
+   20 GB (le righe S5 e S6 stanno lontane dal bordo);
+7. per ogni riga, almeno 3 corse valide (r1-r3); i controlli positivi dicono «presente» dove la riga lo chiede (S4: la
+   sentinella è nella VMM di A; S5: il controllo del file system del guest trova la sua sentinella; S5: il canale vsock
+   verso la porta 7000 funziona); se un controllo positivo manca la corsa non vale.
+Una corsa non valida si rifà **una sola volta** come file nuovo (r4, o il numero successivo); i due file restano e si
+riportano entrambi. Se anche la rifatta non vale, la riga è «non giudicata». Con meno di 3 corse valide una riga si riporta
+ma non si giudica. I percentili sono quelli del pilota: valori ordinati, indice `round((n-1)*p)`; con n = 40 il p99 è
+praticamente il massimo e si riporta come tale. Una riga con un valore che è la soglia o la supera si giudica sul numero
+esatto del file, senza arrotondare.
+
+Letture a, b, c (uguali per ogni riga di tempo o di conteggio, come in fase 2)
+-----------------------------------------------------------------------------
+- a: la soglia regge in ogni corsa valida (almeno 3) e per ogni modulo o caso giudicato nella lettura **larga**: passa.
+- b: regge nella lettura larga ma non nella stretta dichiarata nella riga, oppure regge nella mediana delle corse ma non in
+  tutte: **passa con riserva**; si scrive quale corsa, modulo o lettura manca.
+- c: non regge nella lettura larga, o in più della metà delle corse, o un caso giudicato non ha mai retto: **non passa**.
+Se la lettura stretta passa, anche la larga passa; il verdetto è il peggiore tra «larga» e «stretta» solo nel senso di b.
+
+Le righe
+--------
+S8 (kernel 7.x), scenario `s8`, 3 corse, per prima come prova di fumo. Giudicato: Firecracker v1.18.0 stampa la versione;
+  avvio a freddo fino al ping sul vsock; un nodo (`rust-p1`) senza errori; snapshot creato, ripristinato, ping e nodo
+  senza errori dopo il ripristino; il kernel del guest è quello scaricato. Riportato: tempi di avvio e di ripristino,
+  `Seccomp:` dei thread della VMM, `uname` dell'host. Verdetto: a = tutte le corse sopra riuscite **e** S1-S6 con verdetto
+  «passa» o «passa con riserva» (mai «non passa»: il testo di Marco è «parte e supera S1-S6»); b = parte, ma una riga tra
+  S1-S6 non passa; c = non parte. cloud-hypervisor non si prova (servirebbe un file nuovo, quindi un permesso nuovo).
+
+S1 (NFR-12 forte), scenario `s1`, 3 corse, n = 40 campioni per modulo e per lettura, pool di 6 microVM ripristinate e
+  ferme, una microVM per campione (monouso: dopo il campione si ferma e si ripristina un'altra), 100 ms di quiete tra
+  l'ultima microVM nata e il campione. Moduli giudicati: `empty`, `rust-p1`, `javy-static` (il più grande: artefatto da
+  3,7 MB). Il tempo è tutto dell'orologio dell'host; «il nodo inizia» è il marcatore `started` che l'agente scrive sul
+  vsock un istante prima di entrare nel guest wasm (`_start`/`run`).
+  - Lettura larga (S1a, la formulazione della riga: vsock più istanza nel guest): microVM riservata al tenant, modulo già
+    caricato, collegamento già aperto; tempo da «invio di `run`» a `started`. Giudicato: p50 ≤ 10 ms per ognuno dei tre
+    moduli in ogni corsa.
+  - Lettura stretta (S1b): microVM generica del pool; il tempo parte da «attività pronta» (connessione al vsock con
+    `CONNECT`, invio dell'ingresso e dell'artefatto, `load` con verifica dell'impronta, `run`) fino a `started`. Giudicato:
+    p50 ≤ 10 ms per ognuno dei tre moduli in ogni corsa.
+  Riportati, non giudicati: p90, p99 e massimo (il confronto di riferimento è il p99 ≤ 25 ms di NFR-2, che non è una
+  soglia di questa riga); `host send->done`; il `t_start` interno del guest; S1c (microVM riservata, 300 ripetizioni dopo
+  20 di riscaldamento, collegamento aperto). Non coperto: più richieste insieme, il percorso del motore (gRPC, bus), la
+  rete verso la microVM, il costo della compilazione sull'host (il modulo è già precompilato), pool più grandi.
+
+S2 (FR-54, pool vuoto), scenario `s2`, 3 corse, n = 30 ripristini per `rust-p1` e 10 per `javy-static`; 20 avvii a freddo per
+  `rust-p1` e 10 per `javy-static`. Tempo da «fork della VMM» a «il nodo inizia» (processo Firecracker, API, caricamento
+  dello snapshot, ripresa, primo ping, invio dell'artefatto, `load`, `run`, `started`). Giudicato, lettura larga:
+  ripristino con `rust-p1`, p50 ≤ 200 ms. Lettura stretta: anche il p99 (il massimo con n = 30) ≤ 200 ms, e anche `javy-static`
+  (p50 e massimo ≤ 200 ms). Avvio a freddo: solo riportato (la soglia di Marco è sul ripristino). Riportati: i passi
+  (`fork→primo ping`, `ping→nodo`, chiamata `snapshot/load`). Non coperto: snapshot letto da disco freddo (il file è nella
+  page cache), «attesa entro il limite di FR-8» (il limite è del motore), carico concorrente.
+
+S3 (memoria del pool, FR-54), scenario `s3`, 3 corse. RAM del guest 64 e 128 MiB, pool di 1, 5 e 20 microVM ferme (ping fatto,
+  2 s di quiete, nessun nodo eseguito), riempite da snapshot (memoria condivisa) e da avvio a freddo. Si legge, per ogni VMM,
+  `Rss`, `Pss` e `Anonymous` da `/proc/<pid>/smaps_rollup`. Giudicato, lettura larga: massimo di `Rss` di una VMM ferma
+  ≤ 100 MB per tutte le combinazioni riempite da snapshot (la RSS è la lettura prudente, come in fase 2); lettura stretta:
+  lo stesso anche per le microVM avviate a freddo (memoria non condivisa), per 64 e 128 MiB. Riportati: somme di RSS e
+  PSS per pool, `Anonymous` (memoria privata davvero), calo di `MemAvailable` dell'host. Non coperto: microVM che hanno
+  eseguito un nodo (monouso: non tornano nel pool), pool di tenant diversi.
+
+S4 (FR-16), scenario `s4`, 3 corse, 5 giri per corsa, sentinella casuale da 128 bit per tenant e per giro, passata
+  all'ingresso del nodo; si riporta solo presenza o assenza (conteggi), mai il valore. Per ogni giro: tenant A prende una
+  microVM libera (la regola del pool registra il proprietario e rifiuta di darla a un altro), esegue `rust-p1` con
+  l'istanza tenuta viva; il pilota cerca la sentinella di A in `/proc/<pid VMM>/mem` della VMM di A (controllo positivo);
+  poi la microVM di A si ferma e se ne ripristina una nuova (costo del riciclo); tenant B prende la prossima libera ed
+  esegue il suo nodo con la sua sentinella. Giudicato, per ogni giro di ogni corsa: sentinella di A nella VMM di A ≥ 1
+  (altrimenti la corsa non vale); sentinella di A nella VMM di B = 0, nella memoria dell'agente di B (comando `scan`
+  dell'agente, `/proc/self/mem` del guest) = 0, nei file dello snapshot (memoria e stato) = 0; sentinella di B nella VMM
+  di B ≥ 1 (controllo); la regola del pool rifiuta ogni tentativo di dare la microVM di A a B (rifiuti = giri) e
+  `vm_ids_handed_to_second_tenant_after_use` = 0; l'impronta del file di memoria dello snapshot non cambia durante la
+  corsa. Lettura larga = tutto vero in tutti i giri e le corse: passa; non esiste una lettura stretta più severa (un solo
+  caso non vero = non passa). Riportati: costo del riciclo (fermare, ripristinare, ping), e che la stessa microVM riservata
+  ad A conserva la sentinella (la memoria non si pulisce: il confine è la microVM, non la pulizia). Non coperto: più
+  tenant insieme su microVM riservate, pagine condivise tra microVM via KSM, fuga dalla VMM.
+
+S5 (NFR-8, hostile strong), scenario `s5`, 3 corse. Dentro il guest (una vCPU, 128 MiB):
+  - codice ostile wasm, lo stesso di L12 (`probe` con 20 percorsi, `sock`, `evilimport`, `logflood`, `errflood`): nessuno dei
+    6 valori sentinella dell'host (file della chiave, database, configurazione, cartella di un altro tenant, ambiente
+    della VMM, ambiente del pilota) nell'uscita; nessun percorso aperto con successo (`fs_opened` = 0); `evilimport`
+    rifiutato; `logflood` con classe `log_limit`; `errflood` con stderr ≤ 1 MiB; l'agente risponde dopo ogni modulo;
+  - codice ostile nativo dentro il guest (esito peggiore di una fuga dal modulo: codice arbitrario come root nel guest,
+    comandi `native` dell'agente, che esistono solo nella microVM): scansione di tutto ciò che il guest può leggere (i due
+    dischi grezzi, ogni file sotto `/` salvo `/proc`, `/sys`, `/dev`) per gli stessi 6 sentinella: 0 occorrenze, con
+    controllo positivo (un sentinella scritto nel guest) ≥ 1 e scansione non interrotta; rete: nessuna interfaccia oltre
+    `lo`, ogni `connect`/`send` TCP/UDP verso 127.0.0.1, 169.254.169.254, 10.0.0.1, 192.168.0.1 e un indirizzo pubblico
+    fallisce; vsock verso l'host: si collega solo alla porta 7000 (dove l'host ascolta, controllo positivo) e a nessuna
+    delle altre 68 provate; scritture sul rootfs, sull'agente e sui dischi grezzi: tutte negate (nessun `WROTE`);
+    `/dev/kvm` assente; impronte di rootfs, disco dell'agente e kernel invariate dopo la corsa;
+  - codice ostile nativo distruttivo, una microVM nuova per prova, con un tenant vicino B (altra microVM, sugli stessi core)
+    a 200 nodi/s: ciclo su tutte le vCPU per 6 s; bomba di fork per 6 s; esaurimento di memoria in un figlio (l'OOM killer
+    del guest lo uccide); esaurimento di memoria nel PID 1 (il guest va in panico). Giudicato per ognuna: l'host non cala
+    di più di 1 GiB di `MemAvailable`; la RSS massima della VMM ≤ 192 MB (RAM del guest più 64 MB di overhead); `p99` del
+    round trip di B ≤ 25 ms (NFR-2); fermare la VMM col PID salvato lascia 0 processi e 0 cartelle; nessun intervento
+    sul resto della macchina. Riportati: CPU della VMM, risposta dell'agente dopo l'attacco, fork riusciti e falliti,
+    confronto del tenant B con la fase di controllo senza attacco.
+  Lettura larga = tutto vero in ogni corsa: passa. Una sola negazione mancante o una soglia superata = non passa. Non
+  misurabile (dichiarato): fughe dalla VMM, canali laterali, rumore di cache tra vicini. Non coperto: rete interna tramite
+  una funzione `http` dell'host (M-30, non esiste), disco rigido pieno dell'host, più VMM ostili insieme.
+
+S6 (FR-17), scenario `s6`, 3 corse. Nel guest, lo stesso scenario di L5/L6: `loop` con limite di 100 e 1.000 ms e `copyloop`
+  (30 esecuzioni per caso): classe `cpu_time_limit` sempre, sforamento massimo ≤ 50 ms (uno sforamento negativo, fino a un
+  tick, vale come rispettato); `growmem`, `table`, `recurse`, `bigmem` (10 esecuzioni, tetto 64 MiB): classi `memory_limit`,
+  `table_limit`, `stack_limit`, `memory_limit`; l'agente risponde dopo la serie; tenant B vicino (altra microVM, 200
+  nodi/s, 10 s) mentre A esegue i moduli ostili (10 s): round trip di B p99 ≤ 25 ms. Limiti della microVM: ciclo infinito
+  senza limite wasm e VMM fermata dal pilota per PID alla scadenza (500 ms e 2.000 ms): processo sparito, cartella sparita,
+  `MemAvailable` non più bassa di 100 MB rispetto a prima, 300 ms dopo; tetto di CPU: ciclo nativo di 6 s su una vCPU, CPU
+  della VMM ≤ 1,25 × 6 s = 7,5 s. Il nome del limite è la classe dell'errore; il testo per l'utente lo scrive il motore.
+  Riportati: tempo per fermare la VMM, sforamento per caso, CPU. Lettura larga = tutto vero: passa; non esiste una lettura
+  stretta più severa. Non coperto: tetto di memoria della VMM intera (nessun cgroup), limite wasm minore del timeout del
+  task (M-27, fase 4).
+
+S7 (FR-54), scenario `s7`, 3 corse. Il percorso del dispositivo è un parametro (`kvm=`, predefinito `/dev/kvm`); non si cambia
+  mai il permesso di `/dev/kvm`. Si simula l'assenza con tre varianti: percorso inesistente, file di nostra proprietà senza
+  permessi (`0000`), `/dev/null` (si apre ma non risponde all'API di KVM, `KVM_GET_API_VERSION` ≠ 12). Controllo: il percorso
+  reale. Giudicato: nel controllo la forte è disponibile e nessun avviso; in ognuna delle tre varianti la forte non è
+  disponibile, l'avviso all'operatore è emesso una volta, il ripiego sul livello leggero parte e il nodo `rust-p1` gira senza
+  errori. Riportati: tempo di rilevamento (1.000 chiamate, p50/p99, in µs: va fatto una volta all'avvio e non per task) e
+  tempo del ripiego (avvio dell'ausiliario, `load`, `run`). Lettura larga = tutto vero: passa. Non misurato: il
+  comportamento di Firecracker stesso senza `/dev/kvm` (non si può togliere il dispositivo senza cambiare permessi o root),
+  la scelta tra ripiego silenzioso e «forte obbligatoria» (decisione di Marco, fase 1 punto 3).
+
+S9 (formato), scenario `s9`, 3 corse. Cinque moduli (`javy-static`, `javy-dynamic`, `rust-p1`, `rust-unknown`, `rust-p2`) con lo
+  stesso ingresso: file di uscita del nodo (uscita standard, uscita dell'host, righe di log con i livelli, `emit`)
+  confrontato byte per byte tra il livello leggero (ausiliario su pipe) e il forte (agente nel guest). Giudicato:
+  identico per tutti e cinque in ogni corsa (larga = stretta). Riportato: impronta dei due file, esito del nodo. Non
+  misurato: wasmtime nel guest compilato con musl (Tier 3: bersaglio non installato, non si scarica); si è provata solo la
+  versione statica con glibc.
+
+Come si scrivono i risultati
+----------------------------
+`spikes/sandbox/fase3-risultati.md`, una sezione per riga: valore, soglia, verdetto, etichetta «misurata» (con i file
+grezzi) oppure «ipotesi», e cosa non è coperto; più una sezione «Cosa contraddice o corregge le fasi 1 e 2». Le cause si
+scrivono «misurata» o «ipotesi». Il commit finale di queste regole è registrato nei risultati con l'ora, insieme all'ora
+del primo `[stato prima]`.
