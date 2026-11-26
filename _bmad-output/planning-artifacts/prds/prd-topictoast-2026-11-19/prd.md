@@ -1662,7 +1662,7 @@ responsabile di ciascun gruppo) sono in `triage.md`, nella stessa cartella di qu
 - FR-23 — Modifica della query = nuova versione con stato vuoto.
 - FR-31 — Conservazione dello storico 30 giorni come predefinito.
 - FR-50 — Processi ausiliari fermati quando inattivi e riavviati a freddo; NFR-1 conta tutti i
-  processi attivi: verificata dall'ADR della sandbox (2026-11-26).
+  processi attivi: misurata sul percorso dello spike della sandbox (2026-11-26), con il motore stimato.
 - NFR-5 — 100.000 eventi/s per pipeline stream (spike delle pipeline stream).
 - NFR-12 — Sandbox: avvio ≤ 10 ms, ≤ 64 MB per istanza leggera. Lo spike della sandbox ha misurato
   la memoria (≤ 4,1 MB) e la quota della sandbox nell'avvio (0,04 ms nella leggera, 1,5 ms nella
