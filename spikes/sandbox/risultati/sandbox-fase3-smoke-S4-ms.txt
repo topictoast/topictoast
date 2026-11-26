@@ -1,0 +1,39 @@
+[stato prima 16:22:21] load: 0.74 0.61 0.49
+[stato prima] io: some avg10=0.01 avg60=0.03 avg300=0.04 total=22882382519
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2586962566
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: S4-smoke
+[stato prima] binario sha256: e6dd5de151d7d534aee9f0d9c9c0d0d439d6c1b7a192404265f29a410c9ea205
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27183980 swap_usato_kb=2155884 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931095
+[stato prima] orologio minisheep UTC: 2026-11-26T15:22:25
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+S0 host_kernel=7.2.4-arch1-2 firecracker_sha256=b33f46cd6d88834cf6a4f8d184f08f219809c636236bffd286d233a60602a2ba kernel_sha256=e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2 rootfs_sha256=68321e0482baeb3844dafe8a6b08a6902401a7afc41fbfd8c3d9ea08aadd244f agent_drive_sha256=20e0cfd6c9cb7e6f4af4ce0b526a6cc11cc8d6302f98ccd04212339cda7923e3
+S4 reps=3 control_A_sentinel_in_vm_A_vmm_hits=[13, 13, 13]
+S4 reserved_same_tenant_keeps_sentinel_hits=[13, 13, 13]
+S4 A_sentinel_in_vm_B_vmm_hits=[0, 0, 0] control_B_sentinel_in_vm_B_hits=[13, 13, 13]
+S4 A_sentinel_in_vm_B_guest_agent_memory_hits=[0, 0, 0]
+S4 A_sentinel_in_snapshot_files_hits=[0, 0, 0]
+S4 vm_ids_handed_to_second_tenant_after_use=2 pool_rule_refusals=3
+S4 recycle_destroy+restore+ready_ms n=3 p50=25.591 p90=29.170 p99=29.170 max=29.170
+S4 snapshot_mem_sha256_unchanged=true
+[uscita] 0
+[stato dopo 16:22:28] load: 0.78 0.63 0.50
+[stato dopo] io: some avg10=0.00 avg60=0.02 avg300=0.04 total=22882405767
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2586976600
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: S4-smoke
+[stato dopo] binario sha256: e6dd5de151d7d534aee9f0d9c9c0d0d439d6c1b7a192404265f29a410c9ea205
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.2%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27202104 swap_usato_kb=2155712 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931095
+[stato dopo] orologio minisheep UTC: 2026-11-26T15:22:32
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

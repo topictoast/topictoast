@@ -1,0 +1,54 @@
+[stato prima 16:26:14] load: 0.29 0.45 0.44
+[stato prima] io: some avg10=0.09 avg60=0.06 avg300=0.03 total=22882759406
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2587281051
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: S1-1
+[stato prima] binario sha256: c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.2%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 0.03
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27072300 swap_usato_kb=2148828 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931099
+[stato prima] orologio minisheep UTC: 2026-11-26T15:26:18
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+S0 host_kernel=7.2.4-arch1-2 firecracker_sha256=b33f46cd6d88834cf6a4f8d184f08f219809c636236bffd286d233a60602a2ba kernel_sha256=e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2 rootfs_sha256=68321e0482baeb3844dafe8a6b08a6902401a7afc41fbfd8c3d9ea08aadd244f agent_drive_sha256=754da5fd45f7018dbae8bf4671a5f83263e6db4eb539db92e683805fdb63c075
+S1 mod=empty cwasm_bytes=13696 artifact_sha=069f9630036f93512c6376cd3b1126332516e089b9ebf2f60f7986a8c5b0bb26
+S1a mod=empty host send->started_ms n=40 p50=1.866 p90=2.126 p99=2.278 max=2.278
+S1a mod=empty host send->done_ms n=40 p50=2.129 p90=2.532 p99=2.638 max=2.638
+S1a mod=empty guest t_start_ms n=40 p50=1.587 p90=1.780 p99=1.991 max=1.991
+S1b mod=empty host ready->started_ms n=40 p50=6.489 p90=7.501 p99=7.862 max=7.862
+S1b mod=empty host ready->done_ms n=40 p50=6.649 p90=7.655 p99=8.039 max=8.039
+S1b mod=empty guest t_start_ms n=40 p50=1.119 p90=1.434 p99=1.794 max=1.794
+S1 mod=rust-p1 cwasm_bytes=292880 artifact_sha=8749c9869e6ea4d7e1d7e336f157fe085221bde6350f19e478785372bd1c5171
+S1a mod=rust-p1 host send->started_ms n=40 p50=1.675 p90=1.966 p99=2.058 max=2.058
+S1a mod=rust-p1 host send->done_ms n=40 p50=3.233 p90=3.729 p99=3.955 max=3.955
+S1a mod=rust-p1 guest t_start_ms n=40 p50=1.433 p90=1.667 p99=1.778 max=1.778
+S1b mod=rust-p1 host ready->started_ms n=40 p50=7.734 p90=8.656 p99=9.118 max=9.118
+S1b mod=rust-p1 host ready->done_ms n=40 p50=8.986 p90=9.963 p99=11.202 max=11.202
+S1b mod=rust-p1 guest t_start_ms n=40 p50=1.040 p90=1.414 p99=1.702 max=1.702
+S1 mod=javy-static cwasm_bytes=3688336 artifact_sha=5ac4e587976b2590c52df6dbd6b72b4fe86b8fd0a78e6339bf02940088754a9a
+S1a mod=javy-static host send->started_ms n=40 p50=1.427 p90=1.598 p99=1.886 max=1.886
+S1a mod=javy-static host send->done_ms n=40 p50=3.332 p90=3.717 p99=4.750 max=4.750
+S1a mod=javy-static guest t_start_ms n=40 p50=1.223 p90=1.343 p99=1.475 max=1.475
+S1b mod=javy-static host ready->started_ms n=40 p50=16.802 p90=17.719 p99=18.193 max=18.193
+S1b mod=javy-static host ready->done_ms n=40 p50=18.626 p90=19.703 p99=20.419 max=20.419
+S1b mod=javy-static guest t_start_ms n=40 p50=1.205 p90=1.463 p99=1.697 max=1.697
+S1c reserved_vm rust-p1 host send->started_ms n=300 p50=0.044 p90=0.050 p99=0.063 max=0.089
+S1c reserved_vm rust-p1 host send->done_ms n=300 p50=0.078 p90=0.089 p99=0.101 max=0.128
+[uscita] 0
+[stato dopo 16:26:54] load: 0.20 0.40 0.43
+[stato dopo] io: some avg10=0.02 avg60=0.07 avg300=0.04 total=22882815799
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2587398863
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: S1-1
+[stato dopo] binario sha256: c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 1.5%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27215204 swap_usato_kb=2147772 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931099
+[stato dopo] orologio minisheep UTC: 2026-11-26T15:26:58
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

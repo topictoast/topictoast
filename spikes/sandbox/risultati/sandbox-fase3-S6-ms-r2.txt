@@ -1,0 +1,52 @@
+[stato prima 16:34:01] load: 0.65 0.63 0.54
+[stato prima] io: some avg10=0.02 avg60=0.06 avg300=0.05 total=22883666523
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2588212392
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: S6-2
+[stato prima] binario sha256: c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 1.7%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27241292 swap_usato_kb=2135836 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931106
+[stato prima] orologio minisheep UTC: 2026-11-26T15:34:05
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+S0 host_kernel=7.2.4-arch1-2 firecracker_sha256=b33f46cd6d88834cf6a4f8d184f08f219809c636236bffd286d233a60602a2ba kernel_sha256=e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2 rootfs_sha256=68321e0482baeb3844dafe8a6b08a6902401a7afc41fbfd8c3d9ea08aadd244f agent_drive_sha256=754da5fd45f7018dbae8bf4671a5f83263e6db4eb539db92e683805fdb63c075
+S6 load loop ok load_us=1340 verify_us=57
+S6 load copyloop ok load_us=62 verify_us=20
+S6 load growmem ok load_us=38 verify_us=17
+S6 load table ok load_us=55 verify_us=17
+S6 load recurse ok load_us=33 verify_us=16
+S6 load bigmem ok load_us=55 verify_us=31
+S6 loop limit_ms=100  classes={"cpu_time_limit": 30} overshoot_ms p50=-0.32 max=0.45 host wall_ms n=30 p50=99.998 p90=100.067 p99=101.125 max=101.125
+S6 loop limit_ms=1000  classes={"cpu_time_limit": 30} overshoot_ms p50=-0.34 max=-0.13 host wall_ms n=30 p50=1000.019 p90=1000.076 p99=1000.143 max=1000.143
+S6 copyloop limit_ms=100 mem_mb=64 classes={"cpu_time_limit": 30} overshoot_ms p50=-0.43 max=0.35 host wall_ms n=30 p50=100.072 p90=100.458 p99=101.046 max=101.046
+S6 growmem limit_ms=2000 mem_mb=64 classes={"memory_limit": 10} overshoot_ms p50=-1987.76 max=-1974.25 host wall_ms n=10 p50=13.166 p90=14.383 p99=26.790 max=26.790
+S6 table limit_ms=2000 mem_mb=64 classes={"table_limit": 10} overshoot_ms p50=-1999.98 max=-1999.91 host wall_ms n=10 p50=0.160 p90=0.178 p99=0.194 max=0.194
+S6 recurse limit_ms=2000 mem_mb=64 classes={"stack_limit": 10} overshoot_ms p50=-1999.86 max=-1999.63 host wall_ms n=10 p50=0.300 p90=0.344 p99=0.438 max=0.438
+S6 bigmem limit_ms=2000 mem_mb=64 classes={"memory_limit": 10} overshoot_ms p50=-1999.99 max=-1999.99 host wall_ms n=10 p50=0.055 p90=0.063 p99=0.069 max=0.069
+S6 agent_alive_after_series=true
+S6 other_tenant phase=control B rtt_ms n=2200 p50=0.868 p90=0.964 p99=1.034 max=1.941
+S6 other_tenant phase=control B guest t_start_ms n=2200 p50=0.164 p90=0.184 p99=0.203 max=0.715
+S6 other_tenant phase=hostile B rtt_ms n=2222 p50=0.486 p90=0.597 p99=0.969 max=2.028
+S6 other_tenant phase=hostile B guest t_start_ms n=2222 p50=0.091 p90=0.119 p99=0.176 max=0.786
+S6 engine_kill deadline_ms=500 kill_ms=15.85 total_ms=516 vmm_cpu_s=0.50 proc_gone=true dir_gone=true host_avail_delta_mb=15
+S6 engine_kill deadline_ms=2000 kill_ms=16.03 total_ms=2016 vmm_cpu_s=1.99 proc_gone=true dir_gone=true host_avail_delta_mb=10
+S6 vcpu_cap vcpus=1 spin_reply=[ok spun children=1 secs=6] vmm_cpu_s_over_6s=5.91
+[uscita] 0
+[stato dopo 16:35:15] load: 1.13 0.80 0.61
+[stato dopo] io: some avg10=0.05 avg60=0.04 avg300=0.04 total=22883734285
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2588338026
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: S6-2
+[stato dopo] binario sha256: c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 0.2%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.07
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27001152 swap_usato_kb=2133944 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931106
+[stato dopo] orologio minisheep UTC: 2026-11-26T15:35:19
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2

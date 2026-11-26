@@ -1,0 +1,43 @@
+[stato prima 16:27:23] load: 0.28 0.40 0.43
+[stato prima] io: some avg10=0.00 avg60=0.04 avg300=0.03 total=22882856238
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2587464365
+[stato prima] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato prima] braccio: S3-1
+[stato prima] binario sha256: c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2
+[stato prima] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato prima] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 0.02
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27236748 swap_usato_kb=2147008 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931099
+[stato prima] orologio minisheep UTC: 2026-11-26T15:27:27
+[stato prima] processi firecracker visibili (non nostri prima della corsa): 0
+[stato prima] ptrace_scope: 1; kernel: 7.2.4-arch1-2
+[attesa] 0 s
+S0 host_kernel=7.2.4-arch1-2 firecracker_sha256=b33f46cd6d88834cf6a4f8d184f08f219809c636236bffd286d233a60602a2ba kernel_sha256=e20e46d0c36c55c0d1014eb20576171b3f3d922260d9f792017aeff53af3d4f2 rootfs_sha256=68321e0482baeb3844dafe8a6b08a6902401a7afc41fbfd8c3d9ea08aadd244f agent_drive_sha256=754da5fd45f7018dbae8bf4671a5f83263e6db4eb539db92e683805fdb63c075
+S3 guest_mem_mib=64 fill=restore pool=1 rss_max_mb=31.0 pss_max_mb=31.0 anon_max_mb=5.2 rss_sum_mb=31.0 pss_sum_mb=31.0 anon_sum_mb=5.2 host_avail_delta_mb=105
+S3 guest_mem_mib=64 fill=restore pool=5 rss_max_mb=31.0 pss_max_mb=10.4 anon_max_mb=5.2 rss_sum_mb=154.9 pss_sum_mb=51.7 anon_sum_mb=25.9 host_avail_delta_mb=-53
+S3 guest_mem_mib=64 fill=restore pool=20 rss_max_mb=31.0 pss_max_mb=6.5 anon_max_mb=5.2 rss_sum_mb=615.7 pss_sum_mb=125.6 anon_sum_mb=99.7 host_avail_delta_mb=90
+S3 guest_mem_mib=64 fill=boot pool=1 rss_max_mb=65.0 pss_max_mb=65.0 anon_max_mb=62.4 rss_sum_mb=65.0 pss_sum_mb=65.0 anon_sum_mb=62.4 host_avail_delta_mb=52
+S3 guest_mem_mib=64 fill=boot pool=5 rss_max_mb=65.0 pss_max_mb=62.9 anon_max_mb=62.4 rss_sum_mb=322.9 pss_sum_mb=312.6 anon_sum_mb=309.9 host_avail_delta_mb=292
+S3 guest_mem_mib=64 fill=boot pool=20 rss_max_mb=65.0 pss_max_mb=62.5 anon_max_mb=62.4 rss_sum_mb=1172.2 pss_sum_mb=1123.2 anon_sum_mb=1120.3 host_avail_delta_mb=1112
+S3 guest_mem_mib=128 fill=restore pool=1 rss_max_mb=31.5 pss_max_mb=31.5 anon_max_mb=5.2 rss_sum_mb=31.5 pss_sum_mb=31.5 anon_sum_mb=5.2 host_avail_delta_mb=-5
+S3 guest_mem_mib=128 fill=restore pool=5 rss_max_mb=31.5 pss_max_mb=10.5 anon_max_mb=5.2 rss_sum_mb=157.5 pss_sum_mb=52.3 anon_sum_mb=26.0 host_avail_delta_mb=26
+S3 guest_mem_mib=128 fill=restore pool=20 rss_max_mb=31.5 pss_max_mb=6.5 anon_max_mb=5.2 rss_sum_mb=629.8 pss_sum_mb=130.5 anon_sum_mb=104.1 host_avail_delta_mb=113
+S3 guest_mem_mib=128 fill=boot pool=1 rss_max_mb=65.0 pss_max_mb=64.9 anon_max_mb=62.4 rss_sum_mb=65.0 pss_sum_mb=64.9 anon_sum_mb=62.4 host_avail_delta_mb=57
+S3 guest_mem_mib=128 fill=boot pool=5 rss_max_mb=65.0 pss_max_mb=62.9 anon_max_mb=62.4 rss_sum_mb=322.8 pss_sum_mb=312.5 anon_sum_mb=309.9 host_avail_delta_mb=289
+S3 guest_mem_mib=128 fill=boot pool=20 rss_max_mb=65.0 pss_max_mb=62.5 anon_max_mb=62.4 rss_sum_mb=1170.8 pss_sum_mb=1121.8 anon_sum_mb=1118.9 host_avail_delta_mb=1096
+[uscita] 0
+[stato dopo 16:28:01] load: 0.44 0.43 0.44
+[stato dopo] io: some avg10=0.06 avg60=0.08 avg300=0.04 total=22882920281
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2587527577
+[stato dopo] container in esecuzione (non nostri: non ne abbiamo): 12
+[stato dopo] braccio: S3-1
+[stato dopo] binario sha256: c8d744c80372524c2e2b74383acd1fcb6b73e4c769169db97221e3406997e4b2
+[stato dopo] moduli sha256 (insieme): e6a1f5200e320a24e29db05c1ef07ede322b19e932c39169bd2eaf486f985d5d
+[stato dopo] core 1-4 occupati: 1.2%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27244812 swap_usato_kb=2145984 some avg10=0.00 avg60=0.00 avg300=0.00 total=4931099
+[stato dopo] orologio minisheep UTC: 2026-11-26T15:28:05
+[stato dopo] processi firecracker visibili (non nostri prima della corsa): 0
+[stato dopo] ptrace_scope: 1; kernel: 7.2.4-arch1-2
