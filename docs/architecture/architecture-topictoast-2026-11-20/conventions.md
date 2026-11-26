@@ -88,7 +88,7 @@ Una sola approvazione per tutto il blocco. Ogni voce indica il meccanismo del PR
   con lapide; un evento che non si decifra senza lapide è un guasto, mai un'eliminazione. La
   cancellazione nel database non lascia residui secondo AD-7 (SQLite e Postgres). Il test del
   valore sentinella di FR-31 copre database (file compresi), bus, archivio dei payload,
-  checkpoint e nodi.
+  checkpoint, nodi, cartelle del codice nativo e delle microVM del tenant (snapshot e dischi, AD-6).
 - **C-14 TLS e valori predefiniti (M-40, M-41).** TLS (rustls) su ogni connessione fuori da
   localhost, con certificati forniti dall'integratore oppure generati al primo avvio, stampando
   l'impronta. L'SDK verifica sempre il

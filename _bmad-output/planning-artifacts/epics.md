@@ -171,7 +171,7 @@ Regole di lettura:
   - Pool configurabile di sandbox forti già avviate: attività senza avvio a freddo; pool vuoto: le attività attendono una sandbox libera entro il limite di FR-8.
   - Sandbox che ha eseguito codice di un tenant non passa mai a un altro: monouso o riservata a quel tenant.
   - La RAM del pool si misura a parte, fuori da NFR-1.
-  - Host senza KVM: sandbox forte non attivabile, si usa la leggera, con avviso all'operatore [dashboard].
+  - Host senza KVM: sandbox forte non attivabile; i nodi dei tenant per cui è attivata si rifiutano con un codice, con avviso all'operatore [dashboard]; gli altri tenant usano la leggera (PRD riallineato dopo S-2, 2026-11-26).
 #### 4.5 Pipeline stream
 - **FR-18 — Stream e ingresso degli eventi** (prd.md:L678-L692; v1): integratore, worker e workflow scrivono eventi sugli stream di un tenant via API o SDK. `[ASSUMPTION: nessun connettore verso sistemi esterni come Kafka nella v1]`
   - Evento di uno stream di un tenant leggibile solo dalle pipeline stream di quel tenant.
@@ -983,7 +983,7 @@ Lo sprint 1 parte solo quando tutte le voci sono chiuse.
 | Voce | Cosa | Chi | Epiche da ricontrollare |
 | --- | --- | --- | --- |
 | S-1 Bus (AR-9…AR-13) | Iggy o Valkey; tre collegamenti dei worker; ripresa e aggiornamento; trasporto delle righe di log dei worker (FR-59); chiusa il 2026-11-26 (ADR del bus), AR-93, AR-94 e AR-95 restano aperte | architettura | 1, 2, 3, 5, 6, 10, 11, 13 |
-| S-2 Sandbox (AR-14…AR-16) | livello leggero e microVM; riavvio a freddo; chi riavvia il motore (AR-103) | architettura | 1, 10, 13 |
+| S-2 Sandbox (AR-14…AR-16) | livello leggero e microVM; riavvio a freddo; chiusa il 2026-11-26 (ADR della sandbox), AR-103 resta aperta (prima storia di installazione) | architettura | 1, 10, 13 |
 | S-3 Pipeline stream (AR-17…AR-19) | DataFusion con stato, finestre, watermark, checkpoint sul caso UJ-3 | architettura | 11 |
 | S-4 Kit nel browser (AR-20, AR-21) | validatore `wasm32-wasip1` su Chromium, Firefox, Safari; soglie di peso e avvio (AR-107) | architettura, Marco | 6, 12 |
 | AR-86 | chiusa il 2026-11-23: AD-20; resto alla spec delle connessioni (AR-89) | architettura | 1, 7, 8, 10 |
@@ -1146,7 +1146,7 @@ minuti con la guida rapida, e il benchmark pubblico dimostra gli obiettivi.
 | AR-99, AR-100 | Epic 3 |
 | AR-101 | Epic 1 |
 | AR-102 | chiusa (C-19) |
-| AR-103 | S-2 (riavvio ed endpoint di salute); Epic 1 (formato di distribuzione) |
+| AR-103 | non chiusa da S-2 (ADR della sandbox, 2026-11-26): riavvio, endpoint di salute e formato di distribuzione nella prima storia di installazione (Epic 1) |
 | AR-104 | Epic 1 (SDK Rust); Epic 5 e Epic 6 (npm, validatore nativo per Node) |
 | AR-105 | Epic 5 |
 | AR-106 | chiusa (Stack della spine) |
@@ -1457,7 +1457,7 @@ voglio che un crash del motore a metà esecuzione non perda nulla e che il motor
 così che posso fidarmi di topictoast in produzione.
 
 **Rispetta:** AD-1, AD-2, AD-18; C-2, C-7
-**Requisiti:** FR-9, NFR-6, NFR-15; AR-98 (fase operativa), AR-103 (chi riavvia il motore, deciso in S-2)
+**Requisiti:** FR-9, NFR-6, NFR-15; AR-98 (fase operativa), AR-103 (chi riavvia il motore, deciso nella prima storia di installazione)
 **Prova per l'utente:** durante l'esempio, `kill -9` del processo del motore; entro 30 secondi torna a consegnare e l'esecuzione arriva a completata.
 **Docs utente:** cosa succede dopo un crash; limiti noti (backup e ripristino coerenti fuori dalla v1).
 

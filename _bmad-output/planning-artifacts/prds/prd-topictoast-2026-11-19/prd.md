@@ -719,8 +719,9 @@ Dove l'host offre KVM, l'integratore può attivare la sandbox forte per tutti i 
 - Una sandbox che ha eseguito codice di un tenant non passa mai a un altro tenant: è monouso o
   riservata a quel tenant.
 - La RAM del pool si misura a parte, fuori da NFR-1.
-- Su un host senza KVM la sandbox forte non si attiva e topictoast funziona con la sandbox
-  leggera, con un avviso all'operatore nella dashboard.
+- Su un host senza KVM la sandbox forte non si attiva. I nodi dei tenant per cui è attivata si
+  rifiutano con un codice d'errore, con un avviso all'operatore nella dashboard; gli altri tenant
+  usano la sandbox leggera.
 
 ### 4.5 Pipeline stream
 
@@ -1277,7 +1278,7 @@ AD-17); lo storage per payload grandi e file arriva dopo la v1. Realizza UJ-1, U
 Nella v1 l'integratore installa due servizi, topictoast e il bus, più il database a scelta.
 topictoast avvia e ferma da sé i processi ausiliari di cui ha bisogno (la sandbox leggera e,
 separati dal motore, i processi che eseguono espressioni jq, query delle pipeline stream e
-`call http`: AD-6; quali e come raggrupparli lo fissa lo spike della sandbox). Il numero di
+`call http`: AD-6; uno per tenant e per ruolo, deciso dall'ADR della sandbox). Il numero di
 processi non è la differenza (§1.1): lo sono RAM e carico sul database.
 
 **Conseguenze:**
@@ -1285,8 +1286,10 @@ processi non è la differenza (§1.1): lo sono RAM e carico sul database.
   altro processo lo avvia e lo ferma topictoast.
 - Un processo ausiliario inattivo oltre un tempo configurabile viene fermato e riavviato a freddo
   alla prima richiesta. Il tempo di riavvio è riportato nel benchmark (FR-53); NFR-2 e NFR-12 si
-  misurano a regime `[ASSUMPTION: idea di Marco, con NFR-1 che conta tutti i processi attivi; lo
-  spike della sandbox la verifica e fissa anche l'obiettivo del riavvio a freddo (§11 n. 9)]`.
+  misurano a regime. Sul suo percorso lo spike della sandbox ha misurato che, a riposo e con gli
+  ausiliari fermati, resta solo il motore (la sua memoria è una stima dallo spike del bus); con
+  l'1 % di riavvii a freddo il p99 di avvio peggiora di 3,1 ms (mancato, nell'ADR). L'obiettivo
+  del riavvio a freddo è in §11 n. 9.
 - Con la configurazione predefinita, un workflow di esempio gira senza modificare nulla.
 - Il tenant predefinito esiste dal primo avvio (§4.6). Con la credenziale dell'integratore, un
   workflow pubblicato dall'SDK senza indicare un tenant va al tenant predefinito; con quella di
@@ -1354,7 +1357,7 @@ senza obiettivo.
 | NFR-3 | Throughput | ≥ 10.000 attività/s | attività vuote (la funzione risponde subito), worker sulla stessa macchina, sostenuto per 10 minuti; il p99 di avvio delle attività è riportato anche a questo ritmo |
 | NFR-4 | Carico sul database | ≤ 5 istruzioni SQL per attività | media sull'intero ciclo di vita dell'attività durante il test di NFR-3; il confronto con Hatchet, sullo stesso carico, è in SM-2 |
 | NFR-5 | Pipeline stream | `[ASSUMPTION: ≥ 100.000 eventi/s per una pipeline con filtro e conteggio su finestra fissa; da confermare dopo lo spike delle pipeline stream]` | eventi scritti tramite l'API o l'SDK di FR-18 e consumati dalla pipeline stream, sostenuto per 10 minuti |
-| NFR-12 | Sandbox | `[ASSUMPTION: avvio p50 ≤ 10 ms e memoria ≤ 64 MB per istanza della sandbox leggera; ≤ 10 ms per la sandbox forte quando il pool ha una sandbox libera; da confermare dopo lo spike della sandbox]` | dal momento in cui l'attività è pronta a quando il nodo personalizzato inizia a eseguire; memoria per istanza durante un nodo vuoto |
+| NFR-12 | Sandbox | `[ASSUMPTION: avvio p50 ≤ 10 ms e memoria ≤ 64 MB per istanza della sandbox leggera; ≤ 10 ms per la sandbox forte quando il pool ha una sandbox libera; lo spike della sandbox ha misurato la memoria e la quota della sandbox, non il percorso del motore]` | dal momento in cui l'attività è pronta a quando il nodo personalizzato inizia a eseguire; memoria per istanza durante un nodo vuoto |
 | NFR-13 | Tempo al primo workflow | `[ASSUMPTION: ≤ 15 minuti]` | da download o clone a un workflow di esempio completato, seguendo la guida rapida, su una macchina pulita, per una persona che non conosce topictoast (UJ-5) |
 
 Riferimenti dei concorrenti in `research-footprint.md`: sono benchmark dei vendor, su hardware
@@ -1609,8 +1612,8 @@ architettura, epiche e storie li citano.
    fino all'aggiornamento dell'architettura prima della prima storia del `dag`: join dei dati,
    `$context` concorrente, sintassi del fan-out e incrocio della politica «il join riceve
    l'errore» di FR-3 con la regola (con Marco, se la regola cambia).
-9. Obiettivo per il riavvio a freddo di un processo ausiliario (FR-50). **Aperta:** la chiude
-   l'ADR dello spike della sandbox.
+9. Obiettivo per il riavvio a freddo di un processo ausiliario (FR-50). **Chiusa** dall'ADR della sandbox
+   (2026-11-26): p50 ≤ 100 ms e p99 ≤ 250 ms, confinamento compreso (decisione di Marco).
 10. Quale manifest vale quando nessun worker della funzione è collegato (la palette dell'editor lo
     mostra comunque) o quando due worker registrano la stessa funzione con manifest diversi
     (FR-12, FR-55). **Assegnata:** lo decide la registrazione nel motore, nella spec della storia
@@ -1659,9 +1662,12 @@ responsabile di ciascun gruppo) sono in `triage.md`, nella stessa cartella di qu
 - FR-23 — Modifica della query = nuova versione con stato vuoto.
 - FR-31 — Conservazione dello storico 30 giorni come predefinito.
 - FR-50 — Processi ausiliari fermati quando inattivi e riavviati a freddo; NFR-1 conta tutti i
-  processi attivi (spike della sandbox).
+  processi attivi: misurata sul percorso dello spike della sandbox (2026-11-26), con il motore stimato.
 - NFR-5 — 100.000 eventi/s per pipeline stream (spike delle pipeline stream).
-- NFR-12 — Sandbox: avvio ≤ 10 ms, ≤ 64 MB per istanza leggera (spike della sandbox).
+- NFR-12 — Sandbox: avvio ≤ 10 ms, ≤ 64 MB per istanza leggera. Lo spike della sandbox ha misurato
+  la memoria (≤ 4,1 MB) e la quota della sandbox nell'avvio (0,04 ms nella leggera, 1,5 ms nella
+  forte con il modulo già nella microVM), non il percorso del motore: per il requisito intero resta
+  un'assunzione.
 - NFR-13 — Tempo al primo workflow ≤ 15 minuti.
 - NFR-10 — Linux x86_64 e arm64.
 - §8.2 — SDK Python e Go per worker e workflow dopo la v1.

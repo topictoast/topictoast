@@ -47,7 +47,7 @@ bus è la fonte di verità; il database è una proiezione (AD-2).
 | Tipi dell'API | `crates/protocol` | tipi dell'API pubblica e del protocollo dei worker, sorgente dello schema OpenAPI. Puro, senza I/O; nessuna dipendenza dal resto del workspace; lo usano motore e SDK Rust (AD-15) |
 | Adattatori | `crates/adapters` | bus, repository (SQLite e Postgres), archivio dei payload (disco e RustFS), cassaforte, collegamento dei worker, modulo del client HTTP del motore |
 | Composition root | `crates/engine` | binario del motore: API, proiettore, processi ausiliari come sottocomandi; unico punto che sceglie gli adattatori (AD-16) |
-| Processi ausiliari | sottocomandi del binario di `crates/engine`; quali separare lo fissa S-2 (M-28) | contenuto dei tenant: validazione, jq, `call http`, sandbox leggera, pipeline stream con un processo per tenant (AD-6, AD-13) |
+| Processi ausiliari | sottocomandi del binario di `crates/engine`; uno per tenant e per ruolo (AD-6, ADR della sandbox) | contenuto dei tenant: validazione, jq, `call http`, sandbox leggera, pipeline stream con un processo per tenant (AD-6, AD-13) |
 | Client Rust | `crates/sdk`, `crates/cli`, `crates/napi`, `crates/bench` | SDK, CLI sull'SDK, collegamento napi-rs del validatore, benchmark (FR-53) |
 | Client JS | `packages/ui`, `packages/validator`, `packages/core`, `packages/react`, `packages/sdk` | design system condiviso, output di napi-rs, nucleo JS e client dell'API, componenti React del kit, SDK TS |
 | Dashboard | `dashboard/` | interfaccia dell'operatore su `packages/ui` e sul client dell'API di `packages/core` (skill `dashboard-react`) |
@@ -182,28 +182,71 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
 
 ### AD-6 — La chiave sta nel motore, il contenuto dei tenant nei processi ausiliari [ADOPTED]
 
-- **Binds:** FR-13, FR-16, FR-17, FR-25, FR-34, NFR-7, AMB-11; motore, API, processi ausiliari, validatore, sandbox, pipeline stream, `call http`.
-- **Prevents:** contenuto ostile che raggiunge la chiave della cassaforte o gli altri tenant.
+- **Binds:** FR-13, FR-15, FR-16, FR-17, FR-25, FR-34, FR-50, FR-54, NFR-1, NFR-7, NFR-8, NFR-12, AMB-11; motore, API, processi ausiliari, validatore, sandbox, pipeline stream, `call http`.
+- **Prevents:** contenuto ostile che raggiunge la chiave della cassaforte o gli altri tenant; un ausiliario che legge dati dei tenant prima di essere confinato; codice nativo non prodotto da topictoast eseguito come se lo fosse; una sandbox che passa da un tenant a un altro.
 - **Rule:** il processo del motore custodisce la chiave principale della cassaforte e non
   interpreta mai contenuto scritto dai tenant (documenti, manifest, schemi, jq, `call http`, SQL
   delle pipeline stream). Lo interpretano processi ausiliari (AD-16) che non ricevono mai la
   chiave principale, con limiti di CPU, memoria e tempo; il motore riceve strutture tipizzate e
   passa all'ausiliario solo il segreto della singola chiamata. Unica eccezione: il processo delle
-  pipeline stream di un tenant riceve la chiave di quel tenant (AD-13). Le due sandbox e il
-  processo delle pipeline stream stanno fuori dal processo del motore; nessuna loro istanza
-  contiene mai dati di due tenant, né insieme né in sequenza (FR-16). Le funzioni che
-  interpretano contenuto dei tenant (validatore, jq, lettura dei manifest) si chiamano solo
-  tramite un permesso che esiste solo in modalità ausiliario; un test prova che la modalità motore
-  non le chiama mai. Il motore avvia ogni ausiliario con l'ambiente vuoto e gli passa sull'IPC la
-  configurazione risolta e la versione dell'IPC; con una versione diversa l'ausiliario esce. Il
-  motore toglie dal proprio ambiente la variabile della chiave principale dopo averla letta.
-  Motore e ausiliari non sono ispezionabili (`PR_SET_DUMPABLE` a 0) e non scrivono core dump;
-  chiavi e segreti stanno in tipi che si azzerano al rilascio, con `Debug` mascherato. Le risposte
-  degli ausiliari sono input esterno (costituzione IV): messaggi tipizzati con tetti di dimensione
-  e profondità, validati dal motore. I corpi delle richieste dell'API hanno tetti di dimensione,
-  profondità e decompressione, applicati prima dell'analisi. `call http`: nessun archivio di
-  cookie né pool di connessioni condiviso tra tenant; `Authorization` non passa mai su un
-  redirect verso un'altra origine.
+  pipeline stream di un tenant riceve la chiave di quel tenant (AD-13). Nessuna istanza di un
+  ausiliario o di una sandbox contiene mai dati di due tenant, né insieme né in sequenza (FR-16).
+  Le funzioni che interpretano contenuto dei tenant (validatore, jq, lettura dei manifest) si
+  chiamano solo tramite un permesso che esiste solo in modalità ausiliario; un test prova che la
+  modalità motore non le chiama mai. Le risposte degli ausiliari sono input esterno (costituzione
+  IV): messaggi tipizzati con tetti di dimensione e profondità, validati dal motore. I corpi delle
+  richieste dell'API hanno tetti di dimensione, profondità e decompressione, applicati prima
+  dell'analisi. `call http`: nessun archivio di cookie né pool di connessioni condiviso tra
+  tenant; `Authorization` non passa mai su un redirect verso un'altra origine.
+  - **Processi e ciclo di vita.** Un ausiliario per tenant e per ruolo: validazione, jq, `call http`,
+    sandbox leggera, sandbox forte (lato host di Firecracker e del vsock), compilazione dei
+    moduli, pipeline stream. Un solo supervisore nel motore per ogni coppia (tenant, ruolo), con
+    due cicli di vita. I ruoli «a richiesta» (tutti tranne le pipeline stream) partono alla prima
+    richiesta e si fermano per inattività (FR-50): l'arresto lo decide solo il motore, che smette
+    di mandare richieste prima di fermare il processo. Il ruolo delle pipeline stream parte quando
+    il tenant ha una pipeline attiva e si ferma, dopo un checkpoint finale, quando si ferma
+    l'ultima o quando il tenant si elimina (AD-13); la validazione a secco del SQL usa lo stesso
+    ruolo, avviato a richiesta. Obiettivo del riavvio a freddo: p50 ≤ 100 ms e p99 ≤ 250 ms,
+    confinamento compreso.
+  - **IPC.** Il motore avvia l'ausiliario con l'ambiente vuoto e gli passa sull'IPC la
+    configurazione risolta e la versione dell'IPC; con una versione diversa l'ausiliario esce.
+    L'IPC è una coppia di socket creata con chiusura all'esecuzione, e ogni figlio riceve solo la
+    propria estremità; l'ausiliario esce quando il socket si chiude o il motore muore, azzerando
+    chiavi e segreti. Una richiesta già scritta a un ausiliario che si ferma o muore non si
+    ripete su un processo nuovo: il suo esito è sconosciuto e passa dai tentativi del task (C-2).
+  - **Confinamento, prima del primo byte del tenant e in quest'ordine:** chiusura dei descrittori
+    ereditati e limiti (core 0, numero di file, `PR_SET_NO_NEW_PRIVS`); dove serve, il namespace
+    utente, con la mappa degli utenti scritta dall'ausiliario stesso; per la sandbox leggera,
+    motore di wasm e suo runtime avviati prima dei filtri; limite della dimensione dei file;
+    Landlock su tutti i thread; `PR_SET_DUMPABLE` a 0; seccomp su tutti i thread con una lista per
+    ruolo e la terminazione del processo. Dove Landlock manca: validazione, jq, compilazione e
+    sandbox leggera restano confinate con seccomp senza apertura di file né socket; `call http` e
+    pipeline stream usano anche il namespace utente; se nemmeno quello c'è, l'ausiliario non parte,
+    con un errore nel registro del motore, un avviso all'operatore e le funzioni rifiutate con un
+    codice (C-7). Il filtro della rete in uscita (M-30) è obbligatorio in ogni modalità: il
+    confinamento non lo sostituisce. La sandbox leggera non apre socket: la rete di un nodo passa
+    dal ruolo `call http` dello stesso tenant.
+  - **Chiave principale.** Motore e ausiliari non sono ispezionabili (`PR_SET_DUMPABLE` a 0) e non
+    scrivono core dump: è questo che protegge la chiave, perché una variabile d'ambiente tolta
+    resta leggibile nell'ambiente iniziale del processo. Nessuna opzione, variabile o
+    sottocomando li riattiva; la diagnosi passa dai codici e dal registro. Chiavi e segreti stanno
+    in tipi che si azzerano al rilascio, con `Debug` mascherato. La memoria degli ausiliari per
+    NFR-1 si legge da `/proc/<pid>/statm`.
+  - **Moduli e codice nativo.** Il tenant carica un modulo wasm core (FR-15), che sta
+    nell'archivio dei payload, cifrato per tenant. Lo valida e lo compila solo il ruolo di
+    compilazione, con un tetto di memoria e di tempo; il codice nativo lo scrive solo quel ruolo, in
+    una cartella per tenant dove le sandbox non scrivono, e l'impronta di riferimento la tiene il
+    motore, fuori da quella cartella. Il codice nativo è derivato e a perdere: mai condiviso tra
+    tenant, con la build del motore nella sua chiave; al caricamento se ne verifica l'impronta, e
+    uno che non torna si scarta e si ricompila, mai si esegue.
+  - **Sandbox forte (FR-54).** microVM Firecracker con lo stesso modulo e lo stesso motore di wasm
+    della leggera; l'host le parla solo su vsock, dal ruolo «sandbox forte». L'immagine del guest
+    (kernel e disco) la distribuisce topictoast, con un kernel senza `/dev/mem` né `/proc/kcore`.
+    Una microVM è monouso o riservata a un tenant, e i moduli del tenant stanno nella sua microVM
+    o nel suo snapshot prima della prima attività. Su un host senza KVM i nodi di un tenant con la
+    sandbox forte attivata si rifiutano con un codice; gli altri tenant usano la leggera.
+  - **Eliminazione del tenant.** Le cartelle per tenant del codice nativo e delle microVM (snapshot
+    e dischi) entrano nell'eliminazione e nel test della sentinella di C-13.
 
 ### AD-7 — Cassaforte a busta e dati dei tenant cifrati per tenant [ADOPTED]
 
@@ -318,6 +361,7 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
   processo legge direttamente solo quelli, con una credenziale del bus per tenant che ha il solo
   permesso di lettura su quei topic (mai `read_stream`, che apre gli altri tenant). I permessi di
   Iggy sono per numero di topic: creazione ed eliminazione del tenant li aggiornano (ADR del bus).
+  Lo stesso processo, avviato a richiesta, fa la validazione a secco del SQL (AD-6).
 
 ### AD-14 — Confine degli scenari BDD su due livelli [ADOPTED]
 
@@ -552,34 +596,14 @@ flowchart TB
 
 ### S-2 — Sandbox
 
-- **Aperto:** tecnologie dei due livelli (M-25): leggera senza KVM né root, forte con microVM e
-  pool. Nessuna convivenza tra tenant nella leggera, con costo in RAM e avvio (M-26). Formato del
-  modulo compilato TS e Rust, declassamento della forte, parte del pool per tenant, pulizia, limite
-  del nodo rispetto al timeout del task (M-27); il formato non esclude nodi in Python e Go, che
-  arrivano dopo la v1 (la costituzione VII si riesamina allora). Quali processi ausiliari
-  separare, tutti sottocomandi del binario del motore (AD-16), arresto per inattività e obiettivo
-  del riavvio a freddo (M-28, PRD §11 n.9). Punti di partenza, non una lista chiusa: wasmtime per
-  la leggera e Firecracker per la forte (addendum del brief); cloud-hypervisor, javy e
-  ComponentizeJS verificati in `research-versions.md`. Candidati, verificati 2026-11-21: wasmtime
-  50.0.3 e cloud-hypervisor v54.1 (solo con l'eccezione di sicurezza), Firecracker v1.17.0.
-- **Criteri:** NFR-12 (leggera: avvio p50 ≤ 10 ms, ≤ 64 MB per istanza; forte: ≤ 10 ms con una
-  sandbox libera nel pool; [ASSUMPTION] del PRD che lo spike conferma); NFR-1 con gli ausiliari
-  attivi; l'arresto per inattività degli ausiliari non peggiora il p99 di NFR-2 (SM-C2); FR-16
-  (fuori dal processo della chiave, mai due tenant in un'istanza); FR-17 (limiti di CPU, memoria,
-  tempo); TS e Rust compilati girano nella leggera; test con codice ostile noto a entrambi i
-  livelli (NFR-8: fuga, esaurimento di risorse, rete interna, lettura della chiave); x86_64 e
-  arm64 (NFR-10); installazione predefinita senza KVM né root (FR-50).
-- **Da fissare e provare nell'ADR:**
-  - come jq, `call http`, validazione e validazione a secco del SQL evitano di mescolare tenant
-    (istanze per tenant o altro), misurato contro i riavvii a freddo di NFR-2 e contro NFR-1;
-  - confinamento con Landlock e seccomp di ogni ausiliario prima di toccare contenuto dei
-    tenant, e ripiego dove Landlock manca;
-  - test «lettura della chiave principale» per ogni sottocomando ausiliario, non solo per le due
-    sandbox: file della chiave, `/proc` del motore, file del database, configurazione, cartella
-    di un altro tenant;
-  - il tenant carica solo bytecode, che topictoast valida e compila nell'ausiliario; la cache del
-    codice nativo la scrive solo topictoast, dove le sandbox non scrivono.
-- **ADR:** `docs/decisions/YYYY-MM-DD-sandbox.md`; aggiorna AD-6.
+- **Chiuso il 2026-11-26:** [ADR della sandbox](../../decisions/2026-11-26-sandbox.md), accettata da
+  Marco, con le misure in `spikes/sandbox/`. Modulo wasm core; sandbox leggera su wasmtime; sandbox
+  forte su Firecracker con l'immagine del guest di topictoast; un ausiliario confinato per tenant
+  e per ruolo, con arresto per inattività (AD-6). arm64 a tavolino, non misurato.
+- **Criteri mancati, registrati nell'ADR:** con l'1 % di riavvii a freddo il p99 di avvio peggiora
+  di 3,1 ms contro i 2 ammessi; un tenant attivo costa circa 39 MB, quindi con più tenant attivi
+  la memoria supera NFR-1 (regge a riposo, con gli ausiliari fermi); di NFR-12 è misurata solo la
+  quota della sandbox, non il percorso del motore. Quello che resta aperto è nelle Open Questions.
 
 ### S-3 — Pipeline stream
 
@@ -643,7 +667,7 @@ blocco di `review-decisions.md` (E-6); C-19 è del 2026-11-23. Testo completo in
 | Schemi | C-10: oggetti chiusi salvo `additionalProperties: true`; `integer` distinto da `number`; `null` diverso da assente, ammesso solo se il tipo lo include; predefiniti applicati dopo la validazione. |
 | Credenziali dei worker | C-11: una per worker, revocabile una per una, limitabile a funzioni e tenant, distinta da quelle di tenant e integratore. |
 | Cassaforte | C-12: busta (principale → chiave per tenant → AES-256-GCM); ogni oggetto cifrato porta una busta versionata con l'id della chiave e si cifra in AES-256-GCM con una chiave derivata con HKDF dalla chiave del tenant per oggetto o segmento; la chiave del tenant ruota tramite l'id; un solo formato, nel dominio, per motore, proiettore, processo delle pipeline stream e archivio dei payload, con il costo misurato in S-1; segreti risolti alla consegna, mai nei messaggi del bus; chiave principale da file o variabile d'ambiente, generata solo con il deposito delle chiavi vuoto, con l'impronta conservata e l'avvio rifiutato se non corrisponde (AD-7), fuori dalle directory dati di topictoast e del bus; ruotarla cifra di nuovo le chiavi dei tenant senza conservare la vecchia busta (FR-34). |
-| Eliminazione del tenant | C-13: input, output ed eventi cifrati con la chiave del tenant, nel formato di C-12, su bus, file e checkpoint, tranne l'intestazione in chiaro a elenco chiuso degli eventi di stato (AD-2); ordine: arresto (pipeline stream, esecuzioni, pianificazioni, sandbox riservate, stream SSE, richieste) → evento lapide sul bus → chiave cancellata → righe del database e nodi caricati → pulizia asincrona di bus e archivio dei payload; indecifrabile senza lapide = guasto, mai eliminazione; cancellazione senza residui nel database e test del sentinella su ogni supporto, file del database compresi (AD-7). |
+| Eliminazione del tenant | C-13: input, output ed eventi cifrati con la chiave del tenant, nel formato di C-12, su bus, file e checkpoint, tranne l'intestazione in chiaro a elenco chiuso degli eventi di stato (AD-2); ordine: arresto (pipeline stream, esecuzioni, pianificazioni, sandbox riservate, stream SSE, richieste) → evento lapide sul bus → chiave cancellata → righe del database e nodi caricati → pulizia asincrona di bus e archivio dei payload; indecifrabile senza lapide = guasto, mai eliminazione; cancellazione senza residui nel database e test del sentinella su ogni supporto, file del database compresi, cartelle del codice nativo e delle microVM comprese (AD-7). |
 | TLS e valori predefiniti | C-14: TLS (rustls) su ogni connessione fuori da localhost, certificati dell'integratore o generati al primo avvio con l'impronta stampata; l'SDK verifica sempre il certificato e non esiste una modalità senza autenticazione; nessuna chiave o credenziale predefinita: generate al primo avvio e mostrate una volta, mai su stdout né nei log (FR-45, FR-52); valori degli esempi rifiutati. |
 | Credenziale firmata | C-15: JWT firmato dalla piattaforma ospite; algoritmi ammessi solo `EdDSA` e `Ed25519`, con chiave Ed25519 (RFC 9864); `iss` configurato e verificato; `aud` = `kit` o `sdk`, verificato per risorsa (risorse del kit contro risorse dell'SDK); `exp` obbligatorio, con una durata massima imposta dal motore, configurabile, breve per impostazione predefinita; nessuna revoca nella v1; campi `tenant` (nome esterno che il motore traduce nell'identificativo interno di AD-5; `default` riservato al predefinito), `role`, `displayName` facoltativo, `selectedTenant`; il motore conosce solo la chiave pubblica. |
 | Forma dell'API | C-16: campi JSON in camelCase; percorsi `/v1/…`; ogni risorsa identificata da un UUIDv7 (C-1); posizione del bus come token opaco (C-8, AD-18) nel campo `position` delle risposte e nell'header `Last-Event-ID`. |
@@ -672,6 +696,11 @@ blocco di `review-decisions.md` (E-6); C-19 è del 2026-11-23. Testo completo in
 | wiremock | 0.6.5 |
 | Apache Iggy server (bus, ADR del bus) | server-0.10.0 |
 | iggy, crate client (ADR del bus) | 0.12.0 |
+| wasmtime, wasmtime-wasi (sandbox leggera e motore di wasm nel guest; correzione di sicurezza RUSTSEC-2026-0566…0573 e 0587) | 50.0.3 |
+| javy (compila TypeScript in un modulo wasm core; strumento, non dipendenza del motore; il plugin dinamico usa anche il crate `javy-plugin-api` 7.1.0 e wasi-sdk 24) | 9.1.0 |
+| Firecracker (sandbox forte, solo con KVM) | v1.18.0 |
+| landlock (confinamento degli ausiliari) | 0.4.7 |
+| seccompiler (filtri seccomp degli ausiliari) | 0.5.0 |
 | RustFS (adattatore facoltativo, AD-17) | 1.0.4 |
 | PostgreSQL 18 (alternativa a SQLite, minima) | 18.7 |
 | PostgreSQL 19 (alternativa a SQLite, minima; fissabile dal 2026-11-30) | 19.0 |
@@ -704,7 +733,7 @@ Licenze delle dipendenze, Rust e npm, motore e kit: ammesse MIT, Apache-2.0 (anc
 LLVM-exception), BSD-2-Clause, BSD-3-Clause, ISC, Zlib, 0BSD, Unicode-3.0, CDLA-Permissive-2.0,
 BSL-1.0, CC0-1.0, bzip2-1.0.6, BlueOak-1.0.0, e MPL-2.0 per pacchetti non modificati; CC-BY-4.0 e
 PSF-2.0 solo nelle dipendenze di sviluppo, che non finiscono nel motore né nel kit distribuiti.
-Escluse EPL, LGPL, GPL, AGPL, SSPL, BUSL e i pacchetti senza licenza. Espressioni SPDX: con `OR`
+Escluse EPL, LGPL, GPL, AGPL, SSPL, BUSL e i pacchetti senza licenza. Eccezione (ADR della sandbox): il kernel Linux (GPL-2.0) dell'immagine del guest della sandbox forte, nel ramo che fissa la prima storia della sandbox forte, distribuito come artefatto separato e facoltativo con il suo sorgente, fuori dai lockfile, dal binario del motore e dal kit. Espressioni SPDX: con `OR`
 basta una licenza ammessa, con `AND` servono tutte, con `WITH` solo un'eccezione elencata qui.
 Perimetro: i lockfile Cargo e npm di `crates/`, `packages/` e `dashboard/`; `spikes/` è fuori.
 Un'eccezione vale per un pacchetto e una versione, richiede un ADR e sta nella configurazione dello
@@ -720,12 +749,12 @@ flowchart LR
   subgraph node1 ["Nodo singolo dell'integratore"]
     engine["Motore: API HTTP e SSE, cassaforte con la chiave principale"]
     projector["Proiettore: scrittore unico dello stato proiettato"]
-    helpers["Processi ausiliari senza chiave, sottocomandi del binario del motore: validazione, jq, call http, sandbox leggera"]
+    helpers["Processi ausiliari senza chiave, uno per tenant e per ruolo, confinati: validazione, jq, call http, sandbox leggera"]
     streams["Processo delle pipeline stream, uno per tenant: DataFusion, solo la chiave del suo tenant"]
     bus["Bus Apache Iggy: log, fonte di verità"]
     db[("Database: SQLite incorporato o Postgres")]
     files[("Archivio dei payload: disco, o RustFS facoltativo")]
-    microvm["Pool microVM opzionale, con KVM"]
+    microvm["Pool di microVM Firecracker opzionale, con KVM, immagine del guest di topictoast"]
   end
   workers["Worker dell'integratore: SDK TS o Rust"]
   kit["Kit nel browser dell'ospite: nucleo JS, React, validatore wasm"]
@@ -745,7 +774,7 @@ flowchart LR
   engine -->|"avvio con ambiente vuoto, IPC: dei segreti solo quello della chiamata"| helpers
   engine -->|"avvio e chiave del solo tenant"| streams
   streams -->|"IPC: righe e avvii con id deterministico"| engine
-  engine -->|"avvio"| microvm
+  helpers -->|"ruolo sandbox forte: avvio, vsock"| microvm
   streams -->|"lettura diretta dei soli topic del tenant"| bus
   streams -->|"checkpoint"| files
 ```
@@ -837,7 +866,7 @@ docs/
 | Definizione dei workflow: FR-1…FR-5, FR-56 | `crates/ows` (modello), `crates/domain` (validatore); motore (versioni) | AD-4, AD-8, AD-9, AD-10, AD-11, AD-20, C-5 |
 | Esecuzione: FR-6…FR-11, FR-59 | motore, bus, proiettore, archivio dei payload, SDK, host della sandbox | AD-2, AD-3, AD-9, AD-17, AD-18, C-2, C-3, C-4, C-9, C-12, ADR del bus |
 | Worker: FR-12…FR-14, FR-55 | motore, adattatore del collegamento dei worker, SDK | AD-1, AD-10, AD-12, AD-20, C-6, C-11 |
-| Nodi personalizzati e sandbox: FR-15…FR-17, FR-54 | processi ausiliari, pool microVM | AD-6, AD-16, AD-20, C-5, S-2 |
+| Nodi personalizzati e sandbox: FR-15…FR-17, FR-54 | processi ausiliari, pool microVM | AD-6, AD-16, AD-20, C-5, ADR della sandbox |
 | Pipeline stream: FR-18…FR-25 | processo ausiliario per tenant con DataFusion, bus, archivio dei payload | AD-6, AD-7, AD-13, AD-17, C-4, S-3 |
 | Separazione tra tenant: FR-26…FR-31 | adattatore del repository, API, eventi in tempo reale | AD-5, AD-7, AD-13, AD-18, C-13, C-15 |
 | Cassaforte dei segreti: FR-32…FR-34 | motore (chiave), adattatore della cassaforte | AD-2, AD-6, AD-7, C-12 |
@@ -858,7 +887,7 @@ docs/
 | M-08 manifest senza worker o conteso (PRD §11 n.10) | lo decide una sola unità: la registrazione nel motore | spec della storia di registrazione (FR-12, FR-55) |
 | M-09 effetti di un cambio di manifest o di schema di un sotto-workflow (PRD §11 n.11) | lo decide una sola unità: le versioni nel motore | spec delle storie delle versioni (FR-5, FR-15, FR-55) |
 | Regola di compatibilità tra campi degli schemi (PRD §11 n.16, FR-40) | una sola implementazione, nel validatore del dominio (AD-10) | spec delle storie delle versioni (FR-5, FR-55) |
-| M-10 controllo di input e output a ogni attività | costo misurato in S-1 come effetto netto: avvio p99 20,05 contro 19,55 ms a 1.000 att./s, 10.000 att./s tenute su bigsheep (ADR del bus) | storia di FR-55 |
+| M-10 controllo di input e output a ogni attività | costo misurato in S-1 come effetto netto: avvio p99 20,05 contro 19,55 ms a 1.000 att./s, 10.000 att./s tenute su bigsheep (ADR del bus), con un solo ausiliario per tutti i tenant: da rimisurare con un ausiliario per tenant e per ruolo (ADR della sandbox) | storia di FR-55 |
 | M-19 due orologi per attività | dipende dalla spec di FR-8 | spec di FR-8 |
 | M-23 quote e storico delle esecuzioni dell'integratore (PRD §11 n.19) | comportamento di prodotto dentro AD-5 | spec della storia delle quote (FR-30, FR-46) |
 | M-29 interprete jq: meccanismo | AD-6 fissa dove gira. Vincoli: interprete in Rust puro, compilabile per `wasm32-wasip1` (AD-11); elenco chiuso e documentato delle funzioni ammesse (FR-17 vieta già `$ENV`, `env`, `input_filename`, `import`, `include`), ogni altra rifiutata dallo stesso validatore anche nel browser; limiti di profondità per ricorsione e dati | spec della prima storia che usa jq, validazione (FR-4) o esecuzione |
@@ -900,14 +929,22 @@ docs/
 | Cancellazione del tenant contro il proiettore unico (C-13 contro AD-2): con la chiave cancellata il proiettore non decifra gli eventi non ancora applicati e si ferma per tutti; C-13 non dice chi cancella le righe proiettate. Proposta della revisione: la lapide è un evento che il proiettore applica in ordine, cancellando lui le righe e scartando gli eventi del tenant; la chiave e il topic si cancellano dopo | Marco (C-13 è approvata) | prima della storia di eliminazione del tenant (FR-31) |
 | Numerazione delle righe di log: l'ADR dei log la dà allo scrittore; lo spike l'ha data al worker (numero del pezzo = primo numero di riga, conferma cumulativa, rinvio delle righe non confermate) e l'ha provata con il crash del motore; righe arrivate dopo un annullamento o una scadenza | Marco (ADR dei log approvata) | spec della prima storia dei log dei task (FR-59) |
 | Esito da una sessione diversa (C-2 dice: solo dalla sessione del worker che ha ricevuto il tentativo): lo spike accetta l'esito da qualunque sessione se porta la consegna corrente, o una consegna di prima della ripresa, e su questo poggiano 0 attività rifatte dopo un aggiornamento e 0 tentativi doppi dopo un crash | Marco (C-2 è approvata) | spec della prima storia del collegamento dei worker |
+| Arresto per inattività degli ausiliari contro la latenza: con l'1 % di riavvii a freddo il p99 peggiora di 3,1 ms (soglia 2 ms); tempo di inattività tarato sul carico o un ausiliario caldo di scorta per i tenant più attivi | architettura | spec della prima storia dei processi ausiliari |
+| Memoria con tenant attivi: circa 39 MB per tenant tra i ruoli simulati, quindi oltre NFR-1 con più tenant attivi; tetto di ausiliari attivi per installazione o revisione dei ruoli, misurati con il motore vero; il tetto è un solo parametro di installazione, da cui deriva il limite di processi dell'utente del motore | architettura; Marco per il tetto | spec della prima storia dei processi ausiliari |
+| Sandbox forte: strati che chiedono root (jailer, cgroup, namespace di rete) non misurati; ramo del kernel del guest (lo spike ha usato il 6.1.155, oltre il suo supporto minimo; proposta: 6.18, supportato fino al 2028, con le misure da rifare); codice nativo compilato sull'host e caricato nel guest (regge su questa CPU, ipotesi altrove); i moduli nello snapshot contro più versioni vive dello stesso nodo e contro la consegna su vsock alla prima attività; se il livello forte li richiede in produzione; parte del pool per tenant e pulizia (riciclo misurato 24-31 ms); contenuto e licenze del disco del guest e del suo agente (lo spike ha usato glibc statica, LGPL; musl non provato) | architettura; Marco per root e licenze | spec della prima storia della sandbox forte (FR-54) |
+| Javy statico o dinamico: il dinamico usa un plugin fornito da topictoast, quindi tocca il formato del modulo (FR-15), ed è la via candidata per l'avvio sotto i 10 ms nella sandbox forte con moduli grandi (non misurato) | architettura | spec della prima storia dei nodi in TypeScript |
+| Stato della versione di un nodo contro la compilazione: una versione (C-5) esiste prima del suo codice nativo, e la compilazione può fallire o durare fino al tetto; proposta della revisione: stato tipizzato «in compilazione, pronta, rifiutata», solo le versioni pronte avviano un'esecuzione, la ricompilazione dopo un aggiornamento del motore fuori dal percorso del task | architettura | prima della prima storia dei nodi (FR-15) |
+| Chi scrive il codice nativo: oggi il ruolo di compilazione, con l'impronta tenuta dal motore (ADR della sandbox); variante della revisione: il compilatore restituisce i byte sull'IPC e li scrive il motore, così il compilatore non attesta sé stesso. Come la sandbox leggera riceve un modulo pubblicato dopo il confinamento, quando nel ripiego non apre file (byte sull'IPC o descrittore passato) | architettura | prima della prima storia dei nodi (FR-15) |
+| Rotte senza credenziali sulla porta locale del motore (`/metrics` su localhost, C-9; salute) contro un ausiliario di rete nel ripiego senza Landlock, che la raggiunge; quale versione di Landlock vale come «presente» (proposta: una funzione del dominio calcola le capacità dell'host all'avvio) | architettura; Marco se cambia C-9 | spec della prima storia del confinamento degli ausiliari |
+| Sandbox forte attivata: dove sta l'attivazione per tenant (riga del tenant tramite l'API dell'integratore, o configurazione), in che punto si rifiuta senza KVM (pubblicazione del nodo, validazione o attività, senza consumare tentativi) e dove la dashboard legge l'avviso; tetto di riavvii per un ausiliario che il seccomp uccide di continuo | architettura | spec della prima storia della sandbox forte (FR-54) e dei processi ausiliari |
 | Battiti e ripresa: un evento durevole a ogni battito (come nello spike) costa 100.000 eventi al secondo con 50.000 tentativi in volo, non misurato; finestra di 2 s dopo la ripresa prima di dichiarare scaduto un tentativo in volo (ipotesi, nessuna corsa senza) | architettura | spec della prima storia con i battiti dei tentativi (FR-14) |
 | Primo avvio: chi firma la credenziale `aud = sdk` per SDK e CLI, da dove arriva la prima credenziale di worker (C-11), come lo sviluppatore di un tenant ottiene una credenziale per caricare un nodo (FR-15), riuso del nome esterno di un tenant eliminato (FR-31; identificativo interno in AD-5), dove si scrivono le credenziali del primo avvio (C-14: mai su stdout né nei log; il motore ne conserva solo un'impronta lenta, file con permessi 0600), durata e rinnovo dei certificati generati al primo avvio (C-14) | architettura | prima dello sprint 1: servono agli scenari di contratto e dell'SDK (AD-14) |
-| Altri JSON dei tenant: letterali dei documenti (`set`, `with`, corpo di `call http`), input delle esecuzioni e delle pianificazioni, errori conservati, righe emesse e trattenute delle pipeline stream, moduli compilati dei nodi. Proposta: archivio dei payload, riferimento tipizzato, cifratura per tenant, righe trattenute durevoli | architettura | prima della prima storia che salva uno qualunque di questi dati (FR-15, FR-24, FR-40, FR-57) |
+| Altri JSON dei tenant: letterali dei documenti (`set`, `with`, corpo di `call http`), input delle esecuzioni e delle pianificazioni, errori conservati, righe emesse e trattenute delle pipeline stream (i moduli dei nodi stanno nell'archivio dei payload, AD-6). Proposta: archivio dei payload, riferimento tipizzato, cifratura per tenant, righe trattenute durevoli | architettura | prima della prima storia che salva uno qualunque di questi dati (FR-15, FR-24, FR-40, FR-57) |
 | Fase operativa del motore (in ripresa dall'istante d'inizio, attivo, lavoro nuovo rifiutato con il motivo) come risorsa ed evento; l'API si apre prima di rileggere il bus? «Esegui» durante la ripresa (T-60) | architettura | prima della prima storia che la usa (API, kit o dashboard) |
 | Granularità degli eventi delle esecuzioni (stato dei task e conteggi dei fan-out raggruppati per iscrizione, dettagli degli elementi solo su richiesta) e battito del server per distinguere «nessuna novità» da «canale fermo» | architettura | prima della prima storia del tempo reale (FR-41) |
 | Chi serve i file della dashboard (proposta: il motore, sulla stessa origine dell'API), sessione dell'operatore (trasporto, scadenza, ruolo integratore) e protezione CSRF delle mutazioni, che la skill `dashboard-react` rimanda all'architettura | architettura | prima della storia d'accesso della dashboard (FR-45, M-44) |
 | Salvataggio e pulizia dell'archivio dei payload insieme al database (AD-3, AD-17) | architettura | prima della storia che scrive il primo file |
-| Formato di distribuzione e chi riavvia il motore dopo un crash (NFR-15), con un endpoint di salute e di prontezza per chi riavvia e per la fase operativa. Criterio: nessun componente da installare oltre topictoast, il bus e il database scelto | architettura | chi riavvia ed endpoint: ADR di S-2 con M-28; distribuzione: spec della prima storia di installazione (FR-50, NFR-13) |
+| Formato di distribuzione e chi riavvia il motore dopo un crash (NFR-15), con un endpoint di salute e di prontezza per chi riavvia e per la fase operativa. Criterio: nessun componente da installare oltre topictoast, il bus e il database scelto | architettura | spec della prima storia di installazione (FR-50, NFR-13), per tutti e tre i punti; S-2 non ha studiato chi riavvia il motore. Con il disco pieno anche il bus si ferma (fail-stop, AD-2) e va riavviato |
 | Distribuzione delle librerie client (npm, crates.io) e piattaforme del validatore nativo per Node (macOS e Windows degli sviluppatori; NFR-10 copre solo il server). Proposta: nativo per le piattaforme dichiarate, wasm come ripiego in Node | architettura | prima della prima storia dell'SDK o del kit |
 | Livello BDD di SDK TS e CLI (proposta: un worker di prova in TS al livello di contratto, la CLI guidata da scenari cucumber-rs) | architettura | prima della prima storia dell'SDK TS o della CLI |
 | Soglie di peso e di avvio del kit (né PRD né UX ne fissano) | Marco | ADR di S-4 |
