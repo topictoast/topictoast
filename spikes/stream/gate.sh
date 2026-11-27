@@ -19,7 +19,14 @@ state() {
   say "[stato $1 $(date +%T)] load: $(cut -d' ' -f1-3 /proc/loadavg)"
   say "[stato $1] io: $(head -1 /proc/pressure/io)"
   say "[stato $1] cpu: $(head -1 /proc/pressure/cpu)"
-  say "[stato $1] container in esecuzione ($(docker ps -q | wc -l)): $(docker ps --format '{{.Names}}' | sort | tr '\n' ' ')"
+  # tre elenchi: i container dei runner di GitHub (nome `github-runner-*`, mai toccati), i container dello spike (progetto
+  # compose ttspikestream) e gli altri, non nostri (es. i container di servizio di un job dei runner: nomi con prefisso esadecimale)
+  local all own runners others
+  all=$(docker ps --format '{{.Names}}' | sort)
+  own=$(docker ps --filter label=com.docker.compose.project=ttspikestream --format '{{.Names}}' | sort)
+  runners=$(echo "$all" | grep '^github-runner-')
+  others=$(echo "$all" | grep -vxF -f <(echo "$own") | grep -v '^github-runner-')
+  say "[stato $1] container in esecuzione ($(docker ps -q | wc -l)): runner_github=$(echo "$runners" | grep -c .) [$(echo $runners)] dello_spike=$(echo "$own" | grep -c .) [$(echo $own)] altri_non_nostri=$(echo "$others" | grep -c .) [$(echo $others)]"
   say "[stato $1] binario sha256: $(sha256sum "$BIN" | cut -d' ' -f1)"
   say "[stato $1] core assegnati: servizi=${SPIKE_CPUSET:-nessuno} motore_e_processi_per_tenant=${SPIKE_CPUS:-nessuno} generatore_e_oracolo=${SPIKE_LOADCPUS:-nessuno}"
   [ -n "${SPIKE_CPUSET:-}" ] && say "[stato $1] core ${SPIKE_CPUSET} occupati: $(busy "$SPIKE_CPUSET"); core ${SPIKE_LOADCPUS:-?} occupati: $(busy "${SPIKE_LOADCPUS:-0}")"

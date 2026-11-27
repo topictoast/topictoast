@@ -4,7 +4,8 @@
 //! Rotte (tutte con credenziale `Authorization: Bearer`, nessuna rotta senza, C-14):
 //! - `POST /v1/streams/{stream}/blocks`: token di ingresso del tenant, o token di servizio per gli stream di destinazione;
 //!   header `Idempotency-Key`;
-//! - `POST /v1/starts`: token di servizio del tenant (lo conosce solo il suo processo `stream`);
+//! - `POST /v1/starts`: token di servizio del tenant (lo conosce solo il suo processo `stream`); corpo = array JSON
+//!   `[{key, body}]` (fino a 1.000 righe) inserito in una transazione, risposta `{accepted, duplicates}` dopo il commit;
 //! - `GET /v1/stats`: token di amministrazione;
 //! - rotte di amministrazione (token di amministrazione), parte 2a: `POST /v1/admin/{tenant}/pipelines/{id}/suspend|resume`,
 //!   `PUT /v1/admin/{tenant}/pipelines/{id}` (nuova versione), `POST /v1/admin/{tenant}/validate` (validazione a secco),
@@ -69,6 +70,13 @@ pub struct Hello {
     /// C5: la conservazione e' quella vera di Iggy (nessuna simulazione nel lettore)
     #[serde(default)]
     pub real_retention: bool,
+}
+
+/// Una riga-avvio del gruppo di `POST /v1/starts`: chiave C-4 e corpo.
+#[derive(Deserialize)]
+struct StartItem {
+    key: String,
+    body: Value,
 }
 
 struct TenantRt {
@@ -273,36 +281,45 @@ async fn handle(e: Arc<Eng>, r: Req) -> Resp {
             if !e.tenants.iter().any(|t| ct_eq(&t.svc_token, tok)) {
                 return j(401, json!({"error":"unauthorized"}));
             }
-            // rifiuto per quota del motore (C6): la riga resta nel processo per tenant, che riprova
+            // rifiuto per quota del motore (C6): rifiuta l'intero gruppo, le righe restano nel processo per tenant, che riprova
             if now_ms() < e.refuse_until.load(Ordering::Relaxed) {
                 e.refused_starts.fetch_add(1, Ordering::Relaxed);
                 return j(429, json!({"error":"quota_exceeded"}));
             }
-            if key.is_empty() {
+            // corpo: array JSON `[{key, body}]`; una chiave C-4 mancante rifiuta tutto il gruppo
+            let Ok(items) = serde_json::from_slice::<Vec<StartItem>>(&r.body) else {
+                return j(400, json!({"error":"invalid_starts"}));
+            };
+            if items.iter().any(|i| i.key.is_empty()) {
                 return j(400, json!({"error":"idempotency_key_required"}));
             }
-            let pipeline = key.split(':').next().unwrap_or("").to_string();
-            let body = String::from_utf8_lossy(&r.body).to_string();
-            // ponytail: il corpo e' testo JSON; il prodotto avrebbe colonne tipizzate (costituzione V)
+            // un'unica transazione per tutto il gruppo, come il percorso di accettazione del prodotto
             let mut tx = match e.db.begin().await {
                 Ok(t) => t,
                 Err(_) => return j(503, json!({"error":"db"})),
             };
-            let ins = sqlx::query(
-                "INSERT OR IGNORE INTO starts(key, pipeline, body, accepted_ms) VALUES (?,?,?,?)",
-            )
-            .bind(&key)
-            .bind(&pipeline)
-            .bind(&body)
-            .bind(now_ms())
-            .execute(&mut *tx)
-            .await;
-            let Ok(ins) = ins else {
-                return j(503, json!({"error":"db"}));
-            };
-            let dup = ins.rows_affected() == 0;
-            if dup {
-                let _ = sqlx::query("UPDATE meta SET v = v + 1 WHERE k = 'dupes'")
+            let (mut accepted, mut dupes) = (0u64, 0u64);
+            for i in &items {
+                let pipeline = i.key.split(':').next().unwrap_or("");
+                // ponytail: il corpo e' testo JSON; il prodotto avrebbe colonne tipizzate (costituzione V)
+                let ins = sqlx::query(
+                    "INSERT OR IGNORE INTO starts(key, pipeline, body, accepted_ms) VALUES (?,?,?,?)",
+                )
+                .bind(&i.key)
+                .bind(pipeline)
+                .bind(i.body.to_string())
+                .bind(now_ms())
+                .execute(&mut *tx)
+                .await;
+                match ins {
+                    Ok(x) if x.rows_affected() == 0 => dupes += 1,
+                    Ok(_) => accepted += 1,
+                    Err(_) => return j(503, json!({"error":"db"})),
+                }
+            }
+            if dupes > 0 {
+                let _ = sqlx::query("UPDATE meta SET v = v + ? WHERE k = 'dupes'")
+                    .bind(dupes as i64)
                     .execute(&mut *tx)
                     .await;
             }
@@ -310,7 +327,7 @@ async fn handle(e: Arc<Eng>, r: Req) -> Resp {
             if tx.commit().await.is_err() {
                 return j(503, json!({"error":"db"}));
             }
-            j(200, json!({"duplicate":dup}))
+            j(200, json!({"accepted":accepted,"duplicates":dupes}))
         }
         ("GET", "/v1/stats") => {
             if !ct_eq(tok, &e.admin_token) {

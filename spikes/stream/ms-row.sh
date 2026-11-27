@@ -34,8 +34,8 @@ if [ "$N" = smoke ]; then
   export KIND=smoke
 else
   S=${3:-${SEED[$ROW-$N]}}; export PREFIX=stream; export NUM=$N; export KIND=misura
-  # il motore consegna ogni riga con un avvio sincrono (SQLite synchronous=FULL, un fsync per riga): su minisheep ~300 righe/s,
-  # quindi i controlli con molte righe (C1, C6: 150.000) aspettano la consegna fino a 25 minuti prima di giudicare
+  # tetto di attesa del check (25 minuti) per lo svuotamento delle righe in consegna; gli avvii escono a gruppi da 1.000
+  # righe in una transazione (un fsync per gruppo)
   export WAIT=${WAIT:-1500}
   [ -n "$S" ] || { echo "nessun seme scritto per $ROW-$N"; exit 1; }
 fi
@@ -44,7 +44,7 @@ run() { # id-in-smoke2 nome  [variabili d'ambiente per la durata]
   NAME_OVERRIDE=$2 ./smoke2.sh "$1" "$S"
 }
 if [ "$N" = smoke ]; then
-  export A1_N=${A1_N:-30} A1_VAL=${A1_VAL:-10} I1_PAIRS=${I1_PAIRS:-1} I1_DUR=${I1_DUR:-60}
+  export A1_N=${A1_N:-30} A1_VAL=${A1_VAL:-10} I1_PAIRS=${I1_PAIRS:-1} I1_DUR=${I1_DUR:-120}
   export T1_DUR=${T1_DUR:-60} T2_DUR=${T2_DUR:-120} T2_K1=${T2_K1:-40} T2_K2=${T2_K2:-80} T3_DUR=${T3_DUR:-60} M1_REST=${M1_REST:-20} M1_DUR=${M1_DUR:-40}
   export PHASE=${PHASE:-60} WAIT=${WAIT:-420}
 fi

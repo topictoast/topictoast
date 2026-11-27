@@ -297,6 +297,14 @@ pub async fn run() {
     let mut verdict_all = false;
     let mut last_report = String::new();
     let mut last_rows: Vec<Value> = vec![];
+    // svuotamento: secondi dalla fine del carico (ultima scrittura di `blocks.jsonl`) a pending=0 con la posizione in testa;
+    // ultimo stato visto (pending, posizione) per riportarlo se l'attesa scade
+    // ponytail: la fine del carico e' l'mtime di blocks.jsonl (il generatore lo chiude alla fine); se il file e' toccato dopo, il tempo e' per difetto
+    let load_end = std::fs::metadata(format!("{dir}/blocks.jsonl"))
+        .and_then(|m| m.modified())
+        .ok();
+    let mut drain_s: Option<f64> = None;
+    let mut last_state = (u64::MAX, 0u64);
     while t0.elapsed().as_secs() < wait_s {
         let Ok((200, b)) = http
             .request("GET", "/v1/stats", &[("Authorization", &auth)], b"")
@@ -308,9 +316,16 @@ pub async fn run() {
         let s1 = stats(b);
         let t = &s1["tenants"][tenant.as_str()];
         let pos1: u64 = t["streams"][0]["pos"].as_u64().unwrap_or(0);
-        if pos1 < head0 || t["pending"].as_u64().unwrap_or(1) != 0 {
+        let pending1 = t["pending"].as_u64().unwrap_or(u64::MAX);
+        last_state = (pending1, pos1);
+        if pos1 < head0 || pending1 != 0 {
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             continue;
+        }
+        if drain_s.is_none() {
+            drain_s = load_end
+                .and_then(|m| m.elapsed().ok())
+                .map(|d| d.as_secs_f64());
         }
         // righe di avvio accettate dal motore
         let mut actual: HashMap<String, (String, Value, i64)> = HashMap::new();
@@ -572,6 +587,16 @@ pub async fn run() {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     }
     print!("{last_report}");
+    match drain_s {
+        Some(s) => {
+            println!("SVUOTAMENTO finito dopo_fine_carico_s={s:.1} (pending=0, posizione in testa)")
+        }
+        None if last_state.0 != 0 || last_state.1 < head0 => println!(
+            "SVUOTAMENTO NON FINITO entro {wait_s} s: pending={} pos={} testa={head0}",
+            last_state.0 as i64, last_state.1
+        ),
+        None => {}
+    }
     // righe accettate della corsa, per `check --compare` (C3, C4: coppie con e senza guasti)
     let dump: String = last_rows.iter().map(|r| format!("{r}\n")).collect();
     std::fs::write(format!("{dir}/rows.jsonl"), dump).unwrap();

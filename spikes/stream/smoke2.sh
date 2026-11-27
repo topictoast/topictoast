@@ -39,6 +39,7 @@ header() {
   else
     say "SMOKE $NAME (non conta per i verdetti) data=$(date -u +%Y-%m-%dT%H:%M:%SZ) host=$(cat /proc/sys/kernel/hostname) core=$(nproc)"
   fi
+  say "PARAMETRI COMUNI: core=$(nproc) core_servizi_e_motore=${SPIKE_CPUS:-nessuno} core_generatore_e_oracolo=${SPIKE_LOADCPUS:-nessuno} tetto_attesa_del_check_wait_s=${WAIT:-predefinito_della_riga} consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=$SEED"
   [ -n "${PARAMS:-}" ] && say "$PARAMS"
   say "binario sha256=$(sha256sum "$BIN" | cut -d' ' -f1) seme=$SEED id=$ID"
   say "carico_1min_prima=$(cut -d' ' -f1 /proc/loadavg) pressione_io_prima=$(grep '^some' /proc/pressure/io | sed 's/.*avg10=\([0-9.]*\).*/\1/') container_in_esecuzione_prima=$(docker ps -q | wc -l)"
@@ -128,6 +129,11 @@ run_one() {
 case $ID in
   t1) PARAMS="T1 PARAMETRI: ritmo_offerto=105000 eventi/s FISSO (non senza tetto); ritmo_del_tempo_dell_evento=105000 eventi/s (uguale all'offerto); origine_del_tempo_dell_evento=alla partenza del carico (il generatore aspetta il confine della griglia da 300 s, fase 0, e parte li': la regola del futuro e la guardia del generatore non frenano e non scartano); connessioni=16; blocco=1000 eventi; durata=${T1_DUR:-600} s; query=UJ-3 con filtro (spec-t1.json); nessuna pipeline di verifica; ritardo del consumatore ogni 5 s; media sui minuti 2-10; chiusura delle finestre con la regola della quiete (nessun evento di chiusura: sarebbe oltre la tolleranza nel futuro di 60 s); seme=$SEED" ;;
   t1free) PARAMS="T1-FREE PARAMETRI (solo riportata): ritmo_offerto=senza tetto (--rate 0); ritmo_del_tempo_dell_evento=300000 eventi/s (sopra ogni ritmo plausibile: la guardia del generatore non frena; il tempo dell'evento resta indietro rispetto all'arrivo); origine=alla partenza (griglia da 300 s, fase 0); connessioni=16; blocco=1000 eventi; durata=${T1_DUR:-600} s; query=UJ-3 con filtro (spec-t1.json); ritardo del consumatore ogni 5 s; seme=$SEED" ;;
+  i1) PARAMS="I1 PARAMETRI: ritmo_offerto_A=50000 eventi/s; ritmo_del_tempo_dell_evento_A=50000; ritmo_offerto_B=100000 eventi/s; ritmo_del_tempo_dell_evento_B=100000; origine=alla partenza del carico di ogni tenant (past-s 0); connessioni A=4 B=4; blocco=1000 eventi; budget_CPU_per_microlotto_B(cpuhog)=$(jq -r '.tenants[1].pipelines[] | select(.id=="cpuhog") | .cpu_budget_ms' spec-i1.json) ms; coppie=${I1_PAIRS:-3} durata=${I1_DUR:-300} s per elemento; lettura: minuti 2-5 (t=60..300 s); semi_A=seme+k semi_B=seme+100+k" ;;
+  t2|s1) PARAMS="${ID^^} PARAMETRI: ritmo_offerto=105000 eventi/s; ritmo_del_tempo_dell_evento=105000; origine=alla partenza (griglia da 300 s, fase 0); connessioni=16; blocco=1000 eventi; durata=${T2_DUR:-600} s; kill del processo per tenant a ${T2_K1:-240} s e del motore a ${T2_K2:-420} s; pipeline di verifica: tutti i gruppi senza filtro e senza HAVING; ritardo del consumatore ogni 1 s; seme=$SEED" ;;
+  t3) PARAMS="T3 PARAMETRI: ritmi_offerti=1000 e 100000 eventi/s (uguali al ritmo del tempo dell'evento); origine=alla partenza (griglia da 30 s); connessioni=4 (1000/s) e 16 (100000/s); blocco=1000 eventi; durata=${T3_DUR:-180} s per ritmo; seme=$SEED (+ritmo)" ;;
+  a1) PARAMS="A1 PARAMETRI: riavvii=${A1_N:-200}; validazioni a secco=${A1_VAL:-30}; kill -9 del processo per tenant e rilancio del motore, pausa 0,3 s; nessun carico; seme=$SEED" ;;
+  m1) PARAMS="M1 PARAMETRI: riposo=${M1_REST:-60} s; carico=100000 eventi/s (tempo dell'evento uguale) per ${M1_DUR:-120} s; origine=alla partenza; connessioni=16; blocco=1000 eventi; seme=$SEED" ;;
 esac
 header
 

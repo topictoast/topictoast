@@ -114,8 +114,16 @@ fn landlock(c: &Cfg) -> Result<String, String> {
         .map_err(|e| format!("all_threads: {e}"))?
         .restrict_self()
         .map_err(|e| format!("restrict: {e}"))?;
+    // versione ABI di Landlock del kernel (`landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION)`, syscall 444
+    // su x86_64 e aarch64) e i diritti e gli ambiti richiesti (V9) che quella versione non conosce: spiegano `PartiallyEnforced`
+    // SAFETY: syscall senza puntatori (attr NULL, size 0, flag VERSION = 1)
+    let kernel = unsafe { libc::syscall(444, std::ptr::null::<u8>(), 0usize, 1u32) };
+    let k = ABI::from(kernel as i32);
+    let miss_fs = AccessFs::from_all(abi) & !AccessFs::from_all(k);
+    let miss_net = AccessNet::from_all(abi) & !AccessNet::from_all(k);
+    let miss_scope = Scope::from_all(abi) & !Scope::from_all(k);
     Ok(format!(
-        "{:?} nnp={} all_threads={}",
+        "{:?} nnp={} all_threads={} landlock_abi_kernel={kernel} richiesta=V9 non_supportati_fs={miss_fs:?} non_supportati_net={miss_net:?} non_supportati_scope={miss_scope:?}",
         st.ruleset, st.no_new_privs as u8, st.all_threads as u8
     ))
 }

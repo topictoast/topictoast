@@ -175,16 +175,27 @@ case $ID in
         say "I1 $label B righe del processo: $(grep -c 'sospesa' "$RUN/engine.log") sospensioni; $(grep -h 'sospesa' "$RUN/engine.log" | sed 's/[0-9]\{4,\}/N/g' | sort | uniq -c | tr '\n' ';')"
       fi
       say "I1 $label A pipeline: $(stats | jq -c '.tenants.acme | {cpu_ns, rss_kb, pipes: [.pipes[] | {id, state, code, state_bytes}]}')"
+      # regola di Marco (2026-11-27): ritmo e ritardo di A letti sui minuti 2-5 (t = 60..300 s) di ogni corsa da 5 minuti
+      local m25; m25=$(lag_stats "$RUN/A.out" 60 300)
+      say "I1 $label A (intera corsa): $(lag_stats "$RUN/A.out" 0 100000)"
+      say "I1 $label A (minuti 2-5, t=60..300 s): $m25"
+      I1R25[$label]=$(echo "$m25" | sed -n 's/.*media_eventi_s=\([0-9]*\).*/\1/p')
+      I1LF[$label]=$(echo "$m25" | sed -n 's/.*ritardo_medio_primo_terzo=\([0-9]*\).*/\1/p')
+      I1LL[$label]=$(echo "$m25" | sed -n 's/.*ritardo_medio_ultimo_terzo=\([0-9]*\).*/\1/p')
       I1RATE[$label]=$(grep '^DONE' "$RUN/A.out" | sed 's/.*ritmo=\([0-9]*\)\/s.*/\1/')
       I1STEADY[$label]=$(lag_stats "$RUN/A.out" 30 100000 | sed -n 's/.*media_eventi_s=\([0-9]*\).*/\1/p')
       stop_engine
     }
-    declare -A I1RATE I1STEADY
+    declare -A I1RATE I1STEADY I1R25 I1LF I1LL
     for k in $(seq 1 "$PAIRS"); do
       if [ $(((FIRST + k - 1) % 2)) = 0 ]; then ORD="ctrl test"; else ORD="test ctrl"; fi
       for ph in $ORD; do i1_phase "$k" "$ph"; done
       c=${I1RATE[i1-$k-ctrl]}; t=${I1RATE[i1-$k-test]}; cs=${I1STEADY[i1-$k-ctrl]}; ts=${I1STEADY[i1-$k-test]}
-      say "I1 coppia $k (ordine: $ORD): ritmo_A_controllo=$c ritmo_A_con_B=$t rapporto=$(awk -v a="$t" -v b="$c" 'BEGIN{printf "%.4f", (b > 0 ? a / b : 0)}') (soglia >= 0,95); da_t=30s: controllo=$cs con_B=$ts rapporto=$(awk -v a="$ts" -v b="$cs" 'BEGIN{printf "%.4f", (b > 0 ? a / b : 0)}')"
+      say "I1 coppia $k (ordine: $ORD): ritmo_A_controllo=$c ritmo_A_con_B=$t rapporto=$(awk -v a="$t" -v b="$c" 'BEGIN{printf "%.4f", (b > 0 ? a / b : 0)}') (soglia >= 0,95); da_t=30s: controllo=$cs con_B=$ts rapporto=$(awk -v a="$ts" -v b="$cs" 'BEGIN{printf "%.4f", (b > 0 ? a / b : 0)}') (righe aggiuntive di riferimento)"
+      # verdetto della coppia (regola di Marco, 2026-11-27): ritmo minuti 2-5 >= 0,95 del controllo e, nella corsa con B,
+      # media del ritardo dell'ultimo terzo <= media del primo terzo + 50.000 eventi
+      cr=${I1R25[i1-$k-ctrl]}; tr=${I1R25[i1-$k-test]}; tf=${I1LF[i1-$k-test]}; tl=${I1LL[i1-$k-test]}
+      say "I1 coppia $k VERDETTO (minuti 2-5): ritmo_controllo=$cr ritmo_con_B=$tr rapporto=$(awk -v a="$tr" -v b="$cr" 'BEGIN{printf "%.4f", (b > 0 ? a / b : 0)}') (soglia >= 0,95) ritardo_medio_primo_terzo(con_B)=$tf ultimo_terzo(con_B)=$tl (soglia ultimo <= primo + 50000) [controllo: primo=${I1LF[i1-$k-ctrl]} ultimo=${I1LL[i1-$k-ctrl]}] $(awk -v a="$tr" -v b="$cr" -v f="$tf" -v l="$tl" 'BEGIN{print (b > 0 && f != "" && l != "" && a / b >= 0.95 && l <= f + 50000) ? "PASS" : "FAIL"}')"
     done ;;
 
   # ------------------------------------------------------------------------------------------------ T1, T1-free

@@ -142,10 +142,12 @@ fn read_ckpt(dir: &str, key: &TenantKey, tenant: &str) -> Option<(CkHead, Vec<Ve
     Some((head, blobs))
 }
 
-/// Consegna le righe in attesa, con la chiave C-4: come avvio (`/v1/starts`) o, per una pipeline con destinazione
-/// stream (C7), come blocco di un evento sullo stream di destinazione con la stessa chiave come `Idempotency-Key`
-/// (i doppioni dopo un kill si assorbono alla lettura, come per ogni blocco). Un rifiuto per quota (429/503) o
-/// un errore trattiene la riga e la riprova; la riga esce dalla coda solo dopo il 200.
+/// Consegna le righe in attesa, con la chiave C-4. Le righe-avvio escono a gruppi: fino a 1.000 righe (o 1 MiB di corpo)
+/// in UN `POST /v1/starts` con un array JSON `[{key, body}]`, che il motore inserisce in una sola transazione e conferma
+/// con 200 dopo il commit (come fa il percorso di accettazione del prodotto). Una pipeline con destinazione stream (C7)
+/// consegna invece una riga alla volta, come blocco di un evento con la stessa chiave come `Idempotency-Key` (i doppioni
+/// dopo un kill si assorbono alla lettura). Un rifiuto per quota (429/503) o un errore trattiene tutto il gruppo e lo
+/// riprova; le righe escono dalla coda solo dopo il 200.
 async fn deliver(
     pending: Pending,
     api: String,
@@ -154,40 +156,68 @@ async fn deliver(
     cnt: Arc<Counters>,
     hists: Arc<Hists>,
 ) {
+    const MAX_ROWS: usize = 1000;
+    const MAX_BYTES: usize = 1 << 20;
     let mut c = Client::new(&api);
     loop {
-        let row = pending.lock().unwrap().front().cloned();
-        let Some(row) = row else {
+        // gruppo di righe-avvio consecutive in testa alla coda (o la sola riga con destinazione)
+        let group: Vec<Row> = {
+            let q = pending.lock().unwrap();
+            let mut bytes = 0;
+            let mut g = vec![];
+            for row in q.iter().take(MAX_ROWS) {
+                let len = row.key.len() + row.body.to_string().len() + 32;
+                if row.dest.is_some() {
+                    if g.is_empty() {
+                        g.push(row.clone());
+                    }
+                    break;
+                }
+                if !g.is_empty() && bytes + len > MAX_BYTES {
+                    break;
+                }
+                bytes += len;
+                g.push(row.clone());
+            }
+            g
+        };
+        if group.is_empty() {
             // nessun sondaggio periodico: una pipeline sospesa non deve svegliare il processo
             wake.notified().await;
             continue;
-        };
+        }
         let auth = format!("Bearer {token}");
-        let r = match &row.dest {
+        let r = match &group[0].dest {
             Some(d) => {
-                let body = json!({"events":[row.body]}).to_string();
+                let body = json!({"events":[group[0].body]}).to_string();
                 c.post(
                     &format!("/v1/streams/{d}/blocks"),
-                    &[("Authorization", &auth), ("Idempotency-Key", &row.key)],
+                    &[("Authorization", &auth), ("Idempotency-Key", &group[0].key)],
                     body.as_bytes(),
                 )
                 .await
             }
             None => {
+                let items: Vec<Value> = group
+                    .iter()
+                    .map(|r| json!({"key": r.key, "body": r.body}))
+                    .collect();
                 c.post(
                     "/v1/starts",
-                    &[("Authorization", &auth), ("Idempotency-Key", &row.key)],
-                    row.body.to_string().as_bytes(),
+                    &[("Authorization", &auth)],
+                    Value::Array(items).to_string().as_bytes(),
                 )
                 .await
             }
         };
         match r {
             Ok((200, _)) => {
-                pending.lock().unwrap().pop_front();
-                cnt.delivered.fetch_add(1, Ordering::Relaxed);
-                if row.closable_ms > 0 {
-                    let us = (now_ms() - row.closable_ms).max(0) as u64 * 1000;
+                pending.lock().unwrap().drain(..group.len());
+                cnt.delivered
+                    .fetch_add(group.len() as u64, Ordering::Relaxed);
+                let now = now_ms();
+                for row in group.iter().filter(|r| r.closable_ms > 0) {
+                    let us = (now - row.closable_ms).max(0) as u64 * 1000;
                     hists.start.lock().unwrap().record(us);
                 }
             }
