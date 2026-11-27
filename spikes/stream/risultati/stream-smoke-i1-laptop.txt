@@ -1,0 +1,17 @@
+SMOKE i1 (non conta per i verdetti) data=2026-11-27T08:34:40Z host=whitebones core=16
+binario sha256=19ba01ddbb5613e91530b4a0017f43a5c2f2a6bcd40190efc555813121bd1dfd seme=5 id=i1
+carico_1min_prima=13.31 pressione_io_prima=22.99 container_in_esecuzione_prima=12
+=== I1: tenant A a 50.000 eventi/s, tenant B (pipeline al limite di stato hog e al limite di CPU cpuhog, budget 30 ms per micro-lotto, ritmo offerto 100.000 eventi/s); 1 coppie da 45 s; limite di CPU: nessuno del sistema in modalita' senza privilegi (l'ADR della sandbox non decide un limite di CPU per questo ruolo, solo RLIMIT_CPU 3600 s di rete di sicurezza): budget di CPU per micro-lotto con codice cpu_budget_exceeded; seme=5 prima coppia: controllo poi prova
+--- coppia 1 fase ctrl: A da solo/ con B, 45 s
+I1 i1-1-ctrl A: DONE blocchi_accettati=2254 eventi_accettati=2254000 secondi=45.07 ritmo=50011/s riprove=0 senza_risposta=0 rifiutati=0
+I1 i1-1-ctrl A (da t=30 s): campioni=4 da_t=30.01 a_t=45.03 media_eventi_s=49933 ritardo_max=51000 ritardo_medio=27500 campioni_oltre_200000=0 ritardo_medio_primo_terzo=11000 ritardo_medio_ultimo_terzo=44000
+I1 i1-1-ctrl A pipeline: {"cpu_ns":2033456210,"rss_kb":65896,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":670892}]}
+--- coppia 1 fase test: A da solo/ con B, 45 s
+I1 i1-1-test A: DONE blocchi_accettati=2254 eventi_accettati=2254000 secondi=45.06 ritmo=50019/s riprove=0 senza_risposta=0 rifiutati=0
+I1 i1-1-test A (da t=30 s): campioni=4 da_t=30.01 a_t=45.01 media_eventi_s=50000 ritardo_max=49000 ritardo_medio=27750 campioni_oltre_200000=0 ritardo_medio_primo_terzo=15000 ritardo_medio_ultimo_terzo=41000
+I1 i1-1-test B: DONE blocchi_accettati=4502 eventi_accettati=4502000 secondi=45.02 ritmo=100000/s riprove=0 senza_risposta=0 rifiutati=0
+I1 i1-1-test B pipeline: {"cpu_ns":808724584,"rss_kb":272160,"pipes":[{"id":"hog","state":"suspended","code":"state_quota_exceeded","state_bytes":67690258,"applied":527},{"id":"cpuhog","state":"suspended","code":"cpu_budget_exceeded","state_bytes":73369254,"applied":65}]}
+I1 i1-1-test B righe del processo: 2 sospensioni;       1 stream: pipeline cpuhog sospesa: cpu_budget_exceeded (44 ms oltre 30 ms in un micro-lotto);      1 stream: pipeline hog sospesa: state_quota_exceeded (N byte oltre N);
+I1 i1-1-test A pipeline: {"cpu_ns":2141995294,"rss_kb":65848,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":670892}]}
+I1 coppia 1 (ordine: ctrl test): ritmo_A_controllo=50011 ritmo_A_con_B=50019 rapporto=1.0002 (soglia >= 0,95); da_t=30s: controllo=49933 con_B=50000 rapporto=1.0013
+carico_1min_dopo=12.92 container_in_esecuzione_dopo=12

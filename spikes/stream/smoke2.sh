@@ -19,7 +19,7 @@ case $ID in
   a2ctrl) NAME=a2-ctrl ;;
   *) NAME=$ID ;;
 esac
-NAME=$NAME${RUNTAG:+-$RUNTAG}
+NAME=${NAME_OVERRIDE:-$NAME}${RUNTAG:+-$RUNTAG}
 PREFIX=${PREFIX:-stream-smoke}; MACH=${MACH:-laptop}
 OUT=${OUT_FILE:-${OUTDIR:-$HERE/risultati}/$PREFIX-$NAME${NUM:+-$NUM}-$MACH.txt}
 [ -e "$OUT" ] && [ -z "${OUT_APPEND:-}" ] && { echo "esiste gia': $OUT (un file grezzo non si riscrive: cambia il nome)"; exit 1; }
@@ -112,7 +112,9 @@ run_one() {
   say "--- check ($label)"
   local extra=""
   [ -n "${CHECK_EXTRA_FN:-}" ] && extra=$($CHECK_EXTRA_FN)
-  $PIN_L "$BIN" check --spec "$CHECKSPEC" --run-dir "$RD" --data "$D/engine" --addr $ADDR --wait-s "${WAIT:-240}" $extra "$@" 2>&1 | tee -a "$OUT"
+  if [ -z "${NOCHECK:-}" ]; then
+    $PIN_L "$BIN" check --spec "$CHECKSPEC" --run-dir "$RD" --data "$D/engine" --addr $ADDR --wait-s "${WAIT:-240}" $extra "$@" 2>&1 | tee -a "$OUT"
+  else say "(check non eseguito: l oracolo rilegge il log di Iggy, che dopo la cancellazione vera non ha piu i blocchi vecchi)"; fi
   say "--- log del motore ($label, righe di riavvio)"
   grep -E "terminato|ripreso|sospesa|set_pipeline" "$RUN/engine.log" | sed 's/[0-9]\{4,\}/N/g' | sort | uniq -c | tee -a "$OUT"
   mkdir -p "$KEEP/$label"; cp "$RD/run.json" "$RD/rows.jsonl" "$KEEP/$label/" 2>/dev/null
@@ -257,7 +259,28 @@ case $ID in
     CHECKSPEC=spec-v3b.json
     run_one v3b spec-v3.json "--seed $SEED --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315" hook:v3b_hook
     stop_engine ;;
-  a1|a2|a2ctrl|i1|t1|t1free|t2|t3|m1|s1) . ./rows2b.sh ;;
+  c5real)
+    # C5, sospensione oltre la conservazione con la cancellazione VERA di Iggy (parte 2b): il topic ha scadenza dei messaggi
+    # di 40 s e segmenti da 1 MiB (opzioni del topic, Iggy 0.10), il pulitore passa ogni 5 s; il lettore non simula nulla
+    export IGGY_CLEAN=5s
+    ENG_EXTRA=(--real-retention); NOCHECK=1
+    say "=== c5real: lo stream indicators ha conservazione di 40 s (scadenza dei messaggi del topic) e segmenti da 1 MiB; pulitore di Iggy ogni 5 s; uj3v resta sospesa piu' di 40 s"
+    CHECKSPEC=spec-c5c.json
+    c5r_hook() {
+      wait_until 5; say "t=$(( $(date +%s) - S0 ))s sospendo uj3v"; adm POST /v1/admin/acme/pipelines/uj3v/suspend | tee -a "$OUT"; echo | tee -a "$OUT"
+      for t in 20 40 60; do
+        wait_until $t
+        say "t=${t}s segmenti su disco: $(docker run --rm -v "$D/iggy:/d:ro" --entrypoint sh apache/iggy:0.10.0 -c "find /d -type f -name '*.log' | wc -l") file .log nella cartella dei dati di Iggy (un solo topic); $("$BIN" probe first 2>&1 | tail -1)"
+      done
+    }
+    run_one c5real spec-c5c.json "--seed $SEED --events 300000 --rate 5000 --evrate 5000 --past-s 0" hook:c5r_hook
+    say "dopo il carico: $("$BIN" probe first 2>&1 | tail -1)"
+    say "ripresa dopo la perdita: $(adm POST /v1/admin/acme/pipelines/uj3v/resume)"
+    sleep 3
+    say "stato dopo la ripresa rifiutata: $(stats | jq -c '.tenants.acme.pipes[] | select(.id=="uj3v") | {state, code, applied}') altre: $(stats | jq -c '[.tenants.acme.pipes[] | select(.id!="uj3v") | .state] | unique')"
+    say "(nessun check dell oracolo dopo la cancellazione vera: ricalcolerebbe dal log senza i blocchi cancellati; l esito e il codice retention_exceeded, la posizione applicata e la prima posizione leggibile)"
+    stop_engine ;;
+  a1|a2|a2ctrl|rc|i1|t1|t1free|t2|t3|m1|s1) . ./rows2b.sh ;;
   *) say "id sconosciuto"; exit 1 ;;
 esac
 footer

@@ -36,6 +36,7 @@ pub async fn run() {
         Some("v2") => v2_parent(),
         Some("v2-case") => v2_child().await,
         Some("s1dec") => s1dec().await,
+        Some("first") => first().await,
         _ => eprintln!("uso: streamspike probe v1|v2 --spec <file>"),
     }
 }
@@ -1001,6 +1002,28 @@ async fn free_run(sql: &str, streams: &[StreamDef], b: &Barriers) -> (String, St
     }
 }
 
+/// C5 con cancellazione vera: `probe first --tenant acme --stream indicators`: prima posizione ancora leggibile del topic
+/// (lettura dalla 0) e testa del log, con le credenziali di amministrazione di Iggy.
+async fn first() {
+    let tenant = arg("--tenant").unwrap_or("acme".into());
+    let stream = arg("--stream").unwrap_or("indicators".into());
+    let bus = crate::bus::Bus::connect(
+        &arg("--iggy").unwrap_or("127.0.0.1:47101".into()),
+        &env("IGGY_ROOT_USERNAME"),
+        &env("IGGY_ROOT_PASSWORD"),
+    )
+    .await
+    .expect("bus");
+    let topic = topic_of(&tenant, &stream);
+    let head = bus.head(&topic).await.unwrap_or(0);
+    let first = bus
+        .read(&topic, 0, 1)
+        .await
+        .ok()
+        .and_then(|v| v.first().map(|(o, _)| *o));
+    println!("FIRST topic={topic} testa={head} prima_posizione_leggibile={first:?}");
+}
+
 /// Occorrenze di `needle` in `hay` (sovrapposizioni escluse, basta per una sentinella casuale).
 fn count_hits(hay: &[u8], needle: &[u8]) -> usize {
     if needle.is_empty() || hay.len() < needle.len() {
@@ -1031,15 +1054,33 @@ async fn s1dec() {
     let master = crate::crypto::Master::load(&format!("{data}/master.key"));
     let key = master.tenant_key(&crate::crypto::tenant_uid(&tenant));
     let needle = sent.as_bytes();
-    // checkpoint: file `ckpt.bin` nella cartella del tenant, indirizzo `ckpt/<tenant>`
-    let ck = std::fs::read(format!("{data}/payload/{tenant}/ckpt.bin")).unwrap_or_default();
-    let plain = key.open(&format!("ckpt/{tenant}"), &ck);
-    let ck_hits = plain.as_deref().map_or(0, |p| count_hits(p, needle));
-    println!(
-        "S1DEC checkpoint byte_cifrati={} decifrato={} sentinella_nel_chiaro={ck_hits}",
-        ck.len(),
-        plain.is_some()
-    );
+    // checkpoint: il file vivo `ckpt.bin` nella cartella del tenant e le copie scattate durante la corsa (`--ckpt-dir`, con
+    // finestre aperte: il file finale di una corsa a finestre tutte chiuse non porta stato), indirizzo `ckpt/<tenant>`
+    let mut files = vec![format!("{data}/payload/{tenant}/ckpt.bin")];
+    if let Some(d) = arg("--ckpt-dir") {
+        let mut v: Vec<String> = std::fs::read_dir(&d)
+            .map(|r| {
+                r.filter_map(|e| e.ok())
+                    .map(|e| e.path().display().to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+        v.sort();
+        files.extend(v);
+    }
+    let mut ck_hits = 0usize;
+    for f in &files {
+        let ck = std::fs::read(f).unwrap_or_default();
+        let plain = key.open(&format!("ckpt/{tenant}"), &ck);
+        let h = plain.as_deref().map_or(0, |p| count_hits(p, needle));
+        ck_hits += h;
+        println!(
+            "S1DEC checkpoint file={} byte_cifrati={} decifrato={} sentinella_nel_chiaro={h}",
+            f.rsplit('/').next().unwrap_or(f),
+            ck.len(),
+            plain.is_some()
+        );
+    }
     let bus = crate::bus::Bus::connect(
         &arg("--iggy").unwrap_or("127.0.0.1:47101".into()),
         &env("IGGY_ROOT_USERNAME"),
@@ -1063,5 +1104,8 @@ async fn s1dec() {
         "S1DEC log testa={head} messaggi_letti={seen} decifrati={opened} sentinella_nel_chiaro={hits}"
     );
     let ok = ck_hits > 0 && hits > 0;
-    println!("S1DEC controllo_positivo={}", if ok { "PASS" } else { "FAIL" });
+    println!(
+        "S1DEC controllo_positivo={}",
+        if ok { "PASS" } else { "FAIL" }
+    );
 }

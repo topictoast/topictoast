@@ -141,7 +141,11 @@ impl Gen {
             if n > a {
                 s.push(',');
             }
-            let sep = if self.cfg.sentinel.is_empty() { "" } else { "-" };
+            let sep = if self.cfg.sentinel.is_empty() {
+                ""
+            } else {
+                "-"
+            };
             s.push_str(&format!(
                 "{{\"asn\":{},\"ip\":\"{}\",\"kind\":\"{}{sep}{}\",\"ts\":{}}}",
                 e.asn, e.ip, self.cfg.sentinel, e.kind, e.ts

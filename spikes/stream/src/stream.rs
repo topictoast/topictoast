@@ -23,11 +23,11 @@
 
 use crate::bus::Bus;
 use crate::confine;
-use crate::metrics::Shared as SharedHist;
 use crate::crypto::{TenantKey, new_id, tenant_uid, unhex};
 use crate::dialect::{Barriers, DErr, derr, validate_set};
 use crate::engine::Hello;
 use crate::http::Client;
+use crate::metrics::Shared as SharedHist;
 use crate::pipeline::{Pipe, PipeHead, PipeState, Row};
 use crate::spec::*;
 use crate::wire::{self, Msg};
@@ -535,6 +535,7 @@ pub async fn run() {
                         let (applied, si) = (pipes[pi].st.applied, pipes[pi].sidx);
                         let head = bus.head(&srt[si].topic).await.unwrap_or(0);
                         if let Some(r) = srt[si].def.retention_s
+                            && !hello.real_retention
                             && applied < log_floor(&bus, &key, &srt[si].topic, r * 1000).await
                         {
                             lost = true;
@@ -609,7 +610,8 @@ pub async fn run() {
                         let ms = t.elapsed().as_secs_f64() * 1000.0;
                         match res {
                             Err(e) => {
-                                reply = json!({"reply": c["req"], "ok": false, "error": e, "ms": ms})
+                                reply =
+                                    json!({"reply": c["req"], "ok": false, "error": e, "ms": ms})
                             }
                             Ok(_) => reply["ms"] = json!(ms),
                         }
@@ -841,7 +843,10 @@ pub async fn run() {
         } else if last_ck.elapsed() >= ck_every {
             last_ck = Instant::now();
         }
-        if last_stat.elapsed() >= Duration::from_secs(1) {
+        // statistiche: 4 al secondo con pipeline attive (il ritardo del consumatore di T1 e I1 si legge da qui: con 1 al secondo
+        // sarebbe sovrastimato fino a un secondo di eventi, 105.000 al ritmo di T1), 1 al secondo se tutte sospese (C5: CPU a riposo)
+        if last_stat.elapsed() >= Duration::from_millis(if active.is_empty() { 1000 } else { 250 })
+        {
             let v = json!({
                 "streams": srt.iter().map(|s| json!({"name":s.def.name,"pos":s.pos,"events":s.events,"bad":s.bad})).collect::<Vec<_>>(),
                 "pipes": pipes.iter().map(|p| json!({

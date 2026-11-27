@@ -10,7 +10,11 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqliteSynchronous};
 #[tokio::main]
 async fn main() {
     let a: Vec<String> = std::env::args().collect();
-    let arg = |k: &str| a.iter().position(|x| x == k).and_then(|i| a.get(i + 1).cloned());
+    let arg = |k: &str| {
+        a.iter()
+            .position(|x| x == k)
+            .and_then(|i| a.get(i + 1).cloned())
+    };
     let data = arg("--data").expect("--data");
     let listen = arg("--listen").expect("--listen");
     let iggy = arg("--iggy").unwrap_or("127.0.0.1:47101".into());
@@ -28,10 +32,12 @@ async fn main() {
     )
     .await
     .unwrap();
-    sqlx::query("CREATE TABLE IF NOT EXISTS starts(key TEXT PRIMARY KEY, body TEXT NOT NULL) WITHOUT ROWID")
-        .execute(&db)
-        .await
-        .unwrap();
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS starts(key TEXT PRIMARY KEY, body TEXT NOT NULL) WITHOUT ROWID",
+    )
+    .execute(&db)
+    .await
+    .unwrap();
     let _l = tokio::net::TcpListener::bind(&listen).await.unwrap();
     println!("idle_nodf pronto su {listen}");
     tokio::time::sleep(std::time::Duration::from_secs(86_400)).await;

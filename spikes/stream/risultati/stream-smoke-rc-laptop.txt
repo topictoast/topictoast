@@ -1,0 +1,18 @@
+SMOKE rc (non conta per i verdetti) data=2026-11-27T08:48:02Z host=whitebones core=16
+binario sha256=9ce4476f0f475d989b42da4ffcb08a50089553a62379f8493ff9584571826ac2 seme=11 id=rc
+carico_1min_prima=6.38 pressione_io_prima=0.62 container_in_esecuzione_prima=12
+=== RC: riavvio di Iggy (progetto ttspikestream) a 15 s dentro un carico di 3.000 eventi/s di 60 s; il processo per tenant e il motore NON si riavviano: devono riconnettersi da soli sotto confinamento
+riavvio di Iggy eseguito a t=15 s
+--- carico
+load seed=11 eventi=100000000 blocchi=100000 conn=2 rate=3000 evrate=3000 t0=1795768689679 past_ms=600000
+DONE blocchi_accettati=182 eventi_accettati=182000 secondi=60.34 ritmo=3016/s riprove=0 senza_risposta=0 rifiutati=0
+RC ritardo del consumatore (t:ritardo): 1.00:0 2.00:1000 3.01:1000 4.01:1000 5.01:1000 6.01:1000 7.01:1000 8.01:1000 9.01:1000 10.02:1000 11.02:1000 12.02:1000 13.02:1000 14.02:1000 15.02:1000 16.02:1000 17.03:1000 18.03:1000 19.03:1000 20.03:1000 21.03:1000 22.03:1000 23.03:1000 24.04:1000 25.04:1000 26.04:1000 27.04:1000 28.04:1000 29.04:1000 30.04:1000 31.04:1000 32.05:1000 33.05:1000 34.05:1000 35.05:1000 36.05:1000 37.05:1000 38.06:1000 39.06:1000 40.06:1000 41.06:1000 42.06:1000 43.06:1000 44.06:1000 45.07:1000 46.07:1000 47.07:1000 48.07:1000 49.07:1000 50.07:1000 51.07:0 52.07:0 53.08:1000 54.08:1000 55.08:1000 56.08:1000 57.08:1000 58.08:1000 59.09:1000 60.09:0 
+RC il processo per tenant e' lo stesso: prima=1438906 dopo=1438906; il motore e' lo stesso: 1438877 vive=si
+RC righe del processo per tenant sugli errori: 0 letture fallite; riavvii del processo: 0
+--- check
+CHECK tenant=acme seed=11 blocchi_accettati=182 testa_log=194 senza_risposta=0
+LOG blocchi_distinti=182 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=194
+PIPELINE uj3 oracolo=uj3 righe_attese=0 righe_avvio=0 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=1 ultima_finestra_fine_ms=None ultimo_blocco_arrivo_ms=1795769350014 B_meno_E_ms=None ritardo_chiusura_ultima_finestra_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=0 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+carico_1min_dopo=4.19 container_in_esecuzione_dopo=12

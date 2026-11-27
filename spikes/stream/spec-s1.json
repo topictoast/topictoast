@@ -12,7 +12,7 @@
         },
         {
           "id": "sentk", "version": 1, "oracle": "none",
-          "sql": "SELECT window_start, window_end, kind, count(*) AS n FROM indicators GROUP BY tumble(INTERVAL '5 minutes'), kind"
+          "sql": "SELECT window_start, window_end, asn, max(kind) AS k, count(*) AS n FROM indicators GROUP BY tumble(INTERVAL '5 minutes'), asn"
         }
       ]
     }

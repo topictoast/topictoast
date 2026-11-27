@@ -66,6 +66,9 @@ pub struct Hello {
     /// solo M1: lascia `PR_SET_DUMPABLE` a 1 (altrimenti `smaps_rollup` del processo, e quindi il PSS, non si legge da fuori)
     #[serde(default)]
     pub keep_dumpable: bool,
+    /// C5: la conservazione e' quella vera di Iggy (nessuna simulazione nel lettore)
+    #[serde(default)]
+    pub real_retention: bool,
 }
 
 struct TenantRt {
@@ -489,6 +492,8 @@ pub async fn run() {
         std::process::exit(2);
     }
     let allow_probe = std::env::args().any(|a| a == "--allow-probe");
+    // C5 con cancellazione vera: topic con scadenza e segmenti da 1 MiB; il lettore non simula piu' la conservazione
+    let real_retention = std::env::args().any(|a| a == "--real-retention");
     let keep_dumpable = std::env::args().any(|a| a == "--m1-keep-dumpable");
     if let Some(p) = arg("--probe-port") {
         let l = tokio::net::TcpListener::bind(format!("127.0.0.1:{p}"))
@@ -551,8 +556,16 @@ pub async fn run() {
         let uid = tenant_uid(&t.id);
         let key = master.tenant_key(&uid);
         let topics: Vec<String> = t.streams.iter().map(|s| topic_of(&t.id, &s.name)).collect();
-        for tp in &topics {
-            bus.ensure_topic(tp).await.unwrap();
+        for (tp, s) in topics.iter().zip(&t.streams) {
+            bus.ensure_topic(
+                tp,
+                real_retention
+                    .then_some(s.retention_s)
+                    .flatten()
+                    .map(|r| r as u64),
+            )
+            .await
+            .unwrap();
         }
         let up = bus
             .ro_user(&format!("ro-{}", t.id), &topics)
@@ -578,6 +591,7 @@ pub async fn run() {
             no_confine,
             allow_probe,
             keep_dumpable,
+            real_retention,
         });
         let (tx, rx) = mpsc::unbounded_channel();
         ctls.push(rx);

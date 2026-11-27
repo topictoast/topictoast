@@ -125,6 +125,29 @@ case $ID in
     fi
     stop_engine ;;
 
+  # ------------------------------------------------------------------------------------------------ RC (riconnessione a Iggy sotto confinamento)
+  rc)
+    CHECKSPEC=spec-t1.json
+    RUN=$D/run/rc; ./reset.sh; mkdir -p "$RUN"
+    start_engine spec-t1.json || exit 1
+    wait_ready_n 1 || exit 1
+    sleep 2
+    SP0=$(cat "$D/engine/pids/stream-acme.pid"); EP=$(cat "$RUN/engine.pid")
+    say "=== RC: riavvio di Iggy (progetto ttspikestream) a 15 s dentro un carico di 3.000 eventi/s di 60 s; il processo per tenant e il motore NON si riavviano: devono riconnettersi da soli sotto confinamento"
+    $PIN_L "$BIN" load --addr $ADDR --run-dir "$RUN/load" --seed "$SEED" --events 100000000 --rate 3000 --evrate 3000 --past-s 600 --duration-s 60 --conns 2 --lag-every-s 1 > "$RUN/load.out" 2>&1 &
+    LP=$!
+    sleep 15
+    docker compose -p ttspikestream --env-file "$D/.env" restart iggy >/dev/null 2>&1; say "riavvio di Iggy eseguito a t=15 s"
+    wait $LP
+    sleep 10
+    say "--- carico"; grep -v '^LAG' "$RUN/load.out" | tail -4 | tee -a "$OUT"
+    say "RC ritardo del consumatore (t:ritardo): $(grep '^LAG' "$RUN/load.out" | sed 's/LAG t=\([0-9.]*\)s.*ritardo=\([0-9-]*\) max.*/\1:\2/' | tr '\n' ' ')"
+    say "RC il processo per tenant e' lo stesso: prima=$SP0 dopo=$(cat "$D/engine/pids/stream-acme.pid"); il motore e' lo stesso: $EP vive=$(kill -0 "$EP" 2>/dev/null && echo si || echo no)"
+    say "RC righe del processo per tenant sugli errori: $(grep -c 'lettura fallita' "$RUN/engine.log") letture fallite; riavvii del processo: $(grep -c 'terminato' "$RUN/engine.log")"
+    say "--- check"
+    $PIN_L "$BIN" check --spec spec-t1.json --run-dir "$RUN/load" --data "$D/engine" --addr $ADDR --wait-s "${WAIT:-240}" 2>&1 | tee -a "$OUT"
+    stop_engine ;;
+
   # ------------------------------------------------------------------------------------------------ I1
   i1)
     PAIRS=${I1_PAIRS:-3}; DUR=${I1_DUR:-300}
@@ -169,8 +192,8 @@ case $ID in
   t1|t1free)
     CHECKSPEC=spec-t1.json
     DUR=${T1_DUR:-600}
-    if [ "$ID" = t1 ]; then L="--seed $SEED --events 70000000 --rate 105000 --evrate 105000 --past-s 0 --phase-s 0 --phase-period-s 300 --duration-s $DUR --conns 16"
-    else L="--seed $SEED --events 400000000 --rate 0 --evrate 300000 --past-s 0 --phase-s 0 --phase-period-s 300 --duration-s $DUR --conns 16"; fi
+    if [ "$ID" = t1 ]; then L="--seed $SEED --events 70000000 --rate 105000 --evrate 105000 --past-s 0 --phase-s 0 --phase-period-s ${PHASE:-300} --duration-s $DUR --conns 16"
+    else L="--seed $SEED --events 400000000 --rate 0 --evrate 300000 --past-s 0 --phase-s 0 --phase-period-s ${PHASE:-300} --duration-s $DUR --conns 16"; fi
     RUN=$D/run/$ID; ./reset.sh; mkdir -p "$RUN"
     start_engine spec-t1.json || exit 1
     sleep 2
@@ -199,8 +222,15 @@ case $ID in
     sleep 2
     RD=$RUN/load; rm -rf "$RD"
     say "=== $ID: ${DUR} s a ritmo pieno (105.000 eventi/s offerti, tempo dell'evento = ritmo offerto, origine alla partenza), pipeline di verifica (tutti i gruppi, senza filtro e senza HAVING); kill -9 del processo per tenant a $K1 s e del motore a $K2 s dall'inizio del carico"
-    $PIN_L "$BIN" load --addr $ADDR --run-dir "$RD" --seed "$SEED" --events 70000000 --rate 105000 --evrate 105000 --past-s 0 --phase-s 0 --phase-period-s 300 --duration-s "$DUR" --conns 16 --lag-every-s 1 $SARG > "$RUN/load.out" 2>&1 &
+    $PIN_L "$BIN" load --addr $ADDR --run-dir "$RD" --seed "$SEED" --events 70000000 --rate 105000 --evrate 105000 --past-s 0 --phase-s 0 --phase-period-s ${PHASE:-300} --duration-s "$DUR" --conns 16 --lag-every-s 1 $SARG > "$RUN/load.out" 2>&1 &
     LP=$!
+    SNAP=
+    if [ "$ID" = s1 ]; then
+      # copie del checkpoint durante la corsa (ogni 20 s), con finestre aperte: il file finale non porta stato
+      mkdir -p "$RUN/ckpt-snap"
+      ( i=0; while :; do sleep 20; i=$((i + 1)); cp "$D/engine/payload/acme/ckpt.bin" "$RUN/ckpt-snap/ckpt-$i.bin" 2>/dev/null; done ) &
+      SNAP=$!
+    fi
     T0=$(phase_target "$RUN/load.out")
     say "inizio del carico (ms epoch): $T0"
     wait_wall_ms $((T0 + K1 * 1000)); KS=$(date +%s%3N); NS=$(grep -c 'stream acme pronto' "$RUN/engine.log"); kill_stream
@@ -210,21 +240,22 @@ case $ID in
     say "kill -9 engine a t=$(( (KE - T0) / 1000 )) s ($KE ms)"
     restart_engine "$SPECF" "${ENG_EXTRA[@]}"; say "motore di nuovo pronto dopo $(( $(date +%s%3N) - KE )) ms dal kill"
     wait $LP
+    [ -n "$SNAP" ] && kill "$SNAP" 2>/dev/null
     say "--- carico"; grep -v '^LAG' "$RUN/load.out" | tail -5 | tee -a "$OUT"
     say "$ID ritmo e ritardo sull'intero carico: $(lag_stats "$RUN/load.out" 0 100000)"
     for k in "stream:$K1" "engine:$K2"; do
-      kind=${k%%:*}; kt=${k##*:}
-      say "$ID recupero dopo il kill di $kind a t=${kt} s (campioni da 1 s): $(awk -v kt="$kt" '
+      kind=${k%%:*}; kt=${k##*:}; ke=$([ "$kind" = stream ] && echo "$K2" || echo $((DUR + 120)))
+      say "$ID recupero dopo il kill di $kind a t=${kt} s (campioni da 1 s): $(awk -v kt="$kt" -v ke="$ke" '
         /^LAG / { for (i = 1; i <= NF; i++) { split($i, kv, "="); v[kv[1]] = kv[2] }
                   t = v["t"] + 0; l = v["ritardo"] + 0
                   if (t < kt - 1) next
                   if (!seen_first) { seen_first = 1; prev_t = t }
-                  if (t > kt && t < kt + 120) { n++; if (l > pk) { pk = l; pkt = t }
+                  if (t > kt && t < ke) { n++; if (l > pk) { pk = l; pkt = t }
                       if (pk > 200000 && !back && t > pkt && l <= 200000) { back = t }
                       if (l > 200000) over++ ;
                       if (t - prev_t > 1.5 && !gap) gap = t - prev_t }
                   prev_t = t }
-        END { printf "campioni=%d picco_ritardo=%d a_t=%.1f secondi_con_ritardo_oltre_200000=%d rientro_sotto_200000_a_t=%s buco_massimo_tra_campioni_s=%.1f (rientro misurato dal kill: %s s)\n",
+        END { printf "campioni=%d picco_ritardo=%d a_t=%.1f secondi_con_ritardo_oltre_200000=%d rientro_sotto_200000_a_t=%s primo_buco_oltre_1,5_s_tra_campioni=%.1f (rientro misurato dal kill: %s s)\n",
               n, pk, pkt, over + 0, (back ? back : "mai/non_superato"), gap + 0, (back ? sprintf("%.1f", back - kt) : "n/a") }' "$RUN/load.out")"
     done
     say "--- righe del motore (riavvii)"; grep -E "terminato|pronto in|ripreso" "$RUN/engine.log" | sed 's/[0-9]\{5,\}/N/g' | sort | uniq -c | tee -a "$OUT"
@@ -234,11 +265,11 @@ case $ID in
     if [ "$ID" = s1 ]; then
       say "--- S1: conteggio delle occorrenze in chiaro della sentinella (deve essere 0)"
       say "S1 dati di Iggy (grep -a su tutta la cartella, dal container di Iggy in sola lettura): $(docker run --rm -v "$D/iggy:/d:ro" --entrypoint sh apache/iggy:0.10.0 -c "grep -raoF '$SENT' /d | wc -l")"
-      say "S1 cartella dei checkpoint ($D/engine/payload): $(grep -raoF "$SENT" "$D/engine/payload" | wc -l)"
+      say "S1 cartella dei checkpoint ($D/engine/payload): $(grep -raoF "$SENT" "$D/engine/payload" | wc -l); copie scattate durante la corsa ($(ls "$RUN/ckpt-snap" | wc -l) file di cifrati): $(grep -raoF "$SENT" "$RUN/ckpt-snap" | wc -l)"
       say "S1 file dei checkpoint presenti: $(ls -l "$D"/engine/payload/acme | tail -n +2 | awk '{print $5, $9}' | tr '\n' ';')"
       say "S1 (informazione, non richiesto) database degli avvii: $(grep -aoF "$SENT" "$D/engine/starts.db"* | wc -l) occorrenze in chiaro (le righe delle finestre portano il gruppo kind)"
       say "S1 controllo positivo dopo la decifratura:"
-      "$BIN" probe s1dec --data "$D/engine" --tenant acme --stream indicators --sentinel "$SENT" 2>&1 | tee -a "$OUT"
+      "$BIN" probe s1dec --data "$D/engine" --tenant acme --stream indicators --sentinel "$SENT" --ckpt-dir "$RUN/ckpt-snap" 2>&1 | tee -a "$OUT"
     fi
     stop_engine ;;
 
@@ -283,7 +314,7 @@ case $ID in
     sleep "$REST"; memrow "motore_con_un_tenant_a_riposo_${REST}s" "$PE"; memrow "processo_per_tenant_a_riposo_${REST}s_una_pipeline" "$PS"
     say "M1 statistiche del processo per tenant a riposo: $(stats | jq -c '.tenants.acme | {rss_kb, pipes: [.pipes[] | {id, state_bytes}]}')"
     DUR=${M1_DUR:-120}
-    $PIN_L "$BIN" load --addr $ADDR --run-dir "$RUN/load" --seed "$SEED" --events 100000000 --rate 100000 --evrate 100000 --past-s 0 --phase-s 0 --phase-period-s 300 --duration-s "$DUR" --conns 16 > "$RUN/load.out" 2>&1 &
+    $PIN_L "$BIN" load --addr $ADDR --run-dir "$RUN/load" --seed "$SEED" --events 100000000 --rate 100000 --evrate 100000 --past-s 0 --phase-s 0 --phase-period-s ${PHASE:-300} --duration-s "$DUR" --conns 16 > "$RUN/load.out" 2>&1 &
     LP=$!
     T0=$(phase_target "$RUN/load.out"); wait_wall_ms $((T0 + 10000))
     while kill -0 $LP 2>/dev/null; do

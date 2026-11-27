@@ -36,12 +36,19 @@ impl Bus {
         Ok(())
     }
 
-    /// Crea il topic se manca: una partizione, scrittura durevole (`persisted`), nessuna scadenza.
-    pub async fn ensure_topic(&self, topic: &str) -> Res<()> {
+    /// Crea il topic se manca: una partizione, scrittura durevole (`persisted`), nessuna scadenza, salvo `retention_s`:
+    /// con `Some(s)` (solo `--real-retention`) i messaggi scadono dopo `s` secondi e il segmento e' di 1 MiB (il minimo,
+    /// `MIN_TOPIC_SEGMENT_SIZE`). In Iggy 0.10 la dimensione del segmento e' un'opzione del topic, non della configurazione
+    /// del server; il pulitore (`data_maintenance.messages.interval`, 1 minuto) cancella i segmenti chiusi scaduti.
+    pub async fn ensure_topic(&self, topic: &str, retention_s: Option<u64>) -> Res<()> {
         if self.0.get_topic(&id(STREAM), &id(topic)).await?.is_none() {
             let o = TopicCreateOptions {
                 partitions_count: Some(1),
-                message_expiry: Some(IggyExpiry::NeverExpire),
+                message_expiry: Some(match retention_s {
+                    Some(s) => IggyExpiry::ExpireDuration(IggyDuration::new_from_secs(s)),
+                    None => IggyExpiry::NeverExpire,
+                }),
+                segment_size: retention_s.map(|_| IggyByteSize::from(1u64 << 20)),
                 durability: Durability::Persisted,
                 ..TopicCreateOptions::default()
             };

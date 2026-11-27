@@ -1,0 +1,12 @@
+SMOKE t3 (non conta per i verdetti) data=2026-11-27T09:15:47Z host=whitebones core=16
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=61 id=t3
+carico_1min_prima=4.08 pressione_io_prima=0.25 container_in_esecuzione_prima=12
+=== T3 a 1000 eventi/s per 60 s (finestre da 30 s: piu' chiusure in una corsa breve; tempo dell'evento = ritmo offerto)
+DONE blocchi_accettati=64 eventi_accettati=64000 secondi=63.00 ritmo=1016/s riprove=0 senza_risposta=0 rifiutati=0
+T3 1000 eventi/s, latenze del processo per tenant (microsecondi; secchi con errore relativo <= 4,4 %; n = campioni): {"batch":{"max_us":1453,"n":145,"p50_us":10,"p99_us":1312},"counted":{"max_us":69000,"n":64,"p50_us":56320,"p99_us":67584},"start":{"max_us":42000,"n":140,"p50_us":20992,"p99_us":41984}}
+T3 1000 eventi/s, consegna: {"delivered":140,"pending":0,"refused":0,"cpu_ns":2881590911,"rss_kb":66960,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":4086,"applied":145,"late":0,"future":0}]}
+=== T3 a 100000 eventi/s per 60 s (finestre da 30 s: piu' chiusure in una corsa breve; tempo dell'evento = ritmo offerto)
+DONE blocchi_accettati=6016 eventi_accettati=6016000 secondi=60.15 ritmo=100012/s riprove=0 senza_risposta=0 rifiutati=0
+T3 100000 eventi/s, latenze del processo per tenant (microsecondi; secchi con errore relativo <= 4,4 %; n = campioni): {"batch":{"max_us":9142,"n":1071,"p50_us":1056,"p99_us":4480},"counted":{"max_us":108000,"n":6016,"p50_us":35840,"p99_us":71680},"start":{"max_us":7376000,"n":10017,"p50_us":1867776,"p99_us":7208960}}
+T3 100000 eventi/s, consegna: {"delivered":10017,"pending":0,"refused":0,"cpu_ns":5562379046,"rss_kb":72668,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":407978,"applied":6096,"late":0,"future":0}]}
+carico_1min_dopo=7.66 container_in_esecuzione_dopo=11

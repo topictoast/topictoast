@@ -214,6 +214,14 @@ pub async fn run() {
                         .as_array()
                         .map(|a| a.iter().map(|s| s["events"].as_i64().unwrap_or(0)).sum())
                         .unwrap_or(0);
+                    // statistiche del tenant assenti (motore appena riavviato, processo non ancora pronto): non e' un ritardo
+                    if done == 0 && acc > 0 {
+                        println!(
+                            "LAGX t={:.2}s accettati={acc} (statistiche del tenant non disponibili)",
+                            start.elapsed().as_secs_f64()
+                        );
+                        continue;
+                    }
                     let lag = acc - done;
                     maxlag = maxlag.max(lag);
                     println!(
