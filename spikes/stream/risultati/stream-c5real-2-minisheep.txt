@@ -1,0 +1,61 @@
+[attesa del cancello] 20 s
+MISURA c5real corsa=2 data=2026-11-27T21:36:38Z host=minisheep core=22 seme=6552
+PARAMETRI COMUNI: core=22 core_servizi_e_motore=1-4 core_generatore_e_oracolo=8-11 tetto_attesa_del_check_wait_s=1500 consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=6552
+binario sha256=9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34 seme=6552 id=c5real
+carico_1min_prima=0.60 pressione_io_prima=0.64 container_in_esecuzione_prima=12
+[stato prima 22:36:38] load: 0.60 0.51 0.53
+[stato prima] io: some avg10=0.64 avg60=1.55 avg300=2.26 total=27945705276
+[stato prima] cpu: some avg10=0.00 avg60=0.01 avg300=0.03 total=3035198098
+[stato prima] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato prima] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27095096 swap_usato_kb=2120032 some avg10=0.00 avg60=0.00 avg300=0.00 total=7426858
+[stato prima] disco: /dev/mapper/root  931G  752G  174G  82% /home
+[stato prima] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 4.945 ms per scrittura
+[stato prima] orologio UTC: 2026-11-27T21:36:44 kernel: 7.2.4-arch1-2
+=== c5real: lo stream indicators ha conservazione di 40 s (scadenza dei messaggi del topic) e segmenti da 1 MiB; pulitore di Iggy ogni 5 s; uj3v resta sospesa piu' di 40 s
+=== corsa c5real spec=spec-c5c.json carico='--seed 6552 --events 300000 --rate 5000 --evrate 5000 --past-s 0' guasti=hook:c5r_hook motore='--real-retention'
+corsa_c5real carico_1min_prima=0.71
+t=5s sospendo uj3v
+{"ok":true,"reply":1} [http=200]
+t=20s segmenti su disco: 11 file .log nella cartella dei dati di Iggy (un solo topic); FIRST topic=blk-acme-indicators testa=103 prima_posizione_leggibile=Some(0)
+t=40s segmenti su disco: 19 file .log nella cartella dei dati di Iggy (un solo topic); FIRST topic=blk-acme-indicators testa=203 prima_posizione_leggibile=Some(0)
+t=60s segmenti su disco: 14 file .log nella cartella dei dati di Iggy (un solo topic); FIRST topic=blk-acme-indicators testa=303 prima_posizione_leggibile=Some(75)
+--- carico (c5real)
+LAG t=5.00s accettati=25000 elaborati=25000 ritardo=0 max=0
+LAG t=10.00s accettati=50000 elaborati=50000 ritardo=0 max=0
+LAG t=15.00s accettati=75000 elaborati=75000 ritardo=0 max=0
+LAG t=20.01s accettati=100000 elaborati=100000 ritardo=0 max=0
+LAG t=25.01s accettati=125000 elaborati=124000 ritardo=1000 max=1000
+LAG t=30.01s accettati=150000 elaborati=150000 ritardo=0 max=1000
+LAG t=35.01s accettati=175000 elaborati=175000 ritardo=0 max=1000
+LAG t=40.01s accettati=201000 elaborati=200000 ritardo=1000 max=1000
+LAG t=45.02s accettati=225000 elaborati=224000 ritardo=1000 max=1000
+LAG t=50.02s accettati=250000 elaborati=250000 ritardo=0 max=1000
+LAG t=55.02s accettati=276000 elaborati=275000 ritardo=1000 max=1000
+DONE blocchi_accettati=300 eventi_accettati=300000 secondi=59.82 ritmo=5015/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c5real)
+(check non eseguito: l oracolo rilegge il log di Iggy, che dopo la cancellazione vera non ha piu i blocchi vecchi)
+--- log del motore (c5real, righe di riavvio)
+stats_finali_c5real: {"cpu_ns":2711532601,"rss_kb":73448,"pending":0,"delivered":542,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":528577,"applied":302},{"id":"uj3v","state":"suspended","code":"operator","state_bytes":368394,"applied":26}]}
+dopo il carico: FIRST topic=blk-acme-indicators testa=303 prima_posizione_leggibile=Some(75)
+ripresa dopo la perdita: {"error":{"code":"retention_exceeded","message":"la posizione della pipeline uj3v non e' piu' nel log"},"ok":false,"reply":2} [http=409]
+stato dopo la ripresa rifiutata: {"state":"suspended","code":"retention_exceeded","applied":26} altre: ["running"]
+(nessun check dell oracolo dopo la cancellazione vera: ricalcolerebbe dal log senza i blocchi cancellati; l esito e il codice retention_exceeded, la posizione applicata e la prima posizione leggibile)
+carico_1min_dopo=0.50 container_in_esecuzione_dopo=12
+[stato dopo 22:37:55] load: 0.50 0.50 0.52
+[stato dopo] io: some avg10=1.16 avg60=1.63 avg300=2.16 total=27947455450
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.01 total=3035466288
+[stato dopo] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato dopo] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.5%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27077896 swap_usato_kb=2120032 some avg10=0.00 avg60=0.00 avg300=0.00 total=7426858
+[stato dopo] disco: /dev/mapper/root  931G  751G  174G  82% /home
+[stato dopo] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 3.106 ms per scrittura
+[stato dopo] orologio UTC: 2026-11-27T21:38:00 kernel: 7.2.4-arch1-2
