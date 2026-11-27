@@ -1,0 +1,78 @@
+[attesa del cancello] 0 s
+SMOKE t2-2g (non conta per i verdetti) data=2026-11-27T16:45:48Z host=minisheep core=22
+PARAMETRI COMUNI: core=22 core_servizi_e_motore=1-4 core_generatore_e_oracolo=8-11 tetto_attesa_del_check_wait_s=1500 consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+T2 PARAMETRI: ritmo_offerto=105000 eventi/s; ritmo_del_tempo_dell_evento=105000; origine=alla partenza (griglia da 300 s, fase 0); connessioni=16; blocco=1000 eventi; durata=600 s; kill del processo per tenant a 240 s e del motore a 420 s; pipeline di verifica: tutti i gruppi senza filtro e senza HAVING; ritardo del consumatore ogni 1 s; seme=91
+binario sha256=9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34 seme=91 id=t2
+carico_1min_prima=1.04 pressione_io_prima=0.18 container_in_esecuzione_prima=12
+[stato prima 17:45:48] load: 1.04 1.40 1.58
+[stato prima] io: some avg10=0.18 avg60=0.21 avg300=15.27 total=25816047201
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.44 total=2910666905
+[stato prima] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato prima] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27089172 swap_usato_kb=2120460 some avg10=0.00 avg60=0.00 avg300=0.00 total=7421000
+[stato prima] disco: /dev/mapper/root  931G  754G  171G  82% /home
+[stato prima] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 4.959 ms per scrittura
+[stato prima] orologio UTC: 2026-11-27T16:45:53 kernel: 7.2.4-arch1-2
+=== t2: 600 s a ritmo pieno (105.000 eventi/s offerti, tempo dell'evento = ritmo offerto, origine alla partenza), pipeline di verifica (tutti i gruppi, senza filtro e senza HAVING); kill -9 del processo per tenant a 240 s e del motore a 420 s dall'inizio del carico
+inizio del carico (ms epoch): 1795798200000
+kill -9 stream a t=240 s (1795798440181 ms)
+processo per tenant di nuovo pronto dopo 317 ms dal kill
+kill -9 engine a t=420 s (1795798620097 ms)
+motore di nuovo pronto dopo 1211 ms dal kill
+--- carico
+fase: attesa fino a 1795798200000 (238 s)
+load seed=91 eventi=70000000 blocchi=70000 conn=16 rate=105000 evrate=105000 t0=1795798200000 past_ms=0
+DONE blocchi_accettati=63010 eventi_accettati=63010000 secondi=600.15 ritmo=104990/s riprove=93 senza_risposta=93 rifiutati=0
+t2 ritmo e ritardo sull'intero carico: campioni=598 da_t=1.00 a_t=599.92 media_eventi_s=104992 ritardo_max=46000 ritardo_medio=13448 campioni_oltre_200000=0 ritardo_medio_primo_terzo=13749 ritardo_medio_ultimo_terzo=12246
+t2 recupero dopo il kill di stream a t=240 s (campioni da 1 s): campioni=180 picco_ritardo=34000 a_t=240.4 secondi_con_ritardo_oltre_200000=0 rientro_sotto_200000_a_t=mai/non_superato primo_buco_oltre_1,5_s_tra_campioni=0.0 (rientro misurato dal kill: n/a s)
+t2 recupero dopo il kill di engine a t=420 s (campioni da 1 s): campioni=179 picco_ritardo=46000 a_t=421.6 secondi_con_ritardo_oltre_200000=0 rientro_sotto_200000_a_t=mai/non_superato primo_buco_oltre_1,5_s_tra_campioni=2.0 (rientro misurato dal kill: n/a s)
+--- righe del motore (riavvii)
+      1 engine: stream acme pronto in 27.447 ms (init_ms=23.388) inherited_fds=1 closed_fds=0 landlock=FullyEnforced nnp=1 all_threads=1 landlock_abi_kernel=10 richiesta=V9 non_supportati_fs=BitFlags<AccessFs>(0b0) non_supportati_net=BitFlags<AccessNet>(0b0) non_supportati_scope=BitFlags<Scope>(0b0) seccomp_syscalls=38 level=landlock+seccomp t_confine_us=328
+      1 engine: stream acme pronto in 30.128 ms (init_ms=25.552) inherited_fds=1 closed_fds=0 landlock=FullyEnforced nnp=1 all_threads=1 landlock_abi_kernel=10 richiesta=V9 non_supportati_fs=BitFlags<AccessFs>(0b0) non_supportati_net=BitFlags<AccessNet>(0b0) non_supportati_scope=BitFlags<Scope>(0b0) seccomp_syscalls=38 level=landlock+seccomp t_confine_us=428
+      1 engine: stream acme pronto in 35.642 ms (init_ms=31.083) inherited_fds=1 closed_fds=0 landlock=FullyEnforced nnp=1 all_threads=1 landlock_abi_kernel=10 richiesta=V9 non_supportati_fs=BitFlags<AccessFs>(0b0) non_supportati_net=BitFlags<AccessNet>(0b0) non_supportati_scope=BitFlags<Scope>(0b0) seccomp_syscalls=38 level=landlock+seccomp t_confine_us=323
+      1 engine: stream acme terminato (segnale Some(9), codice None), riavvio
+      2 stream acme: ripreso dal checkpoint, righe in attesa 0
+--- check (0 persi, 0 doppi, un avvio per riga)
+CHECK tenant=acme seed=91 blocchi_accettati=63010 testa_log=63254 senza_risposta=93
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63254
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63272
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63290
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63308
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63327
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63345
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63363
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63381
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63399
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63416
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63434
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63452
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63470
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63488
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63506
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63524
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63541
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63559
+LOG blocchi_distinti=63010 duplicati_nel_log=2 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=63577
+PIPELINE uj3v oracolo=uj3v righe_attese=12210 righe_avvio=12210 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(30311) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795799100000) ultimo_blocco_arrivo_ms=1795798800103 B_meno_E_ms=Some(-299897) ritardo_chiusura_ultima_finestra_ms=Some(10280) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=12210 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+SVUOTAMENTO finito dopo_fine_carico_s=1.1 (pending=0, posizione in testa)
+VERDETTO PASS
+stats_finali: {"delivered":7210,"pending":0,"refused":0,"cpu_ns":18030598020,"rss_kb":88432,"pipes":[{"id":"uj3v","state":"running","code":null,"state_bytes":4084540,"applied":63593,"late":0,"future":0}]}
+carico_1min_dopo=1.16 container_in_esecuzione_dopo=12
+[stato dopo 18:05:41] load: 1.16 1.47 1.55
+[stato dopo] io: some avg10=0.00 avg60=0.20 avg300=16.36 total=26175981068
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.48 total=2924932482
+[stato dopo] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato dopo] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.7%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-1 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26929368 swap_usato_kb=2120388 some avg10=0.00 avg60=0.00 avg300=0.00 total=7421001
+[stato dopo] disco: /dev/mapper/root  931G  754G  171G  82% /home
+[stato dopo] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 5.009 ms per scrittura
+[stato dopo] orologio UTC: 2026-11-27T17:05:47 kernel: 7.2.4-arch1-2

@@ -1,0 +1,51 @@
+[attesa del cancello] 0 s
+SMOKE i1-2g (non conta per i verdetti) data=2026-11-27T17:26:26Z host=minisheep core=22
+PARAMETRI COMUNI: core=22 core_servizi_e_motore=1-4 core_generatore_e_oracolo=8-11 tetto_attesa_del_check_wait_s=1500 consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+I1 PARAMETRI: ritmo_offerto_A=50000 eventi/s; ritmo_del_tempo_dell_evento_A=50000; ritmo_offerto_B=100000 eventi/s; ritmo_del_tempo_dell_evento_B=100000; origine=alla partenza del carico di ogni tenant (past-s 0); connessioni A=4 B=4; blocco=1000 eventi; budget_CPU_per_microlotto_B(cpuhog)=30 ms; coppie=1 durata=120 s per elemento; lettura: minuti 2-5 (t=60..300 s); semi_A=seme+k semi_B=seme+100+k
+binario sha256=9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34 seme=91 id=i1
+carico_1min_prima=1.13 pressione_io_prima=0.91 container_in_esecuzione_prima=12
+[stato prima 18:26:26] load: 1.13 0.70 0.84
+[stato prima] io: some avg10=0.91 avg60=0.96 avg300=0.91 total=26191280494
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2928883665
+[stato prima] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato prima] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.5%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.16
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27102984 swap_usato_kb=2120384 some avg10=0.00 avg60=0.00 avg300=0.00 total=7421008
+[stato prima] disco: /dev/mapper/root  931G  752G  174G  82% /home
+[stato prima] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 4.518 ms per scrittura
+[stato prima] orologio UTC: 2026-11-27T17:26:31 kernel: 7.2.4-arch1-2
+=== I1: tenant A a 50.000 eventi/s, tenant B (pipeline al limite di stato hog e al limite di CPU cpuhog, budget 30 ms per micro-lotto, ritmo offerto 100.000 eventi/s); 1 coppie da 120 s; limite di CPU: nessuno del sistema in modalita' senza privilegi (l'ADR della sandbox non decide un limite di CPU per questo ruolo, solo RLIMIT_CPU 3600 s di rete di sicurezza): budget di CPU per micro-lotto con codice cpu_budget_exceeded; seme=91 prima coppia: controllo poi prova
+--- coppia 1 fase ctrl: A da solo/ con B, 120 s
+I1 i1-1-ctrl A: DONE blocchi_accettati=6004 eventi_accettati=6004000 secondi=120.08 ritmo=50001/s riprove=0 senza_risposta=0 rifiutati=0
+I1 i1-1-ctrl A (da t=30 s): campioni=19 da_t=30.01 a_t=120.04 media_eventi_s=50006 ritardo_max=14000 ritardo_medio=7263 campioni_oltre_200000=0 ritardo_medio_primo_terzo=7000 ritardo_medio_ultimo_terzo=8000
+I1 i1-1-ctrl A pipeline: {"cpu_ns":4871438510,"rss_kb":69552,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":913146}]}
+I1 i1-1-ctrl A (intera corsa): campioni=24 da_t=5.00 a_t=120.04 media_eventi_s=50009 ritardo_max=14000 ritardo_medio=6792 campioni_oltre_200000=0 ritardo_medio_primo_terzo=6875 ritardo_medio_ultimo_terzo=6875
+I1 i1-1-ctrl A (minuti 2-5, t=60..300 s): campioni=13 da_t=60.02 a_t=120.04 media_eventi_s=50000 ritardo_max=14000 ritardo_medio=7385 campioni_oltre_200000=0 ritardo_medio_primo_terzo=7500 ritardo_medio_ultimo_terzo=6250
+--- coppia 1 fase test: A da solo/ con B, 120 s
+I1 i1-1-test A: DONE blocchi_accettati=6004 eventi_accettati=6004000 secondi=120.09 ritmo=49995/s riprove=0 senza_risposta=0 rifiutati=0
+I1 i1-1-test A (da t=30 s): campioni=19 da_t=30.01 a_t=120.04 media_eventi_s=50006 ritardo_max=14000 ritardo_medio=7895 campioni_oltre_200000=0 ritardo_medio_primo_terzo=8167 ritardo_medio_ultimo_terzo=10833
+I1 i1-1-test B: DONE blocchi_accettati=6125 eventi_accettati=6125000 secondi=120.07 ritmo=51012/s riprove=0 senza_risposta=0 rifiutati=0
+I1 i1-1-test B pipeline: {"cpu_ns":851762848,"rss_kb":288192,"pipes":[{"id":"hog","state":"suspended","code":"state_quota_exceeded","state_bytes":67199696,"applied":521},{"id":"cpuhog","state":"suspended","code":"state_quota_exceeded","state_bytes":82801730,"applied":68}]}
+I1 i1-1-test B righe del processo: 2 sospensioni;       1 stream: pipeline cpuhog sospesa: state_quota_exceeded (N byte oltre N);      1 stream: pipeline hog sospesa: state_quota_exceeded (N byte oltre N);
+I1 i1-1-test A pipeline: {"cpu_ns":4782021526,"rss_kb":79568,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":913146}]}
+I1 i1-1-test A (intera corsa): campioni=24 da_t=5.00 a_t=120.04 media_eventi_s=50000 ritardo_max=14000 ritardo_medio=8125 campioni_oltre_200000=0 ritardo_medio_primo_terzo=8625 ritardo_medio_ultimo_terzo=9875
+I1 i1-1-test A (minuti 2-5, t=60..300 s): campioni=13 da_t=60.02 a_t=120.04 media_eventi_s=50050 ritardo_max=14000 ritardo_medio=7769 campioni_oltre_200000=0 ritardo_medio_primo_terzo=4250 ritardo_medio_ultimo_terzo=10500
+I1 coppia 1 (ordine: ctrl test): ritmo_A_controllo=50001 ritmo_A_con_B=49995 rapporto=0.9999 (soglia >= 0,95); da_t=30s: controllo=50006 con_B=50006 rapporto=1.0000 (righe aggiuntive di riferimento)
+I1 coppia 1 VERDETTO (minuti 2-5): ritmo_controllo=50000 ritmo_con_B=50050 rapporto=1.0010 (soglia >= 0,95) ritardo_medio_primo_terzo(con_B)=4250 ultimo_terzo(con_B)=10500 (soglia ultimo <= primo + 50000) [controllo: primo=7500 ultimo=6250] PASS
+carico_1min_dopo=2.11 container_in_esecuzione_dopo=12
+[stato dopo 18:30:55] load: 2.11 1.38 1.08
+[stato dopo] io: some avg10=34.33 avg60=50.21 avg300=27.61 total=26306569555
+[stato dopo] cpu: some avg10=1.20 avg60=1.62 avg300=0.87 total=2933478245
+[stato dopo] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato dopo] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.18
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27096072 swap_usato_kb=2120384 some avg10=0.00 avg60=0.00 avg300=0.00 total=7421008
+[stato dopo] disco: /dev/mapper/root  931G  752G  174G  82% /home
+[stato dopo] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 5.042 ms per scrittura
+[stato dopo] orologio UTC: 2026-11-27T17:31:00 kernel: 7.2.4-arch1-2
