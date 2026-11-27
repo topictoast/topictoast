@@ -116,7 +116,6 @@ case $ID in
     SP=$(cat "$D/engine/pids/stream-acme.pid")
     say "A2 stato del processo per tenant visto da /proc/$SP: $(grep -E '^(Seccomp|Seccomp_filters|NoNewPrivs|Threads):' /proc/$SP/status | tr '\n\t' '  ') limiti: $(grep -E 'Max (open files|core file size|file size)' /proc/$SP/limits | tr -s ' ' | tr '\n' ';')"
     say "A2 PR_SET_DUMPABLE visto da fuori (proprietario di /proc/<pid>/environ: root = non ispezionabile): processo_per_tenant=$(stat -c %U /proc/$SP/environ) motore=$(stat -c %U /proc/$EP/environ)"
-    say "A2 descrittori aperti del processo per tenant: $(ls /proc/$SP/fd | wc -l) (ereditati chiusi: vedi la riga «pronto» del motore)"
     say "A2 riepilogo ($ID): prove=$N da_negare=$MUSTDENY fughe=$LEAKS rotte_o_non_classificate=$BAD file_creato_fuori=$([ -e "$D/engine/evil" ] && echo SI || echo no)"
     if [ "$ID" = a2 ]; then
       say "A2 verdetto: $([ "$LEAKS" = 0 ] && [ "$BAD" = 0 ] && echo PASS || echo FAIL) (0 fughe e prove ammesse funzionanti)"

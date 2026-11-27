@@ -1,0 +1,108 @@
+[attesa del cancello] 30 s
+SMOKE c5 (non conta per i verdetti) data=2026-11-27T11:26:59Z host=minisheep core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=c5
+carico_1min_prima=0.94 pressione_io_prima=0.63 container_in_esecuzione_prima=12
+[stato prima 12:27:00] load: 0.94 1.28 1.35
+[stato prima] io: some avg10=0.63 avg60=26.79 avg300=29.96 total=23862241140
+[stato prima] cpu: some avg10=0.01 avg60=0.91 avg300=1.03 total=2773752900
+[stato prima] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.5%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 0.06
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27078656 swap_usato_kb=2124384 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964550
+[stato prima] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato prima] orologio UTC: 2026-11-27T11:27:04 kernel: 7.2.4-arch1-2
+=== corsa c5a spec=spec-c1.json carico='--seed 91 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315' guasti=hook:c5a_hook motore=''
+corsa_c5a carico_1min_prima=1.02
+t=8s sospendo uj3v e hop
+{"ok":true,"reply":1} [http=200]
+{"ok":true,"reply":2} [http=200]
+t=38s riprendo (sospese per 30 s)
+{"ok":true,"reply":3} [http=200]
+{"ok":true,"reply":4} [http=200]
+--- carico (c5a)
+LAG t=5.00s accettati=100000 elaborati=97000 ritardo=3000 max=3000
+LAG t=10.01s accettati=200000 elaborati=196000 ritardo=4000 max=4000
+LAG t=15.01s accettati=300000 elaborati=297000 ritardo=3000 max=4000
+LAG t=20.01s accettati=400000 elaborati=399000 ritardo=1000 max=4000
+LAG t=25.01s accettati=501000 elaborati=499000 ritardo=2000 max=4000
+LAG t=30.01s accettati=600000 elaborati=600000 ritardo=0 max=4000
+LAG t=35.02s accettati=700000 elaborati=696000 ritardo=4000 max=4000
+LAG t=40.02s accettati=801000 elaborati=798000 ritardo=3000 max=4000
+LAG t=45.02s accettati=901000 elaborati=898000 ritardo=3000 max=4000
+LAG t=50.02s accettati=1001000 elaborati=1001000 ritardo=0 max=4000
+LAG t=55.03s accettati=1101000 elaborati=1096000 ritardo=5000 max=5000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.01 ritmo=19997/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c5a)
+CHECK tenant=acme seed=91 blocchi_accettati=1201 testa_log=1204 senza_risposta=0
+VERDETTO FAIL
+--- log del motore (c5a, righe di riavvio)
+stats_finali_c5a: {"cpu_ns":11200259673,"rss_kb":248372,"pending":67214,"delivered":85769,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":75754,"applied":1403},{"id":"uj3v","state":"running","code":null,"state_bytes":75754,"applied":1403},{"id":"hop","state":"running","code":null,"state_bytes":75754,"applied":1403},{"id":"dist","state":"running","code":null,"state_bytes":75754,"applied":1403},{"id":"ipd","state":"running","code":null,"state_bytes":75754,"applied":1403},{"id":"filter","state":"running","code":null,"state_bytes":75754,"applied":1403}]}
+=== c5b CPU della pipeline sospesa. Definizione: tempo di CPU del processo per tenant (CLOCK_PROCESS_CPUTIME_ID letto dal processo stesso: utente + sistema, tutti i thread, anche quelli finiti, ns) tra due righe di statistiche a 30 s l'una dall'altra, con la sola pipeline sospesa nel processo; i segnali (1 al secondo sul log, non letti), i checkpoint (10 s, saltati se nulla e' cambiato) e le righe di statistiche (1 al secondo) sono dentro la misura. Controllo incrociato: utime+stime da /proc/<pid>/stat (tick da 10 ms).
+sospendo solo: {"ok":true,"reply":1} [http=200]
+c5b pid=2917694 stato={"state":"suspended","code":"operator"} cpu_ns_inizio=1027039896 cpu_ns_fine=1036042437 delta_ms=9.003 tick_proc_stat_delta=1 (10 ms ciascuno) cambi_di_contesto_delta=33 soglia_ms=10
+ripresa: {"ok":true,"reply":2} [http=200]
+--- check c5b (ripresa esatta dopo la sospensione lunga)
+CHECK tenant=acme seed=91 blocchi_accettati=301 testa_log=351 senza_risposta=0
+LOG blocchi_distinti=301 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=377
+PIPELINE solo oracolo=uj3v righe_attese=5000 righe_avvio=5000 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=1/1 ritardo_massimo_chiusura_ms=Some(189403) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795779000000) ultimo_blocco_arrivo_ms=1795779115944 B_meno_E_ms=Some(115944) ritardo_chiusura_ultima_finestra_ms=Some(189403) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=5000 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+=== c5c oltre la conservazione: lo stream indicators ha conservazione di 40 s (finestre da 20 s, ritardo 10 s); la conservazione e' simulata dal lettore sul tempo del log (ponytail nel codice); uj3v resta sospesa piu' di 40 s di tempo del log
+=== corsa c5c spec=spec-c5c.json carico='--seed 91 --events 300000 --rate 5000 --evrate 5000 --past-s 0' guasti=hook:c5c_hook motore=''
+corsa_c5c carico_1min_prima=1.20
+t=5s sospendo uj3v
+{"ok":true,"reply":1} [http=200]
+--- carico (c5c)
+LAG t=5.00s accettati=25000 elaborati=25000 ritardo=0 max=0
+LAG t=10.00s accettati=50000 elaborati=50000 ritardo=0 max=0
+LAG t=15.01s accettati=75000 elaborati=75000 ritardo=0 max=0
+LAG t=20.01s accettati=100000 elaborati=100000 ritardo=0 max=0
+LAG t=25.01s accettati=125000 elaborati=124000 ritardo=1000 max=1000
+LAG t=30.01s accettati=150000 elaborati=150000 ritardo=0 max=1000
+LAG t=35.01s accettati=175000 elaborati=175000 ritardo=0 max=1000
+LAG t=40.02s accettati=200000 elaborati=200000 ritardo=0 max=1000
+LAG t=45.02s accettati=225000 elaborati=225000 ritardo=0 max=1000
+LAG t=50.02s accettati=250000 elaborati=250000 ritardo=0 max=1000
+LAG t=55.02s accettati=276000 elaborati=274000 ritardo=2000 max=2000
+DONE blocchi_accettati=300 eventi_accettati=300000 secondi=59.82 ritmo=5015/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c5c)
+CHECK tenant=acme seed=91 blocchi_accettati=300 testa_log=303 senza_risposta=0
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=303
+PIPELINE uj3 oracolo=uj3 righe_attese=455 righe_avvio=455 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(11158) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795779240000) ultimo_blocco_arrivo_ms=1795779258573 B_meno_E_ms=Some(18573) ritardo_chiusura_ultima_finestra_ms=Some(11158) PASS
+PIPELINE uj3v oracolo=suspended:operator stato="suspended" codice="operator" byte_di_stato=482544 righe_avvio=0 PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=455 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+--- log del motore (c5c, righe di riavvio)
+stats_finali_c5c: {"cpu_ns":2628794028,"rss_kb":73292,"pending":0,"delivered":455,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":569950,"applied":303},{"id":"uj3v","state":"suspended","code":"operator","state_bytes":482544,"applied":25}]}
+ripresa dopo la perdita: {"error":{"code":"retention_exceeded","message":"la posizione della pipeline uj3v non e' piu' nel log"},"ok":false,"reply":2} [http=409]
+stato dopo la ripresa rifiutata: {"state":"suspended","code":"retention_exceeded","applied":25} altre: ["running"]
+--- check c5c dopo la ripresa rifiutata (uj3v ancora sospesa con il codice, nessuna riga in piu', le altre esatte)
+CHECK tenant=acme seed=91 blocchi_accettati=300 testa_log=307 senza_risposta=0
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=307
+PIPELINE uj3 oracolo=uj3 righe_attese=455 righe_avvio=455 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(11158) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795779240000) ultimo_blocco_arrivo_ms=1795779258573 B_meno_E_ms=Some(18573) ritardo_chiusura_ultima_finestra_ms=Some(11158) PASS
+PIPELINE uj3v oracolo=suspended:retention_exceeded stato="suspended" codice="retention_exceeded" byte_di_stato=482544 righe_avvio=0 PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=455 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+=== c5d cambio della query: la pipeline chg passa dalla v1 alla v2 (HAVING count(*) > 50) a t=15 s; la v2 parte con lo stato vuoto
+=== corsa c5d_load spec=spec-c5d.json carico='--seed 91 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315' guasti=hook:c5d_hook motore=''
+corsa_c5d_load carico_1min_prima=0.85
+t=15s PUT chg v2
+{"ok":true,"reply":1} [http=200]
+--- carico (c5d_load)
+LAG t=5.00s accettati=100000 elaborati=99000 ritardo=1000 max=1000
+LAG t=10.00s accettati=200000 elaborati=197000 ritardo=3000 max=3000
+LAG t=15.01s accettati=300000 elaborati=299000 ritardo=1000 max=3000
+LAG t=20.01s accettati=400000 elaborati=397000 ritardo=3000 max=3000
+LAG t=25.01s accettati=500000 elaborati=495000 ritardo=5000 max=5000
+LAG t=30.01s accettati=601000 elaborati=596000 ritardo=5000 max=5000
+LAG t=35.01s accettati=700000 elaborati=697000 ritardo=3000 max=5000
+LAG t=40.02s accettati=800000 elaborati=799000 ritardo=1000 max=5000
+LAG t=45.02s accettati=901000 elaborati=899000 ritardo=2000 max=5000
+LAG t=50.02s accettati=1001000 elaborati=1000000 ritardo=1000 max=5000
+LAG t=55.02s accettati=1101000 elaborati=1099000 ritardo=2000 max=5000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.02 ritmo=19994/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c5d_load)
+CHECK tenant=acme seed=91 blocchi_accettati=1201 testa_log=1204 senza_risposta=0

@@ -34,6 +34,9 @@ if [ "$N" = smoke ]; then
   export KIND=smoke
 else
   S=${3:-${SEED[$ROW-$N]}}; export PREFIX=stream; export NUM=$N; export KIND=misura
+  # il motore consegna ogni riga con un avvio sincrono (SQLite synchronous=FULL, un fsync per riga): su minisheep ~300 righe/s,
+  # quindi i controlli con molte righe (C1, C6: 150.000) aspettano la consegna fino a 25 minuti prima di giudicare
+  export WAIT=${WAIT:-1500}
   [ -n "$S" ] || { echo "nessun seme scritto per $ROW-$N"; exit 1; }
 fi
 LOWER=$(echo "$ROW" | tr 'A-Z' 'a-z')

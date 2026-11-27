@@ -1,0 +1,95 @@
+[attesa del cancello] 55 s
+SMOKE v1 (non conta per i verdetti) data=2026-11-27T09:37:26Z host=minisheep core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=v1
+carico_1min_prima=1.47 pressione_io_prima=0.00 container_in_esecuzione_prima=14
+[stato prima 10:37:26] load: 1.47 2.59 2.42
+[stato prima] io: some avg10=0.00 avg60=0.11 avg300=0.15 total=23017519562
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.30 total=2715423699
+[stato prima] container in esecuzione (14): 34e03fb27e4c49dbab9b2ccd8b996765_postgres16_042737 e8fc36c3f3ef45c89decc5449be11d7e_typesensetypesense271_c0d7c5 github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 22.3%; core 8-11 occupati: 6.7%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 53.96
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=23221404 swap_usato_kb=2092496 some avg10=0.00 avg60=0.00 avg300=0.00 total=6605402
+[stato prima] disco: /dev/mapper/root  931G  751G  174G  82% /home
+[stato prima] orologio UTC: 2026-11-27T09:37:30 kernel: 7.2.4-arch1-2
+--- probe v1
+CASO ok_tumble_having atteso=accepted:1 ottenuto=accepted:1 OK
+CASO ok_hop atteso=accepted:1 ottenuto=accepted:1 OK
+CASO ok_distinct atteso=accepted:1 ottenuto=accepted:1 OK
+CASO ok_filter_functions atteso=accepted:1 ottenuto=accepted:1 OK
+CASO ok_union_all atteso=accepted:2 ottenuto=accepted:2 OK
+CASO ok_epoch_interval_units atteso=accepted:1 ottenuto=accepted:1 OK
+CASO ddl_passwd atteso=statement_not_allowed ottenuto=statement_not_allowed OK
+CASO copy_to_file atteso=statement_not_allowed ottenuto=statement_not_allowed OK
+CASO connector_bus_ddl atteso=statement_not_allowed ottenuto=statement_not_allowed OK
+CASO connector_bus_select atteso=unknown_stream ottenuto=unknown_stream OK
+CASO dml_insert atteso=statement_not_allowed ottenuto=statement_not_allowed OK
+CASO statement_set atteso=statement_not_allowed ottenuto=statement_not_allowed OK
+CASO statement_explain atteso=statement_not_allowed ottenuto=statement_not_allowed OK
+CASO two_statements atteso=statement_not_allowed ottenuto=statement_not_allowed OK
+CASO create_function atteso=statement_not_allowed ottenuto=statement_not_allowed OK
+CASO user_function_call atteso=function_not_allowed ottenuto=function_not_allowed OK
+CASO table_fn_generate_series atteso=table_function_not_allowed ottenuto=table_function_not_allowed OK
+CASO table_fn_range atteso=table_function_not_allowed ottenuto=table_function_not_allowed OK
+CASO join atteso=join_not_allowed ottenuto=join_not_allowed OK
+CASO cartesian_comma atteso=join_not_allowed ottenuto=join_not_allowed OK
+CASO cartesian_cross atteso=join_not_allowed ottenuto=join_not_allowed OK
+CASO repeat_huge atteso=function_not_allowed ottenuto=function_not_allowed OK
+CASO lpad_huge atteso=function_not_allowed ottenuto=function_not_allowed OK
+CASO now atteso=function_not_allowed ottenuto=function_not_allowed OK
+CASO random atteso=function_not_allowed ottenuto=function_not_allowed OK
+CASO literal_huge atteso=literal_too_large ottenuto=literal_too_large OK
+CASO query_over_16kib atteso=query_too_large ottenuto=query_too_large OK
+CASO deep_parens_100 atteso=too_deep ottenuto=too_deep OK
+CASO deep_parens_extreme atteso=too_deep ottenuto=too_deep OK
+CASO deep_binary_chain atteso=too_deep ottenuto=too_deep OK
+CASO stream_of_other_tenant atteso=unknown_stream ottenuto=unknown_stream OK
+CASO stream_nonexistent atteso=unknown_stream ottenuto=unknown_stream OK
+CASO syntax_error_pos atteso=syntax_error ottenuto=syntax_error riga=3 colonna=14 OK
+CASO syntax_error_keyword atteso=syntax_error ottenuto=syntax_error riga=1 colonna=1 OK
+CASO window_beyond_retention atteso=window_exceeds_retention ottenuto=window_exceeds_retention OK
+CASO subquery_from atteso=subquery_not_allowed ottenuto=subquery_not_allowed OK
+CASO subquery_where atteso=subquery_not_allowed ottenuto=subquery_not_allowed OK
+CASO cte atteso=cte_not_allowed ottenuto=cte_not_allowed OK
+CASO order_by atteso=order_by_not_allowed ottenuto=order_by_not_allowed OK
+CASO limit atteso=limit_not_allowed ottenuto=limit_not_allowed OK
+CASO over_window_fn atteso=window_function_not_allowed ottenuto=window_function_not_allowed OK
+CASO wildcard atteso=wildcard_not_allowed ottenuto=wildcard_not_allowed OK
+CASO union_distinct atteso=set_operation_not_allowed ottenuto=set_operation_not_allowed OK
+CASO except atteso=set_operation_not_allowed ottenuto=set_operation_not_allowed OK
+CASO values atteso=construct_not_allowed ottenuto=construct_not_allowed OK
+CASO reserved_name atteso=reserved_name ottenuto=reserved_name OK
+CASO cast_int32 atteso=type_not_allowed ottenuto=type_not_allowed OK
+CASO cast_date atteso=type_not_allowed ottenuto=type_not_allowed OK
+CASO interval_days atteso=window_invalid ottenuto=window_invalid OK
+CASO hop_not_multiple atteso=window_invalid ottenuto=window_invalid OK
+CASO two_windows atteso=window_invalid ottenuto=window_invalid OK
+CASO aggregate_in_where atteso=aggregate_misplaced ottenuto=aggregate_misplaced OK
+CASO window_in_select atteso=window_misplaced ottenuto=window_misplaced OK
+CASO qualified_column atteso=qualified_name_not_allowed ottenuto=qualified_name_not_allowed OK
+CASO qualified_table atteso=qualified_name_not_allowed ottenuto=qualified_name_not_allowed OK
+CASO sum_distinct atteso=function_not_allowed ottenuto=function_not_allowed OK
+CASO concat_operator atteso=operator_not_allowed ottenuto=operator_not_allowed OK
+CASO exists atteso=subquery_not_allowed ottenuto=subquery_not_allowed OK
+CASO group_by_rollup atteso=construct_not_allowed ottenuto=construct_not_allowed OK
+CASO cycle_two_pipelines atteso=pipeline_cycle ottenuto=pipeline_cycle OK
+CASO cycle_self atteso=pipeline_cycle ottenuto=pipeline_cycle OK
+CASO chain_no_cycle atteso=accepted ottenuto=accepted OK
+CASO other_tenant_equals_nonexistent acme=Some("{\"code\":\"unknown_stream\",\"message\":\"stream sconosciuto: secret\"}") initech=Some("{\"code\":\"unknown_stream\",\"message\":\"stream sconosciuto: secret\"}") OK
+UNION ALL rami=Ok(2)
+V1 casi=63 classificati_come_scritto=63 PASS
+carico_1min_dopo=1.43 container_in_esecuzione_dopo=14
+[stato dopo 10:37:30] load: 1.43 2.56 2.42
+[stato dopo] io: some avg10=0.00 avg60=0.10 avg300=0.15 total=23017533954
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.30 total=2715431619
+[stato dopo] container in esecuzione (14): 34e03fb27e4c49dbab9b2ccd8b996765_postgres16_042737 e8fc36c3f3ef45c89decc5449be11d7e_typesensetypesense271_c0d7c5 github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato dopo] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 19.3%; core 8-11 occupati: 4.7%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 39.14
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=23441756 swap_usato_kb=2092496 some avg10=0.00 avg60=0.00 avg300=0.00 total=6605402
+[stato dopo] disco: /dev/mapper/root  931G  751G  174G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T09:37:34 kernel: 7.2.4-arch1-2

@@ -1,0 +1,72 @@
+[attesa del cancello] 25 s
+SMOKE s1 (non conta per i verdetti) data=2026-11-27T11:09:25Z host=minisheep core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=s1
+carico_1min_prima=0.60 pressione_io_prima=0.56 container_in_esecuzione_prima=12
+[stato prima 12:09:25] load: 0.60 0.90 1.54
+[stato prima] io: some avg10=0.56 avg60=9.49 avg300=10.36 total=23620956117
+[stato prima] cpu: some avg10=0.01 avg60=0.30 avg300=0.31 total=2760690056
+[stato prima] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 1.5%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.03
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27135984 swap_usato_kb=2124460 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato prima] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato prima] orologio UTC: 2026-11-27T11:09:29 kernel: 7.2.4-arch1-2
+S1 sentinella (stringa casuale di questa corsa, non un segreto): SENTINELxgXFJK8jy07v
+=== s1: 120 s a ritmo pieno (105.000 eventi/s offerti, tempo dell'evento = ritmo offerto, origine alla partenza), pipeline di verifica (tutti i gruppi, senza filtro e senza HAVING); kill -9 del processo per tenant a 40 s e del motore a 80 s dall'inizio del carico
+inizio del carico (ms epoch): 1795777800000
+kill -9 stream a t=40 s (1795777840019 ms)
+processo per tenant di nuovo pronto dopo 319 ms dal kill
+kill -9 engine a t=80 s (1795777880077 ms)
+motore di nuovo pronto dopo 1208 ms dal kill
+--- carico
+fase: attesa fino a 1795777800000 (23 s)
+load seed=91 eventi=70000000 blocchi=70000 conn=16 rate=105000 evrate=105000 t0=1795777800000 past_ms=0
+DONE blocchi_accettati=12616 eventi_accettati=12616000 secondi=120.15 ritmo=105000/s riprove=86 senza_risposta=86 rifiutati=0
+s1 ritmo e ritardo sull'intero carico: campioni=117 da_t=1.00 a_t=119.19 media_eventi_s=104992 ritardo_max=33000 ritardo_medio=13778 campioni_oltre_200000=0 ritardo_medio_primo_terzo=14513 ritardo_medio_ultimo_terzo=13590
+s1 recupero dopo il kill di stream a t=40 s (campioni da 1 s): campioni=40 picco_ritardo=26000 a_t=42.1 secondi_con_ritardo_oltre_200000=0 rientro_sotto_200000_a_t=mai/non_superato primo_buco_oltre_1,5_s_tra_campioni=0.0 (rientro misurato dal kill: n/a s)
+s1 recupero dopo il kill di engine a t=80 s (campioni da 1 s): campioni=38 picco_ritardo=33000 a_t=83.1 secondi_con_ritardo_oltre_200000=0 rientro_sotto_200000_a_t=mai/non_superato primo_buco_oltre_1,5_s_tra_campioni=3.0 (rientro misurato dal kill: n/a s)
+--- righe del motore (riavvii)
+      1 engine: stream acme pronto in 24.144 ms (init_ms=20.690) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=396
+      1 engine: stream acme pronto in 25.298 ms (init_ms=21.929) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=473
+      1 engine: stream acme pronto in 27.957 ms (init_ms=24.192) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=220
+      1 engine: stream acme terminato (segnale Some(9), codice None), riavvio
+      2 stream acme: ripreso dal checkpoint, righe in attesa 0
+--- check (0 persi, 0 doppi, un avvio per riga)
+CHECK tenant=acme seed=91 blocchi_accettati=12616 testa_log=12644 senza_risposta=86
+
+thread 'main' (2848830) panicked at src/check.rs:112:27:
+attempt to divide by zero
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+stats_finali: {"delivered":0,"pending":0,"refused":0,"cpu_ns":2866521002,"rss_kb":81680,"pipes":[{"id":"uj3v","state":"running","code":null,"state_bytes":1338930,"applied":12644,"late":0,"future":0},{"id":"sentk","state":"running","code":null,"state_bytes":1598930,"applied":12644,"late":0,"future":0}]}
+--- S1: conteggio delle occorrenze in chiaro della sentinella (deve essere 0)
+S1 dati di Iggy (grep -a su tutta la cartella, dal container di Iggy in sola lettura): 0
+S1 cartella dei checkpoint (/home/white_sheep/.cache/ttspikestream-data/engine/payload): 0; copie scattate durante la corsa (7 file di cifrati): 0
+S1 file dei checkpoint presenti: 630015 ckpt.bin;
+S1 (informazione, non richiesto) database degli avvii: 0 occorrenze in chiaro (le righe delle finestre portano il gruppo kind)
+S1 controllo positivo dopo la decifratura:
+S1DEC checkpoint file=ckpt.bin byte_cifrati=630015 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-1.bin byte_cifrati=456 decifrato=true sentinella_nel_chiaro=0
+S1DEC checkpoint file=ckpt-2.bin byte_cifrati=404094 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-3.bin byte_cifrati=450536 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-4.bin byte_cifrati=485780 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-5.bin byte_cifrati=532112 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-6.bin byte_cifrati=580248 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-7.bin byte_cifrati=630015 decifrato=true sentinella_nel_chiaro=5000
+S1DEC log testa=12644 messaggi_letti=464 decifrati=464 sentinella_nel_chiaro=438000
+S1DEC controllo_positivo=PASS
+carico_1min_dopo=1.54 container_in_esecuzione_dopo=12
+[stato dopo 12:12:02] load: 1.54 1.21 1.55
+[stato dopo] io: some avg10=33.69 avg60=33.68 avg300=19.25 total=23668793460
+[stato dopo] cpu: some avg10=1.61 avg60=1.55 avg300=0.79 total=2763473452
+[stato dopo] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato dopo] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27075288 swap_usato_kb=2124460 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato dopo] disco: /dev/mapper/root  931G  751G  174G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T11:12:06 kernel: 7.2.4-arch1-2
