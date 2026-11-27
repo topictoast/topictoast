@@ -11,8 +11,29 @@ use std::time::Duration;
 pub type Res<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 pub const STREAM: &str = "tt";
 
+/// Messaggi massimi per gruppo (ADR del bus, punto 1 della decisione).
+const GROUP_MAX_MSGS: usize = 1024;
+/// Tetto in byte di un gruppo: si smette di raccogliere appena la somma lo raggiunge, quindi puo' superarlo di un
+/// solo messaggio (ponytail: tetto morbido; per uno stretto serve tenere da parte il messaggio che sfora).
+const GROUP_MAX_BYTES: usize = 8 << 20;
+/// Gruppi in volo per connessione del motore (ADR del bus, punto 1 della decisione).
+const GROUPS_IN_FLIGHT: usize = 4;
+
+/// Un messaggio in coda con la risposta di chi attende la scrittura durevole (`true` = scritto).
+type Queued = (Bytes, tokio::sync::oneshot::Sender<bool>);
+
+/// Una coda per topic: un task per topic raccoglie i messaggi in gruppi.
+#[derive(Default)]
+struct Queues(
+    std::sync::Mutex<std::collections::HashMap<String, tokio::sync::mpsc::UnboundedSender<Queued>>>,
+);
+
 #[derive(Clone)]
-pub struct Bus(pub Arc<IggyClient>);
+pub struct Bus(
+    pub Arc<IggyClient>,
+    Arc<Queues>,
+    Arc<tokio::sync::Semaphore>,
+);
 
 fn id(n: &str) -> Identifier {
     Identifier::named(n).unwrap()
@@ -22,7 +43,11 @@ impl Bus {
     pub async fn connect(addr: &str, user: &str, pw: &str) -> Res<Bus> {
         let c = IggyClient::from_connection_string(&format!("iggy://{user}:{pw}@{addr}"))?;
         c.connect().await?;
-        Ok(Bus(Arc::new(c)))
+        Ok(Bus(
+            Arc::new(c),
+            Arc::default(),
+            Arc::new(tokio::sync::Semaphore::new(GROUPS_IN_FLIGHT)),
+        ))
     }
 
     /// Crea lo stream `tt` se manca (ponytail: una sola creazione concorrente supportata).
@@ -57,10 +82,60 @@ impl Bus {
         Ok(())
     }
 
-    /// Scrive un messaggio; torna dopo la scrittura durevole. Un esito incerto si risolve rigiocando (come nel
-    /// bus: l'append non si annulla mai).
+    /// Scrive un messaggio; torna dopo la scrittura durevole del suo gruppo. Il messaggio va nella coda del topic;
+    /// il task del topic (ADR del bus, punto 1: una connessione, 4 gruppi in volo da al piu' 1.024 messaggi) lo
+    /// manda con gli altri in una sola `send_messages`. Se il gruppo fallisce, ogni messaggio riceve lo stesso errore.
     pub async fn append(&self, topic: &str, msg: Bytes) -> Res<()> {
-        let mut m = vec![IggyMessage::builder().payload(msg).build()?];
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let q = {
+            let mut qs = self.1.0.lock().unwrap();
+            qs.entry(topic.to_string())
+                .or_insert_with(|| {
+                    let (q, rx) = tokio::sync::mpsc::unbounded_channel();
+                    tokio::spawn(self.clone().group_task(topic.to_string(), rx));
+                    q
+                })
+                .clone()
+        };
+        q.send((msg, tx)).map_err(|_| "coda del topic chiusa")?;
+        match rx.await {
+            Ok(true) => Ok(()),
+            _ => Err("scrittura del gruppo fallita".into()),
+        }
+    }
+
+    /// Task del topic: prende il primo messaggio, aspetta uno dei 4 posti in volo, poi raccoglie quanto e' gia' in
+    /// coda (fino ai tetti) e manda il gruppo. I gruppi partono nell'ordine della coda.
+    async fn group_task(self, topic: String, mut rx: tokio::sync::mpsc::UnboundedReceiver<Queued>) {
+        while let Some(first) = rx.recv().await {
+            let permit = self.2.clone().acquire_owned().await.unwrap();
+            let mut bytes = first.0.len();
+            let mut group = vec![first];
+            while group.len() < GROUP_MAX_MSGS && bytes < GROUP_MAX_BYTES {
+                let Ok(q) = rx.try_recv() else { break };
+                bytes += q.0.len();
+                group.push(q);
+            }
+            let bus = self.clone();
+            let topic = topic.clone();
+            tokio::spawn(async move {
+                let (msgs, replies): (Vec<_>, Vec<_>) = group.into_iter().unzip();
+                let ok = bus.send_group(&topic, msgs).await.is_ok();
+                for r in replies {
+                    let _ = r.send(ok);
+                }
+                drop(permit);
+            });
+        }
+    }
+
+    /// Una sola `send_messages` per il gruppo. Un esito incerto si risolve rigiocando (come nel
+    /// bus: l'append non si annulla mai).
+    async fn send_group(&self, topic: &str, msgs: Vec<Bytes>) -> Res<()> {
+        let mut m = msgs
+            .into_iter()
+            .map(|b| IggyMessage::builder().payload(b).build())
+            .collect::<Result<Vec<_>, _>>()?;
         loop {
             let deadline = std::time::Instant::now() + Duration::from_secs(30);
             match self
