@@ -1,0 +1,14 @@
+SMOKE t3-2c (non conta per i verdetti) data=2026-11-27T12:01:10Z host=whitebones core=16
+PARAMETRI COMUNI: core=16 core_servizi_e_motore=nessuno core_generatore_e_oracolo=nessuno tetto_attesa_del_check_wait_s=predefinito_della_riga consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+T3 PARAMETRI: ritmi_offerti=1000 e 100000 eventi/s (uguali al ritmo del tempo dell'evento); origine=alla partenza (griglia da 30 s); connessioni=4 (1000/s) e 16 (100000/s); blocco=1000 eventi; durata=180 s per ritmo; seme=91 (+ritmo)
+binario sha256=3bc161986d760df766316fc0063901362b0dfdf8686ce8e28388fe89a6badf43 seme=91 id=t3
+carico_1min_prima=1.92 pressione_io_prima=0.00 container_in_esecuzione_prima=11
+=== T3 a 1000 eventi/s per 180 s (finestre da 30 s: piu' chiusure in una corsa breve; tempo dell'evento = ritmo offerto)
+DONE blocchi_accettati=184 eventi_accettati=184000 secondi=183.00 ritmo=1005/s riprove=0 senza_risposta=0 rifiutati=0
+T3 1000 eventi/s, latenze del processo per tenant (microsecondi; secchi con errore relativo <= 4,4 %; n = campioni): {"batch":{"max_us":1280,"n":273,"p50_us":488,"p99_us":1120},"counted":{"max_us":64000,"n":184,"p50_us":56320,"p99_us":64000},"start":{"max_us":3000,"n":401,"p50_us":3000,"p99_us":3000}}
+T3 1000 eventi/s, consegna: {"delivered":401,"pending":0,"refused":0,"cpu_ns":4840005656,"rss_kb":67996,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":11850,"applied":273,"late":0,"future":0}]}
+=== T3 a 100000 eventi/s per 180 s (finestre da 30 s: piu' chiusure in una corsa breve; tempo dell'evento = ritmo offerto)
+DONE blocchi_accettati=18016 eventi_accettati=18016000 secondi=180.15 ritmo=100004/s riprove=0 senza_risposta=0 rifiutati=0
+T3 100000 eventi/s, latenze del processo per tenant (microsecondi; secchi con errore relativo <= 4,4 %; n = campioni): {"batch":{"max_us":5585,"n":3057,"p50_us":944,"p99_us":3264},"counted":{"max_us":80000,"n":18016,"p50_us":33792,"p99_us":64512},"start":{"max_us":101000,"n":29997,"p50_us":41984,"p99_us":100352}}
+T3 100000 eventi/s, consegna: {"delivered":29997,"pending":0,"refused":0,"cpu_ns":11068664753,"rss_kb":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":1231994,"applied":18096,"late":0,"future":0}]}
+carico_1min_dopo=2.84 container_in_esecuzione_dopo=11
