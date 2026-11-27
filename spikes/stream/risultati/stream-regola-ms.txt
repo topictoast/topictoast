@@ -101,3 +101,150 @@ Che cosa si scrive nei risultati
 Per ogni riga: verdetto, valori letti sui file grezzi, nome del file. Ogni causa è «misurata» (con file grezzo) o
 «ipotesi»; un fatto visto senza file è «osservato senza file grezzo»; una corsa fuori da queste regole è «fuori dalle
 regole» e non conta per il verdetto.
+
+Emendamento del 2026-11-27, prima di ogni corsa misurata (nessuna soglia cambiata)
+-----------------------------------------------------------------------------------
+Scritto prima della prima corsa misurata, come chiede la sezione «Che cosa è il codice». Nessuna soglia della tabella di
+`PIANO.md` cambia. Le decisioni di Marco citate sono nel memlog dell'architettura (voci 180-185; la 185 approva le letture di C5, dello svuotamento, di chi ferma B in I1 e dei container dei job dei runner).
+
+**Codice e binario.**
+- Commit dei sorgenti: `501ca0d` (ramo `spike/stream-pipelines`); script, semi e `ms-misura.sh` delle corse misurate
+  sono nel commit che aggiunge questo emendamento, l'ultimo prima della prima corsa misurata.
+- Binario `streamspike`: sha256 `9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34`, 128.305.568 byte.
+  Binario senza DataFusion per M1 (`idle_nodf`): sha256
+  `ac9246bd53a5da9c91e7204778ba4791c1eeb8170a7f4e2b596edf537c588261`.
+- Cartella di compilazione `/home/white_sheep/.cache/cargo-targets/topictoast-spike-stream`, toolchain 1.99.1, profilo
+  release con `debug = false` e `strip = true`. Lo stesso binario gira sul portatile e su minisheep (stessa glibc).
+
+**Dipendenze (OSV e date).** File `risultati/stream-osv-2c.txt`, `risultati/stream-lock-date.txt`,
+`risultati/stream-osv.txt`.
+- OSV sul `Cargo.lock` intero (463 pacchetti): 0 falle. Restano 3 avvisi «non più mantenuto» senza versione corretta:
+  chrono 0.4.45 (RUSTSEC-2026-0543), chrono-tz 0.10.4 (RUSTSEC-2026-0555), humantime 2.4.0 (RUSTSEC-2026-0542).
+  Per decisione di Marco (voce 181) non fermano lo spike: nota datata qui e rischio nell'ADR.
+- Versioni più recenti di due settimane, ciascuna perché corregge un avviso pubblicato: url 2.5.9 (RUSTSEC-2026-0592),
+  form_urlencoded 1.2.3 (richiesto da url 2.5.9), la famiglia sqlx 0.9.1 (libsqlite3-sys 0.39.1, RUSTSEC-2026-0459), la
+  linea zstd (RUSTSEC-2026-0391, RUSTSEC-2026-0395..0406, RUSTSEC-2026-0410).
+- Dipendenze nuove del confinamento, tutte pubblicate da più di due settimane: landlock 0.4.7 (2026-07-27), seccompiler
+  0.5.0 (2025-03-07), enumflags2 ed enumflags2_derive 0.7.12 (2025-06-09).
+- **Codec nel binario.** Il punto 1 di `PIANO.md` («nessuna compressione nel binario») non vale: datafusion-common,
+  datafusion-datasource-arrow e datafusion-physical-plan accendono sempre lz4 (e zstd) di arrow-ipc
+  (`risultati/stream-codec-tree.txt`). La pipeline scrive Arrow IPC senza compressione (`StreamWriter` con le opzioni
+  predefinite): i codec ci sono ma non si usano. Va nell'ADR.
+
+**Confinamento del ruolo `stream`.**
+- Ordine: descrittori e limiti prima del runtime (`RLIMIT_CORE` 0, `RLIMIT_NOFILE` 512, `PR_SET_NO_NEW_PRIVS`),
+  runtime caldo (DataFusion, una validazione a secco, i topic di Iggy toccati), Landlock su tutti i thread,
+  `PR_SET_DUMPABLE` 0, seccomp su tutti i thread. Nessun `RLIMIT_FSIZE`, come da ADR della sandbox.
+- **Namespace utente.** Il punto 12 di `PIANO.md` lo mette nell'ordine; l'ADR della sandbox (punto 7) lo usa solo nel
+  ripiego senza Landlock. Vale l'ADR. Il ripiego non è costruito: senza Landlock il processo non parte (uscita 78).
+  Landlock c'è su tutte e due le macchine.
+- **`RLIMIT_NOFILE` 512** invece del 64 dell'ADR della sandbox: il processo per tenant tiene le connessioni di Iggy e del
+  motore e i thread del runtime. Scostamento da riportare nell'ADR.
+- Landlock: ABI del kernel 10 su minisheep e 11 sul portatile, richiesta V9, nessun diritto richiesto mancante; stato
+  `FullyEnforced` (`risultati/stream-smoke-a1-2d-*.txt`). Prima era `PartiallyEnforced` perché la regola di sola lettura
+  su `/proc/self/statm`, un file, chiedeva anche `ReadDir`, un diritto da cartella; tolto `ReadDir`, lo stato è pieno.
+- **Lista delle syscall:** `allow/stream.txt` (26, scoperte su minisheep con gdb, `risultati/stream-smoke-discover-minisheep.txt`)
+  più `allow/base.txt` (26, dallo spike della sandbox): 38 nel filtro dopo i doppioni. Invariata con le modifiche delle
+  parti 2c, 2d e 2f: nelle prove nessun `SIGSYS` fuori dalle prove ostili di A2.
+
+**Macchina.** minisheep, kernel 7.2.4-arch1-2. Core: Iggy, motore e processi per tenant su 1-4; generatore e oracolo
+su 8-11 (come nello spike del bus). Ogni file grezzo registra cancello, carico, pressione I/O, container prima e dopo,
+sha256 e core.
+
+**Validità, punto 4.** I 12 container dei runner si riconoscono per nome (`github-runner-*`) e si contano prima e dopo.
+Altri container non nostri (i servizi dei job dei runner, che vanno e vengono da soli) si elencano a parte e non rendono
+invalida una corsa, se non li tocchiamo.
+
+**Consegna degli avvii (cambiata nella parte 2c, prima di ogni corsa misurata).** Il processo per tenant manda fino a
+1.000 righe (o 1 MiB) in una sola richiesta; il motore le scrive in una sola transazione SQLite con
+`synchronous=FULL` (`INSERT OR IGNORE` sulla chiave C-4) e risponde 200 solo dopo il commit. Prima, una riga per
+richiesta dava circa 300 avvii/s su minisheep e il controllo scadeva con righe in attesa. Le destinazioni stream (C7)
+restano una riga per richiesta.
+
+**Scrittura del motore su Iggy in gruppi (cambiata nella parte 2f, prima di ogni corsa misurata).** Come fissa l'ADR del
+bus (punto 1: una connessione dal motore, 4 gruppi in volo da al più 1.024 messaggi), ogni blocco accettato e ogni
+segnale durevole entra in una coda per topic; un compito per topic manda insieme quello che trova (fino a 1.024 messaggi
+o circa 8 MiB) in una sola `send_messages`, con al più 4 gruppi in volo sull'unica connessione; la risposta 200 di ogni
+blocco arriva solo dopo la scrittura durevole del suo gruppo (`Persisted`). Prima lo spike mandava un messaggio per
+chiamata e su minisheep accettava 70.000-89.000 eventi/s a T1 con la CPU quasi ferma e circa 2,9 flush del disco per
+blocco (`risultati/diag-campioni-fase150-minisheep.txt`, «misurata»); dopo, 104.992 eventi/s per 10 minuti con circa 2,2
+flush per blocco (`risultati/stream-smoke-t1full-2g-minisheep.txt`, `risultati/diag-campioni-2g-t1-minisheep.txt`). Che
+il limite fosse una scrittura alla volta sull'unica connessione è «ipotesi». L'ordine nel log tra gruppi in volo dipende
+dalle corsie del client di Iggy e non è garantito; l'oracolo segue l'ordine del log, quindi i confronti non ne dipendono.
+
+**Pavimento di `fdatasync`.** Il cancello lo registra prima e dopo ogni corsa (`dd` di 200 scritture da 4 KiB con
+`oflag=dsync` sulla cartella dei dati; su minisheep 3-6 ms per scrittura): si registra, non è un cancello.
+
+**Controllo (oracolo) e attesa dello svuotamento.** `check` aspetta che il processo abbia letto tutto il log e consegnato
+tutte le righe, al massimo 1.500 s (`WAIT`). Se il tempo finisce prima, scrive `SVUOTAMENTO NON FINITO` e la riga non
+supera: è un risultato, non un motivo per scartare la corsa. Se finisce, scrive i secondi di svuotamento.
+
+**Parametri fissati nella costruzione (prima di ogni corsa misurata).**
+- Riga di statistiche del processo per tenant: 4 al secondo con pipeline attive, 1 al secondo con tutte sospese (C5
+  misura su questa cadenza). Il ritardo del consumatore si campiona ogni 5 s dal generatore; con le statistiche a 4 Hz
+  la posizione elaborata può essere vecchia di 250 ms al massimo.
+- I1: A offre 50.000 eventi/s su 4 connessioni, B 100.000 eventi/s su 4 connessioni, blocchi da 1.000 eventi. La pipeline di CPU di B ha un budget di 30 ms di CPU del processo per micro-lotto (codice
+  `cpu_budget_exceeded`, pipeline sospesa); la quota di stato è quella predefinita (64 MiB, `state_quota_exceeded`). Il
+  budget conta la CPU di tutto il processo, quindi sovrastima un po' (`ponytail:` nel codice).
+- **Regola di lettura di I1 (Marco, voce 183):** ritmo di A e del controllo sui minuti 2-5 di ogni corsa da 5 minuti;
+  ritardo di A senza crescita = nei minuti 2-5 la media dell'ultimo terzo non supera quella del primo terzo di oltre
+  50.000 eventi, letta sulla corsa con B. Una coppia supera se valgono tutte e due.
+- **T1 (Marco, voce 180):** ritmo offerto fisso 105.000 eventi/s, tempo dell'evento allo stesso ritmo, origine sulla
+  griglia da 300 s alla partenza del carico, 16 connessioni, blocchi da 1.000 eventi, 600 s; nessun evento di chiusura
+  (sarebbe oltre la tolleranza nel futuro): le finestre si chiudono per la quiete, e `check --all-closed` attende fino a
+  1.500 s. «Minuti 2-10» = campioni da t = 60 s a t = 600 s, dal secondo minuto come nello spike del bus (le righe
+  `MIN t=2` … `MIN t=10`) e come I1; lo script leggeva da t = 120 s ed è corretto prima di ogni corsa misurata.
+  **T1 senza tetto:** generatore senza tetto, tempo
+  dell'evento 300.000 eventi/s, 600 s, una corsa, solo riportata.
+- **T2:** come T1 a 105.000 eventi/s per 600 s, pipeline di verifica accesa, kill -9 del processo per tenant a 240 s e del
+  motore a 420 s.
+- **T3:** 180 s per ritmo (1.000 e 100.000 eventi/s), istogrammi a secchi logaritmici (errore al massimo 4,4 %).
+- **A1:** 200 riavvii per corsa, 3 corse; validazione a secco della query di UJ-3 riportata (30 per corsa).
+- **M1:** riposo di 60 s dopo l'avvio; la PSS si legge solo con `--m1-keep-dumpable`, che lascia `PR_SET_DUMPABLE` a 1
+  nella sola riga M1 (dichiarato nel file).
+- **S1:** corsa propria con la forma di T2 dopo ogni corsa di T2 (2 semi), sentinella nel campo `kind` e pipeline
+  `sentk` con `max(kind)`; il controllo positivo sui checkpoint usa le copie prese a metà corsa (il checkpoint finale di
+  una corsa con le finestre chiuse non ha stato). Il database degli avvii resta fuori da S1 (la riga del piano copre i dati
+  di Iggy e i checkpoint): le righe in chiaro lì si riportano come scoperta. Il verdetto di S1 è solo la sentinella; la
+  riga `VERDETTO` del controllo nella corsa di S1 (perdite, doppi, finestre chiuse) si riporta con la sua causa e non
+  decide S1.
+- **Modalità di prova ammesse oltre ai controlli positivi di V2 e A2:** la rotta di prova del motore (`--allow-probe`)
+  solo nelle corse di A2, che manda le prove ostili al processo confinato; `--m1-keep-dumpable` solo in M1.
+
+**C3, caso peggiore e coppia.** Carico con la fase fissa sulla griglia da 5 minuti; l'ultimo blocco è trattenuto fino a
+E + 9 s (la raffica finisce tra E ed E + ritardo tollerato). Coppia: la stessa corsa senza kill e con un kill -9 del
+processo per tenant 8 s dopo la fine del carico, nella quiete; `check --compare` con lo scarto d'origine multiplo dei
+300 s: righe identiche. Limite di chiusura: ritardo tollerato + quiete + 2 s = 42 s.
+
+**C4 (Marco, voce 184).** Tempo dell'evento al ritmo dell'orologio: 1.200.000 eventi a 2.000/s (10 minuti, lo stesso
+volume delle coppie compresse), origine fissa 2.100 s nel passato sulla griglia da 300 s, evento di chiusura a +315 s; 5 kill -9 a istanti del seme tra 30 e
+570 s (processo per tenant, motore, processo, processo, motore). Coppia senza e con i kill, confrontata con
+`check --compare`: «righe identiche alla corsa senza guasti» resta alla lettera. Motivo: con il tempo compresso 20 volte
+le riprove sfasate del generatore dopo un kill del motore facevano scartare blocchi come in ritardo (prove
+`-2c-` sul portatile: 8 e 4 righe diverse, 0 persi, 0 doppi). A 20.000/s a tempo reale una finestra da 5 minuti ha 6
+milioni di eventi e la pipeline ipd supera la quota di stato (sospesa con `state_quota_exceeded` a 67.112.174 byte,
+`risultati/stream-smoke-c4-2d-minisheep.txt`, corsa fermata a mano): da qui i 2.000/s. Prove a 2.000/s su minisheep
+(`risultati/stream-smoke-c4-2e-minisheep.txt`, e con il binario dichiarato qui `risultati/stream-smoke-c4-2g-minisheep.txt`):
+le due corse e il confronto superano, 0 in ritardo. C7 resta a tempo compresso, perché si confronta solo con l'oracolo.
+
+**I1, chi ferma B.** «B sospesa o rallentata con un codice» vale con `cpu_budget_exceeded` o con
+`state_quota_exceeded`: nella prova `-2g-` la pipeline di CPU di B è stata fermata dalla quota di stato (82,8 MB, oltre
+i 64 MiB perché la quota si controlla a fine micro-lotto) prima che dal budget di CPU; si riporta quale codice ha fermato
+ogni pipeline. B ha avuto 51.012 dei 100.000 eventi/s offerti: la scrittura del motore su Iggy è unica per tutti i
+tenant (si riporta, la soglia è su A).
+
+**C5.** CPU della pipeline sospesa: tempo di CPU del processo per tenant (`CLOCK_PROCESS_CPUTIME_ID` letto dal processo,
+utente + sistema, tutti i thread) tra due righe di statistiche a 30 s l'una dall'altra, con la sola pipeline sospesa nel
+processo; controllo incrociato con `/proc/<pid>/stat`. «Oltre la conservazione» si legge sulla corsa con la
+cancellazione vera di Iggy (`C5REAL`: segmenti da 1 MiB e scadenza dei messaggi per topic, manutenzione ogni 5 s):
+errore `retention_exceeded`, posizione tenuta, altre pipeline in corsa; tre corse come le altre righe C. La
+conservazione simulata dal lettore (c5c) si riporta soltanto.
+
+**Ordine delle corse misurate** (come in «Prove, corse e verdetti» e in `PIANO.md`): V1, V2, V3; A2 e A1; C1-C7 con
+C5REAL; poi la sessione principale legge C1 e C4 e applica la condizione di arresto prima di lanciare il resto; I1; T1
+(3 corse) e T1 senza tetto; T2-1, S1-1, T2-2, S1-2; T3; M1. Le corse partono staccate su minisheep con `ms-misura.sh parte1` e `parte2`, senza variabili di prova (Marco,
+voce 182).
+
+**Semi delle corse misurate.** Scritti in `ms-row.sh` prima di ogni corsa: V1 4101, V2 4201, V3 4301; A1 5101-5103;
+A2 5201-5203; per ogni riga C, tre semi 6N01-6N03 (C1 6101-6103, …, C7 6701-6703); C5REAL 6551-6553; I1 7101 (tre coppie in
+una corsa); T1 8101-8103; T1 senza tetto 8201; T2 8301-8302; T3 8401; M1 8501; S1 8601-8602.

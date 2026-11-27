@@ -1,0 +1,50 @@
+[attesa del cancello] 15 s
+SMOKE v2-2h (non conta per i verdetti) data=2026-11-27T17:36:03Z host=minisheep core=22
+PARAMETRI COMUNI: core=22 core_servizi_e_motore=1-4 core_generatore_e_oracolo=8-11 tetto_attesa_del_check_wait_s=1500 consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+binario sha256=9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34 seme=91 id=v2
+carico_1min_prima=0.40 pressione_io_prima=0.66 container_in_esecuzione_prima=12
+[stato prima 18:36:03] load: 0.40 0.79 0.90
+[stato prima] io: some avg10=0.66 avg60=0.79 avg300=9.77 total=26307954832
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.27 total=2933850356
+[stato prima] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato prima] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27100812 swap_usato_kb=2120384 some avg10=0.00 avg60=0.00 avg300=0.00 total=7421012
+[stato prima] disco: /dev/mapper/root  931G  752G  174G  82% /home
+[stato prima] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 4.968 ms per scrittura
+[stato prima] orologio UTC: 2026-11-27T17:36:08 kernel: 7.2.4-arch1-2
+--- probe v2, tutte le barriere accese (prodotto)
+CFG all_on (barriere spente: []) CASO ddl_file => stage=syntax detail="statement_not_allowed: solo SELECT: CreateExternalTable non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO copy_to_file => stage=syntax detail="statement_not_allowed: solo SELECT: CopyTo non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO connector_port => stage=syntax detail="statement_not_allowed: solo SELECT: CreateExternalTable non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO dml_insert => stage=syntax detail="statement_not_allowed: solo SELECT: Insert non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO statement_set => stage=syntax detail="statement_not_allowed: solo SELECT: Set non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO create_function => stage=syntax detail="statement_not_allowed: solo SELECT: CreateFunction non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO table_fn_generate_series => stage=syntax detail="table_function_not_allowed: funzioni di tabella non ammesse" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO cartesian => stage=syntax detail="join_not_allowed: una sola tabella nel FROM (niente prodotto cartesiano)" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO repeat_huge => stage=syntax detail="function_not_allowed: funzione repeat non ammessa" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO repeat_over_limit => stage=syntax detail="function_not_allowed: funzione repeat non ammessa" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO literal_huge => stage=syntax detail="query_too_large: query oltre 16384 byte" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=40
+CFG all_on (barriere spente: []) CASO deep_parens => stage=syntax detail="query_too_large: query oltre 16384 byte" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO join_self => stage=syntax detail="join_not_allowed: join non ammessi" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO selftest_open => stage=completed detail="lettura del civetta" file_events=3 file_visti_dal_campionatore=["/home/white_sheep/.cache/ttspikestream-data/v2-2264/canary.csv:8"] prese_viste=0 connessioni_accettate=0 tempo_ms=40
+CFG all_on (barriere spente: []) CASO selftest_connect => stage=completed detail="connessione Ok(())" file_events=0 file_visti_dal_campionatore=[] prese_viste=1 connessioni_accettate=1 tempo_ms=20
+RIEPILOGO (per configurazione: casi fermati, casi completati, scaduti, eventi_file_sul_civetta_o_scritture, connessioni_accettate; selftest esclusi)
+  all_on: fermati=13 completati=2 scaduti=0 eventi_file=0 connessioni=0
+carico_1min_dopo=0.36 container_in_esecuzione_dopo=12
+[stato dopo 18:36:08] load: 0.36 0.78 0.90
+[stato dopo] io: some avg10=3.98 avg60=1.37 avg300=9.71 total=26308368852
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.27 total=2933863050
+[stato dopo] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato dopo] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 1.5%; core 8-11 occupati: 0.7%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27086392 swap_usato_kb=2120384 some avg10=0.00 avg60=0.00 avg300=0.00 total=7421012
+[stato dopo] disco: /dev/mapper/root  931G  752G  174G  82% /home
+[stato dopo] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 4.198 ms per scrittura
+[stato dopo] orologio UTC: 2026-11-27T17:36:14 kernel: 7.2.4-arch1-2
