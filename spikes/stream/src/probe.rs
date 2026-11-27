@@ -35,6 +35,7 @@ pub async fn run() {
         Some("v1") => v1().await,
         Some("v2") => v2_parent(),
         Some("v2-case") => v2_child().await,
+        Some("s1dec") => s1dec().await,
         _ => eprintln!("uso: streamspike probe v1|v2 --spec <file>"),
     }
 }
@@ -998,4 +999,69 @@ async fn free_run(sql: &str, streams: &[StreamDef], b: &Barriers) -> (String, St
             (stage_of(&m).into(), m)
         }
     }
+}
+
+/// Occorrenze di `needle` in `hay` (sovrapposizioni escluse, basta per una sentinella casuale).
+fn count_hits(hay: &[u8], needle: &[u8]) -> usize {
+    if needle.is_empty() || hay.len() < needle.len() {
+        return 0;
+    }
+    let (mut n, mut i) = (0, 0);
+    while i + needle.len() <= hay.len() {
+        if &hay[i..i + needle.len()] == needle {
+            n += 1;
+            i += needle.len();
+        } else {
+            i += 1;
+        }
+    }
+    n
+}
+
+/// S1, controllo positivo: `probe s1dec --data <cartella del motore> --tenant acme --stream indicators --sentinel S`.
+/// Con la chiave principale decifra il checkpoint e un campione di messaggi del log di Iggy (i primi e gli ultimi
+/// `--max`, 500 di predefinito) e conta la sentinella nel chiaro: deve trovarla, altrimenti il conteggio zero delle
+/// occorrenze nei file non dimostra nulla.
+async fn s1dec() {
+    let data = arg("--data").expect("--data");
+    let tenant = arg("--tenant").unwrap_or("acme".into());
+    let stream = arg("--stream").unwrap_or("indicators".into());
+    let sent = arg("--sentinel").expect("--sentinel");
+    let max: u64 = arg("--max").map(|v| v.parse().unwrap()).unwrap_or(500);
+    let master = crate::crypto::Master::load(&format!("{data}/master.key"));
+    let key = master.tenant_key(&crate::crypto::tenant_uid(&tenant));
+    let needle = sent.as_bytes();
+    // checkpoint: file `ckpt.bin` nella cartella del tenant, indirizzo `ckpt/<tenant>`
+    let ck = std::fs::read(format!("{data}/payload/{tenant}/ckpt.bin")).unwrap_or_default();
+    let plain = key.open(&format!("ckpt/{tenant}"), &ck);
+    let ck_hits = plain.as_deref().map_or(0, |p| count_hits(p, needle));
+    println!(
+        "S1DEC checkpoint byte_cifrati={} decifrato={} sentinella_nel_chiaro={ck_hits}",
+        ck.len(),
+        plain.is_some()
+    );
+    let bus = crate::bus::Bus::connect(
+        &arg("--iggy").unwrap_or("127.0.0.1:47101".into()),
+        &env("IGGY_ROOT_USERNAME"),
+        &env("IGGY_ROOT_PASSWORD"),
+    )
+    .await
+    .expect("bus");
+    let topic = topic_of(&tenant, &stream);
+    let head = bus.head(&topic).await.unwrap_or(0);
+    let (mut seen, mut opened, mut hits) = (0u64, 0u64, 0usize);
+    for from in [0, head.saturating_sub(max)] {
+        for (_, p) in bus.read(&topic, from, max as u32).await.unwrap_or_default() {
+            seen += 1;
+            if let Some(pl) = key.open(&topic, &p) {
+                opened += 1;
+                hits += count_hits(&pl, needle);
+            }
+        }
+    }
+    println!(
+        "S1DEC log testa={head} messaggi_letti={seen} decifrati={opened} sentinella_nel_chiaro={hits}"
+    );
+    let ok = ck_hits > 0 && hits > 0;
+    println!("S1DEC controllo_positivo={}", if ok { "PASS" } else { "FAIL" });
 }

@@ -93,6 +93,9 @@ pub struct PipelineDef {
     pub oracle_size_s: i64,
     #[serde(default)]
     pub oracle_slide_s: i64,
+    /// I1: budget di CPU del processo per micro-lotto (ms); oltre, la pipeline si sospende con il codice `cpu_budget_exceeded`
+    #[serde(default)]
+    pub cpu_budget_ms: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -22,6 +22,8 @@
 #![allow(clippy::needless_range_loop)]
 
 use crate::bus::Bus;
+use crate::confine;
+use crate::metrics::Shared as SharedHist;
 use crate::crypto::{TenantKey, new_id, tenant_uid, unhex};
 use crate::dialect::{Barriers, DErr, derr, validate_set};
 use crate::engine::Hello;
@@ -47,6 +49,17 @@ type Pending = Arc<Mutex<VecDeque<Row>>>;
 struct Counters {
     delivered: AtomicU64,
     refused: AtomicU64,
+}
+
+/// Latenze di T3 (microsecondi), scritte dal ciclo di lettura e dal consegnatore e lette dalle statistiche.
+#[derive(Default)]
+struct Hists {
+    /// tempo di elaborazione di un micro-lotto (tutte le pipeline dello stream)
+    batch: SharedHist,
+    /// da accettato (arrivo scritto dal motore) a contato (fine del micro-lotto che lo contiene)
+    counted: SharedHist,
+    /// da finestra chiudibile (inizio del micro-lotto che la chiude) ad avvio accettato dal motore (200)
+    start: SharedHist,
 }
 
 struct SRt {
@@ -139,6 +152,7 @@ async fn deliver(
     token: String,
     wake: Arc<Notify>,
     cnt: Arc<Counters>,
+    hists: Arc<Hists>,
 ) {
     let mut c = Client::new(&api);
     loop {
@@ -172,6 +186,10 @@ async fn deliver(
             Ok((200, _)) => {
                 pending.lock().unwrap().pop_front();
                 cnt.delivered.fetch_add(1, Ordering::Relaxed);
+                if row.closable_ms > 0 {
+                    let us = (now_ms() - row.closable_ms).max(0) as u64 * 1000;
+                    hists.start.lock().unwrap().record(us);
+                }
             }
             Ok((code, _)) => {
                 if code == 429 {
@@ -277,7 +295,19 @@ async fn build_checked(
     Ok(pipes)
 }
 
+/// Risultato del passo 1 del confinamento (descrittori ereditati, chiusi), fatto da `main` prima del runtime.
+pub static PRE: std::sync::OnceLock<(usize, usize)> = std::sync::OnceLock::new();
+
+/// Porta di un indirizzo `host:porta`.
+fn port_of(addr: &str) -> u16 {
+    addr.rsplit(':')
+        .next()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(0)
+}
+
 pub async fn run() {
+    let t_run0 = Instant::now();
     // coppia di socket ereditata: descrittore 3
     let std_sock = unsafe { std::os::unix::net::UnixStream::from_raw_fd(3) };
     std_sock.set_nonblocking(true).unwrap();
@@ -309,6 +339,7 @@ pub async fn run() {
                 let _ = ctx_tx.send(v);
             }
         }
+        eprintln!("stream: canale del motore chiuso, esco");
         std::process::exit(0);
     });
     let key = TenantKey(unhex(&hello.key_hex).try_into().unwrap());
@@ -358,6 +389,44 @@ pub async fn run() {
         }
     }
     let pending: Pending = Arc::new(Mutex::new(VecDeque::new()));
+
+    // Runtime caldo (ADR della sandbox): contesti di DataFusion costruiti (sopra), percorso dello stadio di ingresso
+    // provato su un lotto sintetico, connessione a Iggy aperta e un giro sui topic, il tutto PRIMA di Landlock e seccomp.
+    for p in &pipes {
+        let sd = tenant
+            .streams
+            .iter()
+            .find(|s| s.name == p.pipe.stream)
+            .expect("stream gia' verificato");
+        let _ = p.pipe.dry_run(sd, 64).await;
+    }
+    for s in &srt {
+        let _ = bus.head(&s.topic).await;
+    }
+    // Confinamento (passi 4-6): nessun byte del tenant (checkpoint, log di Iggy) e' stato letto prima di qui.
+    let report = if hello.no_confine {
+        "level=none".to_string()
+    } else {
+        let cfg = confine::Cfg {
+            rw: vec![hello.ckpt_dir.clone()],
+            ro: vec!["/proc/self/statm".into()],
+            tcp: vec![port_of(&hello.iggy_addr), port_of(&hello.api_addr)],
+            discover: std::env::args().any(|a| a == "--discover"),
+            keep_dumpable: hello.keep_dumpable,
+        };
+        match confine::apply(&cfg, PRE.get().copied().unwrap_or((0, 0))) {
+            Ok(r) => r,
+            Err(why) => {
+                eprintln!(
+                    "refused code=E_AUX_CONFINEMENT_UNAVAILABLE role=stream reason={}",
+                    why.replace(' ', "_")
+                );
+                std::process::exit(confine::EXIT_REFUSED);
+            }
+        }
+    };
+    let ready = json!({"ready": true, "init_ms": t_run0.elapsed().as_secs_f64() * 1000.0, "report": report});
+    let _ = wr.write_all(format!("{ready}\n").as_bytes()).await;
 
     // ripresa dall'ultimo checkpoint
     if let Some((head, blobs)) = read_ckpt(&hello.ckpt_dir, &key, &tenant.id) {
@@ -417,6 +486,7 @@ pub async fn run() {
     }
     let wake = Arc::new(Notify::new());
     let cnt = Arc::new(Counters::default());
+    let hists = Arc::new(Hists::default());
     wake.notify_one();
     tokio::spawn(deliver(
         pending.clone(),
@@ -424,6 +494,7 @@ pub async fn run() {
         hello.api_token.clone(),
         wake.clone(),
         cnt.clone(),
+        hists.clone(),
     ));
 
     let ck_every = Duration::from_secs(10);
@@ -532,11 +603,27 @@ pub async fn run() {
                         reply = json!({"reply": c["req"], "ok": false, "error": derr("bad_request", e.to_string())})
                     }
                     Ok(def) => {
-                        if let Err(e) = build_checked(&tenant, &def, quota, true, &bars).await {
-                            reply = json!({"reply": c["req"], "ok": false, "error": e});
+                        // A1: tempo della validazione a secco (analisi, pianificazione e lotto sintetico), in ms
+                        let t = Instant::now();
+                        let res = build_checked(&tenant, &def, quota, true, &bars).await;
+                        let ms = t.elapsed().as_secs_f64() * 1000.0;
+                        match res {
+                            Err(e) => {
+                                reply = json!({"reply": c["req"], "ok": false, "error": e, "ms": ms})
+                            }
+                            Ok(_) => reply["ms"] = json!(ms),
                         }
                     }
                 },
+                "probe" if hello.allow_probe => {
+                    let r = confine::probe(
+                        c["id"].as_str().unwrap_or(""),
+                        c["path"].as_str().unwrap_or(""),
+                        c["pid"].as_i64().unwrap_or(0) as i32,
+                        c["port"].as_u64().unwrap_or(0) as u16,
+                    );
+                    reply["result"] = json!(r);
+                }
                 _ => {
                     reply = json!({"reply": c["req"], "ok": false, "error": derr("bad_request", "comando sconosciuto")})
                 }
@@ -623,13 +710,31 @@ pub async fn run() {
             }
             if !msgs.is_empty() {
                 let refs: Vec<(u64, &Msg)> = msgs.iter().map(|(o, m)| (*o, m)).collect();
+                let (t_batch, batch_ms) = (Instant::now(), now_ms());
+                let mut over_budget: Vec<String> = vec![];
                 for pi in 0..pipes.len() {
                     if pipes[pi].sidx != si || pipes[pi].suspended.is_some() {
                         continue;
                     }
                     let PRt { pipe, st, .. } = &mut pipes[pi];
+                    let cpu0 = cpu_ns();
                     match pipe.process(st, &refs).await {
-                        Ok(r) => {
+                        Ok(mut r) => {
+                            // I1: budget di CPU per micro-lotto. ponytail: CPU dell'intero processo (conta anche i thread del
+                            // bus e della consegna, in eccesso di poco); il prodotto misura per pipeline con un conto per attivita'
+                            if let Some(b) = pipe.def.cpu_budget_ms
+                                && cpu_ns() - cpu0 > b * 1_000_000
+                            {
+                                eprintln!(
+                                    "stream: pipeline {} sospesa: cpu_budget_exceeded ({} ms oltre {b} ms in un micro-lotto)",
+                                    pipe.def.id,
+                                    (cpu_ns() - cpu0) / 1_000_000
+                                );
+                                over_budget.push(pipe.def.id.clone());
+                            }
+                            for x in r.iter_mut() {
+                                x.closable_ms = batch_ms;
+                            }
                             if !r.is_empty() {
                                 pending.lock().unwrap().extend(r);
                                 wake.notify_one();
@@ -641,6 +746,29 @@ pub async fn run() {
                         }
                     }
                     pipes[pi].bytes = pipes[pi].pipe.state_bytes(&pipes[pi].st);
+                }
+                for id in &over_budget {
+                    for p in pipes
+                        .iter_mut()
+                        .filter(|p| &p.pipe.def.id == id && p.suspended.is_none())
+                    {
+                        p.suspended = Some("cpu_budget_exceeded".into());
+                    }
+                }
+                // T3: tempo del micro-lotto e, per ogni blocco, da accettato a contato
+                {
+                    let end_ms = now_ms();
+                    hists
+                        .batch
+                        .lock()
+                        .unwrap()
+                        .record(t_batch.elapsed().as_micros() as u64);
+                    let mut h = hists.counted.lock().unwrap();
+                    for (_, m) in &msgs {
+                        if let Msg::Block { arrival, .. } = m {
+                            h.record((end_ms - arrival).max(0) as u64 * 1000);
+                        }
+                    }
                 }
                 // quota di stato per pipeline (somma dei rami), dopo ogni micro-lotto
                 if hello.quota_enabled {
@@ -726,6 +854,11 @@ pub async fn run() {
                 "refused": cnt.refused.load(Ordering::Relaxed),
                 "cpu_ns": cpu_ns(),
                 "rss_kb": rss_kb(),
+                "t3": {
+                    "batch": hists.batch.lock().unwrap().json(),
+                    "counted": hists.counted.lock().unwrap().json(),
+                    "start": hists.start.lock().unwrap().json(),
+                },
             });
             let _ = wr.write_all(format!("{v}\n").as_bytes()).await;
             last_stat = Instant::now();

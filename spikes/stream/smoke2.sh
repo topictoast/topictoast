@@ -8,7 +8,7 @@ set -u
 cd "$(dirname "$0")" || exit 1
 HERE=$(pwd)
 D=${SPIKE_DATA:-/home/white_sheep/.cache/ttspikestream-data}
-BIN=/home/white_sheep/.cache/cargo-targets/topictoast-spike-stream/release/streamspike
+BIN=${BIN:-/home/white_sheep/.cache/cargo-targets/topictoast-spike-stream/release/streamspike}
 ID=$1
 SEED=${2:-21}
 case $ID in
@@ -16,31 +16,46 @@ case $ID in
   c2f) NAME=c2final ;;
   v2ctrl) NAME=v2-ctrl ;;
   v3ctrl) NAME=v3-ctrl ;;
+  a2ctrl) NAME=a2-ctrl ;;
   *) NAME=$ID ;;
 esac
 NAME=$NAME${RUNTAG:+-$RUNTAG}
-OUT=${OUTDIR:-$HERE/risultati}/stream-smoke-$NAME-laptop.txt
-[ -e "$OUT" ] && { echo "esiste gia': $OUT (un file grezzo non si riscrive: cambia il nome)"; exit 1; }
+PREFIX=${PREFIX:-stream-smoke}; MACH=${MACH:-laptop}
+OUT=${OUT_FILE:-${OUTDIR:-$HERE/risultati}/$PREFIX-$NAME${NUM:+-$NUM}-$MACH.txt}
+[ -e "$OUT" ] && [ -z "${OUT_APPEND:-}" ] && { echo "esiste gia': $OUT (un file grezzo non si riscrive: cambia il nome)"; exit 1; }
 KEEP=$D/keep
 set -a; . "$D/.env"; set +a
-ADDR=127.0.0.1:47111
+ADDR=${ADDR:-127.0.0.1:47111}
+PIN_E=${SPIKE_CPUS:+taskset -c $SPIKE_CPUS}; PIN_L=${SPIKE_LOADCPUS:+taskset -c $SPIKE_LOADCPUS}
 ENG_EXTRA=()
 
 say() { echo "$@" | tee -a "$OUT"; }
 adm() { curl -s -m 130 -w ' [http=%{http_code}]' -X "$1" -H "Authorization: Bearer $TT_ADMIN_TOKEN" ${3:+--data-binary "$3"} "http://$ADDR$2"; }
 stats() { curl -s -m 10 -H "Authorization: Bearer $TT_ADMIN_TOKEN" "http://$ADDR/v1/stats"; }
 header() {
-  say "SMOKE $NAME (non conta per i verdetti) data=$(date -u +%Y-%m-%dT%H:%M:%SZ) host=$(hostname) core=$(nproc)"
+  # KIND=misura per le corse misurate (script ms-row.sh); altrimenti corsa di prova
+  if [ "${KIND:-smoke}" = misura ]; then
+    say "MISURA $NAME corsa=${NUM:-?} data=$(date -u +%Y-%m-%dT%H:%M:%SZ) host=$(cat /proc/sys/kernel/hostname) core=$(nproc) seme=$SEED"
+  else
+    say "SMOKE $NAME (non conta per i verdetti) data=$(date -u +%Y-%m-%dT%H:%M:%SZ) host=$(cat /proc/sys/kernel/hostname) core=$(nproc)"
+  fi
+  [ -n "${PARAMS:-}" ] && say "$PARAMS"
   say "binario sha256=$(sha256sum "$BIN" | cut -d' ' -f1) seme=$SEED id=$ID"
   say "carico_1min_prima=$(cut -d' ' -f1 /proc/loadavg) pressione_io_prima=$(grep '^some' /proc/pressure/io | sed 's/.*avg10=\([0-9.]*\).*/\1/') container_in_esecuzione_prima=$(docker ps -q | wc -l)"
+  [ -n "${GATE:-}" ] && state prima
 }
-footer() { say "carico_1min_dopo=$(cut -d' ' -f1 /proc/loadavg) container_in_esecuzione_dopo=$(docker ps -q | wc -l)"; }
+footer() {
+  # i container nostri si fermano con il nome del progetto, mai altri; l'elenco «dopo» deve essere uguale a quello «prima»
+  [ -n "${FINAL_DOWN:-}" ] && docker compose -p ttspikestream --env-file "$D/.env" down >/dev/null 2>&1
+  say "carico_1min_dopo=$(cut -d' ' -f1 /proc/loadavg) container_in_esecuzione_dopo=$(docker ps -q | wc -l)"
+  [ -n "${GATE:-}" ] && state dopo
+}
 
 # avvio del motore: $1 = spec, resto = opzioni; il log del motore e il file dei PID stanno in $RUN
 start_engine() {
   local spec=$1; shift
   mkdir -p "$D/engine" "$RUN"
-  setsid nohup "$BIN" engine --spec "$spec" --listen $ADDR --data "$D/engine" --label "$(basename "$OUT")" "$@" >> "$RUN/engine.log" 2>&1 &
+  setsid nohup $PIN_E "$BIN" engine --spec "$spec" --listen $ADDR --data "$D/engine" --label "$(basename "$OUT")" "$@" >> "$RUN/engine.log" 2>&1 &
   echo $! > "$RUN/engine.pid"
   for _ in $(seq 1 100); do grep -q "engine pronto" "$RUN/engine.log" 2>/dev/null && return 0; sleep 0.2; done
   say "ERRORE: engine non pronto"; return 1
@@ -49,7 +64,7 @@ stop_engine() { [ -f "$RUN/engine.pid" ] && kill -9 "$(cat "$RUN/engine.pid")" 2
 restart_engine() {
   local spec=$1; shift
   local n; n=$(grep -c "engine pronto" "$RUN/engine.log")
-  setsid nohup "$BIN" engine --spec "$spec" --listen $ADDR --data "$D/engine" --label "$(basename "$OUT")" "$@" >> "$RUN/engine.log" 2>&1 &
+  setsid nohup $PIN_E "$BIN" engine --spec "$spec" --listen $ADDR --data "$D/engine" --label "$(basename "$OUT")" "$@" >> "$RUN/engine.log" 2>&1 &
   echo $! > "$RUN/engine.pid"
   for _ in $(seq 1 150); do [ "$(grep -c "engine pronto" "$RUN/engine.log")" -gt "$n" ] && return 0; sleep 0.2; done
   say "ERRORE: engine non ripartito"; return 1
@@ -81,7 +96,7 @@ run_one() {
   start_engine "$spec" "${ENG_EXTRA[@]}" || return 1
   sleep 2
   local RD=$RUN/load; rm -rf "$RD"
-  "$BIN" load --addr $ADDR --run-dir "$RD" $load > "$RUN/load.out" 2>&1 &
+  $PIN_L "$BIN" load --addr $ADDR --run-dir "$RD" $load > "$RUN/load.out" 2>&1 &
   local LOAD_PID=$!
   S0=$(date +%s)
   case $mode in
@@ -97,14 +112,21 @@ run_one() {
   say "--- check ($label)"
   local extra=""
   [ -n "${CHECK_EXTRA_FN:-}" ] && extra=$($CHECK_EXTRA_FN)
-  "$BIN" check --spec "$CHECKSPEC" --run-dir "$RD" --data "$D/engine" --addr $ADDR --wait-s "${WAIT:-240}" $extra "$@" 2>&1 | tee -a "$OUT"
+  $PIN_L "$BIN" check --spec "$CHECKSPEC" --run-dir "$RD" --data "$D/engine" --addr $ADDR --wait-s "${WAIT:-240}" $extra "$@" 2>&1 | tee -a "$OUT"
   say "--- log del motore ($label, righe di riavvio)"
   grep -E "terminato|ripreso|sospesa|set_pipeline" "$RUN/engine.log" | sed 's/[0-9]\{4,\}/N/g' | sort | uniq -c | tee -a "$OUT"
   mkdir -p "$KEEP/$label"; cp "$RD/run.json" "$RD/rows.jsonl" "$KEEP/$label/" 2>/dev/null
   say "stats_finali_$label: $(stats | jq -c '.tenants.acme | {cpu_ns, rss_kb, pending, delivered, refused, pipes: [.pipes[] | {id, state, code, state_bytes, applied}]}')"
 }
 
-: > "$OUT"
+[ -z "${OUT_APPEND:-}" ] && : > "$OUT"
+. ./gate.sh
+[ -n "${GATE:-}" ] && gate_wait
+# parametri di T1 in cima al file grezzo (decisi da Marco): ritmo offerto fisso, tempo dell'evento = ritmo offerto, origine alla partenza
+case $ID in
+  t1) PARAMS="T1 PARAMETRI: ritmo_offerto=105000 eventi/s FISSO (non senza tetto); ritmo_del_tempo_dell_evento=105000 eventi/s (uguale all'offerto); origine_del_tempo_dell_evento=alla partenza del carico (il generatore aspetta il confine della griglia da 300 s, fase 0, e parte li': la regola del futuro e la guardia del generatore non frenano e non scartano); connessioni=16; blocco=1000 eventi; durata=${T1_DUR:-600} s; query=UJ-3 con filtro (spec-t1.json); nessuna pipeline di verifica; ritardo del consumatore ogni 5 s; media sui minuti 2-10; chiusura delle finestre con la regola della quiete (nessun evento di chiusura: sarebbe oltre la tolleranza nel futuro di 60 s); seme=$SEED" ;;
+  t1free) PARAMS="T1-FREE PARAMETRI (solo riportata): ritmo_offerto=senza tetto (--rate 0); ritmo_del_tempo_dell_evento=300000 eventi/s (sopra ogni ritmo plausibile: la guardia del generatore non frena; il tempo dell'evento resta indietro rispetto all'arrivo); origine=alla partenza (griglia da 300 s, fase 0); connessioni=16; blocco=1000 eventi; durata=${T1_DUR:-600} s; query=UJ-3 con filtro (spec-t1.json); ritardo del consumatore ogni 5 s; seme=$SEED" ;;
+esac
 header
 
 case $ID in
@@ -123,7 +145,7 @@ case $ID in
     run_one c3a spec-c3.json "$L" none --all-closed; stop_engine
     run_one c3b spec-c3.json "$L" quiet --all-closed; stop_engine
     say "--- confronto della coppia (stesse righe con e senza il kill, dopo lo scarto dell'origine)"
-    "$BIN" check --spec spec-c3.json --compare "$KEEP/c3a" "$KEEP/c3b" --period-s 300 2>&1 | tee -a "$OUT" ;;
+    $PIN_L "$BIN" check --spec spec-c3.json --compare "$KEEP/c3a" "$KEEP/c3b" --period-s 300 2>&1 | tee -a "$OUT" ;;
   c4pair)
     # origine del tempo fissa: stessi eventi e stesse righe in ogni corsa con lo stesso seme
     CHECKSPEC=spec-c1.json
@@ -133,7 +155,7 @@ case $ID in
     run_one c4a spec-c1.json "$L" none; stop_engine
     run_one c4b spec-c1.json "$L" kills5; stop_engine
     say "--- confronto della coppia (righe con i guasti = righe senza guasti)"
-    "$BIN" check --spec spec-c1.json --compare "$KEEP/c4a" "$KEEP/c4b" --period-s 300 2>&1 | tee -a "$OUT" ;;
+    $PIN_L "$BIN" check --spec spec-c1.json --compare "$KEEP/c4a" "$KEEP/c4b" --period-s 300 2>&1 | tee -a "$OUT" ;;
   c5)
     # a) sospensione di 30 s e ripresa esatta sotto carico
     CHECKSPEC=spec-c1.json
@@ -148,7 +170,7 @@ case $ID in
     CHECKSPEC=spec-c5b.json
     RUN=$D/run/c5b; ./reset.sh; start_engine spec-c5b.json || exit 1; sleep 2
     RD=$RUN/load; rm -rf "$RD"
-    "$BIN" load --addr $ADDR --run-dir "$RD" --seed $SEED --events 300000 --rate 20000 --evrate 1000 --past-s 400 --flush-s 315 > "$RUN/load.out" 2>&1
+    $PIN_L "$BIN" load --addr $ADDR --run-dir "$RD" --seed $SEED --events 300000 --rate 20000 --evrate 1000 --past-s 400 --flush-s 315 > "$RUN/load.out" 2>&1
     sleep 6
     say "sospendo solo: $(adm POST /v1/admin/acme/pipelines/solo/suspend)"
     sleep 12
@@ -159,7 +181,7 @@ case $ID in
     say "c5b pid=$PID stato=$(stats | jq -c '.tenants.acme.pipes[0] | {state, code}') cpu_ns_inizio=$s0 cpu_ns_fine=$s1 delta_ms=$(awk -v a=$s0 -v b=$s1 'BEGIN{printf "%.3f", (b-a)/1e6}') tick_proc_stat_delta=$(( t1 - t0 )) (10 ms ciascuno) cambi_di_contesto_delta=$(( cs1 - cs0 )) soglia_ms=10"
     say "ripresa: $(adm POST /v1/admin/acme/pipelines/solo/resume)"
     say "--- check c5b (ripresa esatta dopo la sospensione lunga)"
-    "$BIN" check --spec spec-c5b.json --run-dir "$RD" --data "$D/engine" --addr $ADDR --wait-s 240 2>&1 | tee -a "$OUT"
+    $PIN_L "$BIN" check --spec spec-c5b.json --run-dir "$RD" --data "$D/engine" --addr $ADDR --wait-s 240 2>&1 | tee -a "$OUT"
     stop_engine
     # c) sospensione oltre la conservazione: Iggy con segmenti da 1 MiB e cancellazione dei segmenti chiusi piu' vecchi
     say "=== c5c oltre la conservazione: lo stream indicators ha conservazione di 40 s (finestre da 20 s, ritardo 10 s); la conservazione e' simulata dal lettore sul tempo del log (ponytail nel codice); uj3v resta sospesa piu' di 40 s di tempo del log"
@@ -170,7 +192,7 @@ case $ID in
     sleep 3
     say "stato dopo la ripresa rifiutata: $(stats | jq -c '.tenants.acme.pipes[] | select(.id=="uj3v") | {state, code, applied}') altre: $(stats | jq -c '[.tenants.acme.pipes[] | select(.id!="uj3v") | .state] | unique')"
     say "--- check c5c dopo la ripresa rifiutata (uj3v ancora sospesa con il codice, nessuna riga in piu', le altre esatte)"
-    "$BIN" check --spec spec-c5c2.json --run-dir "$D/run/c5c/load" --data "$D/engine" --addr $ADDR --wait-s 120 2>&1 | tee -a "$OUT"
+    $PIN_L "$BIN" check --spec spec-c5c2.json --run-dir "$D/run/c5c/load" --data "$D/engine" --addr $ADDR --wait-s 120 2>&1 | tee -a "$OUT"
     stop_engine
     # d) cambio di query: nuova versione con stato vuoto dalla posizione di lettura corrente
     say "=== c5d cambio della query: la pipeline chg passa dalla v1 alla v2 (HAVING count(*) > 50) a t=15 s; la v2 parte con lo stato vuoto"
@@ -235,6 +257,7 @@ case $ID in
     CHECKSPEC=spec-v3b.json
     run_one v3b spec-v3.json "--seed $SEED --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315" hook:v3b_hook
     stop_engine ;;
+  a1|a2|a2ctrl|i1|t1|t1free|t2|t3|m1|s1) . ./rows2b.sh ;;
   *) say "id sconosciuto"; exit 1 ;;
 esac
 footer

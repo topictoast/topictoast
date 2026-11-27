@@ -69,6 +69,9 @@ pub struct Row {
     /// stream di destinazione (C7); `None` = avvio di workflow
     #[serde(default)]
     pub dest: Option<String>,
+    /// T3: istante (ms) del micro-lotto in cui la finestra e' diventata chiudibile; 0 = non misurato (riga ripresa da un checkpoint)
+    #[serde(default)]
+    pub closable_ms: i64,
 }
 
 /// Tabella i cui dati si sostituiscono a ogni lotto (colonne dello stream piu' quelle interne).
@@ -669,6 +672,7 @@ impl Pipe {
                 key,
                 body: row_json(b, i, nc - 2),
                 dest: self.def.dest_stream.clone(),
+                closable_ms: 0,
             });
         }
     }
@@ -852,6 +856,7 @@ impl Pipe {
                     key: format!("{kp}:{we}:{gk}"),
                     body: row_json(b, i, nvis),
                     dest: self.def.dest_stream.clone(),
+                    closable_ms: 0,
                 });
             }
         }

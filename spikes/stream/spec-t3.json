@@ -1,0 +1,16 @@
+{
+  "tenants": [
+    {
+      "id": "acme",
+      "streams": [
+        {"name": "indicators", "event_time": "ts", "columns": [{"name": "asn", "type": "int"}, {"name": "ip", "type": "text"}, {"name": "kind", "type": "text"}, {"name": "ts", "type": "instant"}]}
+      ],
+      "pipelines": [
+        {
+          "id": "uj3", "version": 1, "oracle": "uj3", "oracle_size_s": 30, "oracle_slide_s": 30,
+          "sql": "SELECT window_start, window_end, asn, count(*) AS n FROM indicators GROUP BY tumble(INTERVAL '30 seconds'), asn HAVING count(*) > 50"
+        }
+      ]
+    }
+  ]
+}

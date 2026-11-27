@@ -57,6 +57,15 @@ pub struct Hello {
     /// solo controlli positivi (file `-ctrl-`): barriera 1 spenta nel processo per tenant
     #[serde(default)]
     pub ctrl_off_syntax: bool,
+    /// solo controlli positivi (file `-ctrl-`): processo per tenant senza confinamento
+    #[serde(default)]
+    pub no_confine: bool,
+    /// solo A2: il processo accetta il comando `probe` (prove ostili dentro il confinamento)
+    #[serde(default)]
+    pub allow_probe: bool,
+    /// solo M1: lascia `PR_SET_DUMPABLE` a 1 (altrimenti `smaps_rollup` del processo, e quindi il PSS, non si legge da fuori)
+    #[serde(default)]
+    pub keep_dumpable: bool,
 }
 
 struct TenantRt {
@@ -179,6 +188,18 @@ async fn admin(e: &Eng, r: &Req) -> Resp {
                 ps.push(def);
             }
             j(if v["ok"] == true { 200 } else { 422 }, v)
+        }
+        // A2: prova ostile eseguita dentro il processo per tenant confinato (solo con `--allow-probe`)
+        ("POST", ["v1", "admin", t, "probe"]) => {
+            let Some(ti) = tenant(t) else {
+                return j(404, json!({"error":"unknown_tenant"}));
+            };
+            let Ok(mut cmd) = serde_json::from_slice::<Value>(&r.body) else {
+                return j(400, json!({"error":"bad_request"}));
+            };
+            cmd["cmd"] = json!("probe");
+            let v = e.ask(ti, cmd, 20).await;
+            j(200, v)
         }
         ("POST", ["v1", "admin", t, "validate"]) => {
             let Some(ti) = tenant(t) else {
@@ -330,8 +351,29 @@ async fn supervise(
     loop {
         let (parent, child) = std::os::unix::net::UnixStream::pair().unwrap();
         let cfd = child.as_raw_fd();
-        let mut cmd = tokio::process::Command::new(std::env::current_exe().unwrap());
-        cmd.arg("stream").env_clear();
+        let exe = std::env::current_exe().unwrap();
+        // scoperta delle syscall (`discover.sh`, `--discover <script di gdb>`): il processo gira sotto gdb (ptrace_scope 1: si
+        // puo' solo lanciare, non agganciare) ma senza catchpoint finche' non si ferma da solo (SIGSTOP) al posto dei filtri;
+        // lo script di gdb imposta allora `catch syscall`. Con il catchpoint dall'avvio gdb non finiva (1,2 milioni di `clone3`).
+        let discover = arg("--discover");
+        let mut cmd = if let Some(script) = &discover {
+            let mut g = tokio::process::Command::new("gdb");
+            g.args(["-batch", "-nx", "-x", script, "--args"])
+                .arg(&exe)
+                .args(["stream", "--discover"]);
+            g.env_clear()
+                .env("PATH", "/usr/bin:/bin")
+                .env("HOME", std::env::var("HOME").unwrap_or_default());
+            g
+        } else {
+            let mut c = tokio::process::Command::new(&exe);
+            c.arg("stream").env_clear();
+            c
+        };
+        if base.no_confine {
+            cmd.arg("--no-confine");
+        }
+        let t_spawn = std::time::Instant::now();
         // SAFETY: solo chiamate async-signal-safe tra fork ed exec
         unsafe {
             cmd.pre_exec(move || {
@@ -372,7 +414,16 @@ async fn supervise(
                 l = lines.next_line() => match l {
                     Ok(Some(l)) => {
                         if let Ok(v) = serde_json::from_str::<Value>(&l) {
-                            if let Some(id) = v.get("reply").and_then(|x| x.as_u64()) {
+                            if v.get("ready").is_some() {
+                                // A1: dall'avvio del processo (fork compreso) a «pronto» (runtime caldo, confinamento applicato)
+                                eprintln!(
+                                    "engine: stream {} pronto in {:.3} ms (init_ms={:.3}) {}",
+                                    t.def.id,
+                                    t_spawn.elapsed().as_secs_f64() * 1000.0,
+                                    v["init_ms"].as_f64().unwrap_or(0.0),
+                                    v["report"].as_str().unwrap_or("")
+                                );
+                            } else if let Some(id) = v.get("reply").and_then(|x| x.as_u64()) {
                                 if let Some((_, tx)) = e.replies.lock().unwrap().remove(&id) {
                                     let _ = tx.send(v);
                                 }
@@ -428,6 +479,31 @@ pub async fn run() {
             "rifiuto: --ctrl-off-syntax solo con --label di un file di controllo positivo (nome con `-ctrl-`)"
         );
         std::process::exit(2);
+    }
+    // A2: controllo positivo senza confinamento (solo con file `-ctrl-`), prove ostili e porta di prova
+    let no_confine = std::env::args().any(|a| a == "--ctrl-no-confine");
+    if no_confine && !arg("--label").unwrap_or_default().contains("-ctrl-") {
+        eprintln!(
+            "rifiuto: --ctrl-no-confine solo con --label di un file di controllo positivo (nome con `-ctrl-`)"
+        );
+        std::process::exit(2);
+    }
+    let allow_probe = std::env::args().any(|a| a == "--allow-probe");
+    let keep_dumpable = std::env::args().any(|a| a == "--m1-keep-dumpable");
+    if let Some(p) = arg("--probe-port") {
+        let l = tokio::net::TcpListener::bind(format!("127.0.0.1:{p}"))
+            .await
+            .expect("porta di prova occupata");
+        tokio::spawn(async move {
+            while let Ok((s, _)) = l.accept().await {
+                drop(s);
+            }
+        });
+    }
+    // ADR della sandbox, punto 8: la chiave principale la protegge `PR_SET_DUMPABLE` a 0 sul motore
+    if !no_confine && !keep_dumpable {
+        // SAFETY: prctl senza puntatori
+        unsafe { libc::prctl(libc::PR_SET_DUMPABLE, 0, 0, 0, 0) };
     }
     let state_quota: usize = arg("--state-quota-mb")
         .map(|v| v.parse::<usize>().unwrap())
@@ -499,6 +575,9 @@ pub async fn run() {
             rlimit_data_mb,
             suspended: vec![],
             ctrl_off_syntax,
+            no_confine,
+            allow_probe,
+            keep_dumpable,
         });
         let (tx, rx) = mpsc::unbounded_channel();
         ctls.push(rx);

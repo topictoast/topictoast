@@ -21,5 +21,7 @@ services:
       IGGY_HTTP_ENABLED: "false"
       IGGY_QUIC_ENABLED: "false"
       IGGY_WEBSOCKET_ENABLED: "false"
+    # su minisheep i core del servizio (come lo spike del bus); sul portatile vuoto = nessun vincolo
+    cpuset: "${SPIKE_CPUSET:-}"
     ports: ["127.0.0.1:47101:8090"]
     volumes: ["${SPIKE_DATA:-/home/white_sheep/.cache/ttspikestream-data}/iggy:/app/local_data"]

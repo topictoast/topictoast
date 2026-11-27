@@ -24,6 +24,11 @@ libc = "=0.2.191"
 bytes = "=1.12.1"
 # solo per il tipo `Url` del registro degli archivi di oggetti. 2.5.9 (2026-11-20, oltre le due settimane): corregge RUSTSEC-2026-0592, presente nella 2.5.8
 url = "=2.5.9"
+# parte 2b: confinamento (versioni dell'ADR della sandbox)
+landlock = "=0.4.7"
+seccompiler = { version = "=0.5.0", default-features = false }
 
 [profile.release]
-debug = 1
+# parte 2b: senza simboli di debug (il binario passava i 900 MB e si copia su minisheep)
+debug = false
+strip = true

@@ -79,6 +79,7 @@ pub async fn run() {
         zipf_s: arg("--zipf").map(|v| v.parse().unwrap()).unwrap_or(1.0),
         prefix: arg("--prefix").unwrap_or(format!("r{seed}")),
         stream: stream.clone(),
+        sentinel: arg("--sentinel").unwrap_or_default(),
     };
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
@@ -188,6 +189,8 @@ pub async fn run() {
         }));
     }
     // ritardo del consumatore, campionato ogni 5 s: eventi accettati meno eventi elaborati
+    // ritardo del consumatore: ogni 5 s (T1) o ogni secondo (T2, per misurare il recupero)
+    let lag_every = num("--lag-every-s", 5) as u64;
     let sampler = {
         let (acc_events, tenant, addr, admin) = (
             acc_events.clone(),
@@ -199,7 +202,7 @@ pub async fn run() {
             let mut c = Client::new(&addr);
             let mut maxlag = 0i64;
             loop {
-                tokio::time::sleep(Duration::from_secs(5)).await;
+                tokio::time::sleep(Duration::from_secs(lag_every)).await;
                 let acc = acc_events.load(Ordering::Relaxed) as i64;
                 let auth = format!("Bearer {admin}");
                 if let Ok((200, b)) = c
@@ -214,7 +217,7 @@ pub async fn run() {
                     let lag = acc - done;
                     maxlag = maxlag.max(lag);
                     println!(
-                        "LAG t={:.0}s accettati={acc} elaborati={done} ritardo={lag} max={maxlag}",
+                        "LAG t={:.2}s accettati={acc} elaborati={done} ritardo={lag} max={maxlag}",
                         start.elapsed().as_secs_f64()
                     );
                 }

@@ -31,6 +31,9 @@ pub struct RunCfg {
     pub zipf_s: f64,
     pub prefix: String,
     pub stream: String,
+    /// S1: se non vuota, nel campo `kind` di ogni evento compare questa stringa (prefisso); non cambia l'oracolo (che non legge `kind` nelle prove di S1)
+    #[serde(default)]
+    pub sentinel: String,
 }
 
 fn mix(seed: u64, n: u64, salt: u64) -> u64 {
@@ -138,9 +141,10 @@ impl Gen {
             if n > a {
                 s.push(',');
             }
+            let sep = if self.cfg.sentinel.is_empty() { "" } else { "-" };
             s.push_str(&format!(
-                "{{\"asn\":{},\"ip\":\"{}\",\"kind\":\"{}\",\"ts\":{}}}",
-                e.asn, e.ip, e.kind, e.ts
+                "{{\"asn\":{},\"ip\":\"{}\",\"kind\":\"{}{sep}{}\",\"ts\":{}}}",
+                e.asn, e.ip, self.cfg.sentinel, e.kind, e.ts
             ));
         }
         s.push_str("]}");

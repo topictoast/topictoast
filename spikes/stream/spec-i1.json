@@ -1,0 +1,32 @@
+{
+  "tenants": [
+    {
+      "id": "acme",
+      "streams": [
+        {"name": "indicators", "event_time": "ts", "columns": [{"name": "asn", "type": "int"}, {"name": "ip", "type": "text"}, {"name": "kind", "type": "text"}, {"name": "ts", "type": "instant"}]}
+      ],
+      "pipelines": [
+        {
+          "id": "uj3", "version": 1, "oracle": "uj3", "oracle_size_s": 300, "oracle_slide_s": 300,
+          "sql": "SELECT window_start, window_end, asn, count(*) AS n FROM indicators GROUP BY tumble(INTERVAL '5 minutes'), asn HAVING count(*) > 50"
+        }
+      ]
+    },
+    {
+      "id": "beta",
+      "streams": [
+        {"name": "indicators", "event_time": "ts", "columns": [{"name": "asn", "type": "int"}, {"name": "ip", "type": "text"}, {"name": "kind", "type": "text"}, {"name": "ts", "type": "instant"}]}
+      ],
+      "pipelines": [
+        {
+          "id": "hog", "version": 1, "oracle": "none",
+          "sql": "SELECT window_start, window_end, ip, count(*) AS n FROM indicators GROUP BY tumble(INTERVAL '1 hour'), ip"
+        },
+        {
+          "id": "cpuhog", "version": 1, "oracle": "none", "cpu_budget_ms": 30,
+          "sql": "SELECT window_start, window_end, ip, count(DISTINCT asn) AS d, sum(asn) AS s, avg(asn) AS av, min(asn) AS lo, max(asn) AS hi FROM indicators GROUP BY hop(INTERVAL '5 minutes', INTERVAL '1 minute'), ip"
+        }
+      ]
+    }
+  ]
+}
