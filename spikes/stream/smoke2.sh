@@ -159,11 +159,13 @@ case $ID in
     # origine del tempo fissa: stessi eventi e stesse righe in ogni corsa con lo stesso seme
     CHECKSPEC=spec-c1.json
     # tempo dell'evento al ritmo dell'orologio (Marco, 2026-11-27, memlog 184): con il tempo compresso 20 volte le riprove
-    # sfasate del generatore dopo un kill del motore scartavano blocchi come in ritardo. 10 minuti di carico, kill a 30..570 s
+    # sfasate del generatore dopo un kill del motore scartavano blocchi come in ritardo. 10 minuti di carico, kill a 30..570 s.
+    # 2.000 eventi/s: lo stesso volume (1,2 milioni) delle coppie compresse; a 20.000/s la finestra da 5 minuti ha 6 milioni
+    # di eventi e la pipeline ipd supera la quota di stato (stream-smoke-c4-2d-minisheep.txt)
     O=$(( ($(date +%s) - 2100) / 300 * 300 * 1000 ))
-    C4_EVENTS=${C4_EVENTS:-12000000}
-    L="--seed $SEED --events $C4_EVENTS --rate 20000 --evrate 20000 --origin-ms $O --flush-s 315"
-    say "origine fissa del tempo dell'evento (ms): $O; C4 PARAMETRI: eventi=$C4_EVENTS ritmo=20000/s tempo_dell_evento=20000 eventi/s (al ritmo dell'orologio) finestre_kill=30..570 s"
+    C4_EVENTS=${C4_EVENTS:-1200000}
+    L="--seed $SEED --events $C4_EVENTS --rate 2000 --evrate 2000 --origin-ms $O --flush-s 315"
+    say "origine fissa del tempo dell'evento (ms): $O; C4 PARAMETRI: eventi=$C4_EVENTS ritmo=2000/s tempo_dell_evento=2000 eventi/s (al ritmo dell'orologio) finestre_kill=30..570 s"
     run_one c4a spec-c1.json "$L" none; stop_engine
     K_MIN=30 K_SPAN=541 run_one c4b spec-c1.json "$L" kills5; stop_engine
     say "--- confronto della coppia (righe con i guasti = righe senza guasti)"

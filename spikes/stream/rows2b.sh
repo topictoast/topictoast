@@ -212,7 +212,7 @@ case $ID in
     LP=$!
     wait $LP
     say "--- carico"; grep -v '^LAG' "$RUN/load.out" | tail -5 | tee -a "$OUT"
-    say "T1 minuti 2-10 (t=120..600 s, campioni ogni 5 s): $(lag_stats "$RUN/load.out" 120 100000)"
+    say "T1 minuti 2-10 (t=60..600 s, dal secondo minuto come nello spike del bus, campioni ogni 5 s): $(lag_stats "$RUN/load.out" 60 100000)"
     say "T1 serie del ritardo (t, ritardo): $(grep '^LAG' "$RUN/load.out" | sed 's/LAG t=\([0-9.]*\)s.*ritardo=\([0-9-]*\) max.*/\1:\2/' | tr '\n' ' ')"
     say "--- check (finestre chiuse con la regola della quiete entro 40 s dalla fine; tutte le finestre con dati devono essere chiuse)"
     $PIN_L "$BIN" check --spec spec-t1.json --run-dir "$RD" --data "$D/engine" --addr $ADDR --wait-s "${WAIT:-900}" --all-closed 2>&1 | tee -a "$OUT"

@@ -1,0 +1,59 @@
+[attesa del cancello] 0 s
+SMOKE a2-2d (non conta per i verdetti) data=2026-11-27T13:33:03Z host=minisheep core=22
+PARAMETRI COMUNI: core=22 core_servizi_e_motore=1-4 core_generatore_e_oracolo=8-11 tetto_attesa_del_check_wait_s=420 consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+binario sha256=8b60cb605744624afe006c30f214aa23a3a833f96b1a16ca092c0ba8afcaa198 seme=91 id=a2
+carico_1min_prima=0.73 pressione_io_prima=0.03 container_in_esecuzione_prima=12
+[stato prima 14:33:04] load: 0.73 0.44 0.38
+[stato prima] io: some avg10=0.03 avg60=0.10 avg300=0.06 total=23954709231
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2784581634
+[stato prima] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato prima] binario sha256: 8b60cb605744624afe006c30f214aa23a3a833f96b1a16ca092c0ba8afcaa198
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 1.2%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27066728 swap_usato_kb=2123940 some avg10=0.00 avg60=0.00 avg300=0.00 total=6975128
+[stato prima] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato prima] orologio UTC: 2026-11-27T13:33:08 kernel: 7.2.4-arch1-2
+=== A2 (a2): prove ostili dentro il processo per tenant vero (comando di prova del motore, solo con --allow-probe); motore: --allow-probe --probe-port 47121
+A2 percorsi: chiave=/home/white_sheep/.cache/ttspikestream-data/engine/master.key database=/home/white_sheep/.cache/ttspikestream-data/engine/starts.db configurazione=/home/white_sheep/ttspikestream/spec-a2.json,/home/white_sheep/.cache/ttspikestream-data/.env motore_pid=3305282
+A2 prova=chiave_principale atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=database_avvii atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=configurazione_spec atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=configurazione_env atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=cartella_altro_tenant atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=file_altro_tenant atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=etc_passwd atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=proc_motore_environ atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=proc_motore_maps atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=proc_motore_cmdline atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=proc_motore_mem atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=ptrace_motore atteso=deny esito=denied_by_seccomp_SIGSYS => OK | validation_process_died: il processo per tenant e' terminato (segnale Some(31), codice None)
+A2 prova=process_vm_readv_motore atteso=deny esito=denied_by_seccomp_SIGSYS => OK | validation_process_died: il processo per tenant e' terminato (segnale Some(31), codice None)
+A2 prova=segnale_al_motore atteso=deny esito=denied_by_seccomp_SIGSYS => OK | validation_process_died: il processo per tenant e' terminato (segnale Some(31), codice None)
+A2 prova=porta_diversa_da_bus_e_motore atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=exec atteso=deny esito=denied_by_seccomp_SIGSYS => OK | validation_process_died: il processo per tenant e' terminato (segnale Some(31), codice None)
+A2 prova=fork atteso=deny esito=denied_by_seccomp_SIGSYS => OK | validation_process_died: il processo per tenant e' terminato (segnale Some(31), codice None)
+A2 prova=scrittura_fuori_dalla_cartella atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=lettura_cartella_propria atteso=allow esito=leak => OK | leak=1 bytes=21
+A2 prova=scrittura_cartella_propria atteso=allow esito=leak => OK | leak=1
+A2 prova=porta_del_bus atteso=allow esito=leak => OK | leak=1
+A2 prova=porta_del_motore atteso=allow esito=leak => OK | leak=1
+A2 informazione env: {"ok":true,"reply":23,"result":"leak=0 env_vars=0"}
+A2 stato del processo per tenant visto da /proc/3305709: Threads: 5 NoNewPrivs: 1 Seccomp: 2 Seccomp_filters: 1  limiti: Max file size unlimited unlimited bytes ;Max core file size 0 0 bytes ;Max open files 512 512 files ;
+A2 PR_SET_DUMPABLE visto da fuori (proprietario di /proc/<pid>/environ: root = non ispezionabile): processo_per_tenant=root motore=root
+A2 riepilogo (a2): prove=22 da_negare=18 fughe=0 rotte_o_non_classificate=0 file_creato_fuori=no
+A2 verdetto: PASS (0 fughe e prove ammesse funzionanti)
+carico_1min_dopo=0.56 container_in_esecuzione_dopo=12
+[stato dopo 14:33:18] load: 0.56 0.42 0.37
+[stato dopo] io: some avg10=0.83 avg60=0.31 avg300=0.11 total=23954860003
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2784620373
+[stato dopo] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato dopo] binario sha256: 8b60cb605744624afe006c30f214aa23a3a833f96b1a16ca092c0ba8afcaa198
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-2 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27058104 swap_usato_kb=2123940 some avg10=0.00 avg60=0.00 avg300=0.00 total=6975128
+[stato dopo] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T13:33:22 kernel: 7.2.4-arch1-2

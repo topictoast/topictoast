@@ -1,0 +1,37 @@
+[attesa del cancello] 0 s
+SMOKE a1-2d (non conta per i verdetti) data=2026-11-27T13:32:22Z host=minisheep core=22
+PARAMETRI COMUNI: core=22 core_servizi_e_motore=1-4 core_generatore_e_oracolo=8-11 tetto_attesa_del_check_wait_s=420 consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+A1 PARAMETRI: riavvii=30; validazioni a secco=10; kill -9 del processo per tenant e rilancio del motore, pausa 0,3 s; nessun carico; seme=91
+binario sha256=8b60cb605744624afe006c30f214aa23a3a833f96b1a16ca092c0ba8afcaa198 seme=91 id=a1
+carico_1min_prima=0.51 pressione_io_prima=0.00 container_in_esecuzione_prima=12
+[stato prima 14:32:23] load: 0.51 0.35 0.35
+[stato prima] io: some avg10=0.00 avg60=0.05 avg300=0.04 total=23954421225
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2784464184
+[stato prima] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato prima] binario sha256: 8b60cb605744624afe006c30f214aa23a3a833f96b1a16ca092c0ba8afcaa198
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 2.5%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.03
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27062580 swap_usato_kb=2123940 some avg10=0.00 avg60=0.00 avg300=0.00 total=6975127
+[stato prima] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato prima] orologio UTC: 2026-11-27T13:32:27 kernel: 7.2.4-arch1-2
+=== A1: 30 riavvii a freddo del ruolo con DataFusion vero e confinamento di prodotto (kill -9 del processo per tenant, il motore lo rilancia). Misura: dall'avvio del processo (fork compreso) a «pronto» (runtime caldo e confinamento applicato), presa dal motore
+A1 riavvii=30 confinati_landlock+seccomp=30 rifiutati=0
+A1 avvio_a_pronto_ms: p50=27.988 p99=31.970 min=24.480 max=31.970 (soglie: p50 <= 100, p99 <= 250)
+A1 dentro il processo (init_ms, dal messaggio iniziale a pronto): p50=23.518 p99=27.361; confinamento (t_confine_us): p50=359.000 p99=492.000
+A1 rapporto di confinamento di un avvio: inherited_fds=1 closed_fds=0 landlock=FullyEnforced nnp=1 all_threads=1 landlock_abi_kernel=10 richiesta=V9 non_supportati_fs=BitFlags<AccessFs>(0b0) non_supportati_net=BitFlags<AccessNet>(0b0) non_supportati_scope=BitFlags<Scope>(0b0) seccomp_syscalls=38 level=landlock+seccomp t_confine_us=328
+A1 validazione a secco della query di UJ-3 (processo caldo e confinato, analisi + pianificazione + lotto sintetico), ms: n=10 prima=1.557442 p50=1.252 p99=1.557 max=1.557
+carico_1min_dopo=0.86 container_in_esecuzione_dopo=12
+[stato dopo 14:32:54] load: 0.86 0.46 0.38
+[stato dopo] io: some avg10=0.08 avg60=0.12 avg300=0.06 total=23954668431
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2784569956
+[stato dopo] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato dopo] binario sha256: 8b60cb605744624afe006c30f214aa23a3a833f96b1a16ca092c0ba8afcaa198
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-1 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27030892 swap_usato_kb=2123940 some avg10=0.00 avg60=0.00 avg300=0.00 total=6975127
+[stato dopo] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T13:32:58 kernel: 7.2.4-arch1-2
