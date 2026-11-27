@@ -77,7 +77,8 @@ wait_until() { while [ $(( $(date +%s) - S0 )) -lt "$1" ]; do sleep 0.2; done; }
 kills5() {
   local spec=$1
   RANDOM=$SEED
-  local T=(); for _ in 1 2 3 4 5; do T+=($((8 + RANDOM % 43))); done
+  # finestra degli istanti: K_MIN + [0, K_SPAN) s (8..50 s di predefinito; C4 a tempo reale 30..570 s)
+  local T=(); for _ in 1 2 3 4 5; do T+=($((${K_MIN:-8} + RANDOM % ${K_SPAN:-43}))); done
   T=($(printf '%s\n' "${T[@]}" | sort -n)); local KINDS=(S E S S E)
   say "istanti dei kill (s dall'inizio del carico): ${T[*]} tipi: ${KINDS[*]}"
   S0=$(date +%s)
@@ -157,11 +158,14 @@ case $ID in
   c4pair)
     # origine del tempo fissa: stessi eventi e stesse righe in ogni corsa con lo stesso seme
     CHECKSPEC=spec-c1.json
+    # tempo dell'evento al ritmo dell'orologio (Marco, 2026-11-27, memlog 184): con il tempo compresso 20 volte le riprove
+    # sfasate del generatore dopo un kill del motore scartavano blocchi come in ritardo. 10 minuti di carico, kill a 30..570 s
     O=$(( ($(date +%s) - 2100) / 300 * 300 * 1000 ))
-    L="--seed $SEED --events 1200000 --rate 20000 --evrate 1000 --origin-ms $O --flush-s 315"
-    say "origine fissa del tempo dell'evento (ms): $O"
+    C4_EVENTS=${C4_EVENTS:-12000000}
+    L="--seed $SEED --events $C4_EVENTS --rate 20000 --evrate 20000 --origin-ms $O --flush-s 315"
+    say "origine fissa del tempo dell'evento (ms): $O; C4 PARAMETRI: eventi=$C4_EVENTS ritmo=20000/s tempo_dell_evento=20000 eventi/s (al ritmo dell'orologio) finestre_kill=30..570 s"
     run_one c4a spec-c1.json "$L" none; stop_engine
-    run_one c4b spec-c1.json "$L" kills5; stop_engine
+    K_MIN=30 K_SPAN=541 run_one c4b spec-c1.json "$L" kills5; stop_engine
     say "--- confronto della coppia (righe con i guasti = righe senza guasti)"
     $PIN_L "$BIN" check --spec spec-c1.json --compare "$KEEP/c4a" "$KEEP/c4b" --period-s 300 2>&1 | tee -a "$OUT" ;;
   c5)

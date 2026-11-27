@@ -82,7 +82,9 @@ pub fn prologue() -> (usize, usize) {
 fn landlock(c: &Cfg) -> Result<String, String> {
     let abi = ABI::V9;
     let fs_all = AccessFs::from_all(abi) & !BitFlags::from(AccessFs::Execute);
-    let fs_ro = make_bitflags!(AccessFs::{ReadFile | ReadDir});
+    // in `ro` ci sono solo file (`/proc/self/statm`): `ReadDir` vale solo per le cartelle, Landlock lo toglierebbe da una
+    // regola su un file e lo stato del ruleset diventerebbe `PartiallyEnforced` senza che manchi nulla
+    let fs_ro = BitFlags::from(AccessFs::ReadFile);
     let mut rs = Ruleset::default()
         .handle_access(AccessFs::from_all(abi))
         .map_err(|e| format!("handle fs: {e}"))?
