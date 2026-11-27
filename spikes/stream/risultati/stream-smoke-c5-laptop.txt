@@ -1,0 +1,112 @@
+SMOKE c5 (non conta per i verdetti) data=2026-11-27T01:34:53Z host=whitebones core=16
+binario sha256=0d8f7aa50ec0ee41205f94bf04a470fba687429db4871cc7c773088fb603657d seme=21 id=c5
+carico_1min_prima=2.55 pressione_io_prima=4.55 container_in_esecuzione_prima=5
+=== corsa c5a spec=spec-c1.json carico='--seed 21 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315' guasti=hook:c5a_hook motore=''
+corsa_c5a carico_1min_prima=2.55
+t=8s sospendo uj3v e hop
+{"ok":true,"reply":1} [http=200]
+{"ok":true,"reply":2} [http=200]
+t=38s riprendo (sospese per 30 s)
+{"ok":true,"reply":3} [http=200]
+{"ok":true,"reply":4} [http=200]
+--- carico (c5a)
+LAG t=5s accettati=100000 elaborati=99000 ritardo=1000 max=1000
+LAG t=10s accettati=200000 elaborati=199000 ritardo=1000 max=1000
+LAG t=15s accettati=301000 elaborati=300000 ritardo=1000 max=1000
+LAG t=20s accettati=401000 elaborati=400000 ritardo=1000 max=1000
+LAG t=25s accettati=501000 elaborati=482000 ritardo=19000 max=19000
+LAG t=30s accettati=601000 elaborati=583000 ritardo=18000 max=19000
+LAG t=35s accettati=701000 elaborati=683000 ritardo=18000 max=19000
+LAG t=40s accettati=801000 elaborati=784000 ritardo=17000 max=19000
+LAG t=45s accettati=901000 elaborati=885000 ritardo=16000 max=19000
+LAG t=50s accettati=1001000 elaborati=985000 ritardo=16000 max=19000
+LAG t=55s accettati=1101000 elaborati=1086000 ritardo=15000 max=19000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.00 ritmo=19999/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c5a)
+CHECK tenant=acme seed=21 blocchi_accettati=1201 testa_log=1204 senza_risposta=0
+LOG blocchi_distinti=1201 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=1220
+PIPELINE uj3 oracolo=uj3 righe_attese=2637 righe_avvio=2637 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1503576) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743000000) ultimo_blocco_arrivo_ms=1795743361636 B_meno_E_ms=Some(361636) ritardo_chiusura_ultima_finestra_ms=Some(364293) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=23694 righe_avvio=23694 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1505058) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743000000) ultimo_blocco_arrivo_ms=1795743361636 B_meno_E_ms=Some(361636) ritardo_chiusura_ultima_finestra_ms=Some(366126) PASS
+PIPELINE hop oracolo=hop righe_attese=100 righe_avvio=100 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1505060) finestre_aperte=5 ultima_finestra_fine_ms=Some(1795743240000) ultimo_blocco_arrivo_ms=1795743361636 B_meno_E_ms=Some(121636) ritardo_chiusura_ultima_finestra_ms=Some(126133) PASS
+PIPELINE dist oracolo=distinct righe_attese=20 righe_avvio=20 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1505061) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795743000000) ultimo_blocco_arrivo_ms=1795743361636 B_meno_E_ms=Some(361636) ritardo_chiusura_ultima_finestra_ms=Some(366135) PASS
+PIPELINE ipd oracolo=ipdistinct righe_attese=118768 righe_avvio=118768 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1506072) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795743000000) ultimo_blocco_arrivo_ms=1795743361636 B_meno_E_ms=Some(361636) ritardo_chiusura_ultima_finestra_ms=Some(377053) PASS
+PIPELINE filter oracolo=filter righe_attese=6311 righe_avvio=6311 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=0 ultima_finestra_fine_ms=None ultimo_blocco_arrivo_ms=0 B_meno_E_ms=None ritardo_chiusura_ultima_finestra_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=151530 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+--- log del motore (c5a, righe di riavvio)
+stats_finali_c5a: {"cpu_ns":5673875517,"rss_kb":129280,"pending":0,"delivered":151530,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":75884,"applied":1221},{"id":"uj3v","state":"running","code":null,"state_bytes":75884,"applied":1221},{"id":"hop","state":"running","code":null,"state_bytes":78294,"applied":1221},{"id":"dist","state":"running","code":null,"state_bytes":75754,"applied":1221},{"id":"ipd","state":"running","code":null,"state_bytes":75754,"applied":1221},{"id":"filter","state":"running","code":null,"state_bytes":75754,"applied":1221}]}
+=== c5b CPU della pipeline sospesa. Definizione: tempo di CPU del processo per tenant (CLOCK_PROCESS_CPUTIME_ID letto dal processo stesso: utente + sistema, tutti i thread, anche quelli finiti, ns) tra due righe di statistiche a 30 s l'una dall'altra, con la sola pipeline sospesa nel processo; i segnali (1 al secondo sul log, non letti), i checkpoint (10 s, saltati se nulla e' cambiato) e le righe di statistiche (1 al secondo) sono dentro la misura. Controllo incrociato: utime+stime da /proc/<pid>/stat (tick da 10 ms).
+sospendo solo: {"ok":true,"reply":1} [http=200]
+c5b pid=395884 stato={"state":"suspended","code":"operator"} cpu_ns_inizio=529913000 cpu_ns_fine=534682546 delta_ms=4.770 tick_proc_stat_delta=1 (10 ms ciascuno) cambi_di_contesto_delta=33 soglia_ms=10
+ripresa: {"ok":true,"reply":2} [http=200]
+--- check c5b (ripresa esatta dopo la sospensione lunga)
+CHECK tenant=acme seed=21 blocchi_accettati=301 testa_log=351 senza_risposta=0
+LOG blocchi_distinti=301 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=353
+PIPELINE solo oracolo=uj3v righe_attese=7410 righe_avvio=7410 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=1/1 ritardo_massimo_chiusura_ms=Some(390993) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795743300000) ultimo_blocco_arrivo_ms=1795743403917 B_meno_E_ms=Some(103917) ritardo_chiusura_ultima_finestra_ms=Some(153887) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=7410 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+=== c5c oltre la conservazione: lo stream indicators ha conservazione di 40 s (finestre da 20 s, ritardo 10 s); la conservazione e' simulata dal lettore sul tempo del log (ponytail nel codice); uj3v resta sospesa piu' di 40 s di tempo del log
+=== corsa c5c spec=spec-c5c.json carico='--seed 21 --events 300000 --rate 5000 --evrate 5000 --past-s 0' guasti=hook:c5c_hook motore=''
+corsa_c5c carico_1min_prima=1.58
+t=5s sospendo uj3v
+{"ok":true,"reply":1} [http=200]
+--- carico (c5c)
+LAG t=5s accettati=25000 elaborati=25000 ritardo=0 max=0
+LAG t=10s accettati=50000 elaborati=50000 ritardo=0 max=0
+LAG t=15s accettati=75000 elaborati=75000 ritardo=0 max=0
+LAG t=20s accettati=101000 elaborati=100000 ritardo=1000 max=1000
+LAG t=25s accettati=126000 elaborati=125000 ritardo=1000 max=1000
+LAG t=30s accettati=151000 elaborati=150000 ritardo=1000 max=1000
+LAG t=35s accettati=176000 elaborati=170000 ritardo=6000 max=6000
+LAG t=40s accettati=201000 elaborati=196000 ritardo=5000 max=6000
+LAG t=45s accettati=226000 elaborati=221000 ritardo=5000 max=6000
+LAG t=50s accettati=251000 elaborati=246000 ritardo=5000 max=6000
+LAG t=55s accettati=276000 elaborati=271000 ritardo=5000 max=6000
+DONE blocchi_accettati=300 eventi_accettati=300000 secondi=59.80 ritmo=5016/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c5c)
+CHECK tenant=acme seed=21 blocchi_accettati=300 testa_log=303 senza_risposta=0
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=303
+PIPELINE uj3 oracolo=uj3 righe_attese=405 righe_avvio=405 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(10138) finestre_aperte=2 ultima_finestra_fine_ms=Some(1795743500000) ultimo_blocco_arrivo_ms=1795743523159 B_meno_E_ms=Some(23159) ritardo_chiusura_ultima_finestra_ms=Some(10138) PASS
+PIPELINE uj3v oracolo=suspended:operator stato="suspended" codice="operator" byte_di_stato=368366 righe_avvio=0 PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=405 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+--- log del motore (c5c, righe di riavvio)
+stats_finali_c5c: {"cpu_ns":1179189480,"rss_kb":67056,"pending":0,"delivered":405,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":849850,"applied":303},{"id":"uj3v","state":"suspended","code":"operator","state_bytes":368366,"applied":27}]}
+ripresa dopo la perdita: {"error":{"code":"retention_exceeded","message":"la posizione della pipeline uj3v non e' piu' nel log"},"ok":false,"reply":2} [http=409]
+stato dopo la ripresa rifiutata: {"state":"suspended","code":"retention_exceeded","applied":27} altre: ["running"]
+--- check c5c dopo la ripresa rifiutata (uj3v ancora sospesa con il codice, nessuna riga in piu', le altre esatte)
+CHECK tenant=acme seed=21 blocchi_accettati=300 testa_log=307 senza_risposta=0
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=307
+PIPELINE uj3 oracolo=uj3 righe_attese=405 righe_avvio=405 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(10138) finestre_aperte=2 ultima_finestra_fine_ms=Some(1795743500000) ultimo_blocco_arrivo_ms=1795743523159 B_meno_E_ms=Some(23159) ritardo_chiusura_ultima_finestra_ms=Some(10138) PASS
+PIPELINE uj3v oracolo=suspended:retention_exceeded stato="suspended" codice="retention_exceeded" byte_di_stato=368366 righe_avvio=0 PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=405 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+=== c5d cambio della query: la pipeline chg passa dalla v1 alla v2 (HAVING count(*) > 50) a t=15 s; la v2 parte con lo stato vuoto
+=== corsa c5d_load spec=spec-c5d.json carico='--seed 21 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315' guasti=hook:c5d_hook motore=''
+corsa_c5d_load carico_1min_prima=1.76
+t=15s PUT chg v2
+{"ok":true,"reply":1} [http=200]
+--- carico (c5d_load)
+LAG t=5s accettati=100000 elaborati=100000 ritardo=0 max=0
+LAG t=10s accettati=200000 elaborati=200000 ritardo=0 max=0
+LAG t=15s accettati=301000 elaborati=300000 ritardo=1000 max=1000
+LAG t=20s accettati=401000 elaborati=382000 ritardo=19000 max=19000
+LAG t=25s accettati=501000 elaborati=482000 ritardo=19000 max=19000
+LAG t=30s accettati=601000 elaborati=582000 ritardo=19000 max=19000
+LAG t=35s accettati=701000 elaborati=683000 ritardo=18000 max=19000
+LAG t=40s accettati=801000 elaborati=783000 ritardo=18000 max=19000
+LAG t=45s accettati=901000 elaborati=883000 ritardo=18000 max=19000
+LAG t=50s accettati=1001000 elaborati=985000 ritardo=16000 max=19000
+LAG t=55s accettati=1101000 elaborati=1085000 ritardo=16000 max=19000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.00 ritmo=19999/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c5d_load)
+CHECK tenant=acme seed=21 blocchi_accettati=1201 testa_log=1204 senza_risposta=0
+LOG blocchi_distinti=1201 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=1205
+PIPELINE uj3v oracolo=uj3v righe_attese=24813 righe_avvio=24813 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1443614) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743300000) ultimo_blocco_arrivo_ms=1795743596568 B_meno_E_ms=Some(296568) ritardo_chiusura_ultima_finestra_ms=Some(298492) PASS
+PIPELINE chg oracolo=uj3 righe_attese=2006 righe_avvio=2006 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1158660) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743300000) ultimo_blocco_arrivo_ms=1795743596568 B_meno_E_ms=Some(296568) ritardo_chiusura_ultima_finestra_ms=Some(298645) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=31641 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+--- log del motore (c5d_load, righe di riavvio)
+      1 stream: set_pipeline chg v2 start_pos=295
+stats_finali_c5d_load: {"cpu_ns":2203880816,"rss_kb":76992,"pending":0,"delivered":31641,"refused":0,"pipes":[{"id":"uj3v","state":"running","code":null,"state_bytes":75884,"applied":1206},{"id":"chg","state":"running","code":null,"state_bytes":57598,"applied":1206}]}
+carico_1min_dopo=1.97 container_in_esecuzione_dopo=5

@@ -1,0 +1,22 @@
+SMOKE v2 (non conta per i verdetti) data=2026-11-27T01:42:57Z host=whitebones core=16
+binario sha256=0d8f7aa50ec0ee41205f94bf04a470fba687429db4871cc7c773088fb603657d seme=21 id=v2
+carico_1min_prima=2.41 pressione_io_prima=5.37 container_in_esecuzione_prima=5
+--- probe v2, tutte le barriere accese (prodotto)
+CFG all_on (barriere spente: []) CASO ddl_file => stage=syntax detail="statement_not_allowed: solo SELECT: CreateExternalTable non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO copy_to_file => stage=syntax detail="statement_not_allowed: solo SELECT: CopyTo non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO connector_port => stage=syntax detail="statement_not_allowed: solo SELECT: CreateExternalTable non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO dml_insert => stage=syntax detail="statement_not_allowed: solo SELECT: Insert non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO statement_set => stage=syntax detail="statement_not_allowed: solo SELECT: Set non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO create_function => stage=syntax detail="statement_not_allowed: solo SELECT: CreateFunction non ammesso" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO table_fn_generate_series => stage=syntax detail="table_function_not_allowed: funzioni di tabella non ammesse" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO cartesian => stage=syntax detail="join_not_allowed: una sola tabella nel FROM (niente prodotto cartesiano)" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO repeat_huge => stage=syntax detail="function_not_allowed: funzione repeat non ammessa" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO repeat_over_limit => stage=syntax detail="function_not_allowed: funzione repeat non ammessa" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO literal_huge => stage=syntax detail="query_too_large: query oltre 16384 byte" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO deep_parens => stage=syntax detail="query_too_large: query oltre 16384 byte" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO join_self => stage=syntax detail="join_not_allowed: join non ammessi" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=0 tempo_ms=20
+CFG all_on (barriere spente: []) CASO selftest_open => stage=completed detail="lettura del civetta" file_events=3 file_visti_dal_campionatore=["/home/white_sheep/.cache/ttspikestream-data/v2-409699/canary.csv:8"] prese_viste=0 connessioni_accettate=0 tempo_ms=40
+CFG all_on (barriere spente: []) CASO selftest_connect => stage=completed detail="connessione Ok(())" file_events=0 file_visti_dal_campionatore=[] prese_viste=0 connessioni_accettate=1 tempo_ms=20
+RIEPILOGO (per configurazione: casi fermati, casi completati, scaduti, eventi_file_sul_civetta_o_scritture, connessioni_accettate; selftest esclusi)
+  all_on: fermati=13 completati=2 scaduti=0 eventi_file=0 connessioni=0
+carico_1min_dopo=2.41 container_in_esecuzione_dopo=5

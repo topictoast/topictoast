@@ -1,0 +1,35 @@
+SMOKE c7 (non conta per i verdetti) data=2026-11-27T01:41:40Z host=whitebones core=16
+binario sha256=0d8f7aa50ec0ee41205f94bf04a470fba687429db4871cc7c773088fb603657d seme=21 id=c7
+carico_1min_prima=2.37 pressione_io_prima=4.17 container_in_esecuzione_prima=5
+=== corsa c7 spec=spec-c7.json carico='--seed 21 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315' guasti=kills5 motore=''
+corsa_c7 carico_1min_prima=2.37
+istanti dei kill (s dall'inizio del carico): 32 33 37 38 41 tipi: S E S S E
+kill -9 stream a t=32s
+kill -9 engine a t=34s
+kill -9 stream a t=37s
+kill -9 stream a t=38s
+kill -9 engine a t=42s
+--- carico (c7)
+load seed=21 eventi=1200000 blocchi=1201 conn=8 rate=20000 evrate=1000 t0=1795742177731 past_ms=1530000
+LAG t=5s accettati=100000 elaborati=99000 ritardo=1000 max=1000
+LAG t=10s accettati=201000 elaborati=199000 ritardo=2000 max=2000
+LAG t=15s accettati=301000 elaborati=299000 ritardo=2000 max=2000
+LAG t=20s accettati=401000 elaborati=382000 ritardo=19000 max=19000
+LAG t=25s accettati=501000 elaborati=482000 ritardo=19000 max=19000
+LAG t=30s accettati=601000 elaborati=582000 ritardo=19000 max=19000
+LAG t=40s accettati=801000 elaborati=793000 ritardo=8000 max=19000
+LAG t=50s accettati=1001000 elaborati=990000 ritardo=11000 max=19000
+LAG t=55s accettati=1101000 elaborati=1090000 ritardo=11000 max=19000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.00 ritmo=19999/s riprove=76 senza_risposta=76 rifiutati=0
+--- check (c7)
+CHECK tenant=acme seed=21 blocchi_accettati=1201 testa_log=1206 senza_risposta=76
+LOG blocchi_distinti=1201 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=1212
+PIPELINE uj3 oracolo=uj3 righe_attese=2629 righe_avvio=2629 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=2000/2000 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1319603) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743600000) ultimo_blocco_arrivo_ms=1795743767733 B_meno_E_ms=Some(167733) ritardo_chiusura_ultima_finestra_ms=Some(169318) PASS
+PIPELINE uj3d oracolo=uj3v righe_attese=24742 righe_avvio=24742 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=2000/2000 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1324299) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743600000) ultimo_blocco_arrivo_ms=1795743767733 B_meno_E_ms=Some(167733) ritardo_chiusura_ultima_finestra_ms=Some(173709) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=2629 righe_dest_doppie_assorbite=11371 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+--- log del motore (c7, righe di riavvio)
+      3 engine: stream acme terminato (segnale Some(9), codice None), riavvio
+      5 stream acme: ripreso dal checkpoint, righe in attesa N
+stats_finali_c7: {"cpu_ns":1068985240,"rss_kb":80580,"pending":0,"delivered":20219,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":75884,"applied":1213},{"id":"uj3d","state":"running","code":null,"state_bytes":75884,"applied":1213}]}
+carico_1min_dopo=2.45 container_in_esecuzione_dopo=5

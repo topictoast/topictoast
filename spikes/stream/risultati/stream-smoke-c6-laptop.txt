@@ -1,0 +1,35 @@
+SMOKE c6 (non conta per i verdetti) data=2026-11-27T01:40:01Z host=whitebones core=16
+binario sha256=0d8f7aa50ec0ee41205f94bf04a470fba687429db4871cc7c773088fb603657d seme=21 id=c6
+carico_1min_prima=1.97 pressione_io_prima=1.25 container_in_esecuzione_prima=5
+=== corsa c6 spec=spec-c1.json carico='--seed 21 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315' guasti=hook:c6_hook motore=''
+corsa_c6 carico_1min_prima=1.97
+t=10s il motore rifiuta gli avvii per quota per 20 s: {"refusing_for_s":20} [http=200]
+t=15s in attesa nel processo: {"pending":505,"refused":23}
+t=28s in attesa nel processo: {"pending":37465,"refused":88,"delivered":6410}
+--- carico (c6)
+LAG t=5s accettati=100000 elaborati=98000 ritardo=2000 max=2000
+LAG t=10s accettati=200000 elaborati=200000 ritardo=0 max=2000
+LAG t=15s accettati=301000 elaborati=300000 ritardo=1000 max=2000
+LAG t=20s accettati=401000 elaborati=400000 ritardo=1000 max=2000
+LAG t=25s accettati=501000 elaborati=480000 ritardo=21000 max=21000
+LAG t=30s accettati=601000 elaborati=582000 ritardo=19000 max=21000
+LAG t=35s accettati=701000 elaborati=682000 ritardo=19000 max=21000
+LAG t=40s accettati=801000 elaborati=782000 ritardo=19000 max=21000
+LAG t=45s accettati=901000 elaborati=882000 ritardo=19000 max=21000
+LAG t=50s accettati=1001000 elaborati=985000 ritardo=16000 max=21000
+LAG t=55s accettati=1101000 elaborati=1086000 ritardo=15000 max=21000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.00 ritmo=19999/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c6)
+CHECK tenant=acme seed=21 blocchi_accettati=1201 testa_log=1204 senza_risposta=0
+LOG blocchi_distinti=1201 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=1230
+PIPELINE uj3 oracolo=uj3 righe_attese=2627 righe_avvio=2627 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1510477) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743300000) ultimo_blocco_arrivo_ms=1795743668887 B_meno_E_ms=Some(368887) ritardo_chiusura_ultima_finestra_ms=Some(383634) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=23267 righe_avvio=23267 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1511806) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743300000) ultimo_blocco_arrivo_ms=1795743668887 B_meno_E_ms=Some(368887) ritardo_chiusura_ultima_finestra_ms=Some(385428) PASS
+PIPELINE hop oracolo=hop righe_attese=100 righe_avvio=100 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1511807) finestre_aperte=5 ultima_finestra_fine_ms=Some(1795743540000) ultimo_blocco_arrivo_ms=1795743668887 B_meno_E_ms=Some(128887) ritardo_chiusura_ultima_finestra_ms=Some(145435) PASS
+PIPELINE dist oracolo=distinct righe_attese=20 righe_avvio=20 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1511809) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795743300000) ultimo_blocco_arrivo_ms=1795743668887 B_meno_E_ms=Some(368887) ritardo_chiusura_ultima_finestra_ms=Some(385437) PASS
+PIPELINE ipd oracolo=ipdistinct righe_attese=118768 righe_avvio=118768 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1512582) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795743300000) ultimo_blocco_arrivo_ms=1795743668887 B_meno_E_ms=Some(368887) ritardo_chiusura_ultima_finestra_ms=Some(395354) PASS
+PIPELINE filter oracolo=filter righe_attese=6311 righe_avvio=6311 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=0 ultima_finestra_fine_ms=None ultimo_blocco_arrivo_ms=0 B_meno_E_ms=None ritardo_chiusura_ultima_finestra_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=151093 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=100
+VERDETTO PASS
+--- log del motore (c6, righe di riavvio)
+stats_finali_c6: {"cpu_ns":6063004583,"rss_kb":150388,"pending":0,"delivered":151093,"refused":100,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":75884,"applied":1232},{"id":"uj3v","state":"running","code":null,"state_bytes":75884,"applied":1232},{"id":"hop","state":"running","code":null,"state_bytes":78294,"applied":1232},{"id":"dist","state":"running","code":null,"state_bytes":75754,"applied":1232},{"id":"ipd","state":"running","code":null,"state_bytes":75754,"applied":1232},{"id":"filter","state":"running","code":null,"state_bytes":75754,"applied":1232}]}
+carico_1min_dopo=2.37 container_in_esecuzione_dopo=5
