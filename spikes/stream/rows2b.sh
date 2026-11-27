@@ -202,7 +202,7 @@ case $ID in
   t1|t1free)
     CHECKSPEC=spec-t1.json
     DUR=${T1_DUR:-600}
-    if [ "$ID" = t1 ]; then L="--seed $SEED --events 70000000 --rate 105000 --evrate 105000 --past-s 0 --phase-s 0 --phase-period-s ${PHASE:-300} --duration-s $DUR --conns 16"
+    if [ "$ID" = t1 ]; then L="--seed $SEED --events 70000000 --rate 105000 --evrate 105000 --past-s 0 --phase-s ${PHASE_S:-0} --phase-period-s ${PHASE:-300} --duration-s $DUR --conns 16"
     else L="--seed $SEED --events 400000000 --rate 0 --evrate 300000 --past-s 0 --phase-s 0 --phase-period-s ${PHASE:-300} --duration-s $DUR --conns 16"; fi
     RUN=$D/run/$ID; ./reset.sh; mkdir -p "$RUN"
     start_engine spec-t1.json || exit 1

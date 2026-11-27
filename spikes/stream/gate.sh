@@ -35,6 +35,11 @@ state() {
   say "[stato $1] governor cpu1: $(cat /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor 2>/dev/null)"
   say "[stato $1] memoria: MemAvailable_kb=$(awk '/^MemAvailable/{print $2}' /proc/meminfo) swap_usato_kb=$(awk '/^SwapTotal/{t=$2} /^SwapFree/{f=$2} END{print t-f}' /proc/meminfo) $(head -1 /proc/pressure/memory)"
   say "[stato $1] disco: $(df -h "$D" | tail -1)"
+  # pavimento di fdatasync sul disco dei dati (regole di lettura, validità punto 1: si registra, non è un cancello)
+  local fp=$D/.pavimento-fsync.probe o secs
+  o=$(LC_ALL=C dd if=/dev/zero of="$fp" bs=4k count=200 oflag=dsync 2>&1 | tail -1); rm -f "$fp"
+  secs=$(echo "$o" | sed -n 's/.* copied, \([0-9.]*\) s.*/\1/p')
+  say "[stato $1] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su $D): $(awk -v s="${secs:-0}" 'BEGIN{printf "%.3f", s * 1000 / 200}') ms per scrittura"
   say "[stato $1] orologio UTC: $(date -u +%FT%T) kernel: $(uname -r)"
 }
 
