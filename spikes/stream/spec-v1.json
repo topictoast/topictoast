@@ -1,0 +1,27 @@
+{
+  "tenants": [
+    {
+      "id": "acme",
+      "streams": [
+        {"name": "indicators", "event_time": "ts", "columns": [{"name": "asn", "type": "int"}, {"name": "ip", "type": "text"}, {"name": "kind", "type": "text"}, {"name": "ts", "type": "instant"}]},
+        {"name": "indicators2", "event_time": "ts", "columns": [{"name": "asn", "type": "int"}, {"name": "ip", "type": "text"}, {"name": "kind", "type": "text"}, {"name": "ts", "type": "instant"}]},
+        {"name": "indicators_short", "event_time": "ts", "retention_s": 600, "columns": [{"name": "asn", "type": "int"}, {"name": "ip", "type": "text"}, {"name": "kind", "type": "text"}, {"name": "ts", "type": "instant"}]}
+      ],
+      "pipelines": []
+    },
+    {
+      "id": "globex",
+      "streams": [
+        {"name": "secret", "event_time": "ts", "columns": [{"name": "asn", "type": "int"}, {"name": "ts", "type": "instant"}]}
+      ],
+      "pipelines": []
+    },
+    {
+      "id": "initech",
+      "streams": [
+        {"name": "indicators", "event_time": "ts", "columns": [{"name": "asn", "type": "int"}, {"name": "ip", "type": "text"}, {"name": "kind", "type": "text"}, {"name": "ts", "type": "instant"}]}
+      ],
+      "pipelines": []
+    }
+  ]
+}

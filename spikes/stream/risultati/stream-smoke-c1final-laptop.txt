@@ -1,0 +1,7 @@
+SMOKE c1final (non conta per i verdetti) data=2026-11-27T00:49:44Z host=whitebones core=16
+binario sha256=ccfee488264f087ce408d1a64aebbe74e0b89a994ae25a6cbba2c57256f0a161 seme=21 id=c1f
+carico_1min_prima=2.19 pressione_io_prima=0.00 container_in_esecuzione_prima=4
+=== corsa c1f spec=spec-c1.json carico='--seed 21 --events 600000 --rate 20000 --evrate 500 --past-s 1500 --flush-s 315' guasti=none motore=''
+corsa_c1f carico_1min_prima=2.19
+ERRORE: engine non pronto
+carico_1min_dopo=1.85 container_in_esecuzione_dopo=4

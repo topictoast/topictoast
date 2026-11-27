@@ -42,7 +42,10 @@ pub fn ingest(def: &StreamDef, body: &[u8], arrival_ms: i64) -> Result<RecordBat
         Some(a) if v.as_object().map(|o| o.len()) == Some(1) => a
             .iter()
             .enumerate()
-            .map(|(i, e)| e.as_object().ok_or_else(|| bad(i, "", "evento non e' un oggetto")))
+            .map(|(i, e)| {
+                e.as_object()
+                    .ok_or_else(|| bad(i, "", "evento non e' un oggetto"))
+            })
             .collect::<Result<_, _>>()?,
         _ => {
             return Err(IngestErr {
@@ -60,7 +63,10 @@ pub fn ingest(def: &StreamDef, body: &[u8], arrival_ms: i64) -> Result<RecordBat
         });
     }
     for (i, e) in events.iter().enumerate() {
-        if let Some(k) = e.keys().find(|k| !def.columns.iter().any(|c| &c.name == *k)) {
+        if let Some(k) = e
+            .keys()
+            .find(|k| !def.columns.iter().any(|c| &c.name == *k))
+        {
             return Err(bad(i, k, "campo non dichiarato"));
         }
     }

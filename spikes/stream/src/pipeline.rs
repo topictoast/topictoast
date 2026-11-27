@@ -15,6 +15,13 @@
 //!   `ultimo_wm = wm`, `ultimo_arrivo = A`;
 //! - segnale con arrivo `S`: se `S - ultimo_arrivo >= quiete`, `wm = max(wm, ultimo_wm + (S - ultimo_arrivo))`;
 //! - a fine micro-lotto si chiudono (ed emettono) le finestre con `s < wm - size - L`.
+//!
+//! Posizione e deduplicazione sono per pipeline (parte 2a): ogni `PipeState` porta la propria posizione
+//! applicata (`applied`) e le chiavi dei blocchi viste (`seen`); una pipeline sospesa e ripresa rilegge il log dalla
+//! propria posizione e ognuna salta quello che ha gia' applicato.
+
+// spike: la forma a due rami (senza finestra, con finestra) e' piu' leggibile cosi'
+#![allow(clippy::unnecessary_unwrap, clippy::needless_range_loop)]
 
 use async_trait::async_trait;
 use datafusion::arrow::array::*;
@@ -28,11 +35,12 @@ use datafusion::arrow::util::display::array_value_to_string;
 use datafusion::catalog::{Session, TableProvider};
 use datafusion::common::tree_node::{Transformed, TreeNode, TreeNodeRecursion};
 use datafusion::datasource::{MemTable, TableType, provider_as_source};
+use datafusion::execution::SessionStateBuilder;
+use datafusion::execution::disk_manager::{DiskManagerBuilder, DiskManagerMode};
 use datafusion::execution::object_store::ObjectStoreRegistry;
 use datafusion::execution::runtime_env::RuntimeEnvBuilder;
-use datafusion::execution::disk_manager::{DiskManagerBuilder, DiskManagerMode};
 use datafusion::logical_expr::{
-    EmitTo, Expr, GroupsAccumulator, LogicalPlan, LogicalPlanBuilder, AggregateUDF, col,
+    AggregateUDF, EmitTo, Expr, GroupsAccumulator, LogicalPlan, LogicalPlanBuilder, col,
 };
 use datafusion::object_store::ObjectStore;
 use datafusion::physical_expr::aggregate::{AggregateExprBuilder, AggregateFunctionExpr};
@@ -40,28 +48,27 @@ use datafusion::physical_expr::expressions::Column as PCol;
 use datafusion::physical_expr::{GroupsAccumulatorAdapter, PhysicalExpr};
 use datafusion::physical_plan::{ExecutionPlan, collect};
 use datafusion::prelude::{SQLOptions, SessionConfig, SessionContext};
-use datafusion::sql::sqlparser::ast::{Distinct, GroupByExpr, SelectItem, SetExpr, Statement, TableFactor};
-use datafusion::sql::sqlparser::dialect::GenericDialect;
-use datafusion::sql::sqlparser::parser::Parser;
+use datafusion::sql::parser::Statement as DfStatement;
+use datafusion::sql::sqlparser::ast::Statement;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
+use crate::dialect::{Barriers, Branch, DErr, analyse, derr};
 use crate::spec::{PipelineDef, StreamDef};
 use crate::wire::Msg;
 
 type Res<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
-
-fn err<T>(m: impl Into<String>) -> Res<T> {
-    Err(m.into().into())
-}
 
 /// Riga destinata a un avvio sul motore: la chiave e' la chiave di idempotenza C-4.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Row {
     pub key: String,
     pub body: Value,
+    /// stream di destinazione (C7); `None` = avvio di workflow
+    #[serde(default)]
+    pub dest: Option<String>,
 }
 
 /// Tabella i cui dati si sostituiscono a ogni lotto (colonne dello stream piu' quelle interne).
@@ -72,13 +79,13 @@ pub struct Shared {
 }
 
 impl Shared {
-    fn new(schema: SchemaRef) -> Arc<Shared> {
+    pub fn new(schema: SchemaRef) -> Arc<Shared> {
         Arc::new(Shared {
             schema,
             data: Mutex::new(vec![]),
         })
     }
-    fn set(&self, b: RecordBatch) {
+    pub fn set(&self, b: RecordBatch) {
         *self.data.lock().unwrap() = vec![b];
     }
 }
@@ -109,16 +116,56 @@ impl TableProvider for Shared {
 #[derive(Debug)]
 struct NoStores;
 impl ObjectStoreRegistry for NoStores {
-    fn register_store(&self, _: &url::Url, _: Arc<dyn ObjectStore>) -> Option<Arc<dyn ObjectStore>> {
+    fn register_store(
+        &self,
+        _: &url::Url,
+        _: Arc<dyn ObjectStore>,
+    ) -> Option<Arc<dyn ObjectStore>> {
         None
     }
     fn get_store(&self, u: &url::Url) -> datafusion::common::Result<Arc<dyn ObjectStore>> {
-        Err(datafusion::common::DataFusionError::Plan(format!("nessun archivio di oggetti: {u}")))
+        Err(datafusion::common::DataFusionError::Plan(format!(
+            "nessun archivio di oggetti: {u}"
+        )))
     }
 }
 
 fn ts_type() -> DataType {
     DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".into()))
+}
+
+/// Contesto di DataFusion secondo le barriere. Barriera 3 accesa: nessun archivio di oggetti (nemmeno `file://`),
+/// nessuna funzione di tabella, nessun formato di file, nessuna fabbrica di tabelle, versamento su disco spento.
+/// Barriera 3 spenta (solo controllo positivo): le impostazioni predefinite di DataFusion. Barriera 4 accesa: pool
+/// di memoria con limite `mem_limit`.
+pub fn context(b: &Barriers, mem_limit: usize) -> Res<SessionContext> {
+    let mut rt = RuntimeEnvBuilder::new();
+    if b.registration {
+        rt = rt
+            .with_object_store_registry(Arc::new(NoStores))
+            .with_disk_manager_builder(
+                DiskManagerBuilder::default().with_mode(DiskManagerMode::Disabled),
+            );
+    }
+    if b.memory {
+        rt = rt.with_memory_limit(mem_limit, 1.0);
+    }
+    let rt = rt.build_arc()?;
+    let cfg = SessionConfig::new()
+        .with_target_partitions(1)
+        .with_information_schema(false)
+        .with_batch_size(8192);
+    let mut sb = SessionStateBuilder::new()
+        .with_config(cfg)
+        .with_runtime_env(rt)
+        .with_default_features();
+    if b.registration {
+        sb = sb
+            .with_table_functions(HashMap::new())
+            .with_table_factories(HashMap::new())
+            .with_file_formats(vec![]);
+    }
+    Ok(SessionContext::new_with_state(sb.build()))
 }
 
 /// Dove va ogni colonna dell'uscita dell'`Aggregate`.
@@ -155,6 +202,9 @@ enum Kind {
 pub struct Pipe {
     pub def: PipelineDef,
     pub stream: String,
+    /// indice del ramo (`UNION ALL`) e numero di rami
+    pub branch: usize,
+    pub nbranches: usize,
     ctx: SessionContext,
     sin: Arc<Shared>,
     sout: Arc<Shared>,
@@ -165,128 +215,59 @@ pub struct Pipe {
     kind: Kind,
 }
 
-/// Parte del tempo di una finestra: `INTERVAL '5 minutes'` -> millisecondi.
-fn interval_ms(s: &str) -> Res<i64> {
-    let s = s.trim();
-    let rest = s
-        .to_ascii_lowercase()
-        .strip_prefix("interval")
-        .map(|x| x.trim().trim_matches('\'').trim().to_string())
-        .ok_or("atteso INTERVAL '<n> <unita'>'")?;
-    let mut it = rest.split_whitespace();
-    let n: i64 = it.next().and_then(|x| x.parse().ok()).ok_or("intervallo non valido")?;
-    let mult = match it.next().unwrap_or("") {
-        "second" | "seconds" => 1000,
-        "minute" | "minutes" => 60_000,
-        "hour" | "hours" => 3_600_000,
-        _ => return err("unita dell'intervallo non ammessa"),
-    };
-    if n <= 0 {
-        return err("intervallo non positivo");
-    }
-    Ok(n * mult)
-}
-
-/// Cerca `tumble(...)` o `hop(...)`; torna (testo riscritto, dimensione, scorrimento) con la chiamata
-/// sostituita da `window_start, window_end`.
-fn rewrite_window(sql: &str) -> Res<Option<(String, i64, i64)>> {
-    let low = sql.to_ascii_lowercase();
-    for (name, hop) in [("tumble(", false), ("hop(", true)] {
-        if let Some(p) = low.find(name) {
-            let a = p + name.len();
-            let close = low[a..].find(')').ok_or("parentesi non chiusa")? + a;
-            let args = &sql[a..close];
-            let parts: Vec<&str> = args.split(',').collect();
-            let (size, slide) = if hop {
-                if parts.len() != 2 {
-                    return err("hop vuole due intervalli");
-                }
-                (interval_ms(parts[0])?, interval_ms(parts[1])?)
-            } else {
-                if parts.len() != 1 {
-                    return err("tumble vuole un intervallo");
-                }
-                let s = interval_ms(parts[0])?;
-                (s, s)
-            };
-            if size % slide != 0 {
-                return err("la dimensione deve essere multipla dello scorrimento");
-            }
-            let out = format!("{}window_start, window_end{}", &sql[..p], &sql[close + 1..]);
-            return Ok(Some((out, size, slide)));
-        }
-    }
-    Ok(None)
-}
-
-/// Controllo minimo del dialetto (PIANO 1.6): una sola SELECT su uno stream, niente join, ORDER BY, LIMIT,
-/// CTE, sottoquery, wildcard. L'elenco completo dei rifiuti e' della parte 2.
-fn dialect_check(sql: &str, stream: &str) -> Res<bool> {
-    if sql.len() > 16 << 10 {
-        return err("query oltre 16 KiB");
-    }
-    if sql.contains("__") {
-        return err("nomi interni non ammessi");
-    }
-    let mut st = Parser::parse_sql(&GenericDialect {}, sql).map_err(|e| format!("sintassi: {e}"))?;
-    if st.len() != 1 {
-        return err("una sola istruzione");
-    }
-    let Statement::Query(q) = st.remove(0) else {
-        return err("solo SELECT");
-    };
-    if q.with.is_some() || q.order_by.is_some() || q.limit_clause.is_some() {
-        return err("CTE, ORDER BY e LIMIT non ammessi");
-    }
-    let SetExpr::Select(s) = *q.body else {
-        return err("solo una SELECT semplice");
-    };
-    if s.from.len() != 1 || !s.from[0].joins.is_empty() {
-        return err("join non ammessi");
-    }
-    match &s.from[0].relation {
-        TableFactor::Table { name, args: None, .. } if name.to_string() == stream => {}
-        _ => return err("FROM deve essere lo stream della pipeline"),
-    }
-    if s.projection.iter().any(|i| matches!(i, SelectItem::Wildcard(_) | SelectItem::QualifiedWildcard(..))) {
-        return err("wildcard non ammesso");
-    }
-    let windowed = matches!(&s.group_by, GroupByExpr::Expressions(v, _) if !v.is_empty());
-    Ok(windowed && !matches!(s.distinct, Some(Distinct::On(_))))
-}
-
-fn stream_of(sql: &str) -> Res<String> {
-    let mut st = Parser::parse_sql(&GenericDialect {}, sql).map_err(|e| format!("sintassi: {e}"))?;
-    if let Statement::Query(q) = st.remove(0)
-        && let SetExpr::Select(s) = *q.body
-        && let Some(t) = s.from.first()
-        && let TableFactor::Table { name, .. } = &t.relation
-    {
-        return Ok(name.to_string());
-    }
-    err("FROM non trovato")
-}
-
 impl Pipe {
-    pub async fn build(def: &PipelineDef, streams: &[StreamDef], mem_limit: usize) -> Res<Pipe> {
-        let sname = stream_of(&def.sql)?;
+    /// Costruisce la pipeline: un `Pipe` per ramo di `UNION ALL` (uno solo se e' una `SELECT`). Barriera 1: controllo
+    /// sull'albero in `analyse`; barriera 2: `SQLOptions` sul piano logico; barriere 3 e 4: `context`.
+    pub async fn build(
+        def: &PipelineDef,
+        streams: &[StreamDef],
+        mem_limit: usize,
+        b: &Barriers,
+    ) -> Result<Vec<Pipe>, DErr> {
+        let branches = analyse(def, streams, b.syntax)?;
+        let n = branches.len();
+        let mut out = vec![];
+        for (k, br) in branches.into_iter().enumerate() {
+            out.push(Pipe::build_branch(def, streams, mem_limit, b, k, n, br).await?);
+        }
+        Ok(out)
+    }
+
+    async fn build_branch(
+        def: &PipelineDef,
+        streams: &[StreamDef],
+        mem_limit: usize,
+        bar: &Barriers,
+        branch: usize,
+        nbranches: usize,
+        br: Branch,
+    ) -> Result<Pipe, DErr> {
+        let sname = br.stream.clone();
         let sdef = streams
             .iter()
             .find(|s| s.name == sname)
-            .ok_or("stream sconosciuto")?;
-        dialect_check(&def.sql, &sname)?;
-        let (sql, win) = match rewrite_window(&def.sql)? {
-            Some((s, a, b)) => (s, Some((a, b))),
-            None => (def.sql.clone(), None),
-        };
+            .ok_or_else(|| derr("unknown_stream", format!("stream sconosciuto: {sname}")))?;
+        let win = br.window;
         // il tempo dell'evento serve solo alle pipeline con finestra
         let ts_name = sdef.event_time.clone().unwrap_or_default();
-        let ts_idx = sdef.columns.iter().position(|c| c.name == ts_name).unwrap_or(0);
+        let ts_idx = sdef
+            .columns
+            .iter()
+            .position(|c| c.name == ts_name)
+            .unwrap_or(0);
         if win.is_some() && sdef.event_time.is_none() {
-            return err("una pipeline con finestra vuole lo stream con il tempo dell'evento");
+            return Err(derr(
+                "event_time_required",
+                "una pipeline con finestra vuole lo stream con il tempo dell'evento",
+            ));
         }
         // schema esteso: colonne dello stream + colonne virtuali per rendere pianificabile il SQL
-        let mut fields: Vec<Field> = sdef.schema().fields().iter().map(|f| f.as_ref().clone()).collect();
+        let mut fields: Vec<Field> = sdef
+            .schema()
+            .fields()
+            .iter()
+            .map(|f| f.as_ref().clone())
+            .collect();
         for n in ["window_start", "window_end"] {
             fields.push(Field::new(n, ts_type(), true));
         }
@@ -294,29 +275,28 @@ impl Pipe {
             fields.push(Field::new(n, DataType::Int64, true));
         }
         let ext_schema: SchemaRef = Arc::new(Schema::new(fields));
-        // contesto: solo la tabella dello stream, nessun archivio di oggetti, nessun versamento su disco
-        let rt = RuntimeEnvBuilder::new()
-            .with_object_store_registry(Arc::new(NoStores))
-            .with_disk_manager_builder(DiskManagerBuilder::default().with_mode(DiskManagerMode::Disabled))
-            .with_memory_limit(mem_limit, 1.0)
-            .build_arc()?;
-        let cfg = SessionConfig::new()
-            .with_target_partitions(1)
-            .with_information_schema(false)
-            .with_batch_size(8192);
-        let ctx = SessionContext::new_with_config_rt(cfg, rt);
+        let ctx = context(bar, mem_limit)?;
         let sin = Shared::new(ext_schema.clone());
         ctx.register_table(&sname, sin.clone())?;
         let state = ctx.state();
-        let plan = state.create_logical_plan(&sql).await?;
-        SQLOptions::new()
-            .with_allow_ddl(false)
-            .with_allow_dml(false)
-            .with_allow_statements(false)
-            .verify_plan(&plan)?;
+        // il piano nasce dall'albero riscritto, mai dal testo
+        let plan = state
+            .statement_to_plan(DfStatement::Statement(Box::new(Statement::Query(
+                Box::new(br.query),
+            ))))
+            .await?;
+        if bar.options {
+            SQLOptions::new()
+                .with_allow_ddl(false)
+                .with_allow_dml(false)
+                .with_allow_statements(false)
+                .verify_plan(&plan)?;
+        }
         // coercizione dei tipi degli argomenti (es. avg su interi) fatta qui, perche' gli accumulatori
         // fisici si costruiscono a mano a partire dagli argomenti dell'Aggregate
-        let plan = state.analyzer().execute_and_check(plan, state.config_options(), |_, _| {})?;
+        let plan = state
+            .analyzer()
+            .execute_and_check(plan, state.config_options(), |_, _| {})?;
 
         // sbuccia: [Distinct] Projection [Filter] Aggregate ...
         let (distinct, top) = match &plan {
@@ -324,30 +304,39 @@ impl Pipe {
             p => (false, p.clone()),
         };
         let LogicalPlan::Projection(proj) = &top else {
-            return err("piano inatteso: manca la proiezione");
+            return Err(derr(
+                "plan_unexpected",
+                "piano inatteso: manca la proiezione",
+            ));
         };
         let blk = |p: LogicalPlan| -> Res<LogicalPlan> {
-            let mut e = match &p {
-                LogicalPlan::Projection(pr) => pr.expr.clone(),
-                _ => unreachable!(),
+            let LogicalPlan::Projection(pr) = &p else {
+                unreachable!()
             };
+            let mut e = pr.expr.clone();
             e.push(col("__blk"));
             e.push(col("__row"));
-            let LogicalPlan::Projection(pr) = &p else { unreachable!() };
-            Ok(LogicalPlanBuilder::from(pr.input.as_ref().clone()).project(e)?.build()?)
+            Ok(LogicalPlanBuilder::from(pr.input.as_ref().clone())
+                .project(e)?
+                .build()?)
         };
         let sout;
         let (stage_plan, final_plan, kind) = if win.is_none() {
             // senza finestra: filtra e proietta evento per evento
             if find_aggregate(&top).is_some() || distinct {
-                return err("senza finestra niente aggregati ne' DISTINCT");
+                return Err(derr(
+                    "plan_unexpected",
+                    "senza finestra niente aggregati ne' DISTINCT",
+                ));
             }
             sout = Shared::new(ext_schema.clone());
             let sp = blk(top.clone())?;
             (sp.clone(), sp, Kind::Stateless)
         } else {
             let (size, slide) = win.unwrap();
-            let agg = find_aggregate(&top).ok_or("la query con finestra vuole GROUP BY")?.clone();
+            let agg = find_aggregate(&top)
+                .ok_or_else(|| derr("plan_unexpected", "la query con finestra vuole GROUP BY"))?
+                .clone();
             // schema dei gruppi/aggregati e disposizione delle colonne dell'Aggregate
             let mut layout = vec![];
             let mut gexprs = vec![];
@@ -369,10 +358,14 @@ impl Pipe {
                 }
             }
             if !(seen_ws && seen_we) {
-                return err("finestra mancante nel GROUP BY");
+                return Err(derr("plan_unexpected", "finestra mancante nel GROUP BY"));
             }
             // stadio di ingresso: [gruppi..., argomenti degli aggregati..., __ts, __lb]
-            let mut exprs: Vec<Expr> = gexprs.iter().enumerate().map(|(k, e)| e.clone().alias(format!("g{k}"))).collect();
+            let mut exprs: Vec<Expr> = gexprs
+                .iter()
+                .enumerate()
+                .map(|(k, e)| e.clone().alias(format!("g{k}")))
+                .collect();
             let ng = exprs.len();
             let mut agg_defs: Vec<(Arc<AggregateUDF>, bool, usize, usize)> = vec![];
             for (j, a) in agg.aggr_expr.iter().enumerate() {
@@ -381,27 +374,43 @@ impl Pipe {
                     a = &al.expr;
                 }
                 let Expr::AggregateFunction(f) = a else {
-                    return err("espressione aggregata non riconosciuta");
+                    return Err(derr(
+                        "plan_unexpected",
+                        "espressione aggregata non riconosciuta",
+                    ));
                 };
                 if f.params.filter.is_some() || !f.params.order_by.is_empty() {
-                    return err("FILTER e ORDER BY negli aggregati non ammessi");
+                    return Err(derr(
+                        "plan_unexpected",
+                        "FILTER e ORDER BY negli aggregati non ammessi",
+                    ));
                 }
                 let first = exprs.len();
                 for (k, arg) in f.params.args.iter().enumerate() {
                     exprs.push(arg.clone().alias(format!("a{j}_{k}")));
                 }
-                agg_defs.push((f.func.clone(), f.params.distinct, first, f.params.args.len()));
+                agg_defs.push((
+                    f.func.clone(),
+                    f.params.distinct,
+                    first,
+                    f.params.args.len(),
+                ));
             }
             let ts_col = exprs.len();
             exprs.push(col(&ts_name).alias("__ts"));
             let lb_col = exprs.len();
             exprs.push(col("__lb"));
-            let stage = LogicalPlanBuilder::from(agg.input.as_ref().clone()).project(exprs)?.build()?;
+            let stage = LogicalPlanBuilder::from(agg.input.as_ref().clone())
+                .project(exprs)?
+                .build()?;
             let stage_schema: SchemaRef = Arc::new(stage.schema().as_arrow().clone());
             let mut aggs = vec![];
             for (j, (f, dist, first, n)) in agg_defs.into_iter().enumerate() {
                 let args: Vec<Arc<dyn PhysicalExpr>> = (first..first + n)
-                    .map(|i| Arc::new(PCol::new(stage_schema.field(i).name(), i)) as Arc<dyn PhysicalExpr>)
+                    .map(|i| {
+                        Arc::new(PCol::new(stage_schema.field(i).name(), i))
+                            as Arc<dyn PhysicalExpr>
+                    })
                     .collect();
                 let expr = Arc::new(
                     AggregateExprBuilder::new(f, args)
@@ -410,7 +419,10 @@ impl Pipe {
                         .with_distinct(dist)
                         .build()?,
                 );
-                aggs.push(AggSpec { expr, cols: (first..first + n).collect() });
+                aggs.push(AggSpec {
+                    expr,
+                    cols: (first..first + n).collect(),
+                });
             }
             // slot degli aggregati dopo i gruppi
             for j in 0..aggs.len() {
@@ -419,13 +431,18 @@ impl Pipe {
             // stadio finale: l'Aggregate diventa una tabella con lo stesso schema
             let agg_schema: SchemaRef = Arc::new(agg.schema.as_arrow().clone());
             sout = Shared::new(agg_schema.clone());
-            let scan = LogicalPlanBuilder::scan(&sname, provider_as_source(sout.clone()), None)?.build()?;
+            let scan = LogicalPlanBuilder::scan(&sname, provider_as_source(sout.clone()), None)?
+                .build()?;
             let new_input = proj
                 .input
                 .as_ref()
                 .clone()
                 .transform_down(|n| match n {
-                    LogicalPlan::Aggregate(_) => Ok(Transformed::new(scan.clone(), true, TreeNodeRecursion::Jump)),
+                    LogicalPlan::Aggregate(_) => Ok(Transformed::new(
+                        scan.clone(),
+                        true,
+                        TreeNodeRecursion::Jump,
+                    )),
                     n => Ok(Transformed::no(n)),
                 })?
                 .data;
@@ -435,42 +452,103 @@ impl Pipe {
                 let cols = agg.schema.columns();
                 let mut gi = 0;
                 for (i, e) in agg.group_expr.iter().enumerate() {
-                    if matches!(e, Expr::Column(c) if c.name == "window_start" || c.name == "window_end") {
+                    if matches!(e, Expr::Column(c) if c.name == "window_start" || c.name == "window_end")
+                    {
                         continue;
                     }
                     fexprs.push(Expr::Column(cols[i].clone()).alias(format!("__gk{gi}")));
                     gi += 1;
                 }
             }
-            let fin = LogicalPlanBuilder::from(new_input).project(fexprs)?.build()?;
+            let fin = LogicalPlanBuilder::from(new_input)
+                .project(fexprs)?
+                .build()?;
             // convertitore delle chiavi dei gruppi (stesse colonne dello stadio di ingresso)
             let conv = RowConverter::new(
-                (0..ng).map(|i| SortField::new(stage_schema.field(i).data_type().clone())).collect(),
+                (0..ng)
+                    .map(|i| SortField::new(stage_schema.field(i).data_type().clone()))
+                    .collect(),
             )?;
             (
                 stage,
                 fin,
-                Kind::Window { size, slide, aggs, ng, ts_col, lb_col, layout, agg_schema, conv, distinct },
+                Kind::Window {
+                    size,
+                    slide,
+                    aggs,
+                    ng,
+                    ts_col,
+                    lb_col,
+                    layout,
+                    agg_schema,
+                    conv,
+                    distinct,
+                },
             )
         };
-        Ok(Pipe { def: def.clone(), stream: sname, ctx, sin, sout, ext_schema, stage_plan, final_plan, ts_idx, kind })
+        Ok(Pipe {
+            def: def.clone(),
+            stream: sname,
+            branch,
+            nbranches,
+            ctx,
+            sin,
+            sout,
+            ext_schema,
+            stage_plan,
+            final_plan,
+            ts_idx,
+            kind,
+        })
     }
 
-    /// Stato vuoto della pipeline.
-    pub fn new_state(&self) -> PipeState {
-        PipeState::default()
+    /// Prefisso delle chiavi C-4 di questa pipeline (con il ramo se e' un `UNION ALL`).
+    fn kp(&self) -> String {
+        if self.nbranches > 1 {
+            format!("{}:{}:b{}", self.def.id, self.def.version, self.branch)
+        } else {
+            format!("{}:{}", self.def.id, self.def.version)
+        }
     }
 
-    /// Elabora i messaggi nuovi di un micro-lotto, nell'ordine del log. `Block` duplicati sono gia' tolti.
-    /// Torna le righe delle finestre chiuse (o le righe del filtro).
+    /// Stato vuoto della pipeline, che parte dalla posizione `from` del log.
+    pub fn new_state(&self, from: u64) -> PipeState {
+        PipeState {
+            applied: from,
+            ..PipeState::default()
+        }
+    }
+
+    /// Byte di stato contati (quota V3): somma di `GroupsAccumulator::size()` di ogni accumulatore, piu' le chiavi dei
+    /// gruppi (tenute due volte, vettore e mappa, con un costo fisso per voce) e le chiavi dei blocchi viste.
+    /// ponytail: stima, non misura di allocatore; basta a fermare una query ostile prima del limite del sistema.
+    pub fn state_bytes(&self, st: &PipeState) -> usize {
+        let wins: usize = st
+            .wins
+            .values()
+            .map(|w| w.accs.iter().map(|a| a.size()).sum::<usize>() + w.key_bytes)
+            .sum();
+        wins + st.seen_bytes
+    }
+
+    /// Elabora i messaggi nuovi di un micro-lotto, nell'ordine del log. Salta cio' che questa pipeline ha gia'
+    /// applicato (`off < applied`) e i blocchi con una chiave gia' vista. Torna le righe delle finestre chiuse (o le
+    /// righe del filtro).
     pub async fn process(&self, st: &mut PipeState, msgs: &[(u64, &Msg)]) -> Res<Vec<Row>> {
-        let (lateness, future, quiet) = (self.def.lateness_s * 1000, self.def.future_s * 1000, self.def.quiet_s * 1000);
+        let (lateness, future, quiet) = (
+            self.def.lateness_s * 1000,
+            self.def.future_s * 1000,
+            self.def.quiet_s * 1000,
+        );
         let (size, slide) = match &self.kind {
             Kind::Window { size, slide, .. } => (*size, *slide),
             Kind::Stateless => (0, 0),
         };
         let mut parts: Vec<RecordBatch> = vec![];
         for (off, m) in msgs {
+            if *off < st.applied {
+                continue;
+            }
             match m {
                 Msg::Signal { arrival } => {
                     if let Some(wm) = st.wm
@@ -479,12 +557,26 @@ impl Pipe {
                         st.wm = Some(wm.max(st.last_block_wm + (arrival - st.last_arrival)));
                     }
                 }
-                Msg::Block { arrival, batch: Some(b), .. } => {
+                Msg::Block {
+                    key,
+                    batch: Some(b),
+                    arrival,
+                    ..
+                } => {
+                    if !st.seen.insert(key.clone()) {
+                        st.dup_blocks += 1;
+                        continue;
+                    }
+                    st.seen_bytes += key.len() + 56;
                     let n = b.num_rows();
                     let mut lbv = i64::MIN;
                     let mut keep = vec![true; n];
                     if matches!(self.kind, Kind::Window { .. }) {
-                        let ts = b.column(self.ts_idx).as_any().downcast_ref::<TimestampMillisecondArray>().unwrap();
+                        let ts = b
+                            .column(self.ts_idx)
+                            .as_any()
+                            .downcast_ref::<TimestampMillisecondArray>()
+                            .unwrap();
                         if let Some(w) = st.wm {
                             lbv = w - size - lateness;
                         }
@@ -527,10 +619,17 @@ impl Pipe {
                 Msg::Block { .. } => {}
             }
         }
+        if let Some((last, _)) = msgs.last() {
+            st.applied = st.applied.max(last + 1);
+        }
         let mut rows = vec![];
         if !parts.is_empty() {
             self.sin.set(concat_batches(&self.ext_schema, &parts)?);
-            let phys = self.ctx.state().create_physical_plan(&self.stage_plan).await?;
+            let phys = self
+                .ctx
+                .state()
+                .create_physical_plan(&self.stage_plan)
+                .await?;
             let out = collect(phys, self.ctx.task_ctx()).await?;
             match &self.kind {
                 Kind::Stateless => {
@@ -559,26 +658,47 @@ impl Pipe {
     fn stateless_rows(&self, b: &RecordBatch, rows: &mut Vec<Row>) {
         let nc = b.num_columns();
         let (blk, row) = (b.column(nc - 2), b.column(nc - 1));
+        let kp = self.kp();
         for i in 0..b.num_rows() {
             let key = format!(
-                "{}:{}:{}:{}",
-                self.def.id,
-                self.def.version,
+                "{kp}:{}:{}",
                 array_value_to_string(blk, i).unwrap(),
                 array_value_to_string(row, i).unwrap()
             );
-            rows.push(Row { key, body: row_json(b, i, nc - 2) });
+            rows.push(Row {
+                key,
+                body: row_json(b, i, nc - 2),
+                dest: self.def.dest_stream.clone(),
+            });
         }
     }
 
     /// Assegna le righe dello stadio di ingresso alle finestre e aggiorna gli accumulatori.
     fn add_to_windows(&self, st: &mut PipeState, b: &RecordBatch) -> Res<()> {
-        let Kind::Window { size, slide, aggs, ng, ts_col, lb_col, conv, .. } = &self.kind else {
+        let Kind::Window {
+            size,
+            slide,
+            aggs,
+            ng,
+            ts_col,
+            lb_col,
+            conv,
+            ..
+        } = &self.kind
+        else {
             unreachable!()
         };
         let (size, slide) = (*size, *slide);
-        let ts = b.column(*ts_col).as_any().downcast_ref::<TimestampMillisecondArray>().unwrap();
-        let lbs = b.column(*lb_col).as_any().downcast_ref::<Int64Array>().unwrap();
+        let ts = b
+            .column(*ts_col)
+            .as_any()
+            .downcast_ref::<TimestampMillisecondArray>()
+            .unwrap();
+        let lbs = b
+            .column(*lb_col)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .unwrap();
         let keys: Option<datafusion::arrow::row::Rows> = if *ng > 0 {
             Some(conv.convert_columns(&b.columns()[..*ng])?)
         } else {
@@ -613,6 +733,7 @@ impl Pipe {
                     Some(g) => *g,
                     None => {
                         win.keys.push(kb.to_vec());
+                        win.key_bytes += 2 * kb.len() + 80;
                         win.map.insert(kb.to_vec(), win.keys.len() - 1);
                         win.keys.len() - 1
                     }
@@ -622,7 +743,11 @@ impl Pipe {
             let total = win.keys.len();
             let ia = UInt32Array::from(idxs);
             for (j, a) in aggs.iter().enumerate() {
-                let args: Vec<ArrayRef> = a.cols.iter().map(|c| take(b.column(*c).as_ref(), &ia, None)).collect::<Result<_, _>>()?;
+                let args: Vec<ArrayRef> = a
+                    .cols
+                    .iter()
+                    .map(|c| take(b.column(*c).as_ref(), &ia, None))
+                    .collect::<Result<_, _>>()?;
                 win.accs[j].update_batch(&args, &gidx, None, total)?;
             }
         }
@@ -630,9 +755,12 @@ impl Pipe {
     }
 
     fn new_win(&self) -> Win {
-        let Kind::Window { aggs, .. } = &self.kind else { unreachable!() };
+        let Kind::Window { aggs, .. } = &self.kind else {
+            unreachable!()
+        };
         Win {
             keys: vec![],
+            key_bytes: 0,
             map: HashMap::new(),
             accs: aggs.iter().map(new_acc).collect(),
         }
@@ -640,11 +768,24 @@ impl Pipe {
 
     /// Valori finali di una finestra chiusa, poi HAVING e proiezione con DataFusion.
     async fn emit(&self, ws: i64, mut win: Win) -> Res<Vec<Row>> {
-        let Kind::Window { size, ng, layout, agg_schema, conv, distinct, .. } = &self.kind else {
+        let Kind::Window {
+            size,
+            ng,
+            layout,
+            agg_schema,
+            conv,
+            distinct,
+            ..
+        } = &self.kind
+        else {
             unreachable!()
         };
         let n = win.keys.len();
-        let aggr: Vec<ArrayRef> = win.accs.iter_mut().map(|a| a.evaluate(EmitTo::All)).collect::<Result<_, _>>()?;
+        let aggr: Vec<ArrayRef> = win
+            .accs
+            .iter_mut()
+            .map(|a| a.evaluate(EmitTo::All))
+            .collect::<Result<_, _>>()?;
         let groups: Vec<ArrayRef> = if *ng > 0 {
             let bin = BinaryArray::from_iter_values(win.keys.iter());
             let rows = conv.from_binary(bin);
@@ -652,7 +793,9 @@ impl Pipe {
         } else {
             vec![]
         };
-        let tsa = |v: i64| -> ArrayRef { Arc::new(TimestampMillisecondArray::from(vec![v; n]).with_timezone("UTC")) };
+        let tsa = |v: i64| -> ArrayRef {
+            Arc::new(TimestampMillisecondArray::from(vec![v; n]).with_timezone("UTC"))
+        };
         let mut cols: Vec<ArrayRef> = vec![];
         for (i, s) in layout.iter().enumerate() {
             let a = match s {
@@ -662,16 +805,31 @@ impl Pipe {
                 Slot::Aggr(j) => aggr[*j].clone(),
             };
             let want = agg_schema.field(i).data_type();
-            cols.push(if a.data_type() == want { a } else { cast(&a, want)? });
+            cols.push(if a.data_type() == want {
+                a
+            } else {
+                cast(&a, want)?
+            });
         }
-        self.sout.set(RecordBatch::try_new(agg_schema.clone(), cols)?);
-        let phys = self.ctx.state().create_physical_plan(&self.final_plan).await?;
+        self.sout
+            .set(RecordBatch::try_new(agg_schema.clone(), cols)?);
+        let phys = self
+            .ctx
+            .state()
+            .create_physical_plan(&self.final_plan)
+            .await?;
         let out = collect(phys, self.ctx.task_ctx()).await?;
         let we = ws + size;
+        let kp = self.kp();
         let mut rows = vec![];
         let mut seen: HashSet<String> = HashSet::new();
         for b in &out {
-            let names: Vec<String> = b.schema().fields().iter().map(|f| f.name().clone()).collect();
+            let names: Vec<String> = b
+                .schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().clone())
+                .collect();
             let nvis = names.iter().filter(|n| !n.starts_with("__gk")).count();
             for i in 0..b.num_rows() {
                 // chiave del gruppo: colonne nascoste; con DISTINCT, le colonne di uscita non di finestra
@@ -691,22 +849,71 @@ impl Pipe {
                     continue;
                 }
                 rows.push(Row {
-                    key: format!("{}:{}:{}:{}", self.def.id, self.def.version, we, gk),
+                    key: format!("{kp}:{we}:{gk}"),
                     body: row_json(b, i, nvis),
+                    dest: self.def.dest_stream.clone(),
                 });
             }
         }
         Ok(rows)
     }
+
+    /// Prova a secco (V3): esegue lo stadio di ingresso su un lotto sintetico di `rows` righe costruite dallo schema,
+    /// per fare emergere gli errori di esecuzione (e i consumi) prima di salvare la pipeline.
+    pub async fn dry_run(&self, sdef: &StreamDef, rows: usize) -> Result<(), DErr> {
+        let n = rows;
+        let mut cols: Vec<ArrayRef> = vec![];
+        for c in &sdef.columns {
+            let a: ArrayRef = match c.ty {
+                crate::spec::ColType::Text => Arc::new(StringArray::from_iter_values(
+                    (0..n).map(|i| format!("v{i}")),
+                )),
+                crate::spec::ColType::Int => Arc::new(Int64Array::from_iter_values(0..n as i64)),
+                crate::spec::ColType::Decimal => {
+                    Arc::new(Float64Array::from_iter_values((0..n).map(|i| i as f64)))
+                }
+                crate::spec::ColType::Bool => Arc::new(BooleanArray::from(vec![true; n])),
+                crate::spec::ColType::Instant => Arc::new(
+                    TimestampMillisecondArray::from_iter_values(
+                        (0..n as i64).map(|i| 1_700_000_000_000 + i),
+                    )
+                    .with_timezone("UTC"),
+                ),
+            };
+            cols.push(a);
+        }
+        cols.push(new_null_array(&ts_type(), n));
+        cols.push(new_null_array(&ts_type(), n));
+        cols.push(Arc::new(Int64Array::from(vec![i64::MIN; n])));
+        cols.push(Arc::new(Int64Array::from_iter_values(0..n as i64)));
+        cols.push(Arc::new(Int64Array::from_iter_values(0..n as i64)));
+        self.sin.set(
+            RecordBatch::try_new(self.ext_schema.clone(), cols)
+                .map_err(|e| derr("plan_error", e.to_string()))?,
+        );
+        let phys = self
+            .ctx
+            .state()
+            .create_physical_plan(&self.stage_plan)
+            .await?;
+        collect(phys, self.ctx.task_ctx()).await?;
+        Ok(())
+    }
 }
 
 fn new_acc(a: &AggSpec) -> Box<dyn GroupsAccumulator> {
     // alcuni (es. avg su Int64) dichiarano il supporto ma poi rifiutano: si ricade sull'adattatore
-    match a.expr.groups_accumulator_supported().then(|| a.expr.create_groups_accumulator()) {
+    match a
+        .expr
+        .groups_accumulator_supported()
+        .then(|| a.expr.create_groups_accumulator())
+    {
         Some(Ok(g)) => g,
         _ => {
             let e = a.expr.clone();
-            Box::new(GroupsAccumulatorAdapter::new(move || e.create_accumulator()))
+            Box::new(GroupsAccumulatorAdapter::new(move || {
+                e.create_accumulator()
+            }))
         }
     }
 }
@@ -727,14 +934,21 @@ pub fn value_at(a: &ArrayRef, i: usize) -> Value {
         DataType::Int64 => Value::from(a.as_any().downcast_ref::<Int64Array>().unwrap().value(i)),
         DataType::UInt64 => Value::from(a.as_any().downcast_ref::<UInt64Array>().unwrap().value(i)),
         DataType::Int32 => Value::from(a.as_any().downcast_ref::<Int32Array>().unwrap().value(i)),
-        DataType::Float64 => serde_json::Number::from_f64(a.as_any().downcast_ref::<Float64Array>().unwrap().value(i))
-            .map(Value::Number)
-            .unwrap_or(Value::Null),
-        DataType::Boolean => Value::from(a.as_any().downcast_ref::<BooleanArray>().unwrap().value(i)),
-        DataType::Utf8 => Value::from(a.as_any().downcast_ref::<StringArray>().unwrap().value(i)),
-        DataType::Timestamp(TimeUnit::Millisecond, _) => {
-            Value::from(a.as_any().downcast_ref::<TimestampMillisecondArray>().unwrap().value(i))
+        DataType::Float64 => serde_json::Number::from_f64(
+            a.as_any().downcast_ref::<Float64Array>().unwrap().value(i),
+        )
+        .map(Value::Number)
+        .unwrap_or(Value::Null),
+        DataType::Boolean => {
+            Value::from(a.as_any().downcast_ref::<BooleanArray>().unwrap().value(i))
         }
+        DataType::Utf8 => Value::from(a.as_any().downcast_ref::<StringArray>().unwrap().value(i)),
+        DataType::Timestamp(TimeUnit::Millisecond, _) => Value::from(
+            a.as_any()
+                .downcast_ref::<TimestampMillisecondArray>()
+                .unwrap()
+                .value(i),
+        ),
         _ => Value::from(array_value_to_string(a, i).unwrap_or_default()),
     }
 }
@@ -750,11 +964,13 @@ fn row_json(b: &RecordBatch, i: usize, ncols: usize) -> Value {
 /// Una finestra aperta: chiavi dei gruppi (righe Arrow serializzate) e un accumulatore per aggregato.
 pub struct Win {
     keys: Vec<Vec<u8>>,
+    key_bytes: usize,
     map: HashMap<Vec<u8>, usize>,
     accs: Vec<Box<dyn GroupsAccumulator>>,
 }
 
-/// Stato di una pipeline (finestre, watermark, contatori); si salva nel checkpoint.
+/// Stato di una pipeline (finestre, watermark, contatori, posizione applicata, chiavi dei blocchi viste); si salva
+/// nel checkpoint.
 #[derive(Default)]
 pub struct PipeState {
     pub wm: Option<i64>,
@@ -763,6 +979,13 @@ pub struct PipeState {
     pub late: u64,
     pub future: u64,
     pub wins: BTreeMap<i64, Win>,
+    /// prossima posizione del log da applicare a questa pipeline
+    pub applied: u64,
+    /// chiavi dei blocchi gia' applicati (deduplicazione, PIANO 1.4). ponytail: cresce con lo stream e si salva
+    /// intera nel checkpoint; il prodotto la pota con la conservazione.
+    pub seen: HashSet<String>,
+    pub seen_bytes: usize,
+    pub dup_blocks: u64,
 }
 
 /// Intestazione serializzabile dello stato.
@@ -770,11 +993,16 @@ pub struct PipeState {
 pub struct PipeHead {
     pub id: String,
     pub version: u32,
+    #[serde(default)]
+    pub branch: usize,
     pub wm: Option<i64>,
     pub last_block_wm: i64,
     pub last_arrival: i64,
     pub late: u64,
     pub future: u64,
+    pub applied: u64,
+    pub seen: Vec<String>,
+    pub dup_blocks: u64,
     /// (inizio finestra, gruppi)
     pub wins: Vec<(i64, usize)>,
 }
@@ -795,24 +1023,33 @@ impl Pipe {
         let mut head = PipeHead {
             id: self.def.id.clone(),
             version: self.def.version,
+            branch: self.branch,
             wm: st.wm,
             last_block_wm: st.last_block_wm,
             last_arrival: st.last_arrival,
             late: st.late,
             future: st.future,
+            applied: st.applied,
+            seen: st.seen.iter().cloned().collect(),
+            dup_blocks: st.dup_blocks,
             wins: vec![],
         };
         let mut blobs = vec![];
         for (ws, win) in st.wins.iter_mut() {
             let n = win.keys.len();
-            let mut cols: Vec<ArrayRef> = vec![Arc::new(BinaryArray::from_iter_values(win.keys.iter()))];
+            let mut cols: Vec<ArrayRef> =
+                vec![Arc::new(BinaryArray::from_iter_values(win.keys.iter()))];
             for a in win.accs.iter_mut() {
                 let s = a.state(EmitTo::All)?;
                 let idx: Vec<usize> = (0..n).collect();
                 a.merge_batch(&s, &idx, n)?;
                 cols.extend(s);
             }
-            let fields: Vec<Field> = cols.iter().enumerate().map(|(i, c)| Field::new(format!("c{i}"), c.data_type().clone(), true)).collect();
+            let fields: Vec<Field> = cols
+                .iter()
+                .enumerate()
+                .map(|(i, c)| Field::new(format!("c{i}"), c.data_type().clone(), true))
+                .collect();
             let b = RecordBatch::try_new(Arc::new(Schema::new(fields)), cols)?;
             head.wins.push((*ws, n));
             blobs.push(ipc_bytes(&b));
@@ -828,13 +1065,20 @@ impl Pipe {
             late: head.late,
             future: head.future,
             wins: BTreeMap::new(),
+            applied: head.applied,
+            seen_bytes: head.seen.iter().map(|k| k.len() + 56).sum(),
+            seen: head.seen.iter().cloned().collect(),
+            dup_blocks: head.dup_blocks,
         };
         for ((ws, n), blob) in head.wins.iter().zip(blobs) {
-            let b = StreamReader::try_new(*blob, None)?.next().ok_or("blocco di finestra vuoto")??;
+            let b = StreamReader::try_new(*blob, None)?
+                .next()
+                .ok_or("blocco di finestra vuoto")??;
             let mut win = self.new_win();
             let keys = b.column(0).as_any().downcast_ref::<BinaryArray>().unwrap();
             for i in 0..keys.len() {
                 win.keys.push(keys.value(i).to_vec());
+                win.key_bytes += 2 * keys.value(i).len() + 80;
                 win.map.insert(keys.value(i).to_vec(), i);
             }
             let idx: Vec<usize> = (0..*n).collect();

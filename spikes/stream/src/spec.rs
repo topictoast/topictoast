@@ -40,6 +40,9 @@ pub struct ColDef {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamDef {
     pub name: String,
+    /// conservazione del log (s): una finestra piu' il ritardo oltre questo valore e' rifiutata (V1)
+    #[serde(default)]
+    pub retention_s: Option<i64>,
     /// colonna del tempo dell'evento (tipo `instant`), facoltativa per l'evento: se manca prende l'arrivo
     pub event_time: Option<String>,
     pub columns: Vec<ColDef>,
@@ -69,6 +72,9 @@ fn d_quiet() -> i64 {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PipelineDef {
     pub id: String,
+    /// stream di destinazione (C7): le righe delle finestre chiuse si scrivono li' invece di diventare avvii
+    #[serde(default)]
+    pub dest_stream: Option<String>,
     pub version: u32,
     pub sql: String,
     /// ritardo tollerato (s), PIANO 1.8
@@ -103,7 +109,8 @@ pub struct Spec {
 
 impl Spec {
     pub fn load(path: &str) -> Spec {
-        serde_json::from_slice(&std::fs::read(path).expect("spec illeggibile")).expect("spec non valida")
+        serde_json::from_slice(&std::fs::read(path).expect("spec illeggibile"))
+            .expect("spec non valida")
     }
 }
 
@@ -122,7 +129,9 @@ pub fn now_ms() -> i64 {
 /// Argomento `--nome valore` della riga di comando.
 pub fn arg(name: &str) -> Option<String> {
     let a: Vec<String> = std::env::args().collect();
-    a.iter().position(|x| x == name).and_then(|i| a.get(i + 1).cloned())
+    a.iter()
+        .position(|x| x == name)
+        .and_then(|i| a.get(i + 1).cloned())
 }
 
 pub fn env(k: &str) -> String {

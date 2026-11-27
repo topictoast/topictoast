@@ -115,6 +115,16 @@ impl TenantKey {
     }
 }
 
+/// Confronto di due credenziali in tempo costante: si confrontano i digest sha256 con una piega sui byte, cosi' il tempo
+/// non dipende dal primo byte diverso.
+pub fn ct_eq(a: &str, b: &str) -> bool {
+    sha(a.as_bytes())
+        .iter()
+        .zip(sha(b.as_bytes()))
+        .fold(0u8, |d, (x, y)| d | (x ^ y))
+        == 0
+}
+
 /// Id oggetto casuale.
 pub fn new_id() -> Uid {
     *uuid::Uuid::new_v4().as_bytes()

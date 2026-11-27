@@ -121,7 +121,9 @@ where
                         // corpo oltre il limite: 413 e chiusura; altro: si chiude
                         if e.to_string().contains("troppo grande") {
                             let _ = s
-                                .write_all(b"HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\n\r\n")
+                                .write_all(
+                                    b"HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\n\r\n",
+                                )
                                 .await;
                         }
                         return;
@@ -180,7 +182,10 @@ impl Client {
             self.conn = Some((s, Vec::new()));
         }
         let (s, buf) = self.conn.as_mut().unwrap();
-        let mut req = format!("{method} {path} HTTP/1.1\r\nHost: x\r\nContent-Length: {}\r\n", body.len());
+        let mut req = format!(
+            "{method} {path} HTTP/1.1\r\nHost: x\r\nContent-Length: {}\r\n",
+            body.len()
+        );
         for (k, v) in headers {
             req.push_str(&format!("{k}: {v}\r\n"));
         }

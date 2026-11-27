@@ -58,7 +58,9 @@ pub struct Gen {
 
 impl Gen {
     pub fn new(cfg: RunCfg) -> Gen {
-        let w: Vec<f64> = (1..=cfg.asns).map(|r| 1.0 / (r as f64).powf(cfg.zipf_s)).collect();
+        let w: Vec<f64> = (1..=cfg.asns)
+            .map(|r| 1.0 / (r as f64).powf(cfg.zipf_s))
+            .collect();
         let tot: f64 = w.iter().sum();
         let mut acc = 0.0;
         let cdf = w
@@ -98,7 +100,13 @@ impl Gen {
         let h = mix(c.seed, n, 3);
         Ev {
             asn: 1000 + rank as i64,
-            ip: format!("{}.{}.{}.{}", if h & 1 == 0 { 10 } else { 192 }, (h >> 8) & 255, (h >> 16) & 255, (h >> 24) % 400),
+            ip: format!(
+                "{}.{}.{}.{}",
+                if h & 1 == 0 { 10 } else { 192 },
+                (h >> 8) & 255,
+                (h >> 16) & 255,
+                (h >> 24) % 400
+            ),
             kind: KINDS[(mix(c.seed, n, 4) % 4) as usize],
             ts,
         }
@@ -106,7 +114,10 @@ impl Gen {
 
     /// Intervallo `[da, a)` degli indici degli eventi del blocco `b`.
     pub fn block_range(&self, b: u64) -> (u64, u64) {
-        (b * self.cfg.block, ((b + 1) * self.cfg.block).min(self.cfg.total))
+        (
+            b * self.cfg.block,
+            ((b + 1) * self.cfg.block).min(self.cfg.total),
+        )
     }
 
     pub fn blocks(&self) -> u64 {
@@ -127,7 +138,10 @@ impl Gen {
             if n > a {
                 s.push(',');
             }
-            s.push_str(&format!("{{\"asn\":{},\"ip\":\"{}\",\"kind\":\"{}\",\"ts\":{}}}", e.asn, e.ip, e.kind, e.ts));
+            s.push_str(&format!(
+                "{{\"asn\":{},\"ip\":\"{}\",\"kind\":\"{}\",\"ts\":{}}}",
+                e.asn, e.ip, e.kind, e.ts
+            ));
         }
         s.push_str("]}");
         s

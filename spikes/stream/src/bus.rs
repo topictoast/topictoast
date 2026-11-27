@@ -58,7 +58,12 @@ impl Bus {
             let deadline = std::time::Instant::now() + Duration::from_secs(30);
             match self
                 .0
-                .send_messages(&id(STREAM), &id(topic), &Partitioning::partition_id(0), &mut m)
+                .send_messages(
+                    &id(STREAM),
+                    &id(topic),
+                    &Partitioning::partition_id(0),
+                    &mut m,
+                )
                 .await
             {
                 Ok(_) => return Ok(()),
@@ -114,10 +119,18 @@ impl Bus {
     /// chiamata, mai stampata. Ritorna la password.
     pub async fn ro_user(&self, name: &str, topics: &[String]) -> Res<String> {
         let c = &self.0;
-        let s = c.get_stream(&id(STREAM)).await?.ok_or("stream mancante")?.id as usize;
+        let s = c
+            .get_stream(&id(STREAM))
+            .await?
+            .ok_or("stream mancante")?
+            .id as usize;
         let mut tp = BTreeMap::new();
         for t in topics {
-            let tid = c.get_topic(&id(STREAM), &id(t)).await?.ok_or("topic mancante")?.id as usize;
+            let tid = c
+                .get_topic(&id(STREAM), &id(t))
+                .await?
+                .ok_or("topic mancante")?
+                .id as usize;
             tp.insert(
                 tid,
                 TopicPermissions {
@@ -143,8 +156,14 @@ impl Bus {
             uuid::Uuid::new_v4().simple(),
             uuid::Uuid::new_v4().simple()
         );
-        c.create_user(name, &pw, UserStatus::Active, Some(perms), &UserCreateOptions::default())
-            .await?;
+        c.create_user(
+            name,
+            &pw,
+            UserStatus::Active,
+            Some(perms),
+            &UserCreateOptions::default(),
+        )
+        .await?;
         Ok(pw)
     }
 }

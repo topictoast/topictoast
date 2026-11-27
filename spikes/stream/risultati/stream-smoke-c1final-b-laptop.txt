@@ -1,0 +1,106 @@
+SMOKE c1final-b (non conta per i verdetti) data=2026-11-27T00:51:08Z host=whitebones core=16
+binario sha256=ccfee488264f087ce408d1a64aebbe74e0b89a994ae25a6cbba2c57256f0a161 seme=21 id=c1f
+carico_1min_prima=1.60 pressione_io_prima=0.19 container_in_esecuzione_prima=5
+=== corsa c1f spec=spec-c1.json carico='--seed 21 --events 600000 --rate 20000 --evrate 500 --past-s 1500 --flush-s 315' guasti=none motore=''
+corsa_c1f carico_1min_prima=1.60
+--- carico (c1f)
+load seed=21 eventi=600000 blocchi=601 conn=8 rate=20000 evrate=500 t0=1795739177330 past_ms=1500000
+LAG t=5s accettati=100000 elaborati=99000 ritardo=1000 max=1000
+LAG t=10s accettati=200000 elaborati=200000 ritardo=0 max=1000
+LAG t=15s accettati=301000 elaborati=300000 ritardo=1000 max=1000
+LAG t=20s accettati=401000 elaborati=381000 ritardo=20000 max=20000
+LAG t=25s accettati=501000 elaborati=481000 ritardo=20000 max=20000
+DONE blocchi_accettati=601 eventi_accettati=600001 secondi=30.00 ritmo=19998/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c1f)
+CHECK tenant=acme seed=21 blocchi_accettati=601 testa_log=604 senza_risposta=0
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=614
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=617
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=619
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=622
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=625
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=628
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=631
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=634
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=637
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=640
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=643
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=646
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=649
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=651
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=654
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=657
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=660
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=663
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=666
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=669
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=672
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=675
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=677
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=680
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=683
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=686
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=689
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=692
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=695
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=698
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=701
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=704
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=707
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=709
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=712
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=715
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=718
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=721
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=724
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=727
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=730
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=733
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=736
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=739
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=741
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=744
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=747
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=750
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=753
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=756
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=759
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=762
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=765
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=768
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=771
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=773
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=776
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=779
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=782
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=785
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=788
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=791
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=794
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=797
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=800
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=802
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=805
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=808
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=811
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=814
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=817
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=820
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=823
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=826
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=829
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=831
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=834
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=837
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=840
+PIPELINE uj3 oracolo=uj3 righe_attese=1328 righe_avvio=1328 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1283290) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795740600000) ultimo_blocco_arrivo_ms=1795740707331 B_meno_E_ms=Some(107331) ritardo_chiusura_ultima_finestra_ms=Some(113633) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=23837 righe_avvio=23837 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1285118) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795740900000) ultimo_blocco_arrivo_ms=1795740707331 B_meno_E_ms=Some(-192669) ritardo_chiusura_ultima_finestra_ms=Some(25221) PASS
+PIPELINE hop oracolo=hop righe_attese=104 righe_avvio=104 mancanti=0 in_piu=0 diverse=9 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1458639) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795740900000) ultimo_blocco_arrivo_ms=1795740707331 B_meno_E_ms=Some(-192669) ritardo_chiusura_ultima_finestra_ms=Some(25223) FAIL
+  esempio diverso: hop:1:1795739220000:scanner atteso={"asns":1001,"av":1571.0064369556985,"hi":5939,"kind":"scanner","lo":1000,"n":2641,"s":4149028,"window_end":1795739220000,"window_start":1795738920000} avvio={"asns":1001,"av":1571.0064369556983,"hi":5939,"kind":"scanner","lo":1000,"n":2641,"s":4149028,"window_end":1795739220000,"window_start":1795738920000}
+PIPELINE dist oracolo=distinct righe_attese=21 righe_avvio=21 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1285121) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795740900000) ultimo_blocco_arrivo_ms=1795740707331 B_meno_E_ms=Some(-192669) ritardo_chiusura_ultima_finestra_ms=Some(25223) PASS
+PIPELINE ipd oracolo=ipdistinct righe_attese=59530 righe_avvio=59530 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1289171) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795740600000) ultimo_blocco_arrivo_ms=1795740707331 B_meno_E_ms=Some(107331) ritardo_chiusura_ultima_finestra_ms=Some(116510) PASS
+PIPELINE filter oracolo=filter righe_attese=3186 righe_avvio=3186 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=0 ultima_finestra_fine_ms=None ultimo_blocco_arrivo_ms=0 B_meno_E_ms=None ritardo_chiusura_ultima_finestra_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=88006 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO FAIL
+--- log del motore (c1f, righe di riavvio)
+stats_finali_c1f: {"cpu_ns":6863293556,"rss_kb":98056,"pending":0,"delivered":88006,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":37753,"applied":843},{"id":"uj3v","state":"running","code":null,"state_bytes":37753,"applied":843},{"id":"hop","state":"running","code":null,"state_bytes":38261,"applied":843},{"id":"dist","state":"running","code":null,"state_bytes":37753,"applied":843},{"id":"ipd","state":"running","code":null,"state_bytes":37753,"applied":843},{"id":"filter","state":"running","code":null,"state_bytes":37753,"applied":843}]}
+carico_1min_dopo=1.49 container_in_esecuzione_dopo=5

@@ -1,0 +1,29 @@
+{
+  "tenants": [
+    {
+      "id": "acme",
+      "streams": [
+        {
+          "name": "indicators",
+          "event_time": "ts", "retention_s": 40,
+          "columns": [
+            {"name": "asn", "type": "int"},
+            {"name": "ip", "type": "text"},
+            {"name": "kind", "type": "text"},
+            {"name": "ts", "type": "instant"}
+          ]
+        }
+      ],
+      "pipelines": [
+        {
+          "id": "uj3", "version": 1, "oracle": "uj3", "oracle_size_s": 20, "oracle_slide_s": 20,
+          "sql": "SELECT window_start, window_end, asn, count(*) AS n FROM indicators GROUP BY tumble(INTERVAL '20 seconds'), asn HAVING count(*) > 50"
+        },
+        {
+          "id": "uj3v", "version": 1, "oracle": "suspended:operator", "oracle_size_s": 20, "oracle_slide_s": 20,
+          "sql": "SELECT window_start, window_end, asn, count(*) AS n FROM indicators GROUP BY tumble(INTERVAL '20 seconds'), asn"
+        }
+      ]
+    }
+  ]
+}
