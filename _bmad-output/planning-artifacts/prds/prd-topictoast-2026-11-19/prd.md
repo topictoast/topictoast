@@ -795,7 +795,8 @@ Una pipeline stream dichiara quanto ritardo tollera.
   tempo documentato (NFR-14): l'ultima finestra di un'ondata emette le sue righe (UJ-3).
 - Valori predefiniti (ADR delle pipeline stream): ritardo tollerato 10 s, tolleranza nel futuro
   60 s, attesa di quiete 30 s; con questi l'ultima finestra di uno stream fermo si chiude circa
-  40 s dopo la sua fine (misurato al più 39,9 s).
+  ritardo + quiete dopo la sua fine, più la lettura (al più 39,9 s nelle corse dello spike, fino a
+  41,5 s in prove precedenti): è il tempo documentato di NFR-14, non una garanzia.
 
 #### FR-22: Stato e checkpoint
 
@@ -1514,6 +1515,10 @@ topictoast è un prodotto per sviluppatori: le sue superfici pubbliche sono cont
 - **Connettori degli stream verso sistemi esterni** (Kafka e simili) — dopo la v1.
 - **Destinazioni di rete legate a una connessione** (un segreto che viaggia solo verso la sua
   piattaforma) — dopo la v1; nella v1 valgono le destinazioni per tenant (FR-16).
+- **CloudEvents come formato degli eventi** (Marco, 2026-11-28) — arriva con `emit` e `listen`, che
+  OWS definisce già come CloudEvents, o quando un produttore reale lo chiede all'ingresso degli
+  stream; nella v1 gli eventi entrano con le colonne tipizzate dello stream (FR-18) e i messaggi
+  interni restano nel formato tipizzato e cifrato di topictoast.
 - **Costrutti OWS fuori dal sottoinsieme** (gRPC, OpenAPI, AsyncAPI, A2A, `emit`, `listen`) e
   conformità completa al CTK — dopo la v1.
 - **Alta disponibilità del centro (motore e bus)** — dopo la v1; i worker sono già in alta

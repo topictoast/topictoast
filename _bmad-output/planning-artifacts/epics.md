@@ -472,7 +472,7 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
 - **AR-40** AD-19: kit raggiunge il motore direttamente con CORS limitato alle origini configurate (rifiuta `*`, `null`, match per suffisso) o via proxy host; risorse operatore non accettano origini del kit né `Access-Control-Allow-Credentials`; JS e `.wasm` serviti dall'origine dell'host, mai dal motore; produzione fissa esplicitamente indirizzo e TLS (C-14); SSE via `fetch` con header `Authorization`, mai token in URL o cookie; il motore chiude lo stream alla scadenza della credenziale; CSP host con `connect-src` e `'wasm-unsafe-eval'`. (spine L394-407)
 
 #### Convenzioni
-- **AR-41** C-1: UUIDv7 per esecuzioni, task, attività, eventi delle esecuzioni, risorse API, id tenant; id SSE = token posizione bus; id eventi stream da S-3 (M-35); tempi UTC RFC 3339; durate ISO 8601. (conv. C-1)
+- **AR-41** C-1: UUIDv7 per esecuzioni, task, attività, eventi delle esecuzioni, risorse API, id tenant; id SSE = token posizione bus; id eventi stream: posizione del blocco più indice nel blocco (AD-13, M-35); tempi UTC RFC 3339; durate ISO 8601. (conv. C-1)
 - **AR-42** C-2: ogni consegna ha `attemptId` (attività + numero tentativo); tentativo non corrente rifiutato e registrato; risultato/battito/scritture solo dalla sessione del worker destinatario; vale il primo esito per `attemptId`. (C-2)
 - **AR-43** C-3: chiave scadenza = pianificazione + versione + istante UTC, controllata dal motore e da vincolo di unicità nella proiezione; scadenze rifiutate registrate con motivo. (C-3)
 - **AR-44** C-4: chiave riga→avvio = pipeline + versione + fine finestra + chiave gruppo (senza finestra: posizione nello stream) = chiave di idempotenza FR-6. (C-4)
