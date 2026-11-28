@@ -1,7 +1,7 @@
 # ADR: le pipeline stream su DataFusion (spike S-3)
 
 - Data: 2026-11-28
-- Stato: proposta
+- Stato: accettata
 - Registra: l'esito di S-3; aggiorna AD-13 e lo Stack della
   [spine](../architecture/architecture-topictoast-2026-11-20/ARCHITECTURE-SPINE.md) (Update a parte,
   id stabili); chiude NFR-5 e la domanda aperta n. 2 del PRD
@@ -94,7 +94,7 @@ state cambiate dopo prove fallite e prima della prima corsa misurata, senza tocc
 12. **Processo per tenant (AD-6, AD-13).** Ruolo `stream`, un processo per tenant, attivo solo se il
     tenant ha pipeline attive. Riceve solo la chiave del suo tenant e legge Iggy con la credenziale
     di sola lettura. Confinamento prima del primo byte del tenant: descrittori e limiti
-    (`RLIMIT_CORE` 0, `RLIMIT_NOFILE` 512 in proposta, `PR_SET_NO_NEW_PRIVS`), runtime caldo (DataFusion e
+    (`RLIMIT_CORE` 0, `RLIMIT_NOFILE` 512, `PR_SET_NO_NEW_PRIVS`), runtime caldo (DataFusion e
     client di Iggy), Landlock su tutti i thread (sola cartella dei checkpoint del tenant, sole porte
     del bus e del motore), `PR_SET_DUMPABLE` 0, seccomp con una lista di 38 syscall riscoperta su
     DataFusion vero e sul client di Iggy. Senza Landlock il ruolo usa il ripiego dell'ADR della
@@ -109,6 +109,9 @@ state cambiate dopo prove fallite e prima della prima corsa misurata, senza tocc
     workflow non carica DataFusion. Cambiano l'ultima frase di AD-13, l'elenco dei ruoli e la frase
     di AD-6 sulla validazione a secco «nello stesso ruolo», e la riga corrispondente dell'ADR della
     sandbox, che questo ADR sostituisce su questo punto.
+
+Approvata da Marco in chat il 2026-11-28 (memlog, voce 190), con il limite di 512 file aperti per il ruolo
+`stream` e i mancati come punti aperti.
 
 ## Esito dei criteri di S-3
 
@@ -220,8 +223,8 @@ soglia cambiata:
 - **RAM per tenant contro NFR-1**: NFR-1 si misura a riposo, senza pipeline attive (motore con
   DataFusion 24,6 MB); ogni tenant con pipeline attive aggiunge circa 64 MB, più il processo di
   validazione quando valida. Il totale con pipeline attive va scritto accanto a NFR-1.
-- **`RLIMIT_NOFILE` 512** per il ruolo `stream` contro i 64 dell'ADR della sandbox (connessioni di
-  Iggy e del motore, thread): da confermare nell'Update di AD-6.
+- **`RLIMIT_NOFILE` 512** per il ruolo `stream` (Marco, 2026-11-28) contro i 64 dell'ADR della sandbox (connessioni di
+  Iggy e del motore, thread): 64 non è stato provato; l'Update di AD-6 lo scrive per il ruolo.
 - **Ordine tra gruppi in volo**: con 4 gruppi in volo l'ordine nel log tra gruppi dipende dal client
   di Iggy e non è stato provato. I risultati seguono l'ordine del log; che due corse con gli stessi
   blocchi possano differire per eventi vicini al limite del ritardo tollerato è «ipotesi».
