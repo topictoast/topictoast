@@ -390,7 +390,7 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
   - Misura: attività vuote, worker sulla stessa macchina, sostenuto 10 minuti; il p99 di avvio è riportato anche a questo ritmo.
 - **NFR-4 — Carico sul database** (prd.md:L1292): ≤ 5 istruzioni SQL per attività.
   - Misura: media sull'intero ciclo di vita dell'attività durante il test di NFR-3; confronto con Hatchet sullo stesso carico in SM-2.
-- **NFR-5 — Pipeline stream** (prd.md:L1293): `[ASSUMPTION: ≥ 100.000 eventi/s per pipeline con filtro e conteggio su finestra fissa; da confermare dopo lo spike]`.
+- **NFR-5 — Pipeline stream** (prd.md): ≥ 100.000 eventi/s per pipeline con filtro e conteggio su finestra fissa, confermato dallo spike S-3 (105.000 eventi/s per 10 minuti, ADR del 2026-11-28).
   - Misura: eventi scritti via API o SDK di FR-18 e consumati dalla pipeline, sostenuto 10 minuti.
 - **NFR-6 — Nessuna perdita di dati** (prd.md:L1305-L1310): nessuna attività, esecuzione o evento accettato va perso per riavvio, crash di qualunque processo o spegnimento improvviso dell'host.
   - Vale anche durante i test di NFR-3 e NFR-5.
@@ -602,7 +602,7 @@ come indice.
 | §11 | Stato dopo l'architettura | Dove si chiude |
 | --- | --- | --- |
 | n.1 caso reale di pipeline stream | aperta; S-3 usa UJ-3 come assunzione | Marco, prima o durante S-3 |
-| n.2 obiettivo NFR-5 | aperta | ADR di S-3 (AR-18) |
+| n.2 obiettivo NFR-5 | chiusa il 2026-11-28: NFR-5 confermato a ≥ 100.000 eventi/s; stato della pipeline di UJ-3 0,6-1,3 MB | ADR di S-3 (AR-18) |
 | n.3 conferma NFR-12 | aperta | ADR di S-2 (AR-15) |
 | n.4 checkpoint | chiusa | AD-17 |
 | n.5 progetto separato con i nodi pronti | fuori dalla v1 | nessuna storia |
@@ -984,7 +984,7 @@ Lo sprint 1 parte solo quando tutte le voci sono chiuse.
 | --- | --- | --- | --- |
 | S-1 Bus (AR-9…AR-13) | Iggy o Valkey; tre collegamenti dei worker; ripresa e aggiornamento; trasporto delle righe di log dei worker (FR-59); chiusa il 2026-11-26 (ADR del bus), AR-93, AR-94 e AR-95 restano aperte | architettura | 1, 2, 3, 5, 6, 10, 11, 13 |
 | S-2 Sandbox (AR-14…AR-16) | livello leggero e microVM; riavvio a freddo; chiusa il 2026-11-26 (ADR della sandbox), AR-103 resta aperta (prima storia di installazione) | architettura | 1, 10, 13 |
-| S-3 Pipeline stream (AR-17…AR-19) | DataFusion con stato, finestre, watermark, checkpoint sul caso UJ-3 | architettura | 11 |
+| S-3 Pipeline stream (AR-17…AR-19) | DataFusion con stato, finestre, watermark, checkpoint sul caso UJ-3; chiusa il 2026-11-28 (ADR delle pipeline stream): validazione a secco del SQL in un ruolo ausiliario proprio, il controllo sull'albero porta la lista delle query ostili come test di regressione, il budget di CPU va riprovato nella storia dell'isolamento | architettura | 11 |
 | S-4 Kit nel browser (AR-20, AR-21) | validatore `wasm32-wasip1` su Chromium, Firefox, Safari; soglie di peso e avvio (AR-107) | architettura, Marco | 6, 12 |
 | AR-86 | chiusa il 2026-11-23: AD-20; resto alla spec delle connessioni (AR-89) | architettura | 1, 7, 8, 10 |
 | AR-96 | primo avvio: credenziali, certificati, chi firma `aud = sdk` | architettura | 1, 3, 4 |

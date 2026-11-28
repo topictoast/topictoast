@@ -2,7 +2,7 @@
 title: topictoast — PRD
 status: final
 created: 2026-11-19
-updated: 2026-11-26
+updated: 2026-11-28
 ---
 
 # PRD: topictoast
@@ -793,6 +793,9 @@ Una pipeline stream dichiara quanto ritardo tollera.
   dashboard. Un evento datato un anno nel futuro non chiude alcuna finestra.
 - Su uno stream che smette di ricevere eventi, le finestre aperte si chiudono comunque entro un
   tempo documentato (NFR-14): l'ultima finestra di un'ondata emette le sue righe (UJ-3).
+- Valori predefiniti (ADR delle pipeline stream): ritardo tollerato 10 s, tolleranza nel futuro
+  60 s, attesa di quiete 30 s; con questi l'ultima finestra di uno stream fermo si chiude circa
+  40 s dopo la sua fine (misurato al più 39,9 s).
 
 #### FR-22: Stato e checkpoint
 
@@ -801,8 +804,8 @@ Lo stato di una pipeline stream sopravvive ai riavvii.
 **Conseguenze:**
 - Dopo un riavvio di topictoast la pipeline stream riparte dall'ultimo checkpoint e rielabora gli
   eventi successivi; nessuna finestra perde eventi già accettati.
-- L'intervallo tra checkpoint è configurabile, con un valore predefinito
-  `[ASSUMPTION: 10 secondi]`.
+- L'intervallo tra checkpoint è configurabile, con un valore predefinito di 10 secondi (ADR delle
+  pipeline stream).
 
 #### FR-23: Ciclo di vita
 
@@ -810,11 +813,12 @@ L'integratore e il tenant possono attivare, sospendere, modificare ed eliminare 
 stream.
 
 **Conseguenze:**
-- Una pipeline stream sospesa non consuma CPU; alla ripresa elabora gli eventi arrivati nel
+- Una pipeline stream sospesa non consuma CPU (misurato: meno di 10 ms in 30 s, segnali e
+  statistiche compresi); alla ripresa elabora gli eventi arrivati nel
   frattempo e ancora conservati. Se una parte è già uscita dalla conservazione, la pipeline stream
   lo segnala con un errore visibile al tenant e all'operatore, mai in silenzio.
 - Modificare la query di una pipeline stream attiva crea una nuova versione che parte con stato
-  vuoto `[ASSUMPTION]`.
+  vuoto (ADR delle pipeline stream).
 
 #### FR-24: Destinazioni
 
@@ -835,6 +839,8 @@ Le pipeline stream di un tenant non possono degradare quelle degli altri.
 
 **Conseguenze:**
 - Ogni tenant ha quote sul numero di pipeline stream attive, sulla memoria di stato e sulla CPU.
+  La quota di memoria di stato predefinita è 64 MiB per pipeline stream (ADR delle pipeline
+  stream).
 - Una pipeline stream che supera la memoria di stato consentita viene sospesa con un errore
   visibile al tenant e all'operatore.
 - Una pipeline stream oltre la quota di CPU viene rallentata o sospesa con un errore visibile al
@@ -1356,7 +1362,7 @@ senza obiettivo.
 | NFR-2 | Latenza di avvio delle attività | p50 ≤ 5 ms, p99 ≤ 25 ms | dal momento in cui l'attività è pronta (dipendenze soddisfatte) a quando il worker la riceve; worker sulla stessa macchina, carico di 1.000 attività/s |
 | NFR-3 | Throughput | ≥ 10.000 attività/s | attività vuote (la funzione risponde subito), worker sulla stessa macchina, sostenuto per 10 minuti; il p99 di avvio delle attività è riportato anche a questo ritmo |
 | NFR-4 | Carico sul database | ≤ 5 istruzioni SQL per attività | media sull'intero ciclo di vita dell'attività durante il test di NFR-3; il confronto con Hatchet, sullo stesso carico, è in SM-2 |
-| NFR-5 | Pipeline stream | `[ASSUMPTION: ≥ 100.000 eventi/s per una pipeline con filtro e conteggio su finestra fissa; da confermare dopo lo spike delle pipeline stream]` | eventi scritti tramite l'API o l'SDK di FR-18 e consumati dalla pipeline stream, sostenuto per 10 minuti |
+| NFR-5 | Pipeline stream | ≥ 100.000 eventi/s per una pipeline con filtro e conteggio su finestra fissa (confermato dallo spike delle pipeline stream: 105.000 eventi/s per 10 minuti, 3 corse su 3, sul caso di UJ-3 con scrittura durevole, cifratura e confinamento; ADR del 2026-11-28) | eventi scritti tramite l'API o l'SDK di FR-18 e consumati dalla pipeline stream, sostenuto per 10 minuti |
 | NFR-12 | Sandbox | `[ASSUMPTION: avvio p50 ≤ 10 ms e memoria ≤ 64 MB per istanza della sandbox leggera; ≤ 10 ms per la sandbox forte quando il pool ha una sandbox libera; lo spike della sandbox ha misurato la memoria e la quota della sandbox, non il percorso del motore]` | dal momento in cui l'attività è pronta a quando il nodo personalizzato inizia a eseguire; memoria per istanza durante un nodo vuoto |
 | NFR-13 | Tempo al primo workflow | `[ASSUMPTION: ≤ 15 minuti]` | da download o clone a un workflow di esempio completato, seguendo la guida rapida, su una macchina pulita, per una persona che non conosce topictoast (UJ-5) |
 
@@ -1589,7 +1595,9 @@ architettura, epiche e storie li citano.
    **Aperta:** Marco, prima o durante lo spike delle pipeline stream; fino al caso reale lo spike
    usa UJ-3 come assunzione.
 2. Obiettivo numerico delle pipeline stream (NFR-5) e memoria di stato attesa per pipeline
-   stream. **Aperta:** la chiude l'ADR dello spike delle pipeline stream.
+   stream. **Chiusa** dall'ADR delle pipeline stream (2026-11-28): NFR-5 confermato a ≥ 100.000
+   eventi/s (105.000 misurati per 10 minuti); la pipeline di UJ-3 tiene 0,6-1,3 MB di stato a
+   100.000 eventi/s, contro una quota predefinita di 64 MiB.
 3. Conferma di NFR-12 (avvio e memoria della sandbox). **Aperta:** la chiude l'ADR dello spike
    della sandbox.
 4. Dove salvare i checkpoint delle pipeline stream nella v1. **Chiusa:** nell'archivio dei
