@@ -405,15 +405,18 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
   - **Tempo (FR-21, M-34).** Watermark = il tempo dell'evento più alto visto. Una finestra si chiude
     quando il watermark supera la sua fine più il ritardo tollerato (predefinito 10 s). Un evento la
     cui finestra è chiusa, o oltre 60 s nel futuro rispetto al suo arrivo, si scarta e si conta; i
-    futuri non spostano il watermark. Su uno stream che in un secondo non ha ricevuto blocchi il
-    motore scrive un segnale durevole con l'istante di arrivo. Quando un segnale con arrivo `S`
+    futuri non spostano il watermark. Su uno stream letto da almeno una pipeline attiva che in un
+    secondo non ha ricevuto blocchi il motore scrive un segnale durevole con l'istante di arrivo; su
+    uno stream senza pipeline attive non scrive nulla. Quando un segnale con arrivo `S`
     arriva almeno 30 s dopo l'arrivo `A` dell'ultimo blocco, il watermark diventa il massimo tra il
     watermark attuale e il watermark all'ultimo blocco più `S − A`: il tempo entra nel log, così una
     rielaborazione dallo stesso log, nello stesso ordine, chiude le stesse finestre. Il tempo vale
     con il tempo dell'evento vicino all'arrivo; l'ultima finestra si chiude circa ritardo + quiete
     dopo la sua fine (misurato al più 39,9 s con i predefiniti), senza garanzia.
-  - **Checkpoint (FR-22, AD-17).** Ogni 10 s, tra due lotti: posizione letta, watermark, chiavi dei
-    blocchi viste, stato delle finestre aperte, righe in attesa di consegna; mai lo stato di
+  - **Checkpoint (FR-22, AD-17).** Uno per pipeline e versione (lo spike ne scriveva uno per
+    processo), ogni 10 s, tra due lotti: posizione letta, watermark, chiavi dei blocchi viste
+    (quelle entro la conservazione breve di FR-18, nell'ordine dei minuti), stato delle finestre
+    aperte, righe in attesa di consegna; mai lo stato di
     sospensione delle pipeline. Cifrato con la chiave del tenant e scritto tramite la porta
     dell'archivio dei payload, nello spazio con nome; con l'adattatore su disco: file temporaneo,
     `fdatasync`, rinomina e `fsync` della cartella. Al riavvio il processo carica l'ultimo e rilegge
@@ -424,8 +427,11 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
     gruppi di al più 1.000; il motore decide ogni riga sul percorso di avvio normale (idempotenza
     C-4, quote di FR-30, concorrenza di FR-13), scrive gli avvii accettati nel suo gruppo di
     accettazione e risponde riga per riga (accettata, già vista, rifiutata con il motivo). Le righe
-    rifiutate per quota restano nel processo e si riprovano; un gruppo non è mai tutto o niente.
-    Una destinazione stream porta la chiave C-4 di ogni riga.
+    rifiutate per quota restano nel processo e si riprovano; una riga rifiutata per un altro motivo
+    è il suo esito (FR-24: un rifiuto registrato con il motivo) e non si riprova; un gruppo non è
+    mai tutto o niente. Verso una destinazione stream la chiave C-4 della riga fa da
+    `Idempotency-Key` del blocco, così la deduplicazione dei blocchi del processo che legge quello
+    stream assorbe le righe rifatte dopo un riavvio (più righe per blocco: Open Questions).
   - **Ciclo di vita e isolamento (FR-23, FR-25).** Lo stato di una pipeline (attiva, sospesa con il
     codice, versione) è stato del motore, scritto solo da lui come evento di stato (AD-2): il
     processo non si sospende da solo, segnala sull'IPC la pipeline e il codice e il motore la
@@ -1047,3 +1053,6 @@ docs/
 | Watermark con più stream (`UNION ALL`) e pipeline senza finestra: watermark per stream e quello della pipeline come minimo tra i rami, o uno solo per pipeline; quando si emette una riga senza finestra | architettura | prima della storia delle finestre (FR-20, FR-21) |
 | Durata delle chiavi C-4 degli avvii delle pipeline: la finestra di idempotenza del motore deve coprire almeno la conservazione dello stream più l'intervallo dei checkpoint, altrimenti una rielaborazione lunga rifà avvii già accettati | architettura | prima della storia delle destinazioni (FR-24) |
 | Dove vive l'implementazione unica del dialetto chiuso e del controllo sull'albero del SQL (AD-13): nel dominio entrerebbe nel validatore del browser (AD-11), mentre il SQL lo valida solo il motore; proposta: un crate puro a parte, usato dai due ruoli e mai dal kit. Da decidere prima che S-4 misuri il peso del validatore | architettura | ADR di S-4 o prima storia del dialetto, la prima che arriva |
+| Blocco ripetuto con la stessa `Idempotency-Key` e un corpo diverso: con la regola di AD-13 riceve 200 e il processo lo scarta, mentre FR-6 e C-18 chiedono un conflitto. Proposta: l'impronta del corpo entra nell'insieme delle chiavi viste e un conflitto si conta e si segnala al tenant e all'operatore con un codice; in alternativa una tabella breve delle chiavi nel motore | architettura | prima della storia dell'ingresso a blocchi (FR-18) |
+| Ruolo della validazione a secco del SQL: valori dei limiti (`RLIMIT_NOFILE`, `RLIMIT_DATA`), lista seccomp propria, RAM e riavvio a freddo misurati; il limite dei file per ruolo va scritto accanto al 64 dell'ADR della sandbox, che vale per gli altri ruoli | architettura | prima della storia del ruolo della validazione a secco |
+| Rotazione della chiave del tenant con il processo delle pipeline vivo: come il processo riceve la chiave nuova e cosa succede ai checkpoint cifrati con la vecchia | architettura | con la riga sulla rotazione delle chiavi dei tenant (sicurezza M4) |
