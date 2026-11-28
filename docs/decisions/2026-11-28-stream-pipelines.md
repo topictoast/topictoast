@@ -101,12 +101,14 @@ state cambiate dopo prove fallite e prima della prima corsa misurata, senza tocc
     sandbox (punto 7).
 13. **Validazione a secco in un processo separato** (Marco, 2026-11-28, contro la raccomandazione
     della sessione). La validazione a secco del SQL non gira nel processo delle pipeline ma in un
-    processo per tenant a parte: una validazione ostile non fa mai cadere le pipeline in corsa.
-    Proposta della sessione: è il ruolo `validazione` già previsto da AD-6 (uno per tenant, a
-    richiesta, fermato per inattività), che carica anche DataFusion, senza accesso al bus; se
-    resta un ruolo a parte lo decide l'Update della spine. Cambiano l'ultima frase di AD-13, la
-    frase di AD-6 sulla validazione a secco «nello stesso ruolo» e la riga corrispondente dell'ADR
-    della sandbox, che questo ADR sostituisce su questo punto.
+    processo per tenant a parte: una validazione ostile non fa mai cadere le pipeline in corsa. È un
+    **ruolo ausiliario nuovo e dedicato** (Marco, 2026-11-28, contro la raccomandazione della
+    sessione di usare il ruolo di validazione dei workflow): uno per tenant, a richiesta e fermato per
+    inattività come gli altri ruoli di AD-6, con DataFusion e senza accesso al bus, confinato
+    nell'ordine dell'ADR della sandbox con una lista seccomp propria; il ruolo di validazione dei
+    workflow non carica DataFusion. Cambiano l'ultima frase di AD-13, l'elenco dei ruoli e la frase
+    di AD-6 sulla validazione a secco «nello stesso ruolo», e la riga corrispondente dell'ADR della
+    sandbox, che questo ADR sostituisce su questo punto.
 
 ## Esito dei criteri di S-3
 
@@ -116,6 +118,7 @@ state cambiate dopo prove fallite e prima della prima corsa misurata, senza tocc
 | Guasto iniettato senza eventi accettati persi (NFR-6) | T2 a 105.000 eventi/s con kill del processo per tenant e del motore: 0 persi, 0 doppi, un avvio per riga, 2 su 2; ripresa in 318 ms e 1.215 ms | rispettato |
 | FR-19…FR-25 sul caso | C1-C7 in 3 corse su 3 ciascuna: 0 differenze dall'oracolo; ritardatari e futuri contati esatti; 5 kill per corsa con righe identiche alla corsa senza guasti; ciclo di vita; rifiuti per quota senza perdite; destinazione stream una volta per riga | rispettato |
 | Riavvio dal checkpoint senza perdere eventi (FR-22) e un solo avvio per riga (FR-24, C-4) | C4 (3 coppie, 137.142-137.941 righe identiche) e T2 | rispettato |
+| Memoria ostile a runtime e nella validazione a secco (V3) | a runtime pipeline sospesa con `state_quota_exceeded` a 67 MB, le altre esatte; validazione oltre il limite del sistema: errore `validation_process_died`, motore vivo, processo del tenant caduto e pipeline ripartite dal checkpoint senza perdite | rispettato secondo la lettura di Marco (2026-11-28): la soglia scritta chiedeva pipeline intatte; con il ruolo dedicato (punto 13) nel prodotto restano intatte |
 | Il SQL dei tenant non raggiunge tabelle esterne né funzioni di file o di rete | V1 63 su 63; 0 file e 0 connessioni con tutti gli strati, con il controllo sull'albero spento e con lo strato 3 da solo; file letti solo con gli strati 1-3 spenti | rispettato |
 | Query ostili di risorse (`repeat` enorme, prodotto cartesiano, costanti enormi) | fermate dal controllo sull'albero; senza, la costante enorme e la tabella unita con sé stessa arrivano in fondo e `repeat` fa cadere il processo (V2) | **mancato** senza il controllo sull'albero (punto 5) |
 | FR-25 con un secondo tenant ostile | I1: ritmo di A 0,9999-1,0002 del controllo, ritardo senza crescita; B sospesa con un codice | rispettato |
@@ -186,6 +189,9 @@ soglia cambiata:
 - **Validazione a secco nello stesso processo delle pipeline** (raccomandata dalla sessione,
   scartata da Marco): nessun processo in più e circa 1 ms, ma una validazione ostile con un difetto
   del controllo sull'albero ferma per circa 0,3 s le pipeline del tenant.
+- **Validazione a secco del SQL nel ruolo di validazione dei workflow** (raccomandata dalla sessione,
+  scartata da Marco): nessun ruolo nuovo da confinare, ma la validazione dei workflow caricherebbe
+  DataFusion.
 - **Una quinta barriera** (limiti sul piano e sul tempo di pianificazione): scartata da Marco; il
   mancato resta registrato.
 - **Il cgroup delegato all'utente** come limite principale di memoria: non c'è su ogni host senza
