@@ -1,0 +1,54 @@
+[attesa del cancello] 0 s
+SMOKE c1-2c (non conta per i verdetti) data=2026-11-27T12:15:40Z host=minisheep core=22
+PARAMETRI COMUNI: core=22 core_servizi_e_motore=1-4 core_generatore_e_oracolo=8-11 tetto_attesa_del_check_wait_s=420 consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+binario sha256=3bc161986d760df766316fc0063901362b0dfdf8686ce8e28388fe89a6badf43 seme=91 id=c1f
+carico_1min_prima=0.22 pressione_io_prima=0.10 container_in_esecuzione_prima=12
+[stato prima 13:15:40] load: 0.22 0.34 0.41
+[stato prima] io: some avg10=0.10 avg60=0.06 avg300=0.03 total=23942032402
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2778810306
+[stato prima] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato prima] binario sha256: 3bc161986d760df766316fc0063901362b0dfdf8686ce8e28388fe89a6badf43
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.2%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27020476 swap_usato_kb=2124184 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964551
+[stato prima] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato prima] orologio UTC: 2026-11-27T12:15:44 kernel: 7.2.4-arch1-2
+=== corsa c1f spec=spec-c1.json carico='--seed 91 --events 600000 --rate 20000 --evrate 500 --past-s 1500 --flush-s 315' guasti=none motore=''
+corsa_c1f carico_1min_prima=0.20
+--- carico (c1f)
+load seed=91 eventi=600000 blocchi=601 conn=8 rate=20000 evrate=500 t0=1795780251397 past_ms=1500000
+LAG t=5.00s accettati=100000 elaborati=99000 ritardo=1000 max=1000
+LAG t=10.00s accettati=200000 elaborati=195000 ritardo=5000 max=5000
+LAG t=15.01s accettati=300000 elaborati=296000 ritardo=4000 max=5000
+LAG t=20.01s accettati=400000 elaborati=397000 ritardo=3000 max=5000
+LAG t=25.02s accettati=500000 elaborati=495000 ritardo=5000 max=5000
+DONE blocchi_accettati=601 eventi_accettati=600001 secondi=30.01 ritmo=19993/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c1f)
+CHECK tenant=acme seed=91 blocchi_accettati=601 testa_log=604 senza_risposta=0
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=604
+PIPELINE uj3 oracolo=uj3 righe_attese=1317 righe_avvio=1317 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1257920) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795781700000) ultimo_blocco_arrivo_ms=1795781781398 B_meno_E_ms=Some(81398) ritardo_chiusura_ultima_finestra_ms=Some(81474) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=23373 righe_avvio=23373 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1257988) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795781700000) ultimo_blocco_arrivo_ms=1795781781398 B_meno_E_ms=Some(81398) ritardo_chiusura_ultima_finestra_ms=Some(81524) PASS
+PIPELINE hop oracolo=hop righe_attese=100 righe_avvio=100 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1491916) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795781700000) ultimo_blocco_arrivo_ms=1795781781398 B_meno_E_ms=Some(81398) ritardo_chiusura_ultima_finestra_ms=Some(81524) PASS
+PIPELINE dist oracolo=distinct righe_attese=20 righe_avvio=20 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1257988) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795781700000) ultimo_blocco_arrivo_ms=1795781781398 B_meno_E_ms=Some(81398) ritardo_chiusura_ultima_finestra_ms=Some(81524) PASS
+PIPELINE ipd oracolo=ipdistinct righe_attese=59347 righe_avvio=59347 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1258199) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795781700000) ultimo_blocco_arrivo_ms=1795781781398 B_meno_E_ms=Some(81398) ritardo_chiusura_ultima_finestra_ms=Some(81560) PASS
+PIPELINE filter oracolo=filter righe_attese=3175 righe_avvio=3175 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=0 ultima_finestra_fine_ms=None ultimo_blocco_arrivo_ms=0 B_meno_E_ms=None ritardo_chiusura_ultima_finestra_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=87332 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+SVUOTAMENTO finito dopo_fine_carico_s=1.0 (pending=0, posizione in testa)
+VERDETTO PASS
+--- log del motore (c1f, righe di riavvio)
+stats_finali_c1f: {"cpu_ns":2621676728,"rss_kb":91648,"pending":0,"delivered":87332,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":37883,"applied":605},{"id":"uj3v","state":"running","code":null,"state_bytes":37883,"applied":605},{"id":"hop","state":"running","code":null,"state_bytes":37753,"applied":605},{"id":"dist","state":"running","code":null,"state_bytes":37871,"applied":605},{"id":"ipd","state":"running","code":null,"state_bytes":37753,"applied":605},{"id":"filter","state":"running","code":null,"state_bytes":37753,"applied":605}]}
+carico_1min_dopo=0.37 container_in_esecuzione_dopo=12
+[stato dopo 13:16:24] load: 0.37 0.37 0.42
+[stato dopo] io: some avg10=4.67 avg60=2.30 avg300=0.61 total=23944044092
+[stato dopo] cpu: some avg10=0.29 avg60=0.10 avg300=0.02 total=2779108582
+[stato dopo] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato dopo] binario sha256: 3bc161986d760df766316fc0063901362b0dfdf8686ce8e28388fe89a6badf43
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 0.0%; core 8-11 occupati: 0.5%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-1 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27029872 swap_usato_kb=2124184 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964551
+[stato dopo] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T12:16:29 kernel: 7.2.4-arch1-2

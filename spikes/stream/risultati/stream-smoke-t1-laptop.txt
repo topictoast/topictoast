@@ -1,0 +1,37 @@
+SMOKE t1 (non conta per i verdetti) data=2026-11-26T23:40:23Z host=whitebones core=16
+binario sha256=b15aafb403b34061fdd5cecb85a101483249a41db5263f944444c5fbc91c8315 spec=spec-t1.json seme=5 carico='--seed 5 --events 200000000 --rate 0 --evrate 300000 --past-s 420 --duration-s 120 --conns 16'
+carico_1min_prima=2.24 pressione_io_prima=4.50
+--- carico
+load seed=5 eventi=200000000 blocchi=200000 conn=16 rate=0 evrate=300000 t0=1795736010863 past_ms=420000
+LAG t=5s accettati=4555000 elaborati=4487000 ritardo=68000 max=68000
+LAG t=10s accettati=8951000 elaborati=8918000 ritardo=33000 max=68000
+LAG t=15s accettati=13454000 elaborati=13448000 ritardo=6000 max=68000
+LAG t=20s accettati=17756000 elaborati=16871000 ritardo=885000 max=885000
+LAG t=25s accettati=22065000 elaborati=21214000 ritardo=851000 max=885000
+LAG t=30s accettati=26436000 elaborati=25654000 ritardo=782000 max=885000
+LAG t=35s accettati=30792000 elaborati=30065000 ritardo=727000 max=885000
+LAG t=40s accettati=35180000 elaborati=34418000 ritardo=762000 max=885000
+LAG t=45s accettati=39522000 elaborati=38829000 ritardo=693000 max=885000
+LAG t=50s accettati=43915000 elaborati=43313000 ritardo=602000 max=885000
+LAG t=55s accettati=48301000 elaborati=47667000 ritardo=634000 max=885000
+LAG t=60s accettati=52612000 elaborati=52013000 ritardo=599000 max=885000
+LAG t=65s accettati=56999000 elaborati=56497000 ritardo=502000 max=885000
+LAG t=70s accettati=61399000 elaborati=60853000 ritardo=546000 max=885000
+LAG t=75s accettati=65750000 elaborati=65246000 ritardo=504000 max=885000
+LAG t=80s accettati=69431000 elaborati=69045000 ritardo=386000 max=885000
+LAG t=85s accettati=73805000 elaborati=73332000 ritardo=473000 max=885000
+LAG t=90s accettati=78001000 elaborati=77641000 ritardo=360000 max=885000
+LAG t=95s accettati=81803000 elaborati=81512000 ritardo=291000 max=885000
+LAG t=100s accettati=85761000 elaborati=85386000 ritardo=375000 max=885000
+LAG t=105s accettati=89996000 elaborati=89655000 ritardo=341000 max=885000
+LAG t=110s accettati=93671000 elaborati=93454000 ritardo=217000 max=885000
+LAG t=115s accettati=97830000 elaborati=97550000 ritardo=280000 max=885000
+DONE blocchi_accettati=102071 eventi_accettati=102071000 secondi=120.02 ritmo=850478/s riprove=0 senza_risposta=0 rifiutati=0
+--- check
+CHECK tenant=acme seed=5 blocchi_accettati=102071 testa_log=102074 senza_risposta=0
+LOG blocchi_distinti=102071 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=102074
+PIPELINE uj3 oracolo=uj3 righe_attese=5000 righe_avvio=5000 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(367482) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=5000
+VERDETTO PASS
+--- log del motore (righe di riavvio)
+carico_1min_dopo=4.14

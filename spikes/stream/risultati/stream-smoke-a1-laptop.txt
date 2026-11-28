@@ -1,0 +1,10 @@
+SMOKE a1 (non conta per i verdetti) data=2026-11-27T08:33:18Z host=whitebones core=16
+binario sha256=19ba01ddbb5613e91530b4a0017f43a5c2f2a6bcd40190efc555813121bd1dfd seme=3 id=a1
+carico_1min_prima=11.71 pressione_io_prima=47.21 container_in_esecuzione_prima=11
+=== A1: 15 riavvii a freddo del ruolo con DataFusion vero e confinamento di prodotto (kill -9 del processo per tenant, il motore lo rilancia). Misura: dall'avvio del processo (fork compreso) a «pronto» (runtime caldo e confinamento applicato), presa dal motore
+A1 riavvii=15 confinati_landlock+seccomp=15 rifiutati=0
+A1 avvio_a_pronto_ms: p50=25.102 p99=39.996 min=20.811 max=39.996 (soglie: p50 <= 100, p99 <= 250)
+A1 dentro il processo (init_ms, dal messaggio iniziale a pronto): p50=20.579 p99=34.819; confinamento (t_confine_us): p50=286.000 p99=665.000
+A1 rapporto di confinamento di un avvio: inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=308
+A1 validazione a secco della query di UJ-3 (processo caldo e confinato, analisi + pianificazione + lotto sintetico), ms: n=10 prima=0.927666 p50=0.814 p99=0.837 max=0.837
+carico_1min_dopo=12.13 container_in_esecuzione_dopo=12

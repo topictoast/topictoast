@@ -1,0 +1,27 @@
+SMOKE c1final-2b (non conta per i verdetti) data=2026-11-27T08:29:20Z host=whitebones core=16
+binario sha256=19ba01ddbb5613e91530b4a0017f43a5c2f2a6bcd40190efc555813121bd1dfd seme=21 id=c1f
+carico_1min_prima=14.45 pressione_io_prima=12.02 container_in_esecuzione_prima=10
+=== corsa c1f spec=spec-c1.json carico='--seed 21 --events 600000 --rate 20000 --evrate 500 --past-s 1500 --flush-s 315' guasti=none motore=''
+corsa_c1f carico_1min_prima=14.45
+--- carico (c1f)
+load seed=21 eventi=600000 blocchi=601 conn=8 rate=20000 evrate=500 t0=1795766670048 past_ms=1500000
+LAG t=5.00s accettati=100000 elaborati=100000 ritardo=0 max=0
+LAG t=10.00s accettati=201000 elaborati=181000 ritardo=20000 max=20000
+LAG t=15.01s accettati=301000 elaborati=283000 ritardo=18000 max=20000
+LAG t=20.01s accettati=400000 elaborati=383000 ritardo=17000 max=20000
+LAG t=25.01s accettati=501000 elaborati=484000 ritardo=17000 max=20000
+DONE blocchi_accettati=601 eventi_accettati=600001 secondi=30.01 ritmo=19994/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c1f)
+CHECK tenant=acme seed=21 blocchi_accettati=601 testa_log=604 senza_risposta=0
+LOG blocchi_distinti=601 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=618
+PIPELINE uj3 oracolo=uj3 righe_attese=1310 righe_avvio=1310 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1471043) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795767900000) ultimo_blocco_arrivo_ms=1795768200051 B_meno_E_ms=Some(300051) ritardo_chiusura_ultima_finestra_ms=Some(305760) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=22646 righe_avvio=22646 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1472488) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795767900000) ultimo_blocco_arrivo_ms=1795768200051 B_meno_E_ms=Some(300051) ritardo_chiusura_ultima_finestra_ms=Some(307714) PASS
+PIPELINE hop oracolo=hop righe_attese=100 righe_avvio=100 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1472490) finestre_aperte=5 ultima_finestra_fine_ms=Some(1795768140000) ultimo_blocco_arrivo_ms=1795768200051 B_meno_E_ms=Some(60051) ritardo_chiusura_ultima_finestra_ms=Some(67722) PASS
+PIPELINE dist oracolo=distinct righe_attese=20 righe_avvio=20 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1472492) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795767900000) ultimo_blocco_arrivo_ms=1795768200051 B_meno_E_ms=Some(300051) ritardo_chiusura_ultima_finestra_ms=Some(307723) PASS
+PIPELINE ipd oracolo=ipdistinct righe_attese=59531 righe_avvio=59531 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1473061) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795767900000) ultimo_blocco_arrivo_ms=1795768200051 B_meno_E_ms=Some(300051) ritardo_chiusura_ultima_finestra_ms=Some(313556) PASS
+PIPELINE filter oracolo=filter righe_attese=3186 righe_avvio=3186 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=0 ultima_finestra_fine_ms=None ultimo_blocco_arrivo_ms=0 B_meno_E_ms=None ritardo_chiusura_ultima_finestra_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=86793 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+--- log del motore (c1f, righe di riavvio)
+stats_finali_c1f: {"cpu_ns":3947330649,"rss_kb":99328,"pending":0,"delivered":86793,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":37883,"applied":619},{"id":"uj3v","state":"running","code":null,"state_bytes":37883,"applied":619},{"id":"hop","state":"running","code":null,"state_bytes":40293,"applied":619},{"id":"dist","state":"running","code":null,"state_bytes":37871,"applied":619},{"id":"ipd","state":"running","code":null,"state_bytes":37753,"applied":619},{"id":"filter","state":"running","code":null,"state_bytes":37753,"applied":619}]}
+carico_1min_dopo=14.28 container_in_esecuzione_dopo=11

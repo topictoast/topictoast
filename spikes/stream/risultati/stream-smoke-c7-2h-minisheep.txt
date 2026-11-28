@@ -1,0 +1,64 @@
+[attesa del cancello] 70 s
+SMOKE c7-2h (non conta per i verdetti) data=2026-11-27T18:06:22Z host=minisheep core=22
+PARAMETRI COMUNI: core=22 core_servizi_e_motore=1-4 core_generatore_e_oracolo=8-11 tetto_attesa_del_check_wait_s=1500 consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+binario sha256=9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34 seme=91 id=c7
+carico_1min_prima=1.46 pressione_io_prima=0.01 container_in_esecuzione_prima=12
+[stato prima 19:06:22] load: 1.46 1.10 0.85
+[stato prima] io: some avg10=0.01 avg60=1.34 avg300=2.47 total=26362973931
+[stato prima] cpu: some avg10=0.00 avg60=0.03 avg300=0.05 total=2941303319
+[stato prima] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato prima] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 8.5%; core 8-11 occupati: 0.7%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26883780 swap_usato_kb=2120372 some avg10=0.00 avg60=0.00 avg300=0.00 total=7421013
+[stato prima] disco: /dev/mapper/root  931G  752G  174G  82% /home
+[stato prima] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 2.981 ms per scrittura
+[stato prima] orologio UTC: 2026-11-27T18:06:27 kernel: 7.2.4-arch1-2
+=== corsa c7 spec=spec-c7.json carico='--seed 91 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315' guasti=kills5 motore=''
+corsa_c7 carico_1min_prima=1.42
+istanti dei kill (s dall'inizio del carico): 15 21 26 36 39 tipi: S E S S E
+kill -9 stream a t=15s
+kill -9 engine a t=22s
+kill -9 stream a t=26s
+kill -9 stream a t=36s
+kill -9 engine a t=40s
+--- carico (c7)
+load seed=91 eventi=1200000 blocchi=1201 conn=8 rate=20000 evrate=1000 t0=1795801264442 past_ms=1530000
+LAG t=5.00s accettati=100000 elaborati=99000 ritardo=1000 max=1000
+LAG t=10.00s accettati=200000 elaborati=200000 ritardo=0 max=1000
+LAG t=15.01s accettati=300000 elaborati=287000 ritardo=13000 max=13000
+LAG t=20.01s accettati=400000 elaborati=395000 ritardo=5000 max=13000
+LAG t=30.01s accettati=600000 elaborati=599000 ritardo=1000 max=13000
+LAG t=35.01s accettati=701000 elaborati=696000 ritardo=5000 max=13000
+LAG t=45.02s accettati=900000 elaborati=898000 ritardo=2000 max=13000
+LAG t=50.02s accettati=1001000 elaborati=997000 ritardo=4000 max=13000
+LAG t=55.02s accettati=1101000 elaborati=1095000 ritardo=6000 max=13000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.01 ritmo=19995/s riprove=76 senza_risposta=76 rifiutati=0
+--- check (c7)
+CHECK tenant=acme seed=91 blocchi_accettati=1201 testa_log=1206 senza_risposta=76
+LOG blocchi_distinti=1201 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=1477
+PIPELINE uj3 oracolo=uj3 righe_attese=2620 righe_avvio=2620 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1306713) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795802700000) ultimo_blocco_arrivo_ms=1795802854443 B_meno_E_ms=Some(154443) ritardo_chiusura_ultima_finestra_ms=Some(359073) PASS
+PIPELINE uj3d oracolo=uj3v righe_attese=24574 righe_avvio=24574 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1376289) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795803000000) ultimo_blocco_arrivo_ms=1795802854443 B_meno_E_ms=Some(-145557) ritardo_chiusura_ultima_finestra_ms=Some(126153) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=2620 avvii_totali=2620 righe_dest_doppie_assorbite=2696 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+SVUOTAMENTO finito dopo_fine_carico_s=272.6 (pending=0, posizione in testa)
+VERDETTO PASS
+--- log del motore (c7, righe di riavvio)
+      3 engine: stream acme terminato (segnale Some(9), codice None), riavvio
+      5 stream acme: ripreso dal checkpoint, righe in attesa 0
+stats_finali_c7: {"cpu_ns":8356708643,"rss_kb":113388,"pending":0,"delivered":27194,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":75754,"applied":1478},{"id":"uj3d","state":"running","code":null,"state_bytes":75754,"applied":1478}]}
+carico_1min_dopo=1.85 container_in_esecuzione_dopo=12
+[stato dopo 19:12:09] load: 1.85 1.64 1.17
+[stato dopo] io: some avg10=55.01 avg60=63.67 avg300=43.85 total=26570665671
+[stato dopo] cpu: some avg10=1.62 avg60=1.89 avg300=1.37 total=2949912440
+[stato dopo] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato dopo] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26888124 swap_usato_kb=2120368 some avg10=0.00 avg60=0.00 avg300=0.00 total=7421013
+[stato dopo] disco: /dev/mapper/root  931G  752G  174G  82% /home
+[stato dopo] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 4.683 ms per scrittura
+[stato dopo] orologio UTC: 2026-11-27T18:12:14 kernel: 7.2.4-arch1-2

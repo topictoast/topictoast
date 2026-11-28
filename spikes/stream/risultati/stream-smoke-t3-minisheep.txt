@@ -1,0 +1,37 @@
+[attesa del cancello] 15 s
+SMOKE t3 (non conta per i verdetti) data=2026-11-27T11:01:01Z host=minisheep core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=t3
+carico_1min_prima=0.97 pressione_io_prima=0.78 container_in_esecuzione_prima=12
+[stato prima 12:01:01] load: 0.97 1.23 2.03
+[stato prima] io: some avg10=0.78 avg60=7.70 avg300=13.08 total=23574124642
+[stato prima] cpu: some avg10=0.00 avg60=0.18 avg300=0.55 total=2757897148
+[stato prima] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.2%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.04
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27142632 swap_usato_kb=2124472 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato prima] disco: /dev/mapper/root  931G  751G  175G  82% /home
+[stato prima] orologio UTC: 2026-11-27T11:01:06 kernel: 7.2.4-arch1-2
+=== T3 a 1000 eventi/s per 60 s (finestre da 30 s: piu' chiusure in una corsa breve; tempo dell'evento = ritmo offerto)
+DONE blocchi_accettati=64 eventi_accettati=64000 secondi=63.02 ritmo=1016/s riprove=0 senza_risposta=0 rifiutati=0
+T3 1000 eventi/s, latenze del processo per tenant (microsecondi; secchi con errore relativo <= 4,4 %; n = campioni): {"batch":{"max_us":2118,"n":157,"p50_us":10,"p99_us":2112},"counted":{"max_us":84000,"n":64,"p50_us":75776,"p99_us":83968},"start":{"max_us":329000,"n":136,"p50_us":143360,"p99_us":319488}}
+T3 1000 eventi/s, consegna: {"delivered":136,"pending":0,"refused":0,"cpu_ns":6096818796,"rss_kb":70628,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":4086,"applied":157,"late":0,"future":0}]}
+=== T3 a 100000 eventi/s per 60 s (finestre da 30 s: piu' chiusure in una corsa breve; tempo dell'evento = ritmo offerto)
+DONE blocchi_accettati=5508 eventi_accettati=5508000 secondi=60.27 ritmo=91386/s riprove=0 senza_risposta=0 rifiutati=0
+T3 100000 eventi/s, latenze del processo per tenant (microsecondi; secchi con errore relativo <= 4,4 %; n = campioni): {"batch":{"max_us":4007,"n":1041,"p50_us":1056,"p99_us":1824},"counted":{"max_us":351000,"n":5508,"p50_us":52224,"p99_us":335872},"start":{"max_us":27583000,"n":9880,"p50_us":12320768,"p99_us":26738688}}
+T3 100000 eventi/s, consegna: {"delivered":9880,"pending":0,"refused":0,"cpu_ns":5849182729,"rss_kb":79536,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":373434,"applied":5588,"late":0,"future":0}]}
+carico_1min_dopo=1.01 container_in_esecuzione_dopo=12
+[stato dopo 12:06:16] load: 1.01 1.12 1.74
+[stato dopo] io: some avg10=2.16 avg60=11.32 avg300=11.53 total=23604424482
+[stato dopo] cpu: some avg10=0.00 avg60=0.18 avg300=0.33 total=2759618845
+[stato dopo] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato dopo] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.7%
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27105336 swap_usato_kb=2124460 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato dopo] disco: /dev/mapper/root  931G  751G  175G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T11:06:20 kernel: 7.2.4-arch1-2

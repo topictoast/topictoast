@@ -1,0 +1,29 @@
+# Spike S-3: bus Iggy per le pipeline stream, solo su localhost. Credenziali in .env fuori dal repository
+# (generate da ./gen-env.sh in $SPIKE_DATA). Una sola configurazione per tutte le misure.
+name: ttspikestream
+services:
+  iggy:
+    image: apache/iggy:0.10.0
+    entrypoint: ["sh", "-c", "exec iggy-server"]
+    cap_add: [SYS_NICE]
+    security_opt: ["seccomp:unconfined"]
+    ulimits: { memlock: { soft: -1, hard: -1 } }
+    environment:
+      IGGY_NODE_ADVERTISED_ADDRESS: localhost
+      IGGY_ROOT_USERNAME: ${IGGY_ROOT_USERNAME:?genera .env}
+      IGGY_ROOT_PASSWORD: ${IGGY_ROOT_PASSWORD:?genera .env}
+      IGGY_SHARDING_CPU_ALLOCATION: ${IGGY_SHARDS:-1}
+      IGGY_PARTITION_WAL_GROUP_COMMIT_DELAY_MICROS: ${IGGY_GC_DELAY:-500}
+      # pulitore dei messaggi: 1 minuto e' il predefinito; la prova di C5 con cancellazione vera lo porta a 5 s
+      IGGY_DATA_MAINTENANCE_MESSAGES_INTERVAL: ${IGGY_CLEAN:-1m}
+      IGGY_MEMORY_POOL_SIZE: ${IGGY_POOL:-512MiB}
+      IGGY_MEMORY_POOL_ENABLED: "true"
+      IGGY_SHARDING_PIN_CORES: ${IGGY_PIN:-true}
+      IGGY_TCP_ADDRESS: 0.0.0.0:8090
+      IGGY_HTTP_ENABLED: "false"
+      IGGY_QUIC_ENABLED: "false"
+      IGGY_WEBSOCKET_ENABLED: "false"
+    # su minisheep i core del servizio (come lo spike del bus); sul portatile vuoto = nessun vincolo
+    cpuset: "${SPIKE_CPUSET:-}"
+    ports: ["127.0.0.1:47101:8090"]
+    volumes: ["${SPIKE_DATA:-/home/white_sheep/.cache/ttspikestream-data}/iggy:/app/local_data"]

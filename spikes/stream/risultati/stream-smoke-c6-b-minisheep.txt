@@ -1,0 +1,36 @@
+[attesa del cancello] 30 s
+SMOKE c6-b (non conta per i verdetti) data=2026-11-27T10:04:19Z host=minisheep core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=c6
+carico_1min_prima=1.39 pressione_io_prima=0.47 container_in_esecuzione_prima=12
+[stato prima 11:04:19] load: 1.39 1.46 1.55
+[stato prima] io: some avg10=0.47 avg60=9.18 avg300=13.04 total=23198872826
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2720995683
+[stato prima] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.2%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 3.58
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26686684 swap_usato_kb=2092124 some avg10=0.00 avg60=0.00 avg300=0.00 total=6605709
+[stato prima] disco: /dev/mapper/root  931G  751G  174G  82% /home
+[stato prima] orologio UTC: 2026-11-27T10:04:23 kernel: 7.2.4-arch1-2
+=== corsa c6 spec=spec-c1.json carico='--seed 91 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315' guasti=hook:c6_hook motore=''
+corsa_c6 carico_1min_prima=1.28
+t=10s il motore rifiuta gli avvii per quota per 20 s: {"refusing_for_s":20} [http=200]
+t=15s in attesa nel processo: {"pending":9659,"refused":26}
+t=28s in attesa nel processo: {"pending":46367,"refused":90,"delivered":2246}
+--- carico (c6)
+LAG t=5.00s accettati=100000 elaborati=100000 ritardo=0 max=0
+LAG t=10.00s accettati=200000 elaborati=196000 ritardo=4000 max=4000
+LAG t=15.01s accettati=300000 elaborati=295000 ritardo=5000 max=5000
+LAG t=20.01s accettati=400000 elaborati=397000 ritardo=3000 max=5000
+LAG t=25.01s accettati=500000 elaborati=496000 ritardo=4000 max=5000
+LAG t=30.01s accettati=601000 elaborati=598000 ritardo=3000 max=5000
+LAG t=35.02s accettati=701000 elaborati=697000 ritardo=4000 max=5000
+LAG t=40.02s accettati=801000 elaborati=797000 ritardo=4000 max=5000
+LAG t=45.02s accettati=901000 elaborati=899000 ritardo=2000 max=5000
+LAG t=50.02s accettati=1001000 elaborati=997000 ritardo=4000 max=5000
+LAG t=55.02s accettati=1101000 elaborati=1101000 ritardo=0 max=5000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.01 ritmo=19996/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c6)
+CHECK tenant=acme seed=91 blocchi_accettati=1201 testa_log=1204 senza_risposta=0

@@ -1,0 +1,43 @@
+[attesa del cancello] 0 s
+SMOKE rc (non conta per i verdetti) data=2026-11-27T11:20:19Z host=minisheep core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=rc
+carico_1min_prima=0.70 pressione_io_prima=0.30 container_in_esecuzione_prima=12
+[stato prima 12:20:19] load: 0.70 1.03 1.35
+[stato prima] io: some avg10=0.30 avg60=1.22 avg300=8.88 total=23723540374
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.33 total=2767083449
+[stato prima] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.0%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-runner-client-4 0.00
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27100028 swap_usato_kb=2124432 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato prima] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato prima] orologio UTC: 2026-11-27T11:20:23 kernel: 7.2.4-arch1-2
+=== RC: riavvio di Iggy (progetto ttspikestream) a 15 s dentro un carico di 3.000 eventi/s di 60 s; il processo per tenant e il motore NON si riavviano: devono riconnettersi da soli sotto confinamento
+riavvio di Iggy eseguito a t=15 s
+--- carico
+load seed=91 eventi=100000000 blocchi=100000 conn=2 rate=3000 evrate=3000 t0=1795777831622 past_ms=600000
+DONE blocchi_accettati=182 eventi_accettati=182000 secondi=60.34 ritmo=3016/s riprove=0 senza_risposta=0 rifiutati=0
+RC ritardo del consumatore (t:ritardo): 1.00:0 2.00:0 3.01:0 4.01:0 5.01:0 6.01:0 7.01:0 8.01:0 9.02:0 10.02:0 11.02:0 12.02:1000 13.02:1000 14.02:1000 15.03:1000 16.03:1000 17.03:1000 18.03:1000 19.03:1000 20.03:1000 21.03:1000 22.04:1000 23.04:1000 24.04:1000 25.04:1000 26.04:1000 27.05:1000 28.05:1000 29.05:1000 30.05:1000 31.06:1000 32.06:1000 33.06:1000 34.06:1000 35.06:1000 36.06:1000 37.06:1000 38.06:1000 39.07:1000 40.07:1000 41.07:1000 42.07:1000 43.07:1000 44.08:1000 45.08:1000 46.08:1000 47.08:1000 48.08:0 49.09:0 50.09:1000 51.09:1000 52.09:1000 53.09:1000 54.10:1000 55.10:1000 56.10:1000 57.10:0 58.11:0 59.11:1000 60.11:1000 
+RC il processo per tenant e' lo stesso: prima=2879597 dopo=2879597; il motore e' lo stesso: 2879582 vive=si
+RC righe del processo per tenant sugli errori: 0 letture fallite; riavvii del processo: 0
+--- check
+CHECK tenant=acme seed=91 blocchi_accettati=182 testa_log=194 senza_risposta=0
+LOG blocchi_distinti=182 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=194
+PIPELINE uj3 oracolo=uj3 righe_attese=0 righe_avvio=0 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=1 ultima_finestra_fine_ms=None ultimo_blocco_arrivo_ms=1795778491956 B_meno_E_ms=None ritardo_chiusura_ultima_finestra_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=0 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+carico_1min_dopo=0.74 container_in_esecuzione_dopo=12
+[stato dopo 12:21:43] load: 0.74 0.95 1.29
+[stato dopo] io: some avg10=0.26 avg60=0.83 avg300=6.85 total=23724491381
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.24 total=2767358971
+[stato dopo] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato dopo] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.5%
+[stato dopo] cpu runner max: github-runner-runner-client-4 0.00
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27106292 swap_usato_kb=2124428 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato dopo] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T11:21:47 kernel: 7.2.4-arch1-2

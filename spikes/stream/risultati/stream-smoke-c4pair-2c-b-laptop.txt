@@ -1,0 +1,73 @@
+SMOKE c4pair-2c-b (non conta per i verdetti) data=2026-11-27T12:19:55Z host=whitebones core=16
+PARAMETRI COMUNI: core=16 core_servizi_e_motore=nessuno core_generatore_e_oracolo=nessuno tetto_attesa_del_check_wait_s=predefinito_della_riga consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+binario sha256=3bc161986d760df766316fc0063901362b0dfdf8686ce8e28388fe89a6badf43 seme=91 id=c4pair
+carico_1min_prima=1.90 pressione_io_prima=0.00 container_in_esecuzione_prima=10
+origine fissa del tempo dell'evento (ms): 1795779600000
+=== corsa c4a spec=spec-c1.json carico='--seed 91 --events 1200000 --rate 20000 --evrate 1000 --origin-ms 1795779600000 --flush-s 315' guasti=none motore=''
+corsa_c4a carico_1min_prima=1.90
+--- carico (c4a)
+LAG t=5.00s accettati=100000 elaborati=98000 ritardo=2000 max=2000
+LAG t=10.00s accettati=201000 elaborati=199000 ritardo=2000 max=2000
+LAG t=15.01s accettati=301000 elaborati=298000 ritardo=3000 max=3000
+LAG t=20.01s accettati=401000 elaborati=398000 ritardo=3000 max=3000
+LAG t=25.01s accettati=501000 elaborati=498000 ritardo=3000 max=3000
+LAG t=30.01s accettati=601000 elaborati=596000 ritardo=5000 max=5000
+LAG t=35.02s accettati=701000 elaborati=701000 ritardo=0 max=5000
+LAG t=40.02s accettati=801000 elaborati=799000 ritardo=2000 max=5000
+LAG t=45.03s accettati=901000 elaborati=899000 ritardo=2000 max=5000
+LAG t=50.03s accettati=1001000 elaborati=1001000 ritardo=0 max=5000
+LAG t=55.04s accettati=1101000 elaborati=1099000 ritardo=2000 max=5000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.00 ritmo=19999/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c4a)
+CHECK tenant=acme seed=91 blocchi_accettati=1201 testa_log=1204 senza_risposta=0
+LOG blocchi_distinti=1201 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=1204
+PIPELINE uj3 oracolo=uj3 righe_attese=2608 righe_avvio=2608 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2118440) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795780800000) ultimo_blocco_arrivo_ms=1795782062875 B_meno_E_ms=Some(1262875) ritardo_chiusura_ultima_finestra_ms=Some(1262888) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=19997 righe_avvio=19997 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2118509) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795780800000) ultimo_blocco_arrivo_ms=1795782062875 B_meno_E_ms=Some(1262875) ritardo_chiusura_ultima_finestra_ms=Some(1262946) PASS
+PIPELINE hop oracolo=hop righe_attese=96 righe_avvio=96 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2346429) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795781040000) ultimo_blocco_arrivo_ms=1795782062875 B_meno_E_ms=Some(1022875) ritardo_chiusura_ultima_finestra_ms=Some(1022951) PASS
+PIPELINE dist oracolo=distinct righe_attese=16 righe_avvio=16 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2118515) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795780800000) ultimo_blocco_arrivo_ms=1795782062875 B_meno_E_ms=Some(1262875) ritardo_chiusura_ultima_finestra_ms=Some(1262951) PASS
+PIPELINE ipd oracolo=ipdistinct righe_attese=119005 righe_avvio=119005 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2118979) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795780800000) ultimo_blocco_arrivo_ms=1795782062875 B_meno_E_ms=Some(1262875) ritardo_chiusura_ultima_finestra_ms=Some(1263396) PASS
+PIPELINE filter oracolo=filter righe_attese=6396 righe_avvio=6396 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=0 ultima_finestra_fine_ms=None ultimo_blocco_arrivo_ms=0 B_meno_E_ms=None ritardo_chiusura_ultima_finestra_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=148118 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+SVUOTAMENTO finito dopo_fine_carico_s=1.0 (pending=0, posizione in testa)
+VERDETTO PASS
+--- log del motore (c4a, righe di riavvio)
+stats_finali_c4a: {"cpu_ns":3562643795,"rss_kb":108452,"pending":0,"delivered":148118,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":75884,"applied":1206},{"id":"uj3v","state":"running","code":null,"state_bytes":75884,"applied":1206},{"id":"hop","state":"running","code":null,"state_bytes":75754,"applied":1206},{"id":"dist","state":"running","code":null,"state_bytes":75754,"applied":1206},{"id":"ipd","state":"running","code":null,"state_bytes":75754,"applied":1206},{"id":"filter","state":"running","code":null,"state_bytes":75754,"applied":1206}]}
+=== corsa c4b spec=spec-c1.json carico='--seed 91 --events 1200000 --rate 20000 --evrate 1000 --origin-ms 1795779600000 --flush-s 315' guasti=kills5 motore=''
+corsa_c4b carico_1min_prima=2.75
+istanti dei kill (s dall'inizio del carico): 15 21 26 36 39 tipi: S E S S E
+kill -9 stream a t=15s
+kill -9 engine a t=22s
+kill -9 stream a t=26s
+kill -9 stream a t=36s
+kill -9 engine a t=40s
+--- carico (c4b)
+load seed=91 eventi=1200000 blocchi=1201 conn=8 rate=20000 evrate=1000 t0=1795779600000 past_ms=0
+LAG t=5.00s accettati=100000 elaborati=96000 ritardo=4000 max=4000
+LAG t=10.00s accettati=200000 elaborati=199000 ritardo=1000 max=4000
+LAG t=15.00s accettati=301000 elaborati=296000 ritardo=5000 max=5000
+LAG t=20.01s accettati=401000 elaborati=396000 ritardo=5000 max=5000
+LAG t=30.01s accettati=601000 elaborati=599000 ritardo=2000 max=5000
+LAG t=35.02s accettati=701000 elaborati=700000 ritardo=1000 max=5000
+LAG t=45.02s accettati=901000 elaborati=899000 ritardo=2000 max=5000
+LAG t=50.03s accettati=1001000 elaborati=1000000 ritardo=1000 max=5000
+LAG t=55.03s accettati=1101000 elaborati=1096000 ritardo=5000 max=5000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.00 ritmo=19999/s riprove=76 senza_risposta=76 rifiutati=0
+--- check (c4b)
+CHECK tenant=acme seed=91 blocchi_accettati=1201 testa_log=1206 senza_risposta=76
+LOG blocchi_distinti=1201 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=1208
+PIPELINE uj3 oracolo=uj3 righe_attese=2608 righe_avvio=2608 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2189771) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795780800000) ultimo_blocco_arrivo_ms=1795782134210 B_meno_E_ms=Some(1334210) ritardo_chiusura_ultima_finestra_ms=Some(1334242) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=19997 righe_avvio=19997 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2189831) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795780800000) ultimo_blocco_arrivo_ms=1795782134210 B_meno_E_ms=Some(1334210) ritardo_chiusura_ultima_finestra_ms=Some(1334294) PASS
+PIPELINE hop oracolo=hop righe_attese=96 righe_avvio=96 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=3000/3000 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2417768) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795781040000) ultimo_blocco_arrivo_ms=1795782134210 B_meno_E_ms=Some(1094210) ritardo_chiusura_ultima_finestra_ms=Some(1094300) PASS
+PIPELINE dist oracolo=distinct righe_attese=16 righe_avvio=16 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2189837) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795780800000) ultimo_blocco_arrivo_ms=1795782134210 B_meno_E_ms=Some(1334210) ritardo_chiusura_ultima_finestra_ms=Some(1334300) PASS
+PIPELINE ipd oracolo=ipdistinct righe_attese=119005 righe_avvio=119005 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2190290) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795780800000) ultimo_blocco_arrivo_ms=1795782134210 B_meno_E_ms=Some(1334210) ritardo_chiusura_ultima_finestra_ms=Some(1335278) PASS
+PIPELINE filter oracolo=filter righe_attese=6396 righe_avvio=6396 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=0 ultima_finestra_fine_ms=None ultimo_blocco_arrivo_ms=0 B_meno_E_ms=None ritardo_chiusura_ultima_finestra_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=221975 avvii_totali=148118 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+SVUOTAMENTO finito dopo_fine_carico_s=2.0 (pending=0, posizione in testa)
+VERDETTO PASS
+--- log del motore (c4b, righe di riavvio)
+      3 engine: stream acme terminato (segnale Some(9), codice None), riavvio
+      5 stream acme: ripreso dal checkpoint, righe in attesa 0
+stats_finali_c4b: {"cpu_ns":1764409589,"rss_kb":141668,"pending":0,"delivered":147239,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":75884,"applied":1209},{"id":"uj3v","state":"running","code":null,"state_bytes":75884,"applied":1209},{"id":"hop","state":"running","code":null,"state_bytes":75754,"applied":1209},{"id":"dist","state":"running","code":null,"state_bytes":75754,"applied":1209},{"id":"ipd","state":"running","code":null,"state_bytes":75754,"applied":1209},{"id":"filter","state":"running","code":null,"state_bytes":75754,"applied":1209}]}
+--- confronto della coppia (righe con i guasti = righe senza guasti)
+COMPARE A=/home/white_sheep/.cache/ttspikestream-data/keep/c4a B=/home/white_sheep/.cache/ttspikestream-data/keep/c4b scarto_origine_ms=0 multiplo_del_periodo(300000ms)=true righe_A=148118 righe_B=148118 mancanti_in_B=0 in_piu_in_B=0 diverse=4 FAIL
+carico_1min_dopo=2.77 container_in_esecuzione_dopo=11

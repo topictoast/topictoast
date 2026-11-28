@@ -1,0 +1,48 @@
+SMOKE s1-b (non conta per i verdetti) data=2026-11-27T09:10:12Z host=whitebones core=16
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=52 id=s1
+carico_1min_prima=7.59 pressione_io_prima=0.00 container_in_esecuzione_prima=12
+S1 sentinella (stringa casuale di questa corsa, non un segreto): SENTINEL1Yo5NJoEDIGd
+=== s1: 120 s a ritmo pieno (105.000 eventi/s offerti, tempo dell'evento = ritmo offerto, origine alla partenza), pipeline di verifica (tutti i gruppi, senza filtro e senza HAVING); kill -9 del processo per tenant a 40 s e del motore a 80 s dall'inizio del carico
+inizio del carico (ms epoch): 1795770660000
+kill -9 stream a t=40 s (1795770700078 ms)
+processo per tenant di nuovo pronto dopo 310 ms dal kill
+kill -9 engine a t=80 s (1795770740068 ms)
+motore di nuovo pronto dopo 1209 ms dal kill
+--- carico
+fase: attesa fino a 1795770660000 (40 s)
+load seed=52 eventi=70000000 blocchi=70000 conn=16 rate=105000 evrate=105000 t0=1795770660000 past_ms=0
+DONE blocchi_accettati=12616 eventi_accettati=12616000 secondi=120.15 ritmo=105006/s riprove=84 senza_risposta=84 rifiutati=0
+s1 ritmo e ritardo sull'intero carico: campioni=117 da_t=1.01 a_t=119.23 media_eventi_s=105008 ritardo_max=31000 ritardo_medio=15068 campioni_oltre_200000=0 ritardo_medio_primo_terzo=15205 ritardo_medio_ultimo_terzo=14949
+s1 recupero dopo il kill di stream a t=40 s (campioni da 1 s): campioni=40 picco_ritardo=31000 a_t=54.1 secondi_con_ritardo_oltre_200000=0 rientro_sotto_200000_a_t=mai/non_superato primo_buco_oltre_1,5_s_tra_campioni=0.0 (rientro misurato dal kill: n/a s)
+s1 recupero dopo il kill di engine a t=80 s (campioni da 1 s): campioni=38 picco_ritardo=30000 a_t=101.2 secondi_con_ritardo_oltre_200000=0 rientro_sotto_200000_a_t=mai/non_superato primo_buco_oltre_1,5_s_tra_campioni=3.0 (rientro misurato dal kill: n/a s)
+--- righe del motore (riavvii)
+      1 engine: stream acme pronto in 21.327 ms (init_ms=17.983) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=255
+      1 engine: stream acme pronto in 21.553 ms (init_ms=17.647) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=245
+      1 engine: stream acme pronto in 30.884 ms (init_ms=26.066) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=341
+      1 engine: stream acme terminato (segnale Some(9), codice None), riavvio
+      2 stream acme: ripreso dal checkpoint, righe in attesa 0
+--- check (0 persi, 0 doppi, un avvio per riga)
+CHECK tenant=acme seed=52 blocchi_accettati=12616 testa_log=12660 senza_risposta=84
+
+thread 'main' (1566098) panicked at src/check.rs:112:27:
+attempt to divide by zero
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+stats_finali: {"delivered":0,"pending":0,"refused":0,"cpu_ns":2541890848,"rss_kb":74712,"pipes":[{"id":"uj3v","state":"running","code":null,"state_bytes":1338930,"applied":12660,"late":0,"future":0},{"id":"sentk","state":"running","code":null,"state_bytes":809560,"applied":12660,"late":0,"future":0}]}
+--- S1: conteggio delle occorrenze in chiaro della sentinella (deve essere 0)
+S1 dati di Iggy (grep -a su tutta la cartella, dal container di Iggy in sola lettura): 0
+S1 cartella dei checkpoint (/home/white_sheep/.cache/ttspikestream-data/engine/payload): 0; copie scattate durante la corsa (8 file di cifrati): 0
+S1 file dei checkpoint presenti: 387468 ckpt.bin;
+S1 (informazione, non richiesto) database degli avvii: 0 occorrenze in chiaro (le righe delle finestre portano il gruppo kind)
+S1 controllo positivo dopo la decifratura:
+S1DEC checkpoint file=ckpt.bin byte_cifrati=387468 decifrato=true sentinella_nel_chiaro=0
+S1DEC checkpoint file=ckpt-1.bin byte_cifrati=456 decifrato=true sentinella_nel_chiaro=0
+S1DEC checkpoint file=ckpt-2.bin byte_cifrati=456 decifrato=true sentinella_nel_chiaro=0
+S1DEC checkpoint file=ckpt-3.bin byte_cifrati=145643 decifrato=true sentinella_nel_chiaro=0
+S1DEC checkpoint file=ckpt-4.bin byte_cifrati=191997 decifrato=true sentinella_nel_chiaro=0
+S1DEC checkpoint file=ckpt-5.bin byte_cifrati=220839 decifrato=true sentinella_nel_chiaro=0
+S1DEC checkpoint file=ckpt-6.bin byte_cifrati=267237 decifrato=true sentinella_nel_chiaro=0
+S1DEC checkpoint file=ckpt-7.bin byte_cifrati=315153 decifrato=true sentinella_nel_chiaro=0
+S1DEC checkpoint file=ckpt-8.bin byte_cifrati=364836 decifrato=true sentinella_nel_chiaro=0
+S1DEC log testa=12660 messaggi_letti=485 decifrati=485 sentinella_nel_chiaro=442000
+S1DEC controllo_positivo=FAIL
+carico_1min_dopo=8.12 container_in_esecuzione_dopo=12

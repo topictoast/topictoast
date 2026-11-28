@@ -1,0 +1,45 @@
+{
+  "tenants": [
+    {
+      "id": "acme",
+      "streams": [
+        {
+          "name": "indicators",
+          "event_time": "ts",
+          "columns": [
+            {"name": "asn", "type": "int"},
+            {"name": "ip", "type": "text"},
+            {"name": "kind", "type": "text"},
+            {"name": "ts", "type": "instant"}
+          ]
+        }
+      ],
+      "pipelines": [
+        {
+          "id": "uj3", "version": 1, "oracle": "uj3", "oracle_size_s": 300, "oracle_slide_s": 300,
+          "sql": "SELECT window_start, window_end, asn, count(*) AS n FROM indicators GROUP BY tumble(INTERVAL '5 minutes'), asn HAVING count(*) > 50"
+        },
+        {
+          "id": "uj3v", "version": 1, "oracle": "uj3v", "oracle_size_s": 300, "oracle_slide_s": 300,
+          "sql": "SELECT window_start, window_end, asn, count(*) AS n FROM indicators GROUP BY tumble(INTERVAL '5 minutes'), asn"
+        },
+        {
+          "id": "hop", "version": 1, "oracle": "hop", "oracle_size_s": 300, "oracle_slide_s": 60,
+          "sql": "SELECT window_start, window_end, kind, count(*) AS n, count(DISTINCT asn) AS asns, sum(asn) AS s, min(asn) AS lo, max(asn) AS hi, avg(asn) AS av FROM indicators WHERE ip LIKE '10.%' GROUP BY hop(INTERVAL '5 minutes', INTERVAL '1 minute'), kind"
+        },
+        {
+          "id": "dist", "version": 1, "oracle": "distinct", "oracle_size_s": 300, "oracle_slide_s": 300,
+          "sql": "SELECT DISTINCT window_start, window_end, kind FROM indicators WHERE asn < 1100 GROUP BY tumble(INTERVAL '5 minutes'), kind, asn"
+        },
+        {
+          "id": "ipd", "version": 1, "oracle": "ipdistinct", "oracle_size_s": 300, "oracle_slide_s": 300,
+          "sql": "SELECT window_start, window_end, ip FROM indicators WHERE kind = 'malware' AND asn < 1020 GROUP BY tumble(INTERVAL '5 minutes'), ip"
+        },
+        {
+          "id": "filter", "version": 1, "oracle": "filter",
+          "sql": "SELECT asn, ip, upper(kind) AS kind FROM indicators WHERE asn = 1020"
+        }
+      ]
+    }
+  ]
+}

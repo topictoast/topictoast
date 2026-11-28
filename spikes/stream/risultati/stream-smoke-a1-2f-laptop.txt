@@ -1,0 +1,12 @@
+SMOKE a1-2f (non conta per i verdetti) data=2026-11-27T16:16:00Z host=whitebones core=16
+PARAMETRI COMUNI: core=16 core_servizi_e_motore=nessuno core_generatore_e_oracolo=nessuno tetto_attesa_del_check_wait_s=predefinito_della_riga consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+A1 PARAMETRI: riavvii=30; validazioni a secco=10; kill -9 del processo per tenant e rilancio del motore, pausa 0,3 s; nessun carico; seme=91
+binario sha256=9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34 seme=91 id=a1
+carico_1min_prima=1.57 pressione_io_prima=0.00 container_in_esecuzione_prima=11
+=== A1: 30 riavvii a freddo del ruolo con DataFusion vero e confinamento di prodotto (kill -9 del processo per tenant, il motore lo rilancia). Misura: dall'avvio del processo (fork compreso) a «pronto» (runtime caldo e confinamento applicato), presa dal motore
+A1 riavvii=30 confinati_landlock+seccomp=30 rifiutati=0
+A1 avvio_a_pronto_ms: p50=21.127 p99=24.162 min=20.079 max=24.162 (soglie: p50 <= 100, p99 <= 250)
+A1 dentro il processo (init_ms, dal messaggio iniziale a pronto): p50=17.141 p99=19.755; confinamento (t_confine_us): p50=285.000 p99=406.000
+A1 rapporto di confinamento di un avvio: inherited_fds=1 closed_fds=0 landlock=FullyEnforced nnp=1 all_threads=1 landlock_abi_kernel=11 richiesta=V9 non_supportati_fs=BitFlags<AccessFs>(0b0) non_supportati_net=BitFlags<AccessNet>(0b0) non_supportati_scope=BitFlags<Scope>(0b0) seccomp_syscalls=38 level=landlock+seccomp t_confine_us=329
+A1 validazione a secco della query di UJ-3 (processo caldo e confinato, analisi + pianificazione + lotto sintetico), ms: n=10 prima=0.88755 p50=0.679 p99=0.641 max=0.641
+carico_1min_dopo=1.50 container_in_esecuzione_dopo=11

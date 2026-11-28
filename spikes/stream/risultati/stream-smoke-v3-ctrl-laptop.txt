@@ -1,0 +1,66 @@
+SMOKE v3-ctrl (non conta per i verdetti) data=2026-11-27T01:46:34Z host=whitebones core=16
+binario sha256=0d8f7aa50ec0ee41205f94bf04a470fba687429db4871cc7c773088fb603657d seme=21 id=v3ctrl
+carico_1min_prima=1.54 pressione_io_prima=1.18 container_in_esecuzione_prima=5
+=== corsa v3a spec=spec-v3.json carico='--seed 21 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315' guasti=hook:v3a_hook motore='--ctrl-off-syntax'
+corsa_v3a carico_1min_prima=1.54
+t=20s validazione a secco ostile con RLIMIT_DATA 1024 MiB (barriera 1 spenta, controllo): {"error":{"code":"validation_process_died","message":"il processo per tenant e' terminato (segnale Some(6), codice None)"},"ok":false} [http=422]
+t=21s motore vivo: {"starts":5488,"dupes":0}
+--- carico (v3a)
+LAG t=5s accettati=100000 elaborati=98000 ritardo=2000 max=2000
+LAG t=10s accettati=201000 elaborati=200000 ritardo=1000 max=2000
+LAG t=15s accettati=301000 elaborati=280000 ritardo=21000 max=21000
+LAG t=20s accettati=401000 elaborati=381000 ritardo=20000 max=21000
+LAG t=25s accettati=501000 elaborati=481000 ritardo=20000 max=21000
+LAG t=30s accettati=601000 elaborati=582000 ritardo=19000 max=21000
+LAG t=35s accettati=701000 elaborati=682000 ritardo=19000 max=21000
+LAG t=40s accettati=801000 elaborati=784000 ritardo=17000 max=21000
+LAG t=45s accettati=901000 elaborati=885000 ritardo=16000 max=21000
+LAG t=50s accettati=1001000 elaborati=986000 ritardo=15000 max=21000
+LAG t=55s accettati=1101000 elaborati=1087000 ritardo=14000 max=21000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.00 ritmo=19999/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (v3a)
+CHECK tenant=acme seed=21 blocchi_accettati=1201 testa_log=1204 senza_risposta=0
+LOG blocchi_distinti=1201 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=1205
+PIPELINE uj3v oracolo=uj3v righe_attese=24687 righe_avvio=24687 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1316209) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743900000) ultimo_blocco_arrivo_ms=1795744062337 B_meno_E_ms=Some(162337) ritardo_chiusura_ultima_finestra_ms=Some(164028) PASS
+PIPELINE uj3 oracolo=uj3 righe_attese=2646 righe_avvio=2646 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1316405) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743900000) ultimo_blocco_arrivo_ms=1795744062337 B_meno_E_ms=Some(162337) ritardo_chiusura_ultima_finestra_ms=Some(164085) PASS
+PIPELINE hog oracolo=suspended:state_quota_exceeded stato="suspended" codice="state_quota_exceeded" byte_di_stato=67284104 righe_avvio=0 PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=27333 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+--- log del motore (v3a, righe di riavvio)
+      1 engine: stream acme terminato (segnale Some(6), codice None), riavvio
+      1 stream acme: ripreso dal checkpoint, righe in attesa 0
+      1 stream: pipeline hog sospesa: state_quota_exceeded (N byte oltre N)
+stats_finali_v3a: {"cpu_ns":1689532885,"rss_kb":181776,"pending":0,"delivered":21845,"refused":0,"pipes":[{"id":"uj3v","state":"running","code":null,"state_bytes":75884,"applied":1206},{"id":"uj3","state":"running","code":null,"state_bytes":75884,"applied":1206},{"id":"hog","state":"suspended","code":"state_quota_exceeded","state_bytes":67284104,"applied":527}]}
+=== corsa v3b spec=spec-v3.json carico='--seed 21 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315' guasti=hook:v3b_hook motore='--ctrl-off-syntax --no-quota --rlimit-data-mb 0'
+corsa_v3b carico_1min_prima=1.42
+t=10s controllo (solo pool di DataFusion): {"rss_kb":99984,"pipes":[{"state":"running","code":null,"state_bytes":23741192}]}
+t=20s controllo (solo pool di DataFusion): {"rss_kb":130860,"pipes":[{"state":"running","code":null,"state_bytes":50410516}]}
+t=30s controllo (solo pool di DataFusion): {"rss_kb":171740,"pipes":[{"state":"running","code":null,"state_bytes":77352183}]}
+t=40s controllo (solo pool di DataFusion): {"rss_kb":198428,"pipes":[{"state":"running","code":null,"state_bytes":104080805}]}
+t=50s controllo (solo pool di DataFusion): {"rss_kb":270456,"pipes":[{"state":"running","code":null,"state_bytes":130945573}]}
+validazione a secco ostile senza RLIMIT_DATA: {"ok":true,"reply":1} [http=200]
+dopo la validazione: {"rss_kb":273880}
+--- carico (v3b)
+LAG t=5s accettati=100000 elaborati=99000 ritardo=1000 max=1000
+LAG t=10s accettati=200000 elaborati=200000 ritardo=0 max=1000
+LAG t=15s accettati=301000 elaborati=300000 ritardo=1000 max=1000
+LAG t=20s accettati=401000 elaborati=400000 ritardo=1000 max=1000
+LAG t=25s accettati=501000 elaborati=482000 ritardo=19000 max=19000
+LAG t=30s accettati=601000 elaborati=583000 ritardo=18000 max=19000
+LAG t=35s accettati=701000 elaborati=684000 ritardo=17000 max=19000
+LAG t=40s accettati=801000 elaborati=785000 ritardo=16000 max=19000
+LAG t=45s accettati=901000 elaborati=887000 ritardo=14000 max=19000
+LAG t=50s accettati=1001000 elaborati=989000 ritardo=12000 max=19000
+LAG t=55s accettati=1101000 elaborati=1089000 ritardo=12000 max=19000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.00 ritmo=19999/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (v3b)
+CHECK tenant=acme seed=21 blocchi_accettati=1201 testa_log=1204 senza_risposta=0
+LOG blocchi_distinti=1201 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=1205
+PIPELINE uj3v oracolo=uj3v righe_attese=24920 righe_avvio=24920 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1384548) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743900000) ultimo_blocco_arrivo_ms=1795744134320 B_meno_E_ms=Some(234320) ritardo_chiusura_ultima_finestra_ms=Some(236172) PASS
+PIPELINE uj3 oracolo=uj3 righe_attese=2641 righe_avvio=2641 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1384682) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795743900000) ultimo_blocco_arrivo_ms=1795744134320 B_meno_E_ms=Some(234320) ritardo_chiusura_ultima_finestra_ms=Some(236276) PASS
+PIPELINE hog oracolo=none avvii_per_versione={} PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=27561 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+--- log del motore (v3b, righe di riavvio)
+stats_finali_v3b: {"cpu_ns":3034325839,"rss_kb":311592,"pending":0,"delivered":27561,"refused":0,"pipes":[{"id":"uj3v","state":"running","code":null,"state_bytes":75884,"applied":1206},{"id":"uj3","state":"running","code":null,"state_bytes":75884,"applied":1206},{"id":"hog","state":"running","code":null,"state_bytes":158494724,"applied":1206}]}
+carico_1min_dopo=1.63 container_in_esecuzione_dopo=5

@@ -1,0 +1,32 @@
+[attesa del cancello] 45 s
+SMOKE c2 (non conta per i verdetti) data=2026-11-27T09:53:04Z host=minisheep core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=c2f
+carico_1min_prima=1.03 pressione_io_prima=0.89 container_in_esecuzione_prima=13
+[stato prima 10:53:04] load: 1.03 1.35 1.70
+[stato prima] io: some avg10=0.89 avg60=10.43 avg300=11.46 total=23110508821
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2718610129
+[stato prima] container in esecuzione (13): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 ttspikestream-iggy-1 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 3.2%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.01
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26500500 swap_usato_kb=2092220 some avg10=0.00 avg60=0.00 avg300=0.00 total=6605659
+[stato prima] disco: /dev/mapper/root  931G  751G  174G  82% /home
+[stato prima] orologio UTC: 2026-11-27T09:53:08 kernel: 7.2.4-arch1-2
+=== corsa c2f spec=spec-c1.json carico='--seed 91 --events 600000 --rate 20000 --evrate 500 --past-s 1500 --flush-s 315 --late-ppm 2000 --late-s 400 --fut-ppm 500 --fut-s 120 --far-n 12345' guasti=none motore=''
+corsa_c2f carico_1min_prima=0.95
+ERRORE: engine non pronto
+carico_1min_dopo=0.97 container_in_esecuzione_dopo=12
+[stato dopo 10:53:35] load: 0.97 1.29 1.66
+[stato dopo] io: some avg10=0.14 avg60=6.24 avg300=10.29 total=23110751740
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2718697055
+[stato dopo] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato dopo] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 29.9%; core 8-11 occupati: 1.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-2 0.01
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26635960 swap_usato_kb=2092220 some avg10=0.00 avg60=0.00 avg300=0.00 total=6605659
+[stato dopo] disco: /dev/mapper/root  931G  751G  174G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T09:53:39 kernel: 7.2.4-arch1-2

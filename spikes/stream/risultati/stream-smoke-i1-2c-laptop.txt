@@ -1,0 +1,24 @@
+SMOKE i1-2c (non conta per i verdetti) data=2026-11-27T12:10:25Z host=whitebones core=16
+PARAMETRI COMUNI: core=16 core_servizi_e_motore=nessuno core_generatore_e_oracolo=nessuno tetto_attesa_del_check_wait_s=predefinito_della_riga consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+I1 PARAMETRI: ritmo_offerto_A=50000 eventi/s; ritmo_del_tempo_dell_evento_A=50000; ritmo_offerto_B=100000 eventi/s; ritmo_del_tempo_dell_evento_B=100000; origine=alla partenza del carico di ogni tenant (past-s 0); connessioni A=4 B=4; blocco=1000 eventi; budget_CPU_per_microlotto_B(cpuhog)=30 ms; coppie=1 durata=120 s per elemento; lettura: minuti 2-5 (t=60..300 s); semi_A=seme+k semi_B=seme+100+k
+binario sha256=3bc161986d760df766316fc0063901362b0dfdf8686ce8e28388fe89a6badf43 seme=91 id=i1
+carico_1min_prima=2.56 pressione_io_prima=0.00 container_in_esecuzione_prima=11
+=== I1: tenant A a 50.000 eventi/s, tenant B (pipeline al limite di stato hog e al limite di CPU cpuhog, budget 30 ms per micro-lotto, ritmo offerto 100.000 eventi/s); 1 coppie da 120 s; limite di CPU: nessuno del sistema in modalita' senza privilegi (l'ADR della sandbox non decide un limite di CPU per questo ruolo, solo RLIMIT_CPU 3600 s di rete di sicurezza): budget di CPU per micro-lotto con codice cpu_budget_exceeded; seme=91 prima coppia: controllo poi prova
+--- coppia 1 fase ctrl: A da solo/ con B, 120 s
+I1 i1-1-ctrl A: DONE blocchi_accettati=6004 eventi_accettati=6004000 secondi=120.06 ritmo=50007/s riprove=0 senza_risposta=0 rifiutati=0
+I1 i1-1-ctrl A (da t=30 s): campioni=19 da_t=30.01 a_t=120.04 media_eventi_s=49994 ritardo_max=12000 ritardo_medio=6947 campioni_oltre_200000=0 ritardo_medio_primo_terzo=7833 ritardo_medio_ultimo_terzo=6333
+I1 i1-1-ctrl A pipeline: {"cpu_ns":3978971626,"rss_kb":63488,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":913146}]}
+I1 i1-1-ctrl A (intera corsa): campioni=24 da_t=5.00 a_t=120.04 media_eventi_s=50000 ritardo_max=12000 ritardo_medio=6875 campioni_oltre_200000=0 ritardo_medio_primo_terzo=7375 ritardo_medio_ultimo_terzo=7375
+I1 i1-1-ctrl A (minuti 2-5, t=60..300 s): campioni=13 da_t=60.02 a_t=120.04 media_eventi_s=50000 ritardo_max=12000 ritardo_medio=6538 campioni_oltre_200000=0 ritardo_medio_primo_terzo=6250 ritardo_medio_ultimo_terzo=6500
+--- coppia 1 fase test: A da solo/ con B, 120 s
+I1 i1-1-test A: DONE blocchi_accettati=6004 eventi_accettati=6004000 secondi=120.06 ritmo=50007/s riprove=0 senza_risposta=0 rifiutati=0
+I1 i1-1-test A (da t=30 s): campioni=19 da_t=30.01 a_t=120.03 media_eventi_s=50000 ritardo_max=15000 ritardo_medio=6895 campioni_oltre_200000=0 ritardo_medio_primo_terzo=6333 ritardo_medio_ultimo_terzo=9167
+I1 i1-1-test B: DONE blocchi_accettati=12004 eventi_accettati=12004000 secondi=120.03 ritmo=100006/s riprove=0 senza_risposta=0 rifiutati=0
+I1 i1-1-test B pipeline: {"cpu_ns":555312594,"rss_kb":274108,"pipes":[{"id":"hog","state":"suspended","code":"state_quota_exceeded","state_bytes":67465140,"applied":525},{"id":"cpuhog","state":"suspended","code":"state_quota_exceeded","state_bytes":73356414,"applied":65}]}
+I1 i1-1-test B righe del processo: 2 sospensioni;       1 stream: pipeline cpuhog sospesa: state_quota_exceeded (N byte oltre N);      1 stream: pipeline hog sospesa: state_quota_exceeded (N byte oltre N);
+I1 i1-1-test A pipeline: {"cpu_ns":4070727321,"rss_kb":63756,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":913146}]}
+I1 i1-1-test A (intera corsa): campioni=24 da_t=5.00 a_t=120.03 media_eventi_s=50004 ritardo_max=15000 ritardo_medio=6542 campioni_oltre_200000=0 ritardo_medio_primo_terzo=6500 ritardo_medio_ultimo_terzo=8625
+I1 i1-1-test A (minuti 2-5, t=60..300 s): campioni=13 da_t=60.02 a_t=120.03 media_eventi_s=50008 ritardo_max=15000 ritardo_medio=7154 campioni_oltre_200000=0 ritardo_medio_primo_terzo=5000 ritardo_medio_ultimo_terzo=7750
+I1 coppia 1 (ordine: ctrl test): ritmo_A_controllo=50007 ritmo_A_con_B=50007 rapporto=1.0000 (soglia >= 0,95); da_t=30s: controllo=49994 con_B=50000 rapporto=1.0001 (righe aggiuntive di riferimento)
+I1 coppia 1 VERDETTO (minuti 2-5): ritmo_controllo=50000 ritmo_con_B=50008 rapporto=1.0002 (soglia >= 0,95) ritardo_medio_primo_terzo(con_B)=5000 ultimo_terzo(con_B)=7750 (soglia ultimo <= primo + 50000) [controllo: primo=6250 ultimo=6500] PASS
+carico_1min_dopo=2.02 container_in_esecuzione_dopo=11

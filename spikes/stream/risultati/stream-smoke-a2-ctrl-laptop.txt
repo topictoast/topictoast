@@ -1,0 +1,34 @@
+SMOKE a2-ctrl (non conta per i verdetti) data=2026-11-27T08:31:17Z host=whitebones core=16
+binario sha256=19ba01ddbb5613e91530b4a0017f43a5c2f2a6bcd40190efc555813121bd1dfd seme=3 id=a2ctrl
+carico_1min_prima=14.32 pressione_io_prima=27.53 container_in_esecuzione_prima=11
+=== A2 (a2ctrl): prove ostili dentro il processo per tenant vero (comando di prova del motore, solo con --allow-probe); motore: --allow-probe --probe-port 47121 --ctrl-no-confine
+A2 percorsi: chiave=/home/white_sheep/.cache/ttspikestream-data/engine/master.key database=/home/white_sheep/.cache/ttspikestream-data/engine/starts.db configurazione=/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-a43d2451613adaea1/spikes/stream/spec-a2.json,/home/white_sheep/.cache/ttspikestream-data/.env motore_pid=1362730
+A2 prova=chiave_principale atteso=deny esito=leak => FUGA | leak=1 bytes=32
+A2 prova=database_avvii atteso=deny esito=leak => FUGA | leak=1 bytes=4096
+A2 prova=configurazione_spec atteso=deny esito=leak => FUGA | leak=1 bytes=1136
+A2 prova=configurazione_env atteso=deny esito=leak => FUGA | leak=1 bytes=221
+A2 prova=cartella_altro_tenant atteso=deny esito=leak => FUGA | leak=1 entries=1
+A2 prova=file_altro_tenant atteso=deny esito=leak => FUGA | leak=1 bytes=21
+A2 prova=etc_passwd atteso=deny esito=leak => FUGA | leak=1 bytes=3525
+A2 prova=proc_motore_environ atteso=deny esito=leak => FUGA | leak=1 bytes=3590
+A2 prova=proc_motore_maps atteso=deny esito=leak => FUGA | leak=1 bytes=7081
+A2 prova=proc_motore_cmdline atteso=deny esito=leak => FUGA | leak=1 bytes=284
+A2 prova=proc_motore_mem atteso=deny esito=denied => OK | leak=0 err=EACCES
+A2 prova=ptrace_motore atteso=deny esito=denied => OK | leak=0 err=EPERM
+A2 prova=process_vm_readv_motore atteso=deny esito=denied => OK | leak=0 err=EPERM
+A2 prova=segnale_al_motore atteso=deny esito=leak => FUGA | leak=1
+A2 prova=porta_diversa_da_bus_e_motore atteso=deny esito=leak => FUGA | leak=1
+A2 prova=exec atteso=deny esito=denied_process_died_OTHER => OK | validation_process_died: il processo per tenant e' terminato (segnale None, codice Some(0))
+A2 prova=fork atteso=deny esito=leak => FUGA | leak=1
+A2 prova=scrittura_fuori_dalla_cartella atteso=deny esito=leak => FUGA | leak=1
+A2 prova=lettura_cartella_propria atteso=allow esito=leak => OK | leak=1 bytes=21
+A2 prova=scrittura_cartella_propria atteso=allow esito=leak => OK | leak=1
+A2 prova=porta_del_bus atteso=allow esito=leak => OK | leak=1
+A2 prova=porta_del_motore atteso=allow esito=leak => OK | leak=1
+A2 informazione env: {"ok":true,"reply":23,"result":"leak=0 env_vars=0"}
+A2 stato del processo per tenant visto da /proc/1363466: Threads: 17 NoNewPrivs: 0 Seccomp: 0 Seccomp_filters: 0  limiti: Max file size unlimited unlimited bytes ;Max core file size unlimited unlimited bytes ;Max open files 524288 524288 files ;
+A2 PR_SET_DUMPABLE visto da fuori (proprietario di /proc/<pid>/environ: root = non ispezionabile): processo_per_tenant=white_sheep motore=white_sheep
+A2 descrittori aperti del processo per tenant: 11 (ereditati chiusi: vedi la riga «pronto» del motore)
+A2 riepilogo (a2ctrl): prove=22 da_negare=18 fughe=14 rotte_o_non_classificate=0 file_creato_fuori=SI
+A2 controllo positivo senza confinamento: fughe trovate=14 su 18 prove da negare; il controllo vede le fughe
+carico_1min_dopo=10.77 container_in_esecuzione_dopo=11

@@ -1,0 +1,37 @@
+SMOKE c4 (non conta per i verdetti) data=2026-11-26T23:38:43Z host=whitebones core=16
+binario sha256=b15aafb403b34061fdd5cecb85a101483249a41db5263f944444c5fbc91c8315 spec=spec-c1.json seme=4 carico='--seed 4 --events 1200000 --rate 20000 --evrate 1000 --past-s 1530 --flush-s 315'
+carico_1min_prima=1.48 pressione_io_prima=0.37
+istanti dei kill (s dall'inizio del carico): 9 13 24 39 41 tipi: S E S S E
+kill -9 stream a t=9s
+kill -9 engine a t=14s
+kill -9 stream a t=24s
+kill -9 stream a t=39s
+kill -9 engine a t=42s
+--- carico
+load seed=4 eventi=1200000 blocchi=1201 conn=8 rate=20000 evrate=1000 t0=1795734801182 past_ms=1530000
+LAG t=5s accettati=100000 elaborati=98000 ritardo=2000 max=2000
+LAG t=10s accettati=200000 elaborati=159000 ritardo=41000 max=41000
+LAG t=20s accettati=401000 elaborati=381000 ritardo=20000 max=41000
+LAG t=25s accettati=501000 elaborati=461000 ritardo=40000 max=41000
+LAG t=30s accettati=601000 elaborati=585000 ritardo=16000 max=41000
+LAG t=35s accettati=701000 elaborati=687000 ritardo=14000 max=41000
+LAG t=40s accettati=801000 elaborati=767000 ritardo=34000 max=41000
+LAG t=50s accettati=1001000 elaborati=981000 ritardo=20000 max=41000
+LAG t=55s accettati=1101000 elaborati=1083000 ritardo=18000 max=41000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.00 ritmo=19999/s riprove=72 senza_risposta=72 rifiutati=0
+--- check
+CHECK tenant=acme seed=4 blocchi_accettati=1201 testa_log=1206 senza_risposta=72
+LOG blocchi_distinti=1201 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=1234
+PIPELINE uj3 oracolo=uj3 righe_attese=2649 righe_avvio=2649 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1436711) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=24852 righe_avvio=24852 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1438529) PASS
+PIPELINE hop oracolo=hop righe_attese=100 righe_avvio=100 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1493657) PASS
+PIPELINE dist oracolo=distinct righe_attese=20 righe_avvio=20 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1438532) PASS
+PIPELINE ipd oracolo=ipdistinct righe_attese=118628 righe_avvio=118628 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(1443408) PASS
+PIPELINE filter oracolo=filter righe_attese=6254 righe_avvio=6254 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=49410 avvii_totali=152503
+VERDETTO PASS
+--- log del motore (righe di riavvio)
+      3 engine: stream acme terminato, riavvio
+      2 stream acme: ripreso dal checkpoint, righe in attesa 19971
+      3 stream acme: ripreso dal checkpoint, righe in attesa 8732
+carico_1min_dopo=2.24

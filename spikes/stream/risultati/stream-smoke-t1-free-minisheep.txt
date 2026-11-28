@@ -1,0 +1,82 @@
+[attesa del cancello] 15 s
+SMOKE t1-free (non conta per i verdetti) data=2026-11-27T10:50:56Z host=minisheep core=22
+T1-FREE PARAMETRI (solo riportata): ritmo_offerto=senza tetto (--rate 0); ritmo_del_tempo_dell_evento=300000 eventi/s (sopra ogni ritmo plausibile: la guardia del generatore non frena; il tempo dell'evento resta indietro rispetto all'arrivo); origine=alla partenza (griglia da 300 s, fase 0); connessioni=16; blocco=1000 eventi; durata=60 s; query=UJ-3 con filtro (spec-t1.json); ritardo del consumatore ogni 5 s; seme=91
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=t1free
+carico_1min_prima=1.20 pressione_io_prima=0.56 container_in_esecuzione_prima=12
+[stato prima 11:50:56] load: 1.20 2.58 2.99
+[stato prima] io: some avg10=0.56 avg60=5.68 avg300=7.69 total=23486221754
+[stato prima] cpu: some avg10=0.00 avg60=0.19 avg300=0.91 total=2752878609
+[stato prima] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.5%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-1 0.04
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27154804 swap_usato_kb=2124488 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato prima] disco: /dev/mapper/root  931G  751G  175G  82% /home
+[stato prima] orologio UTC: 2026-11-27T10:51:01 kernel: 7.2.4-arch1-2
+--- carico
+fase: attesa fino a 1795776720000 (51 s)
+load seed=91 eventi=400000000 blocchi=400000 conn=16 rate=0 evrate=300000 t0=1795776720000 past_ms=0
+DONE blocchi_accettati=8580 eventi_accettati=8580000 secondi=60.11 ritmo=142745/s riprove=0 senza_risposta=0 rifiutati=0
+T1 minuti 2-10 (t=120..600 s, campioni ogni 5 s): campioni= (troppo pochi)
+T1 serie del ritardo (t, ritardo): 5.01:5000 10.01:38000 15.01:41000 20.01:45000 25.01:26000 30.01:5000 35.02:43000 40.02:1000 45.02:18000 50.02:38000 55.02:29000 60.02:40000 
+--- check (finestre chiuse con la regola della quiete entro 40 s dalla fine; tutte le finestre con dati devono essere chiuse)
+CHECK tenant=acme seed=91 blocchi_accettati=8580 testa_log=8635 senza_risposta=0
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8635
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8639
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8643
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8647
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8651
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8656
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8660
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8664
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8668
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8672
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8677
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8681
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8685
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8689
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8694
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8698
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8702
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8706
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8711
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8715
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8719
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8723
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8727
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8731
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8736
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8740
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8744
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8748
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8753
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8757
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8761
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8765
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8769
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8774
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8778
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8782
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8786
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8790
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8795
+LOG blocchi_distinti=8580 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=8811
+PIPELINE uj3 oracolo=uj3 righe_attese=5000 righe_avvio=5000 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(56636) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795776900000) ultimo_blocco_arrivo_ms=1795776780001 B_meno_E_ms=Some(-119999) ritardo_chiusura_ultima_finestra_ms=Some(56636) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=5000 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+stats_finali: {"delivered":5000,"pending":0,"refused":0,"cpu_ns":10934029314,"rss_kb":78564,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":548010,"applied":8813,"late":0,"future":0}]}
+carico_1min_dopo=0.89 container_in_esecuzione_dopo=12
+[stato dopo 11:56:01] load: 0.89 1.54 2.41
+[stato dopo] io: some avg10=8.68 avg60=5.06 avg300=8.91 total=23521990144
+[stato dopo] cpu: some avg10=0.00 avg60=0.05 avg300=0.51 total=2754996185
+[stato dopo] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato dopo] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.5%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-3 0.02
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27129460 swap_usato_kb=2124484 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato dopo] disco: /dev/mapper/root  931G  751G  175G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T10:56:05 kernel: 7.2.4-arch1-2

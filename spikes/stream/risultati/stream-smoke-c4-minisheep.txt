@@ -1,0 +1,59 @@
+[attesa del cancello] 65 s
+SMOKE c4 (non conta per i verdetti) data=2026-11-27T10:28:30Z host=minisheep core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=c4pair
+carico_1min_prima=1.44 pressione_io_prima=0.04 container_in_esecuzione_prima=12
+[stato prima 11:28:30] load: 1.44 2.64 2.10
+[stato prima] io: some avg10=0.04 avg60=2.84 avg300=5.27 total=23351587596
+[stato prima] cpu: some avg10=0.00 avg60=0.16 avg300=0.79 total=2731858776
+[stato prima] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.7%; core 8-11 occupati: 0.5%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-1 0.38
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26999292 swap_usato_kb=2098936 some avg10=0.00 avg60=0.00 avg300=0.00 total=6674596
+[stato prima] disco: /dev/mapper/root  931G  752G  174G  82% /home
+[stato prima] orologio UTC: 2026-11-27T10:28:34 kernel: 7.2.4-arch1-2
+origine fissa del tempo dell'evento (ms): 1795773000000
+=== corsa c4a spec=spec-c1.json carico='--seed 91 --events 1200000 --rate 20000 --evrate 1000 --origin-ms 1795773000000 --flush-s 315' guasti=none motore=''
+corsa_c4a carico_1min_prima=1.32
+--- carico (c4a)
+LAG t=5.00s accettati=100000 elaborati=100000 ritardo=0 max=0
+LAG t=10.00s accettati=200000 elaborati=198000 ritardo=2000 max=2000
+LAG t=15.01s accettati=300000 elaborati=297000 ritardo=3000 max=3000
+LAG t=20.01s accettati=400000 elaborati=395000 ritardo=5000 max=5000
+LAG t=25.01s accettati=500000 elaborati=498000 ritardo=2000 max=5000
+LAG t=30.01s accettati=600000 elaborati=598000 ritardo=2000 max=5000
+LAG t=35.01s accettati=701000 elaborati=697000 ritardo=4000 max=5000
+LAG t=40.02s accettati=801000 elaborati=800000 ritardo=1000 max=5000
+LAG t=45.02s accettati=901000 elaborati=900000 ritardo=1000 max=5000
+LAG t=50.02s accettati=1001000 elaborati=996000 ritardo=5000 max=5000
+LAG t=55.02s accettati=1101000 elaborati=1097000 ritardo=4000 max=5000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.01 ritmo=19997/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c4a)
+CHECK tenant=acme seed=91 blocchi_accettati=1201 testa_log=1204 senza_risposta=0
+VERDETTO FAIL
+--- log del motore (c4a, righe di riavvio)
+stats_finali_c4a: {"cpu_ns":11330590063,"rss_kb":260472,"pending":60503,"delivered":87615,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":75884,"applied":1403},{"id":"uj3v","state":"running","code":null,"state_bytes":75884,"applied":1403},{"id":"hop","state":"running","code":null,"state_bytes":75754,"applied":1403},{"id":"dist","state":"running","code":null,"state_bytes":75754,"applied":1403},{"id":"ipd","state":"running","code":null,"state_bytes":75754,"applied":1403},{"id":"filter","state":"running","code":null,"state_bytes":75754,"applied":1403}]}
+=== corsa c4b spec=spec-c1.json carico='--seed 91 --events 1200000 --rate 20000 --evrate 1000 --origin-ms 1795773000000 --flush-s 315' guasti=kills5 motore=''
+corsa_c4b carico_1min_prima=1.47
+istanti dei kill (s dall'inizio del carico): 15 21 26 36 39 tipi: S E S S E
+kill -9 stream a t=15s
+kill -9 engine a t=22s
+kill -9 stream a t=26s
+kill -9 stream a t=36s
+kill -9 engine a t=40s
+--- carico (c4b)
+load seed=91 eventi=1200000 blocchi=1201 conn=8 rate=20000 evrate=1000 t0=1795773000000 past_ms=0
+LAG t=5.00s accettati=100000 elaborati=99000 ritardo=1000 max=1000
+LAG t=10.00s accettati=200000 elaborati=195000 ritardo=5000 max=5000
+LAG t=15.01s accettati=300000 elaborati=299000 ritardo=1000 max=5000
+LAG t=20.01s accettati=400000 elaborati=395000 ritardo=5000 max=5000
+LAG t=30.01s accettati=601000 elaborati=600000 ritardo=1000 max=5000
+LAG t=35.01s accettati=701000 elaborati=695000 ritardo=6000 max=6000
+LAG t=45.02s accettati=901000 elaborati=899000 ritardo=2000 max=6000
+LAG t=50.02s accettati=1001000 elaborati=997000 ritardo=4000 max=6000
+LAG t=55.02s accettati=1101000 elaborati=1099000 ritardo=2000 max=6000
+DONE blocchi_accettati=1201 eventi_accettati=1200001 secondi=60.01 ritmo=19996/s riprove=78 senza_risposta=78 rifiutati=0
+--- check (c4b)
+CHECK tenant=acme seed=91 blocchi_accettati=1201 testa_log=1206 senza_risposta=78

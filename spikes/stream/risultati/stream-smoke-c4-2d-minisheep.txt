@@ -1,0 +1,160 @@
+[attesa del cancello] 0 s
+SMOKE c4-2d (non conta per i verdetti) data=2026-11-27T13:33:59Z host=minisheep core=22
+PARAMETRI COMUNI: core=22 core_servizi_e_motore=1-4 core_generatore_e_oracolo=8-11 tetto_attesa_del_check_wait_s=1500 consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=91
+binario sha256=8b60cb605744624afe006c30f214aa23a3a833f96b1a16ca092c0ba8afcaa198 seme=91 id=c4pair
+carico_1min_prima=0.43 pressione_io_prima=0.09 container_in_esecuzione_prima=12
+[stato prima 14:33:59] load: 0.43 0.41 0.37
+[stato prima] io: some avg10=0.09 avg60=0.29 avg300=0.13 total=23955107417
+[stato prima] cpu: some avg10=0.00 avg60=0.00 avg300=0.00 total=2784696713
+[stato prima] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato prima] binario sha256: 8b60cb605744624afe006c30f214aa23a3a833f96b1a16ca092c0ba8afcaa198
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 1.2%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-3 0.04
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27066772 swap_usato_kb=2123936 some avg10=0.00 avg60=0.00 avg300=0.00 total=6975128
+[stato prima] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato prima] orologio UTC: 2026-11-27T13:34:03 kernel: 7.2.4-arch1-2
+origine fissa del tempo dell'evento (ms): 1795784100000; C4 PARAMETRI: eventi=12000000 ritmo=20000/s tempo_dell_evento=20000 eventi/s (al ritmo dell'orologio) finestre_kill=30..570 s
+=== corsa c4a spec=spec-c1.json carico='--seed 91 --events 12000000 --rate 20000 --evrate 20000 --origin-ms 1795784100000 --flush-s 315' guasti=none motore=''
+corsa_c4a carico_1min_prima=0.48
+--- carico (c4a)
+LAG t=545.35s accettati=10907000 elaborati=10903000 ritardo=4000 max=6000
+LAG t=550.35s accettati=11007000 elaborati=11006000 ritardo=1000 max=6000
+LAG t=555.36s accettati=11107000 elaborati=11106000 ritardo=1000 max=6000
+LAG t=560.36s accettati=11207000 elaborati=11207000 ritardo=0 max=6000
+LAG t=565.37s accettati=11307000 elaborati=11305000 ritardo=2000 max=6000
+LAG t=570.37s accettati=11408000 elaborati=11402000 ritardo=6000 max=6000
+LAG t=575.37s accettati=11508000 elaborati=11504000 ritardo=4000 max=6000
+LAG t=580.38s accettati=11608000 elaborati=11607000 ritardo=1000 max=6000
+LAG t=585.38s accettati=11708000 elaborati=11706000 ritardo=2000 max=6000
+LAG t=590.39s accettati=11808000 elaborati=11805000 ritardo=3000 max=6000
+LAG t=595.39s accettati=11908000 elaborati=11905000 ritardo=3000 max=6000
+DONE blocchi_accettati=12001 eventi_accettati=12000001 secondi=600.01 ritmo=20000/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c4a)
+CHECK tenant=acme seed=91 blocchi_accettati=12001 testa_log=12004 senza_risposta=0
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12004
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12018
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12032
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12046
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12059
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12074
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12087
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12101
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12115
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12129
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12143
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12157
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12171
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12184
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12198
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12212
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12225
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12239
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12253
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12266
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12280
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12293
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12307
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12320
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12334
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12347
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12360
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12374
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12387
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12401
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12414
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12427
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12441
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12454
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12467
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12480
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12494
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12507
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12520
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12534
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12547
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12560
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12574
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12586
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12600
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12613
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12626
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12639
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12653
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12666
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12679
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12692
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12706
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12719
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12732
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12745
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12759
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12772
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12785
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12798
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12811
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12825
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12838
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12851
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12864
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12878
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12891
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12904
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12917
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12931
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12944
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12958
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12973
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12988
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13003
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13025
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13041
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13055
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13070
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13084
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13100
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13115
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13129
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13142
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13156
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13169
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13183
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13196
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13210
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13225
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13240
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13255
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13277
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13293
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13308
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13323
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13337
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13353
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13368
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13381
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13394
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13408
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13421
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13434
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13448
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13461
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13474
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13488
+LOG blocchi_distinti=12001 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=13501
+PIPELINE uj3 oracolo=uj3 righe_attese=10000 righe_avvio=10000 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2360841) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795784700000) ultimo_blocco_arrivo_ms=1795787050698 B_meno_E_ms=Some(2350698) ritardo_chiusura_ultima_finestra_ms=Some(2350833) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=10001 righe_avvio=10001 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2360912) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795785300000) ultimo_blocco_arrivo_ms=1795787050698 B_meno_E_ms=Some(1750698) ritardo_chiusura_ultima_finestra_ms=Some(2046704) PASS
+PIPELINE hop oracolo=hop righe_attese=56 righe_avvio=56 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2360922) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795784940000) ultimo_blocco_arrivo_ms=1795787050698 B_meno_E_ms=Some(2110698) ritardo_chiusura_ultima_finestra_ms=Some(2110915) PASS
+PIPELINE dist oracolo=distinct righe_attese=8 righe_avvio=8 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(2360922) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795784700000) ultimo_blocco_arrivo_ms=1795787050698 B_meno_E_ms=Some(2350698) ritardo_chiusura_ultima_finestra_ms=Some(2350915) PASS
+PIPELINE ipd oracolo=ipdistinct righe_attese=1178566 righe_avvio=0 mancanti=1178566 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=0 ultima_finestra_fine_ms=Some(1795784700000) ultimo_blocco_arrivo_ms=1795787050698 B_meno_E_ms=Some(2350698) ritardo_chiusura_ultima_finestra_ms=None FAIL
+  esempio mancante: ipd:1:1795784400000:10.0.0.102
+PIPELINE filter oracolo=filter righe_attese=62937 righe_avvio=62937 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=None finestre_aperte=0 ultima_finestra_fine_ms=None ultimo_blocco_arrivo_ms=0 B_meno_E_ms=None ritardo_chiusura_ultima_finestra_ms=None PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=83002 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+SVUOTAMENTO finito dopo_fine_carico_s=1.0 (pending=0, posizione in testa)
+VERDETTO FAIL
+--- log del motore (c4a, righe di riavvio)
+      1 stream: pipeline ipd sospesa: state_quota_exceeded (N byte oltre N)
+stats_finali_c4a: {"cpu_ns":91580070283,"rss_kb":212680,"pending":0,"delivered":83002,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":768955,"applied":13514},{"id":"uj3v","state":"running","code":null,"state_bytes":768955,"applied":13514},{"id":"hop","state":"running","code":null,"state_bytes":768955,"applied":13514},{"id":"dist","state":"running","code":null,"state_bytes":768955,"applied":13514},{"id":"ipd","state":"suspended","code":"state_quota_exceeded","state_bytes":67112174,"applied":5751},{"id":"filter","state":"running","code":null,"state_bytes":768955,"applied":13514}]}
+=== corsa c4b spec=spec-c1.json carico='--seed 91 --events 12000000 --rate 20000 --evrate 20000 --origin-ms 1795784100000 --flush-s 315' guasti=kills5 motore=''
+corsa_c4b carico_1min_prima=2.18
+istanti dei kill (s dall'inizio del carico): 145 188 227 384 480 tipi: S E S S E

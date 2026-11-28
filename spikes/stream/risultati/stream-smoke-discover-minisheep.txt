@@ -1,0 +1,32 @@
+Scoperta delle syscall del ruolo stream su minisheep (non conta per i verdetti), data=2026-11-27T09:36:26Z kernel=7.2.4-arch1-2 core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 (lo stesso che embedda allow/stream.txt: la lista non cambia il codice, in modalita di scoperta i filtri non si caricano)
+carico scoperta: discover.sh 40 (DataFusion vero, client di Iggy, checkpoint, validazione a secco, nuova versione, sospensione e ripresa, kill -9 del processo per tenant, riavvio di Iggy, kill -9 del motore)
+registro gdb: 588838 righe SYS, sessioni di processo: 3
+--- lista scoperta (numero e nome), 26 syscall
+0 read
+1 write
+3 close
+9 mmap
+10 mprotect
+11 munmap
+12 brk
+24 sched_yield
+25 mremap
+41 socket
+42 connect
+44 sendto
+45 recvfrom
+48 shutdown
+52 getpeername
+54 setsockopt
+55 getsockopt
+74 fsync
+75 fdatasync
+82 rename
+202 futex
+228 clock_gettime
+232 epoll_wait
+233 epoll_ctl
+257 openat
+332 statx
+--- confronto con la lista scoperta sul portatile: identica (diff vuoto)

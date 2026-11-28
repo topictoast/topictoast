@@ -1,0 +1,701 @@
+# cargo tree -i zstd / lz4_flex con le funzioni (2026-11-27). Motivo: arrow-ipc con la funzione lz4 (e quindi zstd) e' attivata senza opzione da datafusion-common, datafusion-datasource-arrow e datafusion-physical-plan (dipendenza non facoltativa); nessuna riga di funzioni dello spike la toglie. Restano nel binario, inutilizzati (nessun formato di file e nessun versamento su disco sono attivi). Rimozione possibile solo con un [patch] dei tre crate di DataFusion: fuori portata dello spike, da scrivere nell'ADR.
+
+$ cargo tree -i zstd -e features
+zstd v0.13.4
+└── arrow-ipc v59.3.2
+    ├── arrow-ipc feature "default"
+    │   └── arrow v59.3.2
+    │       ├── arrow feature "arrow-csv"
+    │       │   └── arrow feature "csv"
+    │       │       └── arrow feature "default"
+    │       │           ├── datafusion v55.2.0
+    │       │           │   ├── datafusion feature "datafusion-sql"
+    │       │           │   │   └── datafusion feature "sql"
+    │       │           │   │       └── streamspike v0.0.0 (/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-adb151e1fc5eaf9a3/spikes/stream)
+    │       │           │   │           └── streamspike feature "default" (command-line)
+    │       │           │   ├── datafusion feature "datetime_expressions"
+    │       │           │   │   └── streamspike v0.0.0 (/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-adb151e1fc5eaf9a3/spikes/stream) (*)
+    │       │           │   ├── datafusion feature "recursive_protection"
+    │       │           │   │   └── streamspike v0.0.0 (/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-adb151e1fc5eaf9a3/spikes/stream) (*)
+    │       │           │   ├── datafusion feature "sql" (*)
+    │       │           │   ├── datafusion feature "sqlparser"
+    │       │           │   │   └── datafusion feature "sql" (*)
+    │       │           │   ├── datafusion feature "string_expressions"
+    │       │           │   │   └── streamspike v0.0.0 (/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-adb151e1fc5eaf9a3/spikes/stream) (*)
+    │       │           │   └── datafusion feature "unicode_expressions"
+    │       │           │       └── streamspike v0.0.0 (/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-adb151e1fc5eaf9a3/spikes/stream) (*)
+    │       │           ├── datafusion-catalog v55.2.0
+    │       │           │   └── datafusion-catalog feature "default"
+    │       │           │       ├── datafusion v55.2.0 (*)
+    │       │           │       ├── datafusion-catalog-listing v55.2.0
+    │       │           │       │   └── datafusion-catalog-listing feature "default"
+    │       │           │       │       └── datafusion v55.2.0 (*)
+    │       │           │       └── datafusion-functions-table v55.2.0
+    │       │           │           └── datafusion-functions-table feature "default"
+    │       │           │               └── datafusion v55.2.0 (*)
+    │       │           ├── datafusion-catalog-listing v55.2.0 (*)
+    │       │           ├── datafusion-common v55.2.0
+    │       │           │   ├── datafusion-catalog v55.2.0 (*)
+    │       │           │   ├── datafusion-execution v55.2.0
+    │       │           │   │   ├── datafusion v55.2.0 (*)
+    │       │           │   │   ├── datafusion-catalog v55.2.0 (*)
+    │       │           │   │   ├── datafusion-catalog-listing v55.2.0 (*)
+    │       │           │   │   ├── datafusion-datasource v55.2.0
+    │       │           │   │   │   ├── datafusion v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-catalog v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-catalog-listing v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-datasource-arrow v55.2.0
+    │       │           │   │   │   │   └── datafusion v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-datasource-csv v55.2.0
+    │       │           │   │   │   │   └── datafusion v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-datasource-json v55.2.0
+    │       │           │   │   │   │   └── datafusion v55.2.0 (*)
+    │       │           │   │   │   └── datafusion-pruning v55.2.0
+    │       │           │   │   │       └── datafusion-pruning feature "default"
+    │       │           │   │   │           └── datafusion-physical-optimizer v55.2.0
+    │       │           │   │   │               ├── datafusion-physical-optimizer feature "default"
+    │       │           │   │   │               │   └── datafusion v55.2.0 (*)
+    │       │           │   │   │               └── datafusion-physical-optimizer feature "recursive_protection"
+    │       │           │   │   │                   └── datafusion feature "recursive_protection" (*)
+    │       │           │   │   ├── datafusion-datasource-arrow v55.2.0 (*)
+    │       │           │   │   ├── datafusion-datasource-csv v55.2.0 (*)
+    │       │           │   │   ├── datafusion-datasource-json v55.2.0 (*)
+    │       │           │   │   ├── datafusion-functions v55.2.0
+    │       │           │   │   │   ├── datafusion-functions feature "base64"
+    │       │           │   │   │   │   └── datafusion-functions feature "encoding_expressions"
+    │       │           │   │   │   │       └── datafusion-functions feature "default"
+    │       │           │   │   │   │           ├── datafusion v55.2.0 (*)
+    │       │           │   │   │   │           ├── datafusion-functions-nested v55.2.0
+    │       │           │   │   │   │           │   └── datafusion-functions-nested feature "sql"
+    │       │           │   │   │   │           │       └── datafusion-sql v55.2.0
+    │       │           │   │   │   │           │           ├── datafusion-sql feature "default"
+    │       │           │   │   │   │           │           │   └── datafusion v55.2.0 (*)
+    │       │           │   │   │   │           │           ├── datafusion-sql feature "recursive_protection"
+    │       │           │   │   │   │           │           │   └── datafusion feature "recursive_protection" (*)
+    │       │           │   │   │   │           │           ├── datafusion-sql feature "unicode_expressions"
+    │       │           │   │   │   │           │           │   ├── datafusion feature "unicode_expressions" (*)
+    │       │           │   │   │   │           │           │   └── datafusion-sql feature "default" (*)
+    │       │           │   │   │   │           │           └── datafusion-sql feature "unparser"
+    │       │           │   │   │   │           │               └── datafusion-sql feature "default" (*)
+    │       │           │   │   │   │           ├── datafusion-physical-expr-adapter v55.2.0
+    │       │           │   │   │   │           │   ├── datafusion v55.2.0 (*)
+    │       │           │   │   │   │           │   ├── datafusion-catalog-listing v55.2.0 (*)
+    │       │           │   │   │   │           │   └── datafusion-datasource v55.2.0 (*)
+    │       │           │   │   │   │           └── datafusion-physical-plan v55.2.0
+    │       │           │   │   │   │               └── datafusion-physical-plan feature "default"
+    │       │           │   │   │   │                   ├── datafusion v55.2.0 (*)
+    │       │           │   │   │   │                   ├── datafusion-catalog v55.2.0 (*)
+    │       │           │   │   │   │                   ├── datafusion-catalog-listing v55.2.0 (*)
+    │       │           │   │   │   │                   ├── datafusion-datasource v55.2.0 (*)
+    │       │           │   │   │   │                   ├── datafusion-datasource-arrow v55.2.0 (*)
+    │       │           │   │   │   │                   ├── datafusion-datasource-csv v55.2.0 (*)
+    │       │           │   │   │   │                   ├── datafusion-datasource-json v55.2.0 (*)
+    │       │           │   │   │   │                   ├── datafusion-functions-table v55.2.0 (*)
+    │       │           │   │   │   │                   ├── datafusion-physical-optimizer v55.2.0 (*)
+    │       │           │   │   │   │                   ├── datafusion-pruning v55.2.0 (*)
+    │       │           │   │   │   │                   └── datafusion-session v55.2.0
+    │       │           │   │   │   │                       └── datafusion-session feature "default"
+    │       │           │   │   │   │                           ├── datafusion v55.2.0 (*)
+    │       │           │   │   │   │                           ├── datafusion-catalog v55.2.0 (*)
+    │       │           │   │   │   │                           ├── datafusion-datasource v55.2.0 (*)
+    │       │           │   │   │   │                           ├── datafusion-datasource-arrow v55.2.0 (*)
+    │       │           │   │   │   │                           ├── datafusion-datasource-csv v55.2.0 (*)
+    │       │           │   │   │   │                           ├── datafusion-datasource-json v55.2.0 (*)
+    │       │           │   │   │   │                           └── datafusion-physical-optimizer v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-functions feature "chrono-tz"
+    │       │           │   │   │   │   └── datafusion-functions feature "datetime_expressions"
+    │       │           │   │   │   │       ├── datafusion feature "datetime_expressions" (*)
+    │       │           │   │   │   │       └── datafusion-functions feature "default" (*)
+    │       │           │   │   │   ├── datafusion-functions feature "datetime_expressions" (*)
+    │       │           │   │   │   ├── datafusion-functions feature "default" (*)
+    │       │           │   │   │   ├── datafusion-functions feature "encoding_expressions" (*)
+    │       │           │   │   │   ├── datafusion-functions feature "hex"
+    │       │           │   │   │   │   └── datafusion-functions feature "encoding_expressions" (*)
+    │       │           │   │   │   ├── datafusion-functions feature "math_expressions"
+    │       │           │   │   │   │   └── datafusion-functions feature "default" (*)
+    │       │           │   │   │   ├── datafusion-functions feature "regex"
+    │       │           │   │   │   │   └── datafusion-functions feature "regex_expressions"
+    │       │           │   │   │   │       └── datafusion-functions feature "default" (*)
+    │       │           │   │   │   ├── datafusion-functions feature "regex_expressions" (*)
+    │       │           │   │   │   ├── datafusion-functions feature "string_expressions"
+    │       │           │   │   │   │   ├── datafusion feature "string_expressions" (*)
+    │       │           │   │   │   │   └── datafusion-functions feature "default" (*)
+    │       │           │   │   │   ├── datafusion-functions feature "unicode_expressions"
+    │       │           │   │   │   │   ├── datafusion feature "unicode_expressions" (*)
+    │       │           │   │   │   │   └── datafusion-functions feature "default" (*)
+    │       │           │   │   │   └── datafusion-functions feature "uuid"
+    │       │           │   │   │       └── datafusion-functions feature "string_expressions" (*)
+    │       │           │   │   ├── datafusion-functions-aggregate v55.2.0
+    │       │           │   │   │   └── datafusion-functions-aggregate feature "default"
+    │       │           │   │   │       ├── datafusion v55.2.0 (*)
+    │       │           │   │   │       └── datafusion-functions-nested v55.2.0 (*)
+    │       │           │   │   ├── datafusion-functions-nested v55.2.0 (*)
+    │       │           │   │   ├── datafusion-physical-optimizer v55.2.0 (*)
+    │       │           │   │   ├── datafusion-physical-plan v55.2.0 (*)
+    │       │           │   │   └── datafusion-session v55.2.0 (*)
+    │       │           │   ├── datafusion-expr v55.2.0
+    │       │           │   │   ├── datafusion v55.2.0 (*)
+    │       │           │   │   ├── datafusion-catalog v55.2.0 (*)
+    │       │           │   │   ├── datafusion-catalog-listing v55.2.0 (*)
+    │       │           │   │   ├── datafusion-datasource v55.2.0 (*)
+    │       │           │   │   ├── datafusion-datasource-arrow v55.2.0 (*)
+    │       │           │   │   ├── datafusion-datasource-csv v55.2.0 (*)
+    │       │           │   │   ├── datafusion-datasource-json v55.2.0 (*)
+    │       │           │   │   ├── datafusion-execution v55.2.0 (*)
+    │       │           │   │   ├── datafusion-functions v55.2.0 (*)
+    │       │           │   │   ├── datafusion-functions-aggregate v55.2.0 (*)
+    │       │           │   │   ├── datafusion-functions-nested v55.2.0 (*)
+    │       │           │   │   ├── datafusion-functions-table v55.2.0 (*)
+    │       │           │   │   ├── datafusion-functions-window v55.2.0
+    │       │           │   │   │   └── datafusion-functions-window feature "default"
+    │       │           │   │   │       └── datafusion v55.2.0 (*)
+    │       │           │   │   ├── datafusion-optimizer v55.2.0
+    │       │           │   │   │   └── datafusion v55.2.0 (*)
+    │       │           │   │   │   └── datafusion-optimizer feature "recursive_protection"
+    │       │           │   │   │       └── datafusion feature "recursive_protection" (*)
+    │       │           │   │   ├── datafusion-physical-expr v55.2.0
+    │       │           │   │   │   ├── datafusion v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-catalog v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-catalog-listing v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-datasource v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-functions-aggregate v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-functions-table v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-functions-window v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-optimizer v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-physical-expr-adapter v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-physical-optimizer v55.2.0 (*)
+    │       │           │   │   │   └── datafusion-pruning v55.2.0 (*)
+    │       │           │   │   │   ├── datafusion-physical-expr feature "default"
+    │       │           │   │   │   │   └── datafusion-physical-plan v55.2.0 (*)
+    │       │           │   │   │   └── datafusion-physical-expr feature "recursive_protection"
+    │       │           │   │   │       └── datafusion feature "recursive_protection" (*)
+    │       │           │   │   ├── datafusion-physical-expr-adapter v55.2.0 (*)
+    │       │           │   │   ├── datafusion-physical-optimizer v55.2.0 (*)
+    │       │           │   │   ├── datafusion-physical-plan v55.2.0 (*)
+    │       │           │   │   └── datafusion-session v55.2.0 (*)
+    │       │           │   │   ├── datafusion-expr feature "recursive_protection"
+    │       │           │   │   │   └── datafusion feature "recursive_protection" (*)
+    │       │           │   │   ├── datafusion-expr feature "sql"
+    │       │           │   │   │   └── datafusion-sql v55.2.0 (*)
+    │       │           │   │   │   └── datafusion-functions-nested feature "sql" (*)
+    │       │           │   │   └── datafusion-expr feature "sqlparser"
+    │       │           │   │       └── datafusion-expr feature "sql" (*)
+    │       │           │   ├── datafusion-expr-common v55.2.0
+    │       │           │   │   └── datafusion-expr-common feature "default"
+    │       │           │   │       ├── datafusion v55.2.0 (*)
+    │       │           │   │       ├── datafusion-expr v55.2.0 (*)
+    │       │           │   │       ├── datafusion-functions v55.2.0 (*)
+    │       │           │   │       ├── datafusion-functions-aggregate-common v55.2.0
+    │       │           │   │       │   └── datafusion-functions-aggregate-common feature "default"
+    │       │           │   │       │       ├── datafusion-expr v55.2.0 (*)
+    │       │           │   │       │       ├── datafusion-functions-aggregate v55.2.0 (*)
+    │       │           │   │       │       ├── datafusion-functions-nested v55.2.0 (*)
+    │       │           │   │       │       ├── datafusion-physical-expr v55.2.0 (*)
+    │       │           │   │       │       └── datafusion-physical-plan v55.2.0 (*)
+    │       │           │   │       ├── datafusion-functions-nested v55.2.0 (*)
+    │       │           │   │       ├── datafusion-optimizer v55.2.0 (*)
+    │       │           │   │       ├── datafusion-physical-expr v55.2.0 (*)
+    │       │           │   │       ├── datafusion-physical-expr-common v55.2.0
+    │       │           │   │       │   ├── datafusion v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-catalog-listing v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-datasource v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-datasource-arrow v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-datasource-csv v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-datasource-json v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-execution v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-expr v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-functions v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-functions-aggregate v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-functions-aggregate-common v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-functions-nested v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-functions-window v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-functions-window-common v55.2.0
+    │       │           │   │       │   │   └── datafusion-functions-window-common feature "default"
+    │       │           │   │       │   │       ├── datafusion-expr v55.2.0 (*)
+    │       │           │   │       │   │       ├── datafusion-functions-window v55.2.0 (*)
+    │       │           │   │       │   │       └── datafusion-physical-plan v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-physical-expr v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-physical-expr-adapter v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-physical-optimizer v55.2.0 (*)
+    │       │           │   │       │   ├── datafusion-physical-plan v55.2.0 (*)
+    │       │           │   │       │   └── datafusion-pruning v55.2.0 (*)
+    │       │           │   │       ├── datafusion-physical-optimizer v55.2.0 (*)
+    │       │           │   │       └── datafusion-pruning v55.2.0 (*)
+    │       │           │   ├── datafusion-functions v55.2.0 (*)
+    │       │           │   ├── datafusion-functions-aggregate v55.2.0 (*)
+    │       │           │   ├── datafusion-functions-aggregate-common v55.2.0 (*)
+    │       │           │   ├── datafusion-functions-nested v55.2.0 (*)
+    │       │           │   ├── datafusion-functions-table v55.2.0 (*)
+    │       │           │   ├── datafusion-functions-window v55.2.0 (*)
+    │       │           │   ├── datafusion-functions-window-common v55.2.0 (*)
+    │       │           │   ├── datafusion-physical-expr v55.2.0 (*)
+    │       │           │   ├── datafusion-physical-expr-adapter v55.2.0 (*)
+    │       │           │   ├── datafusion-physical-expr-common v55.2.0 (*)
+    │       │           │   ├── datafusion-physical-optimizer v55.2.0 (*)
+    │       │           │   ├── datafusion-physical-plan v55.2.0 (*)
+    │       │           │   └── datafusion-session v55.2.0 (*)
+    │       │           │   ├── datafusion-common feature "default"
+    │       │           │   │   ├── datafusion-optimizer v55.2.0 (*)
+    │       │           │   │   └── datafusion-pruning v55.2.0 (*)
+    │       │           │   ├── datafusion-common feature "object_store"
+    │       │           │   │   ├── datafusion v55.2.0 (*)
+    │       │           │   │   ├── datafusion-catalog-listing v55.2.0 (*)
+    │       │           │   │   ├── datafusion-datasource v55.2.0 (*)
+    │       │           │   │   ├── datafusion-datasource-arrow v55.2.0 (*)
+    │       │           │   │   ├── datafusion-datasource-csv v55.2.0 (*)
+    │       │           │   │   └── datafusion-datasource-json v55.2.0 (*)
+    │       │           │   ├── datafusion-common feature "recursive_protection"
+    │       │           │   │   └── datafusion feature "recursive_protection" (*)
+    │       │           │   ├── datafusion-common feature "sql"
+    │       │           │   │   └── datafusion-sql v55.2.0 (*)
+    │       │           │   │   └── datafusion feature "sql" (*)
+    │       │           │   └── datafusion-common feature "sqlparser"
+    │       │           │       └── datafusion-common feature "sql" (*)
+    │       │           ├── datafusion-datasource v55.2.0 (*)
+    │       │           ├── datafusion-datasource-arrow v55.2.0 (*)
+    │       │           ├── datafusion-datasource-csv v55.2.0 (*)
+    │       │           ├── datafusion-datasource-json v55.2.0 (*)
+    │       │           ├── datafusion-execution v55.2.0 (*)
+    │       │           ├── datafusion-expr v55.2.0 (*)
+    │       │           ├── datafusion-expr-common v55.2.0 (*)
+    │       │           ├── datafusion-functions v55.2.0 (*)
+    │       │           ├── datafusion-functions-aggregate v55.2.0 (*)
+    │       │           ├── datafusion-functions-aggregate-common v55.2.0 (*)
+    │       │           ├── datafusion-functions-nested v55.2.0 (*)
+    │       │           ├── datafusion-functions-table v55.2.0 (*)
+    │       │           ├── datafusion-functions-window v55.2.0 (*)
+    │       │           ├── datafusion-optimizer v55.2.0 (*)
+    │       │           ├── datafusion-physical-expr v55.2.0 (*)
+    │       │           ├── datafusion-physical-expr-adapter v55.2.0 (*)
+    │       │           ├── datafusion-physical-expr-common v55.2.0 (*)
+    │       │           ├── datafusion-physical-optimizer v55.2.0 (*)
+    │       │           ├── datafusion-physical-plan v55.2.0 (*)
+    │       │           ├── datafusion-pruning v55.2.0 (*)
+    │       │           └── datafusion-sql v55.2.0 (*)
+    │       ├── arrow feature "arrow-ipc"
+    │       │   └── arrow feature "ipc"
+    │       │       └── arrow feature "default" (*)
+    │       ├── arrow feature "arrow-json"
+    │       │   └── arrow feature "json"
+    │       │       └── arrow feature "default" (*)
+    │       ├── arrow feature "canonical_extension_types"
+    │       │   └── datafusion-expr v55.2.0 (*)
+    │       ├── arrow feature "chrono-tz"
+    │       │   ├── datafusion v55.2.0 (*)
+    │       │   ├── datafusion-catalog v55.2.0 (*)
+    │       │   ├── datafusion-catalog-listing v55.2.0 (*)
+    │       │   ├── datafusion-common v55.2.0 (*)
+    │       │   ├── datafusion-datasource v55.2.0 (*)
+    │       │   ├── datafusion-datasource-arrow v55.2.0 (*)
+    │       │   ├── datafusion-datasource-csv v55.2.0 (*)
+    │       │   ├── datafusion-datasource-json v55.2.0 (*)
+    │       │   ├── datafusion-execution v55.2.0 (*)
+    │       │   ├── datafusion-expr v55.2.0 (*)
+    │       │   ├── datafusion-expr-common v55.2.0 (*)
+    │       │   ├── datafusion-functions v55.2.0 (*)
+    │       │   ├── datafusion-functions-aggregate v55.2.0 (*)
+    │       │   ├── datafusion-functions-aggregate-common v55.2.0 (*)
+    │       │   ├── datafusion-functions-nested v55.2.0 (*)
+    │       │   ├── datafusion-functions-table v55.2.0 (*)
+    │       │   ├── datafusion-functions-window v55.2.0 (*)
+    │       │   ├── datafusion-optimizer v55.2.0 (*)
+    │       │   ├── datafusion-physical-expr v55.2.0 (*)
+    │       │   ├── datafusion-physical-expr-adapter v55.2.0 (*)
+    │       │   ├── datafusion-physical-expr-common v55.2.0 (*)
+    │       │   ├── datafusion-physical-optimizer v55.2.0 (*)
+    │       │   ├── datafusion-physical-plan v55.2.0 (*)
+    │       │   ├── datafusion-pruning v55.2.0 (*)
+    │       │   └── datafusion-sql v55.2.0 (*)
+    │       ├── arrow feature "csv" (*)
+    │       ├── arrow feature "default" (*)
+    │       ├── arrow feature "ipc" (*)
+    │       ├── arrow feature "json" (*)
+    │       └── arrow feature "prettyprint"
+    │           ├── datafusion v55.2.0 (*)
+    │           ├── datafusion-catalog v55.2.0 (*)
+    │           ├── datafusion-catalog-listing v55.2.0 (*)
+    │           ├── datafusion-common v55.2.0 (*)
+    │           ├── datafusion-datasource v55.2.0 (*)
+    │           ├── datafusion-datasource-arrow v55.2.0 (*)
+    │           ├── datafusion-datasource-csv v55.2.0 (*)
+    │           ├── datafusion-datasource-json v55.2.0 (*)
+    │           ├── datafusion-execution v55.2.0 (*)
+    │           ├── datafusion-expr v55.2.0 (*)
+    │           ├── datafusion-expr-common v55.2.0 (*)
+    │           ├── datafusion-functions v55.2.0 (*)
+    │           ├── datafusion-functions-aggregate v55.2.0 (*)
+    │           ├── datafusion-functions-aggregate-common v55.2.0 (*)
+    │           ├── datafusion-functions-nested v55.2.0 (*)
+    │           ├── datafusion-functions-table v55.2.0 (*)
+    │           ├── datafusion-functions-window v55.2.0 (*)
+    │           ├── datafusion-optimizer v55.2.0 (*)
+    │           ├── datafusion-physical-expr v55.2.0 (*)
+    │           ├── datafusion-physical-expr-adapter v55.2.0 (*)
+    │           ├── datafusion-physical-expr-common v55.2.0 (*)
+    │           ├── datafusion-physical-optimizer v55.2.0 (*)
+    │           ├── datafusion-physical-plan v55.2.0 (*)
+    │           ├── datafusion-pruning v55.2.0 (*)
+    │           └── datafusion-sql v55.2.0 (*)
+    ├── arrow-ipc feature "lz4"
+    │   ├── datafusion-common v55.2.0 (*)
+    │   ├── datafusion-datasource-arrow v55.2.0 (*)
+    │   └── datafusion-physical-plan v55.2.0 (*)
+    ├── arrow-ipc feature "lz4_flex"
+    │   └── arrow-ipc feature "lz4" (*)
+    └── arrow-ipc feature "zstd"
+        ├── datafusion-common v55.2.0 (*)
+        ├── datafusion-datasource-arrow v55.2.0 (*)
+        └── datafusion-physical-plan v55.2.0 (*)
+
+$ cargo tree -i lz4_flex -e features
+lz4_flex v0.14.0
+├── lz4_flex feature "alloc"
+│   └── lz4_flex feature "std"
+│       └── arrow-ipc v59.3.2
+│           ├── arrow-ipc feature "default"
+│           │   └── arrow v59.3.2
+│           │       ├── arrow feature "arrow-csv"
+│           │       │   └── arrow feature "csv"
+│           │       │       └── arrow feature "default"
+│           │       │           ├── datafusion v55.2.0
+│           │       │           │   ├── datafusion feature "datafusion-sql"
+│           │       │           │   │   └── datafusion feature "sql"
+│           │       │           │   │       └── streamspike v0.0.0 (/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-adb151e1fc5eaf9a3/spikes/stream)
+│           │       │           │   │           └── streamspike feature "default" (command-line)
+│           │       │           │   ├── datafusion feature "datetime_expressions"
+│           │       │           │   │   └── streamspike v0.0.0 (/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-adb151e1fc5eaf9a3/spikes/stream) (*)
+│           │       │           │   ├── datafusion feature "recursive_protection"
+│           │       │           │   │   └── streamspike v0.0.0 (/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-adb151e1fc5eaf9a3/spikes/stream) (*)
+│           │       │           │   ├── datafusion feature "sql" (*)
+│           │       │           │   ├── datafusion feature "sqlparser"
+│           │       │           │   │   └── datafusion feature "sql" (*)
+│           │       │           │   ├── datafusion feature "string_expressions"
+│           │       │           │   │   └── streamspike v0.0.0 (/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-adb151e1fc5eaf9a3/spikes/stream) (*)
+│           │       │           │   └── datafusion feature "unicode_expressions"
+│           │       │           │       └── streamspike v0.0.0 (/home/white_sheep/Progetti/topictoast/topictoast/.claude/worktrees/agent-adb151e1fc5eaf9a3/spikes/stream) (*)
+│           │       │           ├── datafusion-catalog v55.2.0
+│           │       │           │   └── datafusion-catalog feature "default"
+│           │       │           │       ├── datafusion v55.2.0 (*)
+│           │       │           │       ├── datafusion-catalog-listing v55.2.0
+│           │       │           │       │   └── datafusion-catalog-listing feature "default"
+│           │       │           │       │       └── datafusion v55.2.0 (*)
+│           │       │           │       └── datafusion-functions-table v55.2.0
+│           │       │           │           └── datafusion-functions-table feature "default"
+│           │       │           │               └── datafusion v55.2.0 (*)
+│           │       │           ├── datafusion-catalog-listing v55.2.0 (*)
+│           │       │           ├── datafusion-common v55.2.0
+│           │       │           │   ├── datafusion-catalog v55.2.0 (*)
+│           │       │           │   ├── datafusion-execution v55.2.0
+│           │       │           │   │   ├── datafusion v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-catalog v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-catalog-listing v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-datasource v55.2.0
+│           │       │           │   │   │   ├── datafusion v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-catalog v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-catalog-listing v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-datasource-arrow v55.2.0
+│           │       │           │   │   │   │   └── datafusion v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-datasource-csv v55.2.0
+│           │       │           │   │   │   │   └── datafusion v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-datasource-json v55.2.0
+│           │       │           │   │   │   │   └── datafusion v55.2.0 (*)
+│           │       │           │   │   │   └── datafusion-pruning v55.2.0
+│           │       │           │   │   │       └── datafusion-pruning feature "default"
+│           │       │           │   │   │           └── datafusion-physical-optimizer v55.2.0
+│           │       │           │   │   │               ├── datafusion-physical-optimizer feature "default"
+│           │       │           │   │   │               │   └── datafusion v55.2.0 (*)
+│           │       │           │   │   │               └── datafusion-physical-optimizer feature "recursive_protection"
+│           │       │           │   │   │                   └── datafusion feature "recursive_protection" (*)
+│           │       │           │   │   ├── datafusion-datasource-arrow v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-datasource-csv v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-datasource-json v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-functions v55.2.0
+│           │       │           │   │   │   ├── datafusion-functions feature "base64"
+│           │       │           │   │   │   │   └── datafusion-functions feature "encoding_expressions"
+│           │       │           │   │   │   │       └── datafusion-functions feature "default"
+│           │       │           │   │   │   │           ├── datafusion v55.2.0 (*)
+│           │       │           │   │   │   │           ├── datafusion-functions-nested v55.2.0
+│           │       │           │   │   │   │           │   └── datafusion-functions-nested feature "sql"
+│           │       │           │   │   │   │           │       └── datafusion-sql v55.2.0
+│           │       │           │   │   │   │           │           ├── datafusion-sql feature "default"
+│           │       │           │   │   │   │           │           │   └── datafusion v55.2.0 (*)
+│           │       │           │   │   │   │           │           ├── datafusion-sql feature "recursive_protection"
+│           │       │           │   │   │   │           │           │   └── datafusion feature "recursive_protection" (*)
+│           │       │           │   │   │   │           │           ├── datafusion-sql feature "unicode_expressions"
+│           │       │           │   │   │   │           │           │   ├── datafusion feature "unicode_expressions" (*)
+│           │       │           │   │   │   │           │           │   └── datafusion-sql feature "default" (*)
+│           │       │           │   │   │   │           │           └── datafusion-sql feature "unparser"
+│           │       │           │   │   │   │           │               └── datafusion-sql feature "default" (*)
+│           │       │           │   │   │   │           ├── datafusion-physical-expr-adapter v55.2.0
+│           │       │           │   │   │   │           │   ├── datafusion v55.2.0 (*)
+│           │       │           │   │   │   │           │   ├── datafusion-catalog-listing v55.2.0 (*)
+│           │       │           │   │   │   │           │   └── datafusion-datasource v55.2.0 (*)
+│           │       │           │   │   │   │           └── datafusion-physical-plan v55.2.0
+│           │       │           │   │   │   │               └── datafusion-physical-plan feature "default"
+│           │       │           │   │   │   │                   ├── datafusion v55.2.0 (*)
+│           │       │           │   │   │   │                   ├── datafusion-catalog v55.2.0 (*)
+│           │       │           │   │   │   │                   ├── datafusion-catalog-listing v55.2.0 (*)
+│           │       │           │   │   │   │                   ├── datafusion-datasource v55.2.0 (*)
+│           │       │           │   │   │   │                   ├── datafusion-datasource-arrow v55.2.0 (*)
+│           │       │           │   │   │   │                   ├── datafusion-datasource-csv v55.2.0 (*)
+│           │       │           │   │   │   │                   ├── datafusion-datasource-json v55.2.0 (*)
+│           │       │           │   │   │   │                   ├── datafusion-functions-table v55.2.0 (*)
+│           │       │           │   │   │   │                   ├── datafusion-physical-optimizer v55.2.0 (*)
+│           │       │           │   │   │   │                   ├── datafusion-pruning v55.2.0 (*)
+│           │       │           │   │   │   │                   └── datafusion-session v55.2.0
+│           │       │           │   │   │   │                       └── datafusion-session feature "default"
+│           │       │           │   │   │   │                           ├── datafusion v55.2.0 (*)
+│           │       │           │   │   │   │                           ├── datafusion-catalog v55.2.0 (*)
+│           │       │           │   │   │   │                           ├── datafusion-datasource v55.2.0 (*)
+│           │       │           │   │   │   │                           ├── datafusion-datasource-arrow v55.2.0 (*)
+│           │       │           │   │   │   │                           ├── datafusion-datasource-csv v55.2.0 (*)
+│           │       │           │   │   │   │                           ├── datafusion-datasource-json v55.2.0 (*)
+│           │       │           │   │   │   │                           └── datafusion-physical-optimizer v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-functions feature "chrono-tz"
+│           │       │           │   │   │   │   └── datafusion-functions feature "datetime_expressions"
+│           │       │           │   │   │   │       ├── datafusion feature "datetime_expressions" (*)
+│           │       │           │   │   │   │       └── datafusion-functions feature "default" (*)
+│           │       │           │   │   │   ├── datafusion-functions feature "datetime_expressions" (*)
+│           │       │           │   │   │   ├── datafusion-functions feature "default" (*)
+│           │       │           │   │   │   ├── datafusion-functions feature "encoding_expressions" (*)
+│           │       │           │   │   │   ├── datafusion-functions feature "hex"
+│           │       │           │   │   │   │   └── datafusion-functions feature "encoding_expressions" (*)
+│           │       │           │   │   │   ├── datafusion-functions feature "math_expressions"
+│           │       │           │   │   │   │   └── datafusion-functions feature "default" (*)
+│           │       │           │   │   │   ├── datafusion-functions feature "regex"
+│           │       │           │   │   │   │   └── datafusion-functions feature "regex_expressions"
+│           │       │           │   │   │   │       └── datafusion-functions feature "default" (*)
+│           │       │           │   │   │   ├── datafusion-functions feature "regex_expressions" (*)
+│           │       │           │   │   │   ├── datafusion-functions feature "string_expressions"
+│           │       │           │   │   │   │   ├── datafusion feature "string_expressions" (*)
+│           │       │           │   │   │   │   └── datafusion-functions feature "default" (*)
+│           │       │           │   │   │   ├── datafusion-functions feature "unicode_expressions"
+│           │       │           │   │   │   │   ├── datafusion feature "unicode_expressions" (*)
+│           │       │           │   │   │   │   └── datafusion-functions feature "default" (*)
+│           │       │           │   │   │   └── datafusion-functions feature "uuid"
+│           │       │           │   │   │       └── datafusion-functions feature "string_expressions" (*)
+│           │       │           │   │   ├── datafusion-functions-aggregate v55.2.0
+│           │       │           │   │   │   └── datafusion-functions-aggregate feature "default"
+│           │       │           │   │   │       ├── datafusion v55.2.0 (*)
+│           │       │           │   │   │       └── datafusion-functions-nested v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-functions-nested v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-physical-optimizer v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-physical-plan v55.2.0 (*)
+│           │       │           │   │   └── datafusion-session v55.2.0 (*)
+│           │       │           │   ├── datafusion-expr v55.2.0
+│           │       │           │   │   ├── datafusion v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-catalog v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-catalog-listing v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-datasource v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-datasource-arrow v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-datasource-csv v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-datasource-json v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-execution v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-functions v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-functions-aggregate v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-functions-nested v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-functions-table v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-functions-window v55.2.0
+│           │       │           │   │   │   └── datafusion-functions-window feature "default"
+│           │       │           │   │   │       └── datafusion v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-optimizer v55.2.0
+│           │       │           │   │   │   └── datafusion v55.2.0 (*)
+│           │       │           │   │   │   └── datafusion-optimizer feature "recursive_protection"
+│           │       │           │   │   │       └── datafusion feature "recursive_protection" (*)
+│           │       │           │   │   ├── datafusion-physical-expr v55.2.0
+│           │       │           │   │   │   ├── datafusion v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-catalog v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-catalog-listing v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-datasource v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-functions-aggregate v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-functions-table v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-functions-window v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-optimizer v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-physical-expr-adapter v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-physical-optimizer v55.2.0 (*)
+│           │       │           │   │   │   └── datafusion-pruning v55.2.0 (*)
+│           │       │           │   │   │   ├── datafusion-physical-expr feature "default"
+│           │       │           │   │   │   │   └── datafusion-physical-plan v55.2.0 (*)
+│           │       │           │   │   │   └── datafusion-physical-expr feature "recursive_protection"
+│           │       │           │   │   │       └── datafusion feature "recursive_protection" (*)
+│           │       │           │   │   ├── datafusion-physical-expr-adapter v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-physical-optimizer v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-physical-plan v55.2.0 (*)
+│           │       │           │   │   └── datafusion-session v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-expr feature "recursive_protection"
+│           │       │           │   │   │   └── datafusion feature "recursive_protection" (*)
+│           │       │           │   │   ├── datafusion-expr feature "sql"
+│           │       │           │   │   │   └── datafusion-sql v55.2.0 (*)
+│           │       │           │   │   │   └── datafusion-functions-nested feature "sql" (*)
+│           │       │           │   │   └── datafusion-expr feature "sqlparser"
+│           │       │           │   │       └── datafusion-expr feature "sql" (*)
+│           │       │           │   ├── datafusion-expr-common v55.2.0
+│           │       │           │   │   └── datafusion-expr-common feature "default"
+│           │       │           │   │       ├── datafusion v55.2.0 (*)
+│           │       │           │   │       ├── datafusion-expr v55.2.0 (*)
+│           │       │           │   │       ├── datafusion-functions v55.2.0 (*)
+│           │       │           │   │       ├── datafusion-functions-aggregate-common v55.2.0
+│           │       │           │   │       │   └── datafusion-functions-aggregate-common feature "default"
+│           │       │           │   │       │       ├── datafusion-expr v55.2.0 (*)
+│           │       │           │   │       │       ├── datafusion-functions-aggregate v55.2.0 (*)
+│           │       │           │   │       │       ├── datafusion-functions-nested v55.2.0 (*)
+│           │       │           │   │       │       ├── datafusion-physical-expr v55.2.0 (*)
+│           │       │           │   │       │       └── datafusion-physical-plan v55.2.0 (*)
+│           │       │           │   │       ├── datafusion-functions-nested v55.2.0 (*)
+│           │       │           │   │       ├── datafusion-optimizer v55.2.0 (*)
+│           │       │           │   │       ├── datafusion-physical-expr v55.2.0 (*)
+│           │       │           │   │       ├── datafusion-physical-expr-common v55.2.0
+│           │       │           │   │       │   ├── datafusion v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-catalog-listing v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-datasource v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-datasource-arrow v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-datasource-csv v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-datasource-json v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-execution v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-expr v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-functions v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-functions-aggregate v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-functions-aggregate-common v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-functions-nested v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-functions-window v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-functions-window-common v55.2.0
+│           │       │           │   │       │   │   └── datafusion-functions-window-common feature "default"
+│           │       │           │   │       │   │       ├── datafusion-expr v55.2.0 (*)
+│           │       │           │   │       │   │       ├── datafusion-functions-window v55.2.0 (*)
+│           │       │           │   │       │   │       └── datafusion-physical-plan v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-physical-expr v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-physical-expr-adapter v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-physical-optimizer v55.2.0 (*)
+│           │       │           │   │       │   ├── datafusion-physical-plan v55.2.0 (*)
+│           │       │           │   │       │   └── datafusion-pruning v55.2.0 (*)
+│           │       │           │   │       ├── datafusion-physical-optimizer v55.2.0 (*)
+│           │       │           │   │       └── datafusion-pruning v55.2.0 (*)
+│           │       │           │   ├── datafusion-functions v55.2.0 (*)
+│           │       │           │   ├── datafusion-functions-aggregate v55.2.0 (*)
+│           │       │           │   ├── datafusion-functions-aggregate-common v55.2.0 (*)
+│           │       │           │   ├── datafusion-functions-nested v55.2.0 (*)
+│           │       │           │   ├── datafusion-functions-table v55.2.0 (*)
+│           │       │           │   ├── datafusion-functions-window v55.2.0 (*)
+│           │       │           │   ├── datafusion-functions-window-common v55.2.0 (*)
+│           │       │           │   ├── datafusion-physical-expr v55.2.0 (*)
+│           │       │           │   ├── datafusion-physical-expr-adapter v55.2.0 (*)
+│           │       │           │   ├── datafusion-physical-expr-common v55.2.0 (*)
+│           │       │           │   ├── datafusion-physical-optimizer v55.2.0 (*)
+│           │       │           │   ├── datafusion-physical-plan v55.2.0 (*)
+│           │       │           │   └── datafusion-session v55.2.0 (*)
+│           │       │           │   ├── datafusion-common feature "default"
+│           │       │           │   │   ├── datafusion-optimizer v55.2.0 (*)
+│           │       │           │   │   └── datafusion-pruning v55.2.0 (*)
+│           │       │           │   ├── datafusion-common feature "object_store"
+│           │       │           │   │   ├── datafusion v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-catalog-listing v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-datasource v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-datasource-arrow v55.2.0 (*)
+│           │       │           │   │   ├── datafusion-datasource-csv v55.2.0 (*)
+│           │       │           │   │   └── datafusion-datasource-json v55.2.0 (*)
+│           │       │           │   ├── datafusion-common feature "recursive_protection"
+│           │       │           │   │   └── datafusion feature "recursive_protection" (*)
+│           │       │           │   ├── datafusion-common feature "sql"
+│           │       │           │   │   └── datafusion-sql v55.2.0 (*)
+│           │       │           │   │   └── datafusion feature "sql" (*)
+│           │       │           │   └── datafusion-common feature "sqlparser"
+│           │       │           │       └── datafusion-common feature "sql" (*)
+│           │       │           ├── datafusion-datasource v55.2.0 (*)
+│           │       │           ├── datafusion-datasource-arrow v55.2.0 (*)
+│           │       │           ├── datafusion-datasource-csv v55.2.0 (*)
+│           │       │           ├── datafusion-datasource-json v55.2.0 (*)
+│           │       │           ├── datafusion-execution v55.2.0 (*)
+│           │       │           ├── datafusion-expr v55.2.0 (*)
+│           │       │           ├── datafusion-expr-common v55.2.0 (*)
+│           │       │           ├── datafusion-functions v55.2.0 (*)
+│           │       │           ├── datafusion-functions-aggregate v55.2.0 (*)
+│           │       │           ├── datafusion-functions-aggregate-common v55.2.0 (*)
+│           │       │           ├── datafusion-functions-nested v55.2.0 (*)
+│           │       │           ├── datafusion-functions-table v55.2.0 (*)
+│           │       │           ├── datafusion-functions-window v55.2.0 (*)
+│           │       │           ├── datafusion-optimizer v55.2.0 (*)
+│           │       │           ├── datafusion-physical-expr v55.2.0 (*)
+│           │       │           ├── datafusion-physical-expr-adapter v55.2.0 (*)
+│           │       │           ├── datafusion-physical-expr-common v55.2.0 (*)
+│           │       │           ├── datafusion-physical-optimizer v55.2.0 (*)
+│           │       │           ├── datafusion-physical-plan v55.2.0 (*)
+│           │       │           ├── datafusion-pruning v55.2.0 (*)
+│           │       │           └── datafusion-sql v55.2.0 (*)
+│           │       ├── arrow feature "arrow-ipc"
+│           │       │   └── arrow feature "ipc"
+│           │       │       └── arrow feature "default" (*)
+│           │       ├── arrow feature "arrow-json"
+│           │       │   └── arrow feature "json"
+│           │       │       └── arrow feature "default" (*)
+│           │       ├── arrow feature "canonical_extension_types"
+│           │       │   └── datafusion-expr v55.2.0 (*)
+│           │       ├── arrow feature "chrono-tz"
+│           │       │   ├── datafusion v55.2.0 (*)
+│           │       │   ├── datafusion-catalog v55.2.0 (*)
+│           │       │   ├── datafusion-catalog-listing v55.2.0 (*)
+│           │       │   ├── datafusion-common v55.2.0 (*)
+│           │       │   ├── datafusion-datasource v55.2.0 (*)
+│           │       │   ├── datafusion-datasource-arrow v55.2.0 (*)
+│           │       │   ├── datafusion-datasource-csv v55.2.0 (*)
+│           │       │   ├── datafusion-datasource-json v55.2.0 (*)
+│           │       │   ├── datafusion-execution v55.2.0 (*)
+│           │       │   ├── datafusion-expr v55.2.0 (*)
+│           │       │   ├── datafusion-expr-common v55.2.0 (*)
+│           │       │   ├── datafusion-functions v55.2.0 (*)
+│           │       │   ├── datafusion-functions-aggregate v55.2.0 (*)
+│           │       │   ├── datafusion-functions-aggregate-common v55.2.0 (*)
+│           │       │   ├── datafusion-functions-nested v55.2.0 (*)
+│           │       │   ├── datafusion-functions-table v55.2.0 (*)
+│           │       │   ├── datafusion-functions-window v55.2.0 (*)
+│           │       │   ├── datafusion-optimizer v55.2.0 (*)
+│           │       │   ├── datafusion-physical-expr v55.2.0 (*)
+│           │       │   ├── datafusion-physical-expr-adapter v55.2.0 (*)
+│           │       │   ├── datafusion-physical-expr-common v55.2.0 (*)
+│           │       │   ├── datafusion-physical-optimizer v55.2.0 (*)
+│           │       │   ├── datafusion-physical-plan v55.2.0 (*)
+│           │       │   ├── datafusion-pruning v55.2.0 (*)
+│           │       │   └── datafusion-sql v55.2.0 (*)
+│           │       ├── arrow feature "csv" (*)
+│           │       ├── arrow feature "default" (*)
+│           │       ├── arrow feature "ipc" (*)
+│           │       ├── arrow feature "json" (*)
+│           │       └── arrow feature "prettyprint"
+│           │           ├── datafusion v55.2.0 (*)
+│           │           ├── datafusion-catalog v55.2.0 (*)
+│           │           ├── datafusion-catalog-listing v55.2.0 (*)
+│           │           ├── datafusion-common v55.2.0 (*)
+│           │           ├── datafusion-datasource v55.2.0 (*)
+│           │           ├── datafusion-datasource-arrow v55.2.0 (*)
+│           │           ├── datafusion-datasource-csv v55.2.0 (*)
+│           │           ├── datafusion-datasource-json v55.2.0 (*)
+│           │           ├── datafusion-execution v55.2.0 (*)
+│           │           ├── datafusion-expr v55.2.0 (*)
+│           │           ├── datafusion-expr-common v55.2.0 (*)
+│           │           ├── datafusion-functions v55.2.0 (*)
+│           │           ├── datafusion-functions-aggregate v55.2.0 (*)
+│           │           ├── datafusion-functions-aggregate-common v55.2.0 (*)
+│           │           ├── datafusion-functions-nested v55.2.0 (*)
+│           │           ├── datafusion-functions-table v55.2.0 (*)
+│           │           ├── datafusion-functions-window v55.2.0 (*)
+│           │           ├── datafusion-optimizer v55.2.0 (*)
+│           │           ├── datafusion-physical-expr v55.2.0 (*)
+│           │           ├── datafusion-physical-expr-adapter v55.2.0 (*)
+│           │           ├── datafusion-physical-expr-common v55.2.0 (*)
+│           │           ├── datafusion-physical-optimizer v55.2.0 (*)
+│           │           ├── datafusion-physical-plan v55.2.0 (*)
+│           │           ├── datafusion-pruning v55.2.0 (*)
+│           │           └── datafusion-sql v55.2.0 (*)
+│           ├── arrow-ipc feature "lz4"
+│           │   ├── datafusion-common v55.2.0 (*)
+│           │   ├── datafusion-datasource-arrow v55.2.0 (*)
+│           │   └── datafusion-physical-plan v55.2.0 (*)
+│           ├── arrow-ipc feature "lz4_flex"
+│           │   └── arrow-ipc feature "lz4" (*)
+│           └── arrow-ipc feature "zstd"
+│               ├── datafusion-common v55.2.0 (*)
+│               ├── datafusion-datasource-arrow v55.2.0 (*)
+│               └── datafusion-physical-plan v55.2.0 (*)
+│       └── lz4_flex feature "frame"
+│           └── arrow-ipc v59.3.2 (*)
+├── lz4_flex feature "frame" (*)
+└── lz4_flex feature "std" (*)

@@ -1,0 +1,58 @@
+[attesa del cancello] 0 s
+SMOKE c5real (non conta per i verdetti) data=2026-11-27T11:18:49Z host=minisheep core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=c5real
+carico_1min_prima=0.93 pressione_io_prima=0.26 container_in_esecuzione_prima=12
+[stato prima 12:18:49] load: 0.93 1.19 1.44
+[stato prima] io: some avg10=0.26 avg60=1.24 avg300=11.60 total=23721783517
+[stato prima] cpu: some avg10=0.00 avg60=0.02 avg300=0.46 total=2766783820
+[stato prima] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-3 0.05
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26947888 swap_usato_kb=2124440 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato prima] disco: /dev/mapper/root  931G  751G  174G  82% /home
+[stato prima] orologio UTC: 2026-11-27T11:18:53 kernel: 7.2.4-arch1-2
+=== c5real: lo stream indicators ha conservazione di 40 s (scadenza dei messaggi del topic) e segmenti da 1 MiB; pulitore di Iggy ogni 5 s; uj3v resta sospesa piu' di 40 s
+=== corsa c5real spec=spec-c5c.json carico='--seed 91 --events 300000 --rate 5000 --evrate 5000 --past-s 0' guasti=hook:c5r_hook motore='--real-retention'
+corsa_c5real carico_1min_prima=0.86
+t=5s sospendo uj3v
+{"ok":true,"reply":1} [http=200]
+t=20s segmenti su disco: 11 file .log nella cartella dei dati di Iggy (un solo topic); FIRST topic=blk-acme-indicators testa=105 prima_posizione_leggibile=Some(0)
+t=40s segmenti su disco: 19 file .log nella cartella dei dati di Iggy (un solo topic); FIRST topic=blk-acme-indicators testa=204 prima_posizione_leggibile=Some(0)
+t=60s segmenti su disco: 14 file .log nella cartella dei dati di Iggy (un solo topic); FIRST topic=blk-acme-indicators testa=303 prima_posizione_leggibile=Some(75)
+--- carico (c5real)
+LAG t=5.00s accettati=25000 elaborati=24000 ritardo=1000 max=1000
+LAG t=10.00s accettati=50000 elaborati=50000 ritardo=0 max=1000
+LAG t=15.01s accettati=75000 elaborati=75000 ritardo=0 max=1000
+LAG t=20.01s accettati=100000 elaborati=100000 ritardo=0 max=1000
+LAG t=25.01s accettati=125000 elaborati=124000 ritardo=1000 max=1000
+LAG t=30.01s accettati=150000 elaborati=150000 ritardo=0 max=1000
+LAG t=35.01s accettati=175000 elaborati=175000 ritardo=0 max=1000
+LAG t=40.01s accettati=201000 elaborati=200000 ritardo=1000 max=1000
+LAG t=45.02s accettati=225000 elaborati=224000 ritardo=1000 max=1000
+LAG t=50.02s accettati=250000 elaborati=249000 ritardo=1000 max=1000
+LAG t=55.02s accettati=276000 elaborati=275000 ritardo=1000 max=1000
+DONE blocchi_accettati=300 eventi_accettati=300000 secondi=59.82 ritmo=5015/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c5real)
+(check non eseguito: l oracolo rilegge il log di Iggy, che dopo la cancellazione vera non ha piu i blocchi vecchi)
+--- log del motore (c5real, righe di riavvio)
+stats_finali_c5real: {"cpu_ns":2708016409,"rss_kb":73200,"pending":0,"delivered":424,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":752418,"applied":303},{"id":"uj3v","state":"suspended","code":"operator","state_bytes":371416,"applied":28}]}
+dopo il carico: FIRST topic=blk-acme-indicators testa=303 prima_posizione_leggibile=Some(75)
+ripresa dopo la perdita: {"error":{"code":"retention_exceeded","message":"la posizione della pipeline uj3v non e' piu' nel log"},"ok":false,"reply":2} [http=409]
+stato dopo la ripresa rifiutata: {"state":"suspended","code":"retention_exceeded","applied":28} altre: ["running"]
+(nessun check dell oracolo dopo la cancellazione vera: ricalcolerebbe dal log senza i blocchi cancellati; l esito e il codice retention_exceeded, la posizione applicata e la prima posizione leggibile)
+carico_1min_dopo=0.63 container_in_esecuzione_dopo=12
+[stato dopo 12:20:06] load: 0.63 1.03 1.36
+[stato dopo] io: some avg10=1.22 avg60=1.55 avg300=9.32 total=23723476177
+[stato dopo] cpu: some avg10=0.00 avg60=0.00 avg300=0.34 total=2767064696
+[stato dopo] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato dopo] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 14.6%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-2 0.21
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=26921796 swap_usato_kb=2124436 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato dopo] disco: /dev/mapper/root  931G  750G  175G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T11:20:10 kernel: 7.2.4-arch1-2

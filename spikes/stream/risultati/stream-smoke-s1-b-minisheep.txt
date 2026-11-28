@@ -1,0 +1,102 @@
+[attesa del cancello] 15 s
+SMOKE s1-b (non conta per i verdetti) data=2026-11-27T11:12:47Z host=minisheep core=22
+binario sha256=6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2 seme=91 id=s1
+carico_1min_prima=0.86 pressione_io_prima=0.64 container_in_esecuzione_prima=12
+[stato prima 12:12:47] load: 0.86 1.07 1.49
+[stato prima] io: some avg10=0.64 avg60=15.89 avg300=16.50 total=23669051251
+[stato prima] cpu: some avg10=0.01 avg60=0.71 avg300=0.67 total=2763513344
+[stato prima] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato prima] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.2%
+[stato prima] cpu runner max: github-runner-etruria-runner-manager-2 0.06
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=27029044 swap_usato_kb=2124460 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato prima] disco: /dev/mapper/root  931G  751G  174G  82% /home
+[stato prima] orologio UTC: 2026-11-27T11:12:51 kernel: 7.2.4-arch1-2
+S1 sentinella (stringa casuale di questa corsa, non un segreto): SENTINELRPSZBjNo8uZQ
+=== s1: 120 s a ritmo pieno (105.000 eventi/s offerti, tempo dell'evento = ritmo offerto, origine alla partenza), pipeline di verifica (tutti i gruppi, senza filtro e senza HAVING); kill -9 del processo per tenant a 40 s e del motore a 80 s dall'inizio del carico
+inizio del carico (ms epoch): 1795777980000
+kill -9 stream a t=40 s (1795778020004 ms)
+processo per tenant di nuovo pronto dopo 310 ms dal kill
+kill -9 engine a t=80 s (1795778060049 ms)
+motore di nuovo pronto dopo 1214 ms dal kill
+--- carico
+fase: attesa fino a 1795777980000 (0 s)
+load seed=91 eventi=70000000 blocchi=70000 conn=16 rate=105000 evrate=105000 t0=1795777980000 past_ms=0
+DONE blocchi_accettati=12616 eventi_accettati=12616000 secondi=120.15 ritmo=105001/s riprove=85 senza_risposta=85 rifiutati=0
+s1 ritmo e ritardo sull'intero carico: campioni=117 da_t=1.00 a_t=119.17 media_eventi_s=105001 ritardo_max=32000 ritardo_medio=15778 campioni_oltre_200000=0 ritardo_medio_primo_terzo=14256 ritardo_medio_ultimo_terzo=17128
+s1 recupero dopo il kill di stream a t=40 s (campioni da 1 s): campioni=40 picco_ritardo=32000 a_t=43.1 secondi_con_ritardo_oltre_200000=0 rientro_sotto_200000_a_t=mai/non_superato primo_buco_oltre_1,5_s_tra_campioni=0.0 (rientro misurato dal kill: n/a s)
+s1 recupero dopo il kill di engine a t=80 s (campioni da 1 s): campioni=38 picco_ritardo=32000 a_t=99.1 secondi_con_ritardo_oltre_200000=0 rientro_sotto_200000_a_t=mai/non_superato primo_buco_oltre_1,5_s_tra_campioni=3.0 (rientro misurato dal kill: n/a s)
+--- righe del motore (riavvii)
+      1 engine: stream acme pronto in 26.120 ms (init_ms=22.680) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=208
+      1 engine: stream acme pronto in 27.753 ms (init_ms=22.621) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=330
+      1 engine: stream acme pronto in 28.240 ms (init_ms=24.749) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=404
+      1 engine: stream acme terminato (segnale Some(9), codice None), riavvio
+      2 stream acme: ripreso dal checkpoint, righe in attesa 0
+--- check (0 persi, 0 doppi, un avvio per riga)
+CHECK tenant=acme seed=91 blocchi_accettati=12616 testa_log=12620 senza_risposta=85
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12620
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12625
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12631
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12636
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12642
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12647
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12678
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12684
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12689
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12695
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12701
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12706
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12712
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12717
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12723
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12729
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12734
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12740
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12745
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12751
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12757
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12762
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12768
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12774
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12779
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12785
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12791
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12796
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12802
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12808
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12813
+PIPELINE uj3v oracolo=uj3v righe_attese=5000 righe_avvio=5000 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(45054) finestre_aperte=1 ultima_finestra_fine_ms=Some(1795778100000) ultimo_blocco_arrivo_ms=1795778100146 B_meno_E_ms=Some(146) ritardo_chiusura_ultima_finestra_ms=Some(45054) FAIL
+PIPELINE sentk oracolo=none avvii_per_versione={"1": 5000} PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=10000 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO FAIL
+stats_finali: {"delivered":10000,"pending":0,"refused":0,"cpu_ns":8942799376,"rss_kb":97444,"pipes":[{"id":"uj3v","state":"running","code":null,"state_bytes":1119828,"applied":12819,"late":0,"future":0},{"id":"sentk","state":"running","code":null,"state_bytes":1271109,"applied":12819,"late":0,"future":0}]}
+--- S1: conteggio delle occorrenze in chiaro della sentinella (deve essere 0)
+S1 dati di Iggy (grep -a su tutta la cartella, dal container di Iggy in sola lettura): 0
+S1 cartella dei checkpoint (/home/white_sheep/.cache/ttspikestream-data/engine/payload): 0; copie scattate durante la corsa (6 file di cifrati): 0
+S1 file dei checkpoint presenti: 498255 ckpt.bin;
+S1 (informazione, non richiesto) database degli avvii: 28566 occorrenze in chiaro (le righe delle finestre portano il gruppo kind)
+S1 controllo positivo dopo la decifratura:
+S1DEC checkpoint file=ckpt.bin byte_cifrati=498255 decifrato=true sentinella_nel_chiaro=2933
+S1DEC checkpoint file=ckpt-1.bin byte_cifrati=409286 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-2.bin byte_cifrati=455640 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-3.bin byte_cifrati=485758 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-4.bin byte_cifrati=532134 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-5.bin byte_cifrati=580270 decifrato=true sentinella_nel_chiaro=5000
+S1DEC checkpoint file=ckpt-6.bin byte_cifrati=629919 decifrato=true sentinella_nel_chiaro=5000
+S1DEC log testa=12820 messaggi_letti=442 decifrati=442 sentinella_nel_chiaro=439000
+S1DEC controllo_positivo=PASS
+carico_1min_dopo=1.09 container_in_esecuzione_dopo=12
+[stato dopo 12:18:22] load: 1.09 1.24 1.46
+[stato dopo] io: some avg10=0.00 avg60=1.78 avg300=12.74 total=23721647775
+[stato dopo] cpu: some avg10=0.00 avg60=0.05 avg300=0.51 total=2766757045
+[stato dopo] container in esecuzione (12): github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4 
+[stato dopo] binario sha256: 6b86c93174e2c5d5ae1e64ebf19352d3cd9a4ca2318174a3699f8c36b74e1bd2
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 0.5%; core 8-11 occupati: 0.0%
+[stato dopo] cpu runner max: github-runner-etruria-runner-front-3 0.04
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27087024 swap_usato_kb=2124440 some avg10=0.00 avg60=0.00 avg300=0.00 total=6964549
+[stato dopo] disco: /dev/mapper/root  931G  751G  174G  82% /home
+[stato dopo] orologio UTC: 2026-11-27T11:18:27 kernel: 7.2.4-arch1-2

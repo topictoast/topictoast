@@ -1,0 +1,81 @@
+SMOKE c3pair (non conta per i verdetti) data=2026-11-27T01:23:49Z host=whitebones core=16
+binario sha256=0d8f7aa50ec0ee41205f94bf04a470fba687429db4871cc7c773088fb603657d seme=21 id=c3pair
+carico_1min_prima=2.50 pressione_io_prima=4.05 container_in_esecuzione_prima=5
+=== corsa c3a spec=spec-c3.json carico='--seed 21 --events 300000 --rate 5000 --evrate 5000 --phase-s 0 --phase-period-s 300 --hold-last-s 9 --win-s 20' guasti=none motore=''
+corsa_c3a carico_1min_prima=2.50
+--- carico (c3a)
+LAG t=15s accettati=76000 elaborati=73000 ritardo=3000 max=3000
+LAG t=20s accettati=101000 elaborati=98000 ritardo=3000 max=3000
+LAG t=25s accettati=126000 elaborati=123000 ritardo=3000 max=3000
+LAG t=30s accettati=151000 elaborati=148000 ritardo=3000 max=3000
+LAG t=35s accettati=176000 elaborati=174000 ritardo=2000 max=3000
+LAG t=40s accettati=201000 elaborati=199000 ritardo=2000 max=3000
+LAG t=45s accettati=226000 elaborati=224000 ritardo=2000 max=3000
+LAG t=50s accettati=251000 elaborati=249000 ritardo=2000 max=3000
+LAG t=55s accettati=276000 elaborati=274000 ritardo=2000 max=3000
+LAG t=60s accettati=299000 elaborati=299000 ritardo=0 max=3000
+LAG t=65s accettati=299000 elaborati=299000 ritardo=0 max=3000
+DONE blocchi_accettati=300 eventi_accettati=300000 secondi=68.98 ritmo=4349/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c3a)
+CHECK tenant=acme seed=21 blocchi_accettati=300 testa_log=373 senza_risposta=0
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=373
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=375
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=377
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=379
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=381
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=384
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=386
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=388
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=390
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=392
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=394
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=396
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=399
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=401
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=405
+PIPELINE uj3 oracolo=uj3 righe_attese=653 righe_avvio=653 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(39441) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795742760000) ultimo_blocco_arrivo_ms=1795742769001 B_meno_E_ms=Some(9001) ritardo_chiusura_ultima_finestra_ms=Some(39441) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=14572 righe_avvio=14572 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(41237) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795742760000) ultimo_blocco_arrivo_ms=1795742769001 B_meno_E_ms=Some(9001) ritardo_chiusura_ultima_finestra_ms=Some(41237) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=15225 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+--- log del motore (c3a, righe di riavvio)
+stats_finali_c3a: {"cpu_ns":3138515451,"rss_kb":73180,"pending":0,"delivered":15225,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":18790,"applied":405},{"id":"uj3v","state":"running","code":null,"state_bytes":18790,"applied":405}]}
+=== corsa c3b spec=spec-c3.json carico='--seed 21 --events 300000 --rate 5000 --evrate 5000 --phase-s 0 --phase-period-s 300 --hold-last-s 9 --win-s 20' guasti=quiet motore=''
+corsa_c3b carico_1min_prima=1.32
+kill -9 stream durante la quiete (8 s dopo la fine del carico)
+--- carico (c3b)
+LAG t=15s accettati=75000 elaborati=72000 ritardo=3000 max=3000
+LAG t=20s accettati=101000 elaborati=97000 ritardo=4000 max=4000
+LAG t=25s accettati=126000 elaborati=122000 ritardo=4000 max=4000
+LAG t=30s accettati=151000 elaborati=147000 ritardo=4000 max=4000
+LAG t=35s accettati=176000 elaborati=172000 ritardo=4000 max=4000
+LAG t=40s accettati=201000 elaborati=197000 ritardo=4000 max=4000
+LAG t=45s accettati=226000 elaborati=222000 ritardo=4000 max=4000
+LAG t=50s accettati=251000 elaborati=248000 ritardo=3000 max=4000
+LAG t=55s accettati=276000 elaborati=273000 ritardo=3000 max=4000
+LAG t=60s accettati=299000 elaborati=298000 ritardo=1000 max=4000
+LAG t=65s accettati=299000 elaborati=299000 ritardo=0 max=4000
+DONE blocchi_accettati=300 eventi_accettati=300000 secondi=69.01 ritmo=4347/s riprove=0 senza_risposta=0 rifiutati=0
+--- check (c3b)
+CHECK tenant=acme seed=21 blocchi_accettati=300 testa_log=507 senza_risposta=0
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=508
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=510
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=513
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=515
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=517
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=519
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=521
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=523
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=526
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=528
+LOG blocchi_distinti=300 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=532
+PIPELINE uj3 oracolo=uj3 righe_attese=653 righe_avvio=653 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(39685) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795743060000) ultimo_blocco_arrivo_ms=1795743069009 B_meno_E_ms=Some(9009) ritardo_chiusura_ultima_finestra_ms=Some(39685) PASS
+PIPELINE uj3v oracolo=uj3v righe_attese=14572 righe_avvio=14572 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(41480) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795743060000) ultimo_blocco_arrivo_ms=1795743069009 B_meno_E_ms=Some(9009) ritardo_chiusura_ultima_finestra_ms=Some(41480) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=15225 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+--- log del motore (c3b, righe di riavvio)
+      1 engine: stream acme terminato (segnale Some(9), codice None), riavvio
+      1 stream acme: ripreso dal checkpoint, righe in attesa 0
+stats_finali_c3b: {"cpu_ns":497730194,"rss_kb":69824,"pending":0,"delivered":5075,"refused":0,"pipes":[{"id":"uj3","state":"running","code":null,"state_bytes":18790,"applied":532},{"id":"uj3v","state":"running","code":null,"state_bytes":18790,"applied":532}]}
+--- confronto della coppia (stesse righe con e senza il kill, dopo lo scarto dell'origine)
+COMPARE A=/home/white_sheep/.cache/ttspikestream-data/keep/c3a B=/home/white_sheep/.cache/ttspikestream-data/keep/c3b scarto_origine_ms=300000 multiplo_del_periodo(300000ms)=true righe_A=15225 righe_B=15225 mancanti_in_B=0 in_piu_in_B=0 diverse=0 PASS
+carico_1min_dopo=1.27 container_in_esecuzione_dopo=5

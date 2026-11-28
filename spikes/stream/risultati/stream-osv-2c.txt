@@ -1,0 +1,20 @@
+Spike S-3, parte 2c: date di pubblicazione delle dipendenze nuove e OSV sul Cargo.lock intero
+Data del controllo: 2026-11-27. Soglia: pubblicate da almeno due settimane, cioe' entro il 2026-11-13.
+
+Date di pubblicazione (crates.io API /api/v1/crates/<nome>/<versione>, User-Agent spike-dependency-check, campo version.created_at)
+- enumflags2 0.7.12          2025-06-09T22:16:25Z  OK (oltre 17 mesi)
+- enumflags2_derive 0.7.12   2025-06-09T22:15:13Z  OK (oltre 17 mesi)
+- landlock 0.4.7             2026-07-27T18:17:45Z  OK (4 mesi)
+- seccompiler 0.5.0          2025-03-07T14:13:44Z  OK (oltre 20 mesi)
+Tutte e quattro sono nel Cargo.lock con queste versioni esatte.
+
+OSV (POST https://api.osv.dev/v1/querybatch, ecosistema crates.io, tutti i 463 pacchetti con sorgente del Cargo.lock:
+l'unico pacchetto senza sorgente e' il crate dello spike)
+- Pacchetti interrogati: 463. Pacchetti con almeno un avviso: 3. Avvisi di vulnerabilita' (falle): 0.
+- I tre avvisi sono tutti «unmaintained» (crate non piu' mantenuto), senza intervallo di correzione (introdotto 0.0.0-0,
+  nessuna versione corretta), gia' noti e accettati con nota datata:
+  - chrono 0.4.45      RUSTSEC-2026-0543  «chrono is unmaintained»
+  - chrono-tz 0.10.4   RUSTSEC-2026-0555  «chrono-tz is unmaintained»
+  - humantime 2.4.0    RUSTSEC-2026-0542  «humantime is unmaintained»
+- Nessun avviso nuovo rispetto a stream-osv.txt: enumflags2, enumflags2_derive, landlock, seccompiler e le altre
+  dipendenze nuove della parte 2b non hanno avvisi.

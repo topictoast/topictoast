@@ -1,0 +1,64 @@
+SMOKE t2 (non conta per i verdetti) data=2026-11-27T08:58:53Z host=whitebones core=16
+binario sha256=9ce4476f0f475d989b42da4ffcb08a50089553a62379f8493ff9584571826ac2 seme=41 id=t2
+carico_1min_prima=2.32 pressione_io_prima=0.01 container_in_esecuzione_prima=12
+=== t2: 120 s a ritmo pieno (105.000 eventi/s offerti, tempo dell'evento = ritmo offerto, origine alla partenza), pipeline di verifica (tutti i gruppi, senza filtro e senza HAVING); kill -9 del processo per tenant a 40 s e del motore a 80 s dall'inizio del carico
+inizio del carico (ms epoch): 1795770000000
+kill -9 stream a t=40 s (1795770040199 ms)
+processo per tenant di nuovo pronto dopo 311 ms dal kill
+kill -9 engine a t=80 s (1795770080058 ms)
+motore di nuovo pronto dopo 1209 ms dal kill
+--- carico
+fase: attesa fino a 1795770000000 (56 s)
+load seed=41 eventi=70000000 blocchi=70000 conn=16 rate=105000 evrate=105000 t0=1795770000000 past_ms=0
+DONE blocchi_accettati=12616 eventi_accettati=12616000 secondi=120.15 ritmo=105006/s riprove=85 senza_risposta=85 rifiutati=0
+t2 ritmo e ritardo sull'intero carico: campioni=118 da_t=1.00 a_t=119.17 media_eventi_s=104993 ritardo_max=8406000 ritardo_medio=86161 campioni_oltre_200000=1 ritardo_medio_primo_terzo=14872 ritardo_medio_ultimo_terzo=228692
+t2 recupero dopo il kill di stream a t=40 s (campioni da 1 s): campioni=79 picco_ritardo=8406000 a_t=81.1 secondi_con_ritardo_oltre_200000=1 rientro_sotto_200000_a_t=82.12 buco_massimo_tra_campioni_s=2.0 (rientro misurato dal kill: 42.1 s)
+t2 recupero dopo il kill di engine a t=80 s (campioni da 1 s): campioni=39 picco_ritardo=8406000 a_t=81.1 secondi_con_ritardo_oltre_200000=1 rientro_sotto_200000_a_t=82.12 buco_massimo_tra_campioni_s=2.0 (rientro misurato dal kill: 2.1 s)
+--- righe del motore (riavvii)
+      1 engine: stream acme pronto in 21.163 ms (init_ms=17.522) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=227
+      1 engine: stream acme pronto in 22.177 ms (init_ms=18.788) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=259
+      1 engine: stream acme pronto in 30.379 ms (init_ms=25.506) inherited_fds=1 closed_fds=0 landlock=PartiallyEnforced nnp=1 all_threads=1 seccomp_syscalls=38 level=landlock+seccomp t_confine_us=243
+      1 engine: stream acme terminato (segnale Some(9), codice None), riavvio
+      2 stream acme: ripreso dal checkpoint, righe in attesa 0
+--- check (0 persi, 0 doppi, un avvio per riga)
+CHECK tenant=acme seed=41 blocchi_accettati=12616 testa_log=12676 senza_risposta=85
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12676
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12685
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12690
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12696
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12701
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12706
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12712
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12717
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12722
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12728
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12733
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12739
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12744
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12749
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12755
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12760
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12766
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12771
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12777
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12782
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12790
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12798
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12803
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12809
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12814
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12819
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12825
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12830
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12835
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12841
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12846
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12852
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12857
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12863
+LOG blocchi_distinti=12616 duplicati_nel_log=0 accettati_assenti_dal_log=0 eventi_accettati_assenti=0 posizione_elaborata=12868
+PIPELINE uj3v oracolo=uj3v righe_attese=5000 righe_avvio=5000 mancanti=0 in_piu=0 diverse=0 perdute=0 contate_due_volte=0 in_ritardo(oracolo/pipeline)=0/0 futuri(oracolo/pipeline)=0/0 ritardo_massimo_chiusura_ms=Some(12204) finestre_aperte=0 ultima_finestra_fine_ms=Some(1795770300000) ultimo_blocco_arrivo_ms=1795770120145 B_meno_E_ms=Some(-179855) ritardo_chiusura_ultima_finestra_ms=Some(12204) PASS
+TOTALE perdute=0 contate_due_volte=0 avvii_doppi_assorbiti=0 avvii_totali=5000 righe_dest_doppie_assorbite=0 righe_dest_conflitti=0 consegne_rifiutate_per_quota=0
+VERDETTO PASS
+stats_finali: {"delivered":5000,"pending":0,"refused":0,"cpu_ns":6052700500,"rss_kb":69496,"pipes":[{"id":"uj3v","state":"running","code":null,"state_bytes":808930,"applied":12871,"late":0,"future":0}]}
+carico_1min_dopo=5.62 container_in_esecuzione_dopo=12
