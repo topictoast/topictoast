@@ -391,7 +391,8 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
     pipeline, fuori dal SQL. Lo stream di un altro tenant dà lo stesso errore di uno inesistente; un
     errore di sintassi ha riga e colonna (C-7). Tipi dichiarabili delle colonne: testo, intero a 64
     bit, decimale esatto (mai `f64`), booleano, istante in UTC. L'elenco chiuso (clausole, funzioni,
-    aggregati, tipi) e il controllo sull'albero sono una sola funzione pura del dominio (AD-11), usata
+    aggregati, tipi) e il controllo sull'albero sono una sola implementazione pura (dove vive: Open
+    Questions, perché il dominio entra nel validatore del browser), usata
     dal ruolo della validazione a secco alla pubblicazione e dal processo delle pipeline al
     caricamento.
   - **Quattro barriere, in quest'ordine:** controllo sull'albero sintattico contro il dialetto,
@@ -441,7 +442,7 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
   - **Validazione a secco.** La fa un ruolo ausiliario proprio, uno per tenant, a richiesta, con
     DataFusion, mai il processo delle pipeline: una validazione non fa cadere le pipeline in corsa.
     Riceve dal motore sull'IPC solo le colonne degli stream del suo tenant; nessun accesso al bus,
-    Landlock senza cartelle né porte, `RLIMIT_DATA` sul processo (1 GiB provato nello spike); oltre
+    Landlock senza cartelle né porte, `RLIMIT_DATA` sul processo (nello spike 1 GiB, sul processo delle pipeline che faceva anche la validazione); oltre
     il limite il processo cade e il motore risponde con un codice.
 
 ### AD-14 — Confine degli scenari BDD su due livelli [ADOPTED]
@@ -700,6 +701,11 @@ flowchart TB
   fermano tre query ostili di risorse (costante enorme, tabella unita con sé stessa, `repeat`
   enorme che fa cadere il processo del tenant); il budget di CPU per micro-lotto non è mai
   scattato nelle corse misurate. Quello che resta aperto è nelle Open Questions.
+- **Dove la spine va oltre l'ADR** (Marco, 2026-11-28, dopo la revisione; regole non misurate nello spike, da
+  provare nelle storie): avvii decisi riga per riga sul percorso normale con esito per riga; processo
+  verso il motore solo sull'IPC; sospensione decisa dal motore; decimale esatto; 200 anche a un
+  blocco ripetuto; blocco oltre il tetto rifiutato e mai diviso; deduplicazione dei blocchi solo
+  nel processo.
 - **Scorciatoie dello spike da non portare nel prodotto:** HTTP senza TLS tra motore e processo (nel
   prodotto c'è l'IPC), decimali come `f64`, corpo degli avvii in JSON in chiaro, coda di consegna
   senza limite, insieme delle chiavi viste senza potatura, budget di CPU contato su tutto il
@@ -1040,3 +1046,4 @@ docs/
 | Righe in attesa di consegna sotto un rifiuto per quota prolungato: contano nella quota di stato e oltre sospendono la pipeline con un codice? E come si dimensiona `RLIMIT_DATA` del processo rispetto al numero di pipeline attive per tenant e alla loro quota | architettura | prima della storia della quota di stato delle pipeline |
 | Watermark con più stream (`UNION ALL`) e pipeline senza finestra: watermark per stream e quello della pipeline come minimo tra i rami, o uno solo per pipeline; quando si emette una riga senza finestra | architettura | prima della storia delle finestre (FR-20, FR-21) |
 | Durata delle chiavi C-4 degli avvii delle pipeline: la finestra di idempotenza del motore deve coprire almeno la conservazione dello stream più l'intervallo dei checkpoint, altrimenti una rielaborazione lunga rifà avvii già accettati | architettura | prima della storia delle destinazioni (FR-24) |
+| Dove vive l'implementazione unica del dialetto chiuso e del controllo sull'albero del SQL (AD-13): nel dominio entrerebbe nel validatore del browser (AD-11), mentre il SQL lo valida solo il motore; proposta: un crate puro a parte, usato dai due ruoli e mai dal kit. Da decidere prima che S-4 misuri il peso del validatore | architettura | ADR di S-4 o prima storia del dialetto, la prima che arriva |
