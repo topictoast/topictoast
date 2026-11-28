@@ -1,0 +1,187 @@
+14:33:59 inizio C4 smoke
+15:10:42 fermato a mano dalla sessione principale: C4 a 20.000/s riempie la quota di ipd
+15:11:10 inizio C4 smoke
+15:31:46 fine C4 smoke exit=0
+15:31:46 inizio T1FULL smoke
+15:48:47 fine T1FULL smoke exit=0
+15:48:47 inizio T2 smoke
+16:03:26 fine T2 smoke exit=0
+16:03:26 DRIVER FINITO
+16:10:41 inizio T1 smoke
+16:20:18 fine T1 smoke exit=0
+16:20:18 DRIVER FINITO
+16:21:10 inizio T1FULL smoke
+16:37:10 fine T1FULL smoke exit=0
+16:37:10 DRIVER FINITO
+16:42:23 inizio T1FULL smoke
+17:03:58 fine T1FULL smoke exit=0
+17:03:58 DRIVER FINITO
+17:26:48 inizio T1FULL smoke
+17:45:48 fine T1FULL smoke exit=0
+17:45:48 inizio T2 smoke
+18:05:47 fine T2 smoke exit=0
+18:05:47 inizio C4 smoke
+18:26:26 fine C4 smoke exit=0
+18:26:26 inizio I1 smoke
+18:31:00 fine I1 smoke exit=0
+18:31:00 DRIVER FINITO
+18:35:37 inizio V1 smoke
+18:35:48 fine V1 smoke exit=0
+18:35:48 inizio V2 smoke
+18:39:06 fine V2 smoke exit=0
+18:39:06 inizio V3 smoke
+18:43:28 fine V3 smoke exit=0
+18:43:28 inizio C2 smoke
+18:44:33 fine C2 smoke exit=0
+18:44:33 inizio C3 smoke
+18:56:47 fine C3 smoke exit=0
+18:56:47 inizio C5 smoke
+19:02:05 fine C5 smoke exit=0
+19:02:05 inizio C5REAL smoke
+19:03:51 fine C5REAL smoke exit=0
+19:03:51 inizio C6 smoke
+19:05:12 fine C6 smoke exit=0
+19:05:12 inizio C7 smoke
+19:12:14 fine C7 smoke exit=0
+19:12:14 inizio T1FREE smoke
+19:20:03 fine T1FREE smoke exit=0
+19:20:03 inizio T3 smoke
+19:25:21 fine T3 smoke exit=0
+19:25:21 inizio M1 smoke
+19:30:51 fine M1 smoke exit=0
+19:30:51 inizio S1 smoke
+19:50:46 fine S1 smoke exit=0
+19:50:46 inizio I1 smoke
+20:22:09 fine I1 smoke exit=0
+20:22:09 DRIVER FINITO
+20:23:47 inizio V1 1
+20:23:57 fine V1 1 exit=0
+20:23:57 inizio V2 1
+20:27:15 fine V2 1 exit=0
+20:27:15 inizio V3 1
+20:31:51 fine V3 1 exit=0
+20:31:51 DRIVER FINITO
+20:31:51 inizio A2 1
+20:32:46 fine A2 1 exit=0
+20:32:46 DRIVER FINITO
+20:32:46 inizio A2 2
+20:33:40 fine A2 2 exit=0
+20:33:40 DRIVER FINITO
+20:33:40 inizio A2 3
+20:34:29 fine A2 3 exit=0
+20:34:29 DRIVER FINITO
+20:34:29 inizio A1 1
+20:37:15 fine A1 1 exit=0
+20:37:15 DRIVER FINITO
+20:37:15 inizio A1 2
+20:39:38 fine A1 2 exit=0
+20:39:38 DRIVER FINITO
+20:39:38 inizio A1 3
+20:42:01 fine A1 3 exit=0
+20:42:01 DRIVER FINITO
+20:42:01 inizio C1 1
+20:43:12 fine C1 1 exit=0
+20:43:12 DRIVER FINITO
+20:43:12 inizio C1 2
+20:44:29 fine C1 2 exit=0
+20:44:29 DRIVER FINITO
+20:44:29 inizio C1 3
+20:45:50 fine C1 3 exit=0
+20:45:50 DRIVER FINITO
+20:45:50 inizio C2 1
+20:47:07 fine C2 1 exit=0
+20:47:07 DRIVER FINITO
+20:47:07 inizio C2 2
+20:48:12 fine C2 2 exit=0
+20:48:12 DRIVER FINITO
+20:48:12 inizio C2 3
+20:49:18 fine C2 3 exit=0
+20:49:18 DRIVER FINITO
+20:49:18 inizio C3 1
+20:56:47 fine C3 1 exit=0
+20:56:47 DRIVER FINITO
+20:56:47 inizio C3 2
+21:06:47 fine C3 2 exit=0
+21:06:47 DRIVER FINITO
+21:06:47 inizio C3 3
+21:16:47 fine C3 3 exit=0
+21:16:47 DRIVER FINITO
+21:16:47 inizio C4 1
+21:37:24 fine C4 1 exit=0
+21:37:24 DRIVER FINITO
+21:37:24 inizio C4 2
+21:58:22 fine C4 2 exit=0
+21:58:22 DRIVER FINITO
+21:58:22 inizio C4 3
+22:19:00 fine C4 3 exit=0
+22:19:00 DRIVER FINITO
+22:19:00 inizio C5 1
+22:24:08 fine C5 1 exit=0
+22:24:08 DRIVER FINITO
+22:24:08 inizio C5 2
+22:29:25 fine C5 2 exit=0
+22:29:25 DRIVER FINITO
+22:29:25 inizio C5 3
+22:34:37 fine C5 3 exit=0
+22:34:37 DRIVER FINITO
+22:34:37 inizio C5REAL 1
+22:36:18 fine C5REAL 1 exit=0
+22:36:18 DRIVER FINITO
+22:36:18 inizio C5REAL 2
+22:38:00 fine C5REAL 2 exit=0
+22:38:00 DRIVER FINITO
+22:38:00 inizio C5REAL 3
+22:39:32 fine C5REAL 3 exit=0
+22:39:32 DRIVER FINITO
+22:39:32 inizio C6 1
+22:41:10 fine C6 1 exit=0
+22:41:10 DRIVER FINITO
+22:41:10 inizio C6 2
+22:42:47 fine C6 2 exit=0
+22:42:47 DRIVER FINITO
+22:42:47 inizio C6 3
+22:44:28 fine C6 3 exit=0
+22:44:28 DRIVER FINITO
+22:44:28 inizio C7 1
+22:48:47 fine C7 1 exit=0
+22:48:47 DRIVER FINITO
+22:48:47 inizio C7 2
+22:53:26 fine C7 2 exit=0
+22:53:26 DRIVER FINITO
+22:53:26 inizio C7 3
+22:58:13 fine C7 3 exit=0
+22:58:13 DRIVER FINITO
+22:58:13 MISURA parte1 FINITA
+22:58:19 inizio I1 1
+23:30:22 fine I1 1 exit=0
+23:30:22 DRIVER FINITO
+23:30:22 inizio T1 1
+23:50:48 fine T1 1 exit=0
+23:50:48 DRIVER FINITO
+23:50:48 inizio T1 2
+00:10:47 fine T1 2 exit=0
+00:10:47 DRIVER FINITO
+00:10:47 inizio T1 3
+00:30:48 fine T1 3 exit=0
+00:30:48 DRIVER FINITO
+00:30:48 inizio T1FREE 1
+00:48:22 fine T1FREE 1 exit=0
+00:48:22 DRIVER FINITO
+00:48:22 inizio T2 1
+01:05:50 fine T2 1 exit=0
+01:05:50 DRIVER FINITO
+01:05:50 inizio S1 1
+01:25:47 fine S1 1 exit=0
+01:25:47 DRIVER FINITO
+01:25:47 inizio T2 2
+01:45:47 fine T2 2 exit=0
+01:45:47 DRIVER FINITO
+01:45:47 inizio S1 2
+02:05:48 fine S1 2 exit=0
+02:05:48 DRIVER FINITO
+02:05:48 inizio T3 1
+02:15:21 fine T3 1 exit=0
+02:15:21 inizio M1 1
+02:22:12 fine M1 1 exit=0
+02:22:12 DRIVER FINITO
+02:22:12 MISURA parte2 FINITA

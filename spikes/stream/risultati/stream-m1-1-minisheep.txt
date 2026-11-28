@@ -1,0 +1,64 @@
+[attesa del cancello] 20 s
+MISURA m1 corsa=1 data=2026-11-28T01:15:41Z host=minisheep core=22 seme=8501
+PARAMETRI COMUNI: core=22 core_servizi_e_motore=1-4 core_generatore_e_oracolo=8-11 tetto_attesa_del_check_wait_s=1500 consegna_avvii=gruppi_fino_a_1000_righe_o_1_MiB seme_riga=8501
+M1 PARAMETRI: riposo=60 s; carico=100000 eventi/s (tempo dell'evento uguale) per 120 s; origine=alla partenza; connessioni=16; blocco=1000 eventi; seme=8501
+binario sha256=9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34 seme=8501 id=m1
+carico_1min_prima=0.75 pressione_io_prima=0.97 container_in_esecuzione_prima=12
+[stato prima 02:15:41] load: 0.75 1.14 1.33
+[stato prima] io: some avg10=0.97 avg60=11.08 avg300=21.33 total=32095288262
+[stato prima] cpu: some avg10=0.00 avg60=0.30 avg300=0.60 total=3220598789
+[stato prima] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato prima] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato prima] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato prima] core 1-4 occupati: 0.0%; core 8-11 occupati: 0.0%
+[stato prima] cpu runner max: github-runner-etruria-runner-front-2 0.02
+[stato prima] governor cpu1: powersave
+[stato prima] memoria: MemAvailable_kb=26934564 swap_usato_kb=2093788 some avg10=0.00 avg60=0.00 avg300=0.00 total=7447126
+[stato prima] disco: /dev/mapper/root  931G  752G  173G  82% /home
+[stato prima] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 5.016 ms per scrittura
+[stato prima] orologio UTC: 2026-11-28T01:15:47 kernel: 7.2.4-arch1-2
+M1 binari: con DataFusion = streamspike (128305568 byte), senza DataFusion = idle_nodf (13569816 byte), seconda compilazione minima dello stesso crate: tokio + client di Iggy + SQLite + socket di ascolto, nessun codice di Arrow e DataFusion
+M1 senza_DataFusion_a_riposo_60s pid=1604872 VmRSS_kB=10296 RssAnon_kB=1004 RssFile_kB=9292 Pss_kB=8062 thread=6
+M1 con_DataFusion_motore_a_riposo_60s_nessun_tenant pid=1608614 VmRSS_kB=24648 RssAnon_kB=5096 RssFile_kB=19552 Pss_kB=22338 thread=7
+M1 motore_con_un_tenant_a_riposo_60s pid=1612525 VmRSS_kB=25896 RssAnon_kB=5204 RssFile_kB=20692 Pss_kB=15745 thread=7
+M1 processo_per_tenant_a_riposo_60s_una_pipeline pid=1612547 VmRSS_kB=63672 RssAnon_kB=5024 RssFile_kB=58648 Pss_kB=53595 thread=5
+M1 statistiche del processo per tenant a riposo: {"rss_kb":63672,"pipes":[{"id":"uj3","state_bytes":0}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=70360 RssAnon_kB=9520 RssFile_kB=60840 Pss_kB=57272 thread=5
+M1 stato: {"rss_kb":70212,"pipes":[{"id":"uj3","state_bytes":594825,"open_windows":1}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=70848 RssAnon_kB=10008 RssFile_kB=60840 Pss_kB=57775 thread=5
+M1 stato: {"rss_kb":70740,"pipes":[{"id":"uj3","state_bytes":661748,"open_windows":1}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=71276 RssAnon_kB=10436 RssFile_kB=60840 Pss_kB=58203 thread=5
+M1 stato: {"rss_kb":70980,"pipes":[{"id":"uj3","state_bytes":727880,"open_windows":1}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=71700 RssAnon_kB=10860 RssFile_kB=60840 Pss_kB=58626 thread=5
+M1 stato: {"rss_kb":71700,"pipes":[{"id":"uj3","state_bytes":793682,"open_windows":1}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=72500 RssAnon_kB=11660 RssFile_kB=60840 Pss_kB=59412 thread=5
+M1 stato: {"rss_kb":72500,"pipes":[{"id":"uj3","state_bytes":860342,"open_windows":1}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=73036 RssAnon_kB=12196 RssFile_kB=60840 Pss_kB=59963 thread=5
+M1 stato: {"rss_kb":73036,"pipes":[{"id":"uj3","state_bytes":926408,"open_windows":1}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=73532 RssAnon_kB=12692 RssFile_kB=60840 Pss_kB=60444 thread=5
+M1 stato: {"rss_kb":73460,"pipes":[{"id":"uj3","state_bytes":991088,"open_windows":1}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=74004 RssAnon_kB=13164 RssFile_kB=60840 Pss_kB=60931 thread=5
+M1 stato: {"rss_kb":74004,"pipes":[{"id":"uj3","state_bytes":1058738,"open_windows":1}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=73752 RssAnon_kB=12912 RssFile_kB=60840 Pss_kB=60679 thread=5
+M1 stato: {"rss_kb":74344,"pipes":[{"id":"uj3","state_bytes":1124210,"open_windows":1}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=74908 RssAnon_kB=14068 RssFile_kB=60840 Pss_kB=61835 thread=5
+M1 stato: {"rss_kb":74908,"pipes":[{"id":"uj3","state_bytes":1190230,"open_windows":1}]}
+M1 processo_per_tenant_a_100000_al_secondo pid=1612547 VmRSS_kB=75420 RssAnon_kB=14580 RssFile_kB=60840 Pss_kB=62331 thread=5
+M1 stato: {"rss_kb":75420,"pipes":[{"id":"uj3","state_bytes":1258503,"open_windows":1}]}
+DONE blocchi_accettati=12012 eventi_accettati=12012000 secondi=120.15 ritmo=99974/s riprove=0 senza_risposta=0 rifiutati=0
+M1 processo_per_tenant_dopo_il_carico pid=1612547 VmRSS_kB=75776 RssAnon_kB=14936 RssFile_kB=60840 Pss_kB=64689 thread=5
+M1 stato dopo il carico: {"rss_kb":75776,"pipes":[{"id":"uj3","state_bytes":1323694,"open_windows":1}]}
+carico_1min_dopo=1.64 container_in_esecuzione_dopo=12
+[stato dopo 02:22:07] load: 1.64 1.12 1.20
+[stato dopo] io: some avg10=35.11 avg60=44.65 avg300=23.55 total=32160630600
+[stato dopo] cpu: some avg10=0.88 avg60=1.24 avg300=0.66 total=3223554470
+[stato dopo] container in esecuzione (12): runner_github=12 [github-runner-etruria-runner-front-1 github-runner-etruria-runner-front-2 github-runner-etruria-runner-front-3 github-runner-etruria-runner-manager-1 github-runner-etruria-runner-manager-2 github-runner-etruria-runner-manager-3 github-runner-runner-2 github-runner-runner-3 github-runner-runner-4 github-runner-runner-client-2 github-runner-runner-client-3 github-runner-runner-client-4] dello_spike=0 [] altri_non_nostri=0 []
+[stato dopo] binario sha256: 9fa3cd496fbd7affc442ecea4ac6f228498ae16a8a4c687caf110b1ba339cc34
+[stato dopo] core assegnati: servizi=1-4 motore_e_processi_per_tenant=1-4 generatore_e_oracolo=8-11
+[stato dopo] core 1-4 occupati: 1.0%; core 8-11 occupati: 0.2%
+[stato dopo] cpu runner max: github-runner-etruria-runner-manager-1 0.07
+[stato dopo] governor cpu1: powersave
+[stato dopo] memoria: MemAvailable_kb=27000988 swap_usato_kb=2093764 some avg10=0.00 avg60=0.00 avg300=0.00 total=7447126
+[stato dopo] disco: /dev/mapper/root  931G  752G  174G  82% /home
+[stato dopo] pavimento fdatasync (dd 4 KiB x 200, oflag=dsync, su /home/white_sheep/.cache/ttspikestream-data): 4.469 ms per scrittura
+[stato dopo] orologio UTC: 2026-11-28T01:22:12 kernel: 7.2.4-arch1-2
