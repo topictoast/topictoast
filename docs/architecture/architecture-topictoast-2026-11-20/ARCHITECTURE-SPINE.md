@@ -47,7 +47,7 @@ bus è la fonte di verità; il database è una proiezione (AD-2).
 | Tipi dell'API | `crates/protocol` | tipi dell'API pubblica e del protocollo dei worker, sorgente dello schema OpenAPI. Puro, senza I/O; nessuna dipendenza dal resto del workspace; lo usano motore e SDK Rust (AD-15) |
 | Adattatori | `crates/adapters` | bus, repository (SQLite e Postgres), archivio dei payload (disco e RustFS), cassaforte, collegamento dei worker, modulo del client HTTP del motore |
 | Composition root | `crates/engine` | binario del motore: API, proiettore, processi ausiliari come sottocomandi; unico punto che sceglie gli adattatori (AD-16) |
-| Processi ausiliari | sottocomandi del binario di `crates/engine`; uno per tenant e per ruolo (AD-6, ADR della sandbox) | contenuto dei tenant: validazione, jq, `call http`, sandbox leggera, pipeline stream con un processo per tenant (AD-6, AD-13) |
+| Processi ausiliari | sottocomandi del binario di `crates/engine`; uno per tenant e per ruolo (AD-6, ADR della sandbox) | contenuto dei tenant: validazione, jq, `call http`, sandbox leggera, pipeline stream con un processo per tenant, validazione a secco del SQL delle pipeline (AD-6, AD-13) |
 | Client Rust | `crates/sdk`, `crates/cli`, `crates/napi`, `crates/bench` | SDK, CLI sull'SDK, collegamento napi-rs del validatore, benchmark (FR-53) |
 | Client JS | `packages/ui`, `packages/validator`, `packages/core`, `packages/react`, `packages/sdk` | design system condiviso, output di napi-rs, nucleo JS e client dell'API, componenti React del kit, SDK TS |
 | Dashboard | `dashboard/` | interfaccia dell'operatore su `packages/ui` e sul client dell'API di `packages/core` (skill `dashboard-react`) |
@@ -200,14 +200,15 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
   tenant; `Authorization` non passa mai su un redirect verso un'altra origine.
   - **Processi e ciclo di vita.** Un ausiliario per tenant e per ruolo: validazione, jq, `call http`,
     sandbox leggera, sandbox forte (lato host di Firecracker e del vsock), compilazione dei
-    moduli, pipeline stream. Un solo supervisore nel motore per ogni coppia (tenant, ruolo), con
+    moduli, pipeline stream, validazione a secco del SQL delle pipeline stream (con DataFusion,
+    senza accesso al bus; ADR delle pipeline stream). Un solo supervisore nel motore per ogni coppia (tenant, ruolo), con
     due cicli di vita. I ruoli «a richiesta» (tutti tranne le pipeline stream) partono alla prima
     richiesta e si fermano per inattività (FR-50): l'arresto lo decide solo il motore, che smette
     di mandare richieste prima di fermare il processo. Il ruolo delle pipeline stream parte quando
     il tenant ha una pipeline attiva e si ferma, dopo un checkpoint finale, quando si ferma
-    l'ultima o quando il tenant si elimina (AD-13); la validazione a secco del SQL usa lo stesso
-    ruolo, avviato a richiesta. Obiettivo del riavvio a freddo: p50 ≤ 100 ms e p99 ≤ 250 ms,
-    confinamento compreso.
+    l'ultima o quando il tenant si elimina (AD-13); la validazione a secco del SQL ha un ruolo «a
+    richiesta» proprio, mai il processo delle pipeline. Obiettivo del riavvio a freddo: p50 ≤ 100 ms e p99 ≤ 250 ms,
+    confinamento compreso (misurato per il ruolo delle pipeline stream con DataFusion: p99 ≤ 38,3 ms).
   - **IPC.** Il motore avvia l'ausiliario con l'ambiente vuoto e gli passa sull'IPC la
     configurazione risolta e la versione dell'IPC; con una versione diversa l'ausiliario esce.
     L'IPC è una coppia di socket creata con chiusura all'esecuzione, e ogni figlio riceve solo la
@@ -219,8 +220,8 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
     utente, con la mappa degli utenti scritta dall'ausiliario stesso; per la sandbox leggera,
     motore di wasm e suo runtime avviati prima dei filtri; limite della dimensione dei file;
     Landlock su tutti i thread; `PR_SET_DUMPABLE` a 0; seccomp su tutti i thread con una lista per
-    ruolo e la terminazione del processo. Dove Landlock manca: validazione, jq, compilazione e
-    sandbox leggera restano confinate con seccomp senza apertura di file né socket; `call http` e
+    ruolo e la terminazione del processo. Dove Landlock manca: validazione, validazione a secco del
+    SQL, jq, compilazione e sandbox leggera restano confinate con seccomp senza apertura di file né socket; `call http` e
     pipeline stream usano anche il namespace utente; se nemmeno quello c'è, l'ausiliario non parte,
     con un errore nel registro del motore, un avviso all'operatore e le funzioni rifiutate con un
     codice (C-7). Il filtro della rete in uscita (M-30) è obbligatorio in ogni modalità: il
@@ -350,18 +351,105 @@ Nomi dei crate e dei pacchetti fissati: regole, `purity.rs` e gate li citano.
 
 ### AD-13 — Pipeline stream su DataFusion, un processo ausiliario per tenant [ADOPTED]
 
-- **Binds:** FR-18…FR-25, NFR-1, NFR-5; processo ausiliario delle pipeline stream, bus, checkpoint.
-- **Prevents:** un secondo motore SQL; SQL dei tenant interpretato nel processo della chiave principale; chiavi o eventi di due tenant nello stesso processo.
+- **Binds:** FR-18…FR-25, NFR-1, NFR-5, NFR-6, C-4, C-12, C-18; processo ausiliario delle pipeline stream, ruolo della validazione a secco del SQL, bus, checkpoint.
+- **Prevents:** un secondo motore SQL; SQL dei tenant interpretato nel processo della chiave principale; chiavi o eventi di due tenant nello stesso processo; un evento accettato perso o contato due volte dopo un crash; finestre che una rielaborazione dello stesso log, nello stesso ordine, chiude in un punto diverso; due proprietari dello stato di una pipeline; una validazione a secco che fa cadere le pipeline in corsa.
 - **Rule:** il SQL delle pipeline stream gira su DataFusion; stato, finestre, watermark e
-  checkpoint li costruisce topictoast. Nessun altro motore di stream (DBSP escluso; Arroyo è solo
-  un esempio del modello, mai un candidato). Le pipeline stream di un tenant girano in un processo
-  ausiliario dedicato a quel tenant, attivo solo se il tenant ha pipeline attive (AD-6). Il motore
-  gli passa solo la chiave di quel tenant, mai la chiave principale. Gli eventi stream di ogni
-  tenant stanno su topic propri del tenant, nominati con il suo identificativo interno (AD-5); il
-  processo legge direttamente solo quelli, con una credenziale del bus per tenant che ha il solo
-  permesso di lettura su quei topic (mai `read_stream`, che apre gli altri tenant). I permessi di
-  Iggy sono per numero di topic: creazione ed eliminazione del tenant li aggiornano (ADR del bus).
-  Lo stesso processo, avviato a richiesta, fa la validazione a secco del SQL (AD-6).
+  checkpoint li costruisce topictoast sopra i suoi accumulatori: DataFusion pianifica la query una
+  volta e valuta filtro, proiezione, chiavi e argomenti degli aggregati su ogni lotto, topictoast
+  tiene lo stato per (finestra, gruppo) e alla chiusura valuta il valore finale, `HAVING` e la
+  proiezione. Nessun altro motore di stream (DBSP escluso; Arroyo è solo un esempio del modello,
+  mai un candidato). Le pipeline stream di un tenant girano in un processo ausiliario dedicato a
+  quel tenant, attivo solo se il tenant ha pipeline attive (AD-6). Il motore gli passa solo la
+  chiave di quel tenant, mai la chiave principale. Gli eventi stream di ogni tenant stanno su topic
+  propri del tenant, nominati con il suo identificativo interno (AD-5); il processo legge
+  direttamente solo quelli, con una credenziale del bus per tenant che ha il solo permesso di
+  lettura su quei topic (mai `read_stream`, che apre gli altri tenant). I permessi di Iggy sono per
+  numero di topic: creazione ed eliminazione del tenant o di uno stream li aggiornano (ADR del bus).
+  Il processo parla con il motore solo sull'IPC di AD-6 (avvii, righe verso stream di
+  destinazione, segnalazioni), mai su una porta del motore (AD-18). Dettaglio e numeri: ADR delle
+  pipeline stream (2026-11-28).
+  - **Ingresso (FR-18).** Blocchi di al più 1.000 eventi o 1 MiB, con le colonne tipizzate dichiarate
+    dallo stream e validate al confine; un blocco oltre il tetto è rifiutato con un codice (C-7) e
+    il motore non divide mai un blocco. Il motore mette l'istante di arrivo nel blocco (un evento
+    senza tempo dell'evento prende quello, scritto all'ingresso, mai alla lettura), lo scrive in
+    Arrow IPC senza compressione, lo cifra con la chiave del tenant (C-12) e lo appende al topic
+    dello stream nel gruppo di accettazione del bus (una connessione, 4 gruppi in volo da al più
+    1.024 messaggi, ADR del bus). Risponde 200 solo dopo la scrittura durevole del gruppo.
+  - **Identità e deduplicazione (M-35).** L'identità di un evento è la posizione del suo blocco
+    (AD-18) più l'indice nel blocco. Ogni blocco porta la sua `Idempotency-Key` (C-18), con ambito
+    lo stream del tenant. Un solo proprietario della deduplicazione dei blocchi, il processo: il
+    motore non tiene una tabella delle chiavi dei blocchi, risponde 200 anche a un blocco ripetuto,
+    che finisce di nuovo nel log; il processo lo scarta. L'insieme delle chiavi viste sta nel
+    checkpoint e tiene solo le chiavi entro la conservazione dello stream. Nessun identificativo per
+    evento: la deduplicazione per evento si scrive in SQL (`DISTINCT`, FR-20).
+  - **Dialetto chiuso (M-33, T-56).** Una sola `SELECT` su uno stream del tenant, o `UNION ALL` di
+    `SELECT` con le stesse colonne; `WHERE`, `GROUP BY`, `HAVING`, `DISTINCT`, `CASE`, `CAST` verso i
+    tipi dichiarabili; finestre `tumble` e `hop` nel `GROUP BY`; un elenco chiuso di funzioni e
+    aggregati. Rifiutati DDL, DML e ogni istruzione, join, sottoquery, CTE, `ORDER BY`, `LIMIT`,
+    `OVER`, funzioni di tabella, funzioni fuori elenco e dell'utente; testo ≤ 16 KiB, letterale
+    ≤ 1 KiB, profondità ≤ 64. Ritardo tollerato e intervallo dei checkpoint sono campi della
+    pipeline, fuori dal SQL. Lo stream di un altro tenant dà lo stesso errore di uno inesistente; un
+    errore di sintassi ha riga e colonna (C-7). Tipi dichiarabili delle colonne: testo, intero a 64
+    bit, decimale esatto (mai `f64`), booleano, istante in UTC. L'elenco chiuso (clausole, funzioni,
+    aggregati, tipi) e il controllo sull'albero sono una sola implementazione pura (dove vive: Open
+    Questions, perché il dominio entra nel validatore del browser), usata
+    dal ruolo della validazione a secco alla pubblicazione e dal processo delle pipeline al
+    caricamento.
+  - **Quattro barriere, in quest'ordine:** controllo sull'albero sintattico contro il dialetto,
+    prima della pianificazione, **obbligatorio**; `SQLOptions` senza DDL, DML né istruzioni;
+    contesto senza nulla registrato (solo gli stream del tenant, nessun archivio di oggetti né
+    funzione di tabella, versamento su disco spento); memoria (quota di stato per pipeline, pool di
+    DataFusion, `RLIMIT_DATA` del processo). Senza il controllo sull'albero le altre tre non fermano
+    tutte le query ostili di risorse: la lista ostile dello spike è un test di regressione del
+    controllo, e ogni funzione o clausola nuova del dialetto passa da lì.
+  - **Tempo (FR-21, M-34).** Watermark = il tempo dell'evento più alto visto. Una finestra si chiude
+    quando il watermark supera la sua fine più il ritardo tollerato (predefinito 10 s). Un evento la
+    cui finestra è chiusa, o oltre 60 s nel futuro rispetto al suo arrivo, si scarta e si conta; i
+    futuri non spostano il watermark. Su uno stream letto da almeno una pipeline attiva che in un
+    secondo non ha ricevuto blocchi il motore scrive un segnale durevole con l'istante di arrivo; su
+    uno stream senza pipeline attive non scrive nulla. Quando un segnale con arrivo `S`
+    arriva almeno 30 s dopo l'arrivo `A` dell'ultimo blocco, il watermark diventa il massimo tra il
+    watermark attuale e il watermark all'ultimo blocco più `S − A`: il tempo entra nel log, così una
+    rielaborazione dallo stesso log, nello stesso ordine, chiude le stesse finestre. Il tempo vale
+    con il tempo dell'evento vicino all'arrivo; l'ultima finestra si chiude circa ritardo + quiete
+    dopo la sua fine (misurato al più 39,9 s con i predefiniti), senza garanzia.
+  - **Checkpoint (FR-22, AD-17).** Uno per pipeline e versione (lo spike ne scriveva uno per
+    processo), ogni 10 s, tra due lotti: posizione letta, watermark, chiavi dei blocchi viste
+    (quelle entro la conservazione breve di FR-18, nell'ordine dei minuti), stato delle finestre
+    aperte, righe in attesa di consegna; mai lo stato di
+    sospensione delle pipeline. Cifrato con la chiave del tenant e scritto tramite la porta
+    dell'archivio dei payload, nello spazio con nome; con l'adattatore su disco: file temporaneo,
+    `fdatasync`, rinomina e `fsync` della cartella. Al riavvio il processo carica l'ultimo e rilegge
+    dal bus dalla posizione salvata.
+  - **Destinazioni (FR-24, C-4).** Ogni riga di una finestra chiusa diventa un avvio con la chiave
+    C-4 (pipeline, versione, fine della finestra, chiave del gruppo); le righe rifatte dopo un
+    riavvio hanno la stessa chiave e il motore le assorbe. Il processo consegna le righe sull'IPC a
+    gruppi di al più 1.000; il motore decide ogni riga sul percorso di avvio normale (idempotenza
+    C-4, quote di FR-30, concorrenza di FR-13), scrive gli avvii accettati nel suo gruppo di
+    accettazione e risponde riga per riga (accettata, già vista, rifiutata con il motivo). Le righe
+    rifiutate per quota restano nel processo e si riprovano; una riga rifiutata per un altro motivo
+    è il suo esito (FR-24: un rifiuto registrato con il motivo) e non si riprova; un gruppo non è
+    mai tutto o niente. Verso una destinazione stream la chiave C-4 della riga fa da
+    `Idempotency-Key` del blocco, così la deduplicazione dei blocchi del processo che legge quello
+    stream assorbe le righe rifatte dopo un riavvio (più righe per blocco: Open Questions).
+  - **Ciclo di vita e isolamento (FR-23, FR-25).** Lo stato di una pipeline (attiva, sospesa con il
+    codice, versione) è stato del motore, scritto solo da lui come evento di stato (AD-2): il
+    processo non si sospende da solo, segnala sull'IPC la pipeline e il codice e il motore la
+    sospende; all'avvio il motore gli passa le pipeline attive con la loro versione. Ripresa esatta
+    dopo una sospensione; oltre la conservazione la ripresa fallisce con un codice e la posizione
+    resta, senza perdite silenziose; una nuova versione della query parte con lo stato vuoto. Quota
+    di stato per pipeline (predefinita 64 MiB) e budget di CPU per micro-lotto (proposta 30 ms, da
+    riprovare: Open Questions): la pipeline che li supera si sospende con un codice del catalogo
+    (C-7), le altre del processo continuano.
+  - **Confinamento del ruolo.** L'ordine di AD-6, con `RLIMIT_NOFILE` 512, DataFusion e client del
+    bus avviati e scaldati prima dei filtri, Landlock con la sola porta del bus (e la sola cartella
+    dei checkpoint del tenant quando li scrive su disco), e una lista seccomp riscoperta su
+    DataFusion e sul client del bus a ogni loro aggiornamento.
+  - **Validazione a secco.** La fa un ruolo ausiliario proprio, uno per tenant, a richiesta, con
+    DataFusion, mai il processo delle pipeline: una validazione non fa cadere le pipeline in corsa.
+    Riceve dal motore sull'IPC solo le colonne degli stream del suo tenant; nessun accesso al bus,
+    Landlock senza cartelle né porte, `RLIMIT_DATA` sul processo (nello spike 1 GiB, sul processo delle pipeline che faceva anche la validazione); oltre
+    il limite il processo cade e il motore risponde con un codice.
 
 ### AD-14 — Confine degli scenari BDD su due livelli [ADOPTED]
 
@@ -607,28 +695,27 @@ flowchart TB
 
 ### S-3 — Pipeline stream
 
-- **Aperto:** costo di stato, finestre, watermark e checkpoint costruiti sopra DataFusion (M-31);
-  i checkpoint stanno nell'archivio dei payload (AD-17). Dialetto SQL chiuso dei tenant (M-33).
-  Chiusura delle finestre su stream inattivo (M-34). Identificativo dell'evento e deduplicazione
-  all'ingresso (M-35). Finestra, ritardo tollerato e checkpoint nel dialetto (T-56).
-- **Caso:** l'esempio di UJ-3 del PRD: conteggio per ASN su finestre di 5 minuti, soglia oltre 50,
-  un avvio del workflow per riga, riavvio a metà finestra dall'ultimo checkpoint. [ASSUMPTION]
-  finché non arriva un caso reale. Un secondo tenant, con un proprio processo (AD-13) e una query
-  ostile, prova FR-25.
-- **Criteri:** NFR-5 (≥ 100.000 eventi/s, [ASSUMPTION] da confermare), misurato dall'API di FR-18
-  (a blocchi, AD-12) con scrittura durevole, cifratura per tenant e guasto iniettato senza eventi
-  accettati persi; FR-19…FR-25 sul caso; riavvio dal checkpoint senza perdere eventi accettati
-  (FR-22) e un solo avvio per riga (FR-24, C-4); il SQL dei tenant non raggiunge tabelle esterne
-  né funzioni di file o di rete di DataFusion; NFR-1 misurato con DataFusion nel binario e
-  nessuna pipeline attiva; RAM di ogni processo per tenant misurata contro NFR-1; latenza aggiunta
-  dal buffering degli operatori di DataFusion 55.x misurata.
-- **Da fissare e provare nell'ADR:** il SQL si controlla sull'albero sintattico contro il
-  dialetto chiuso prima della pianificazione; niente DDL, DML né istruzioni; nessun catalogo di
-  file né archivio di oggetti registrato; versamento su disco spento, o in una cartella del tenant
-  cifrata; limite di memoria imposto dal sistema al processo, oltre al pool di DataFusion, anche
-  per la validazione a secco. Casi ostili: `repeat` con un numero enorme, prodotto cartesiano,
-  costanti enormi.
-- **ADR:** `docs/decisions/YYYY-MM-DD-stream-pipelines.md`; aggiorna AD-13.
+- **Chiuso il 2026-11-28:** [ADR delle pipeline stream](../../decisions/2026-11-28-stream-pipelines.md),
+  accettata da Marco, con le misure in `spikes/stream/`. DataFusion 55.2.0 con stato, finestre,
+  watermark e checkpoint di topictoast; ingresso a blocchi nel gruppo di accettazione del bus;
+  dialetto chiuso sull'albero e quattro barriere; segnali durevoli per gli stream fermi; avvii a
+  gruppi con la chiave C-4; validazione a secco in un ruolo proprio (AD-13, AD-6). Sul caso di UJ-3
+  (assunzione finché non arriva un caso reale): 105.000 eventi/s per 10 minuti in 3 corse su 3,
+  risultati esatti contro un oracolo anche con kill del processo e del motore, isolamento tra
+  tenant.
+- **Criteri mancati, registrati nell'ADR:** senza il controllo sull'albero le altre barriere non
+  fermano tre query ostili di risorse (costante enorme, tabella unita con sé stessa, `repeat`
+  enorme che fa cadere il processo del tenant); il budget di CPU per micro-lotto non è mai
+  scattato nelle corse misurate. Quello che resta aperto è nelle Open Questions.
+- **Dove la spine va oltre l'ADR** (Marco, 2026-11-28, dopo la revisione; regole non misurate nello spike, da
+  provare nelle storie): avvii decisi riga per riga sul percorso normale con esito per riga; processo
+  verso il motore solo sull'IPC; sospensione decisa dal motore; decimale esatto; 200 anche a un
+  blocco ripetuto; blocco oltre il tetto rifiutato e mai diviso; deduplicazione dei blocchi solo
+  nel processo.
+- **Scorciatoie dello spike da non portare nel prodotto:** HTTP senza TLS tra motore e processo (nel
+  prodotto c'è l'IPC), decimali come `f64`, corpo degli avvii in JSON in chiaro, coda di consegna
+  senza limite, insieme delle chiavi viste senza potatura, budget di CPU contato su tutto il
+  processo, versioni delle pipeline nella memoria del motore, sospensione decisa dal processo.
 
 ### S-4 — Kit nel browser
 
@@ -681,7 +768,7 @@ blocco di `review-decisions.md` (E-6); C-19 è del 2026-11-23. Testo completo in
 | --- | --- |
 | Rust (toolchain stabile) | 1.99.1 |
 | Open Workflow Specification (DSL e schema) | 1.1.0 |
-| datafusion | 55.2.0 |
+| datafusion (`default-features = false`, solo `sql`, `datetime_expressions`, `string_expressions`, `unicode_expressions`, `recursive_protection`; i codec lz4 e zstd di arrow-ipc entrano comunque e non si usano; pubblicata il 2026-10-07, la 55.3.0 del 2026-11-17 era sotto la soglia delle due settimane e senza falle su OSV: si rivaluta con la prima storia delle pipeline; rischio seguito, controllo OSV del 2026-11-27: chrono 0.4.45, chrono-tz 0.10.4 e humantime 2.4.0 «non più mantenuti», RUSTSEC-2026-0543, -0555, -0542, senza falle né versione corretta, da rivalutare a ogni aggiornamento di DataFusion che li porta; ADR delle pipeline stream) | 55.2.0 |
 | napi | 3.16.1 |
 | napi-derive | 3.7.0 |
 | napi-build | 2.6.0 |
@@ -749,7 +836,7 @@ flowchart LR
   subgraph node1 ["Nodo singolo dell'integratore"]
     engine["Motore: API HTTP e SSE, cassaforte con la chiave principale"]
     projector["Proiettore: scrittore unico dello stato proiettato"]
-    helpers["Processi ausiliari senza chiave, uno per tenant e per ruolo, confinati: validazione, jq, call http, sandbox leggera"]
+    helpers["Processi ausiliari senza chiave, uno per tenant e per ruolo, confinati: validazione, validazione a secco del SQL, jq, call http, sandbox leggera"]
     streams["Processo delle pipeline stream, uno per tenant: DataFusion, solo la chiave del suo tenant"]
     bus["Bus Apache Iggy: log, fonte di verità"]
     db[("Database: SQLite incorporato o Postgres")]
@@ -882,6 +969,7 @@ docs/
 
 | Rinvio | Perché può aspettare | Si riprende |
 | --- | --- | --- |
+| CloudEvents come formato degli eventi (Marco, 2026-11-28) | nella v1 gli eventi entrano con le colonne tipizzate dello stream (AD-13) e i messaggi interni (bus, protocollo dei worker, IPC degli ausiliari) restano tipizzati e cifrati; `emit` e `listen`, che OWS definisce come CloudEvents, sono fuori dalla v1 | con `emit` e `listen`, o quando un produttore reale chiede CloudEvents all'ingresso degli stream |
 | M-06 forma del campo di estensione del manifest | un solo validatore (AD-10, AD-11) | spec della storia del manifest (FR-55) |
 | M-07 derivazione del manifest dai tipi TS e Rust | il formato d'arrivo è fissato (AD-10) | spec delle storie degli SDK (FR-37), con un test di parità che registra la stessa funzione dagli SDK TS e Rust e confronta i manifest |
 | M-08 manifest senza worker o conteso (PRD §11 n.10) | lo decide una sola unità: la registrazione nel motore | spec della storia di registrazione (FR-12, FR-55) |
@@ -923,7 +1011,7 @@ docs/
 | Editor: le posizioni dei nodi fanno parte della versione (FR-5) e dell'export? A cosa si legano (percorso dei nomi dei task) e in che unità? I moduli dei costrutti (`call http`, `wait`, `switch`, fan-out…) si generano da una descrizione dei campi esportata dal dominio nel linguaggio di AD-10, o si scrivono a mano con un test di parità contro il validatore? | architettura | prima della prima storia dell'editor |
 | Ambito della verità sul bus: quali risorse, oltre alle esecuzioni, passano dal bus (workflow, tenant, quote, pianificazioni, credenziali dei worker); dove si fanno, oltre a idempotenza, C-3, C-4 e `If-Match` (AD-18), gli altri controlli sullo stato più recente (quote di FR-30, concorrenza di FR-13, credenziali revocate di C-11, segreto presente all'avvio di FR-33, riferimenti all'eliminazione di FR-58, una pianificazione per workflow di FR-57); da dove l'API legge input e output di un'esecuzione viva (bus o archivio dei payload); quale stato operativo vive solo in memoria nel motore (vitalità dei worker, uso delle quote, metriche delle pipeline stream) e quale si proietta (fasi delle attività, motivi di attesa, ultimo uso dei segreti). S-1 ha misurato solo le esecuzioni; per i controlli di AD-18 ha solo argomentato che il motore tiene in memoria lo stato accettato non ancora proiettato. Proposta della revisione: i controlli leggono la proiezione più quella memoria, senza rileggere il bus nel percorso caldo, e controllo e scrittura per la stessa chiave stanno in una sezione serializzata | architettura | per i controlli delle esecuzioni, Update della spine prima della prima storia di «Esegui» (sprint 1); per ogni altra risorsa, prima della sua prima storia; costo dentro NFR-4 (S-1 non l'ha chiusa) |
 | Postgres, non provato in S-1: proiettore sotto RLS (come scrive gruppi con righe di più tenant senza `BYPASSRLS`, quale politica di lettura ha l'operatore, FR-46, quante istruzioni costa per gruppo; da provare con `FORCE ROW LEVEL SECURITY` su ogni tabella dei tenant e il tenant impostato solo per la transazione), NFR-4 con la consegna scelta e i timer, codice dei timer, aggiornamento del bus, disco pieno del volume | architettura | spec della prima storia Postgres, misurato dentro NFR-4 (S-1 non l'ha chiusa) |
-| Versione del formato di payload, checkpoint ed export che il motore nuovo deve rileggere dopo un aggiornamento (FR-51, PRD §6). I messaggi del bus non si rileggono tra versioni: l'aggiornamento parte da un bus nuovo e vuoto e riversa dal database (ADR del bus) | architettura | spec della prima storia di aggiornamento (FR-51) |
+| Versione del formato di payload, checkpoint ed export che il motore nuovo deve rileggere dopo un aggiornamento (FR-51, PRD §6). I messaggi del bus non si rileggono tra versioni: l'aggiornamento parte da un bus nuovo e vuoto e riversa dal database (ADR del bus). Vale anche per le pipeline stream: gli eventi degli stream stanno solo sul bus, e le posizioni nei checkpoint e le chiavi C-4 delle pipeline senza finestra (posizione nello stream) contengono la generazione del bus; cosa succede agli eventi non ancora letti e alle chiavi dopo l'aggiornamento (S-3) | architettura | spec della prima storia di aggiornamento (FR-51) |
 | Tetto della memoria del motore quando il database resta lento a lungo (si accetta e si avvisa, AD-2): oltre quale ritardo o memoria vale la regola del database fermo. Misurato solo un rallentamento di 25 s (+13 MB a 9,7 s di ritardo) | architettura | prima della prima storia del proiettore (Epic 1) |
 | Latenza con tutti i pezzi insieme: accettazione p99 oltre 25 ms; avvio p99 di un tenant tra 19,7 e 25,6 ms in serie diverse e oltre 25 ms con un vicino rumoroso (FR-59); consegna scelta, scrittore unico, ausiliario, log e sentinella mai misurati insieme, scrittore unico a 10.000 att./s solo per 5 minuti (ADR del bus) | architettura; Marco per i limiti | benchmark di base (FR-53) sul motore completo, prima del rilascio della v1 |
 | Cancellazione del tenant contro il proiettore unico (C-13 contro AD-2): con la chiave cancellata il proiettore non decifra gli eventi non ancora applicati e si ferma per tutti; C-13 non dice chi cancella le righe proiettate. Proposta della revisione: la lapide è un evento che il proiettore applica in ordine, cancellando lui le righe e scartando gli eventi del tenant; la chiave e il topic si cancellano dopo | Marco (C-13 è approvata) | prima della storia di eliminazione del tenant (FR-31) |
@@ -952,3 +1040,19 @@ docs/
 | Da valutare, rilievi dei revisori rimasti fuori da E-1…E-9 di `review-decisions.md`, API e client: `If-Match` obbligatorio con 428 e `If-None-Match: *` (avversaria R25); canonicalizzazione esposta ai client, nessuna versione per un documento canonicamente uguale (avversaria R22); predefiniti applicati solo dal motore (avversaria R23); payload come byte invariati, impronta e limite di 1 MB sui byte ricevuti (avversaria R28); `cron` in UTC e prossima scadenza calcolata solo dal dominio (avversaria R29, rubrica); da cosa dipende `packages/sdk` (rubrica; i tipi dell'API stanno in `crates/protocol`, AD-15); autorizzazione per operazione in una tabella con un test per operazione (rubrica) | architettura | prima della prima storia che li tocca |
 | Da valutare, rilievi dei revisori rimasti fuori da E-1…E-9 di `review-decisions.md`, sicurezza e processo: rinnovo delle chiavi dei tenant alla rotazione della principale e dati associati (AAD) (sicurezza M4; il formato con l'id della chiave è in C-12); eccezione solo con provenienza verificata, `npm ci --ignore-scripts`, `cargo audit` nel pre-push (sicurezza M13); nei log e nelle etichette solo identificativi opachi, `/metrics` fuori da localhost con credenziale dell'operatore (sicurezza M8); «localhost» = socket Unix o loopback su un ascolto loopback, deciso dall'indirizzo del socket e mai dalle intestazioni, con il costo del TLS tra i container di sviluppo e test (sicurezza M12); tipo di ambito del tenant per ogni metodo del repository, che serva anche a proiettore, ripresa e pianificatore (sicurezza B2); consegne con segreti a database fermo in attesa senza consumare tentativi (rubrica); controllo citato (test, gate o lint) per le Rule di AD-1, AD-3, AD-4, AD-8, AD-9, AD-10, AD-12, AD-15, AD-17, AD-19 (rubrica); campi di correlazione fissi nelle righe di log (rubrica) | architettura | prima della prima storia che li tocca |
 | Dove vivono nello schema OpenAPI il catalogo dei codici di C-7 e il tipo del contesto di validazione di AD-11, che stanno nel dominio, visto che `crates/protocol` non dipende da nessun crate del workspace | architettura | prima della prima storia dell'API |
+| Budget di CPU per micro-lotto delle pipeline stream (FR-25): mai scattato nelle corse misurate di S-3, perché la quota di stato ferma prima la pipeline che consuma CPU; visto in una sola prova. Da riprovare da solo, contando la CPU della pipeline e non quella di tutto il processo | architettura | prima della storia dell'isolamento delle pipeline stream (FR-25) |
+| Quota di stato superabile: in S-3 una pipeline è arrivata a 82,8 MB contro 64 MiB prima di sospendersi. Controllo a ogni lotto o a fine micro-lotto, e margine dichiarato al tenant | architettura | prima della storia della quota di stato delle pipeline |
+| Capacità di scrittura del motore su Iggy condivisa: tra i tenant (in S-3 il tenant B ha avuto 50.000 dei 100.000 eventi/s offerti mentre A teneva i suoi) e con le scritture di stato dei workflow sulla stessa connessione e sui suoi 4 gruppi in volo; divisione tra tenant e carico insieme non misurati | architettura | prima della prima storia dell'ingresso a blocchi (FR-18) |
+| Destinazione stream (FR-24): come raggruppare le righe verso lo stream di destinazione; lo spike scrive un blocco per riga, la stessa forma che per gli avvii non reggeva | architettura | prima della storia della destinazione stream |
+| RAM delle pipeline stream accanto a NFR-1: ogni tenant con pipeline attive aggiunge circa 64 MB (S-3), più il ruolo della validazione a secco quando valida (RAM e riavvio a freddo del ruolo con DataFusion non misurati, misurato solo il ruolo delle pipeline); va sommata alla memoria dei tenant attivi della riga di S-2 | architettura | con la riga della memoria con tenant attivi, misurata con il motore vero |
+| Ordine nel log tra gruppi in volo (4 sulla stessa connessione): dipende dalle corsie del client di Iggy e non è provato; effetto sugli eventi vicini al ritardo tollerato | architettura | prima della prima storia dell'ingresso a blocchi (FR-18) |
+| Checkpoint delle pipeline stream con RustFS (AD-17): il processo confinato ha Landlock sulla sola porta del bus e nessun client dell'archivio, quindi con RustFS non arriva alla porta. Proposta: con RustFS il checkpoint passa sull'IPC al motore, che lo scrive con la porta dell'archivio; su disco lo scrive il processo nella cartella del tenant, come misurato in S-3 | architettura | prima della storia dei checkpoint delle pipeline stream |
+| Forma del corpo dell'API di ingresso a blocchi (FR-18: righe con le colonne dello stream in JSON, o altro), chi divide gli invii oltre il tetto (SDK, con una chiave per blocco), e dove vivono i tipi della busta del blocco (dati o segnale, istante di arrivo, chiave) e dei messaggi IPC tra motore e processo delle pipeline (`crates/protocol` o il dominio) | architettura | prima della storia dell'ingresso a blocchi (FR-18) |
+| Nuova versione della query di una pipeline (FR-23): da quale posizione del topic parte (fine del topic alla pubblicazione, o la posizione della versione precedente) e cosa succede alle righe in attesa della versione vecchia | architettura | prima della storia del ciclo di vita delle pipeline stream |
+| Righe in attesa di consegna sotto un rifiuto per quota prolungato: contano nella quota di stato e oltre sospendono la pipeline con un codice? E come si dimensiona `RLIMIT_DATA` del processo rispetto al numero di pipeline attive per tenant e alla loro quota | architettura | prima della storia della quota di stato delle pipeline |
+| Watermark con più stream (`UNION ALL`) e pipeline senza finestra: watermark per stream e quello della pipeline come minimo tra i rami, o uno solo per pipeline; quando si emette una riga senza finestra | architettura | prima della storia delle finestre (FR-20, FR-21) |
+| Durata delle chiavi C-4 degli avvii delle pipeline: la finestra di idempotenza del motore deve coprire almeno la conservazione dello stream più l'intervallo dei checkpoint, altrimenti una rielaborazione lunga rifà avvii già accettati | architettura | prima della storia delle destinazioni (FR-24) |
+| Dove vive l'implementazione unica del dialetto chiuso e del controllo sull'albero del SQL (AD-13): nel dominio entrerebbe nel validatore del browser (AD-11), mentre il SQL lo valida solo il motore; proposta: un crate puro a parte, usato dai due ruoli e mai dal kit. Da decidere prima che S-4 misuri il peso del validatore | architettura | ADR di S-4 o prima storia del dialetto, la prima che arriva |
+| Blocco ripetuto con la stessa `Idempotency-Key` e un corpo diverso: con la regola di AD-13 riceve 200 e il processo lo scarta, mentre FR-6 e C-18 chiedono un conflitto. Proposta: l'impronta del corpo entra nell'insieme delle chiavi viste e un conflitto si conta e si segnala al tenant e all'operatore con un codice; in alternativa una tabella breve delle chiavi nel motore | architettura | prima della storia dell'ingresso a blocchi (FR-18) |
+| Ruolo della validazione a secco del SQL: valori dei limiti (`RLIMIT_NOFILE`, `RLIMIT_DATA`), lista seccomp propria, RAM e riavvio a freddo misurati; il limite dei file per ruolo va scritto accanto al 64 dell'ADR della sandbox, che vale per gli altri ruoli | architettura | prima della storia del ruolo della validazione a secco |
+| Rotazione della chiave del tenant con il processo delle pipeline vivo: come il processo riceve la chiave nuova e cosa succede ai checkpoint cifrati con la vecchia | architettura | con la riga sulla rotazione delle chiavi dei tenant (sicurezza M4) |

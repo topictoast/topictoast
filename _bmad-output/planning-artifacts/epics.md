@@ -390,7 +390,7 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
   - Misura: attività vuote, worker sulla stessa macchina, sostenuto 10 minuti; il p99 di avvio è riportato anche a questo ritmo.
 - **NFR-4 — Carico sul database** (prd.md:L1292): ≤ 5 istruzioni SQL per attività.
   - Misura: media sull'intero ciclo di vita dell'attività durante il test di NFR-3; confronto con Hatchet sullo stesso carico in SM-2.
-- **NFR-5 — Pipeline stream** (prd.md:L1293): `[ASSUMPTION: ≥ 100.000 eventi/s per pipeline con filtro e conteggio su finestra fissa; da confermare dopo lo spike]`.
+- **NFR-5 — Pipeline stream** (prd.md): ≥ 100.000 eventi/s per pipeline con filtro e conteggio su finestra fissa, confermato dallo spike S-3 (105.000 eventi/s per 10 minuti, ADR del 2026-11-28).
   - Misura: eventi scritti via API o SDK di FR-18 e consumati dalla pipeline, sostenuto 10 minuti.
 - **NFR-6 — Nessuna perdita di dati** (prd.md:L1305-L1310): nessuna attività, esecuzione o evento accettato va perso per riavvio, crash di qualunque processo o spegnimento improvviso dell'host.
   - Vale anche durante i test di NFR-3 e NFR-5.
@@ -444,7 +444,7 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
 - **AR-14** S-2 Sandbox, scope: tecnologie dei due livelli (M-25): leggera senza KVM né root (wasmtime 50.0.3), forte microVM con pool (Firecracker v1.17.0; cloud-hypervisor v54.1 solo con eccezione); nessuna convivenza tra tenant nella leggera, costo RAM/avvio (M-26); formato modulo compilato TS e Rust (non esclude Python/Go dopo la v1, costituzione VII da riesaminare), declassamento della forte, parte del pool per tenant, pulizia, limite nodo vs timeout task (M-27); quali ausiliari separare, arresto per inattività, riavvio a freddo (M-28, PRD §11 n.9). (spine L481-492)
 - **AR-15** S-2 criteri: NFR-12 (leggera: avvio p50 ≤ 10 ms e ≤ 64 MB per istanza; forte: ≤ 10 ms con sandbox libera nel pool; [ASSUMPTION]); NFR-1 con ausiliari attivi; arresto per inattività non peggiora p99 NFR-2 (SM-C2); FR-16 (fuori dal processo della chiave, mai due tenant in un'istanza); FR-17 (CPU, memoria, tempo); TS e Rust compilati girano nella leggera; codice ostile noto a entrambi i livelli (NFR-8: fuga, esaurimento, rete interna, lettura chiave); x86_64 e arm64 (NFR-10); default senza KVM né root (FR-50). (spine L493-499)
 - **AR-16** S-2 da provare: come jq, `call http`, validazione e dry-run SQL evitano mix di tenant (misurato vs NFR-2 e NFR-1); confinamento Landlock + seccomp di ogni ausiliario prima di toccare contenuto tenant, con ripiego dove manca Landlock; test "lettura della chiave principale" per ogni sottocomando ausiliario (file chiave, `/proc` del motore, file DB, configurazione, cartella di altro tenant); il tenant carica solo bytecode, validato e compilato nell'ausiliario, cache nativa scritta solo da topictoast. ADR `…-sandbox.md`; aggiorna AD-6. Sblocca FR-15…FR-17, FR-54, NFR-7, NFR-8, NFR-10, NFR-12. (spine L500-510)
-- **AR-17** S-3 Pipeline stream, scope: costo di stato, finestre, watermark e checkpoint costruiti sopra DataFusion (M-31), checkpoint nell'archivio payload (AD-17); dialetto SQL chiuso (M-33); chiusura finestre su stream inattivo (M-34); id evento e dedup all'ingresso (M-35); finestra/ritardo/checkpoint nel dialetto (T-56). Caso: UJ-3 del PRD (conteggio per ASN, finestre 5 min, soglia > 50, un avvio per riga, riavvio a metà finestra dall'ultimo checkpoint), [ASSUMPTION] finché non arriva un caso reale; un secondo tenant con processo proprio e query ostile prova FR-25. (spine L512-521)
+- **AR-17** S-3 Pipeline stream, scope: costo di stato, finestre, watermark e checkpoint costruiti sopra DataFusion (M-31), checkpoint nell'archivio payload (AD-17); dialetto SQL chiuso (M-33); chiusura finestre su stream inattivo (M-34); identità dell'evento e dedup dei blocchi nel processo delle pipeline (M-35); finestra/ritardo/checkpoint nel dialetto (T-56). Caso: UJ-3 del PRD (conteggio per ASN, finestre 5 min, soglia > 50, un avvio per riga, riavvio a metà finestra dall'ultimo checkpoint), [ASSUMPTION] finché non arriva un caso reale; un secondo tenant con processo proprio e query ostile prova FR-25. (spine L512-521)
 - **AR-18** S-3 criteri: NFR-5 ≥ 100.000 eventi/s ([ASSUMPTION]) misurato dall'API FR-18 (a blocchi) con scrittura durevole, cifratura per tenant e guasto iniettato senza eventi accettati persi; FR-19…FR-25 sul caso; riavvio dal checkpoint senza perdite (FR-22), un solo avvio per riga (FR-24, C-4); SQL dei tenant non raggiunge tabelle esterne né funzioni di file/rete di DataFusion; NFR-1 con DataFusion nel binario e nessuna pipeline attiva; RAM per processo-tenant vs NFR-1; latenza del buffering operatori DataFusion 55.x. (spine L522-528)
 - **AR-19** S-3 da provare: SQL controllato sull'AST contro il dialetto chiuso prima della pianificazione; niente DDL/DML/istruzioni; nessun catalogo file né object store registrato; spill su disco spento o in cartella tenant cifrata; limite memoria di sistema oltre al pool DataFusion (anche per il dry-run); casi ostili: `repeat` enorme, prodotto cartesiano, costanti enormi. ADR `…-stream-pipelines.md`; aggiorna AD-13. Sblocca FR-18…FR-25, NFR-5. (spine L529-535)
 - **AR-20** S-4 Kit nel browser, scope: validatore Rust napi-rs `wasm32-wasip1` senza thread, da pagina senza isolamento cross-origin, su Chromium, Firefox, Safari, anche telefono (Safari iOS, Chrome Android; upstream prova solo Chromium); provare `threadlessInitialMemory`, `asyncInit: true`, bundle ESM preconfezionato; stack wasm fisso a 64 MB in napi-build 2.6.0; dipende da emnapi/@emnapi/core/@emnapi/runtime 2.0.0-beta.3 (pre-release). (spine L537-543)
@@ -472,7 +472,7 @@ Premessa (prd.md:L1282-L1285): tutti misurati con il benchmark di FR-53 sulla ma
 - **AR-40** AD-19: kit raggiunge il motore direttamente con CORS limitato alle origini configurate (rifiuta `*`, `null`, match per suffisso) o via proxy host; risorse operatore non accettano origini del kit né `Access-Control-Allow-Credentials`; JS e `.wasm` serviti dall'origine dell'host, mai dal motore; produzione fissa esplicitamente indirizzo e TLS (C-14); SSE via `fetch` con header `Authorization`, mai token in URL o cookie; il motore chiude lo stream alla scadenza della credenziale; CSP host con `connect-src` e `'wasm-unsafe-eval'`. (spine L394-407)
 
 #### Convenzioni
-- **AR-41** C-1: UUIDv7 per esecuzioni, task, attività, eventi delle esecuzioni, risorse API, id tenant; id SSE = token posizione bus; id eventi stream da S-3 (M-35); tempi UTC RFC 3339; durate ISO 8601. (conv. C-1)
+- **AR-41** C-1: UUIDv7 per esecuzioni, task, attività, eventi delle esecuzioni, risorse API, id tenant; id SSE = token posizione bus; id eventi stream: posizione del blocco più indice nel blocco (AD-13, M-35); tempi UTC RFC 3339; durate ISO 8601. (conv. C-1)
 - **AR-42** C-2: ogni consegna ha `attemptId` (attività + numero tentativo); tentativo non corrente rifiutato e registrato; risultato/battito/scritture solo dalla sessione del worker destinatario; vale il primo esito per `attemptId`. (C-2)
 - **AR-43** C-3: chiave scadenza = pianificazione + versione + istante UTC, controllata dal motore e da vincolo di unicità nella proiezione; scadenze rifiutate registrate con motivo. (C-3)
 - **AR-44** C-4: chiave riga→avvio = pipeline + versione + fine finestra + chiave gruppo (senza finestra: posizione nello stream) = chiave di idempotenza FR-6. (C-4)
@@ -602,7 +602,7 @@ come indice.
 | §11 | Stato dopo l'architettura | Dove si chiude |
 | --- | --- | --- |
 | n.1 caso reale di pipeline stream | aperta; S-3 usa UJ-3 come assunzione | Marco, prima o durante S-3 |
-| n.2 obiettivo NFR-5 | aperta | ADR di S-3 (AR-18) |
+| n.2 obiettivo NFR-5 | chiusa il 2026-11-28: NFR-5 confermato a ≥ 100.000 eventi/s; stato della pipeline di UJ-3 0,6-1,3 MB | ADR di S-3 (AR-18) |
 | n.3 conferma NFR-12 | aperta | ADR di S-2 (AR-15) |
 | n.4 checkpoint | chiusa | AD-17 |
 | n.5 progetto separato con i nodi pronti | fuori dalla v1 | nessuna storia |
@@ -984,7 +984,7 @@ Lo sprint 1 parte solo quando tutte le voci sono chiuse.
 | --- | --- | --- | --- |
 | S-1 Bus (AR-9…AR-13) | Iggy o Valkey; tre collegamenti dei worker; ripresa e aggiornamento; trasporto delle righe di log dei worker (FR-59); chiusa il 2026-11-26 (ADR del bus), AR-93, AR-94 e AR-95 restano aperte | architettura | 1, 2, 3, 5, 6, 10, 11, 13 |
 | S-2 Sandbox (AR-14…AR-16) | livello leggero e microVM; riavvio a freddo; chiusa il 2026-11-26 (ADR della sandbox), AR-103 resta aperta (prima storia di installazione) | architettura | 1, 10, 13 |
-| S-3 Pipeline stream (AR-17…AR-19) | DataFusion con stato, finestre, watermark, checkpoint sul caso UJ-3 | architettura | 11 |
+| S-3 Pipeline stream (AR-17…AR-19) | DataFusion con stato, finestre, watermark, checkpoint sul caso UJ-3; chiusa il 2026-11-28 (ADR delle pipeline stream): validazione a secco del SQL in un ruolo ausiliario proprio, il controllo sull'albero porta la lista delle query ostili come test di regressione, il budget di CPU va riprovato nella storia dell'isolamento | architettura | 1, 10, 11, 13 |
 | S-4 Kit nel browser (AR-20, AR-21) | validatore `wasm32-wasip1` su Chromium, Firefox, Safari; soglie di peso e avvio (AR-107) | architettura, Marco | 6, 12 |
 | AR-86 | chiusa il 2026-11-23: AD-20; resto alla spec delle connessioni (AR-89) | architettura | 1, 7, 8, 10 |
 | AR-96 | primo avvio: credenziali, certificati, chi firma `aud = sdk` | architettura | 1, 3, 4 |
@@ -1411,6 +1411,11 @@ così che un errore di rete o un client veloce non mi fanno perdere né duplicar
 **Quando** arrivano al motore
 **Allora** esiste una sola esecuzione e tutte le risposte la restituiscono
 **E** la stessa chiave usata in due tenant dà due esecuzioni distinte, con un test a due tenant (AD-5)
+
+**Dato** un avvio che arriva dall'IPC (le pipeline stream, AD-13) e non da HTTP
+**Quando** il motore lo decide
+**Allora** il percorso di avvio è lo stesso, con un esito per avvio (accettato, già visto, rifiutato con il motivo)
+**E** la finestra di idempotenza è un parametro documentato (NFR-14), la cui durata minima fissa la storia 11.7
 
 **Dato** una risposta di avvio
 **Quando** il client rilegge l'esecuzione passando il token di posizione ricevuto
@@ -3556,9 +3561,18 @@ così che a riposo topictoast occupa poca memoria.
 **Allora** il motore lo riavvia a freddo e la richiesta riesce
 **E** il benchmark riporta il tempo di riavvio a freddo, mentre NFR-2 e NFR-12 si misurano a regime
 
+**Dato** un tenant con pipeline stream attive
+**Quando** passa il tempo di inattività
+**Allora** il suo processo delle pipeline non viene fermato, anche senza eventi (finestre aperte, checkpoint), e si ferma solo con l'ultima pipeline o con l'eliminazione del tenant
+
+**Dato** il ruolo della validazione a secco inattivo
+**Quando** passa il tempo di inattività
+**Allora** si ferma e riparte a freddo alla prima validazione
+
 **Dato** l'installazione a riposo
 **Quando** si misura la RAM come dice NFR-1
 **Allora** si contano il motore, il bus e ogni processo ausiliario ancora attivo
+**E** ogni tenant con pipeline attive aggiunge la RAM del suo processo (circa 64 MB nello spike, domanda aperta) e si conta anche il ruolo della validazione a secco quando valida
 
 ## Epic 11: Pipeline stream
 
@@ -3567,7 +3581,7 @@ watermark e checkpoint; le righe emesse vanno su uno stream o avviano un workflo
 riga; l'operatore vede lo stato delle pipeline.
 
 Il dialetto SQL chiuso, la costruzione di stato, finestre, watermark e checkpoint sopra DataFusion e
-la deduplicazione all'ingresso vengono dall'ADR di S-3. Il caso guida è UJ-3, un'assunzione finché
+la deduplicazione dei blocchi nel processo delle pipeline vengono dall'ADR di S-3. Il caso guida è UJ-3, un'assunzione finché
 non arriva il caso reale di Marco (§11 n.1).
 
 ### Story 11.1: Scrivere eventi sugli stream di un tenant
@@ -3576,7 +3590,7 @@ Come integratore,
 voglio che la mia piattaforma, i worker e i workflow scrivano eventi sugli stream di un tenant,
 così che le pipeline stream di quel tenant hanno i dati da elaborare.
 
-**Rispetta:** AD-5, AD-7, AD-12 (eventi a blocchi), AD-13 (topic propri del tenant con l'identificativo interno); C-1, C-7
+**Rispetta:** AD-5, AD-7, AD-12 (eventi a blocchi), AD-13 (topic propri del tenant con l'identificativo interno); C-1, C-7, C-12, C-18
 **Requisiti:** FR-18, FR-26 (scrittura solo sugli stream del proprietario), FR-30 (eventi al secondo), FR-38 (stream via SDK), NFR-8, NFR-14; AR-86 (come un task o un worker scrive su uno stream)
 **Prova per l'utente:** con l'SDK scrivere 1.000 eventi di esempio sullo stream «indicatori» di «acme»; un tentativo di scrivere con il contesto di «globex» su quello stream riceve lo stesso errore di uno stream inesistente.
 **Docs utente:** stream ed eventi.
@@ -3586,7 +3600,25 @@ così che le pipeline stream di quel tenant hanno i dati da elaborare.
 **Dato** un tenant
 **Quando** l'integratore, un worker o un workflow scrive eventi a blocchi su un suo stream via API o SDK
 **Allora** gli eventi sono accettati solo dopo la scrittura durevole e cifrati con la chiave del tenant
-**E** un evento senza tempo dell'evento riceve il tempo di arrivo
+**E** un evento senza tempo dell'evento riceve il tempo di arrivo, scritto all'ingresso e mai alla lettura
+
+**Dato** un blocco di 1.000 eventi
+**Quando** viene scritto
+**Allora** è accettato
+**E** un blocco di 1.001 eventi o di oltre 1 MiB è rifiutato con un codice (C-7) e nessun evento è scritto; il motore non divide mai un blocco
+
+**Dato** lo stesso blocco con la stessa `Idempotency-Key` (C-18) inviato due volte
+**Quando** il motore lo riceve
+**Allora** risponde 200 entrambe le volte e la pipeline elabora gli eventi una volta sola (questa seconda parte si prova nelle storie 11.4 e 11.5)
+
+**Dato** un evento con un valore di tipo sbagliato rispetto alle colonne dello stream
+**Quando** viene scritto
+**Allora** è rifiutato con un errore di validazione
+**E** un decimale `1.10` resta `1.10`, mai `f64`
+
+**Dato** più eventi di quelli che stanno in un blocco
+**Quando** il client li invia
+**Allora** la forma del corpo e chi divide gli invii oltre il tetto (SDK) sono quelli fissati nella spec, dopo la domanda aperta sulla forma del corpo, decisa prima di questa storia
 
 **Dato** un workflow o un worker
 **Quando** scrive su uno stream
@@ -3601,13 +3633,52 @@ così che le pipeline stream di quel tenant hanno i dati da elaborare.
 **Quando** continua a scrivere
 **Allora** riceve errori di quota, mentre gli altri tenant continuano a scrivere e ad avviare esecuzioni entro NFR-2
 
-### Story 11.2: Pipeline stream definita in SQL
+### Story 11.2: Validazione a secco del SQL delle pipeline stream
+
+Come tenant,
+voglio che il SQL di una pipeline sia controllato prima di partire senza mettere a rischio le mie pipeline in corsa,
+così che un errore o una query ostile non fermano il lavoro già attivo.
+
+**Rispetta:** AD-6, AD-11, AD-13; C-7
+**Requisiti:** FR-17 (limiti delle query), FR-19, FR-25, NFR-8; AR-19
+**Prova per l'utente:** con una pipeline attiva di «acme», salvare una query con una voce fuori dal dialetto: il rifiuto arriva con un errore e la pipeline attiva continua; poi salvare una query che porta il ruolo oltre il suo limite di memoria: il salvataggio riceve un codice di errore e le pipeline attive restano in corsa.
+**Docs utente:** validazione del SQL delle pipeline stream.
+
+**Acceptance Criteria:**
+
+**Dato** un salvataggio di una pipeline mentre il tenant ha pipeline attive in corsa
+**Quando** il SQL è validato
+**Allora** lo valida un ruolo ausiliario proprio, uno per tenant, a richiesta, con DataFusion, mai il processo delle pipeline
+**E** le pipeline in corsa non si fermano
+
+**Dato** il ruolo della validazione a secco
+**Quando** si ispeziona
+**Allora** riceve dal motore sull'IPC solo le definizioni delle colonne degli stream del suo tenant, non ha accesso al bus ed è confinato come gli altri ausiliari (Landlock senza cartelle né porte, `RLIMIT_DATA`)
+
+**Dato** un SQL che porta il ruolo oltre il suo limite di memoria
+**Quando** il ruolo cade
+**Allora** il motore risponde con un codice (C-7) e l'editor o l'API lo mostrano
+**E** il motore e le pipeline attive restano in corsa
+
+**Dato** un SQL salvato
+**Quando** il ruolo lo controlla
+**Allora** il controllo del dialetto chiuso sull'albero sintattico gira nel ruolo alla pubblicazione, con la stessa implementazione che il processo delle pipeline usa al caricamento
+
+**Dato** la lista delle query ostili dello spike (DDL su `/etc/passwd`, `COPY` verso un file, connettore verso l'indirizzo del bus, funzione dell'utente, funzioni di tabella, join e prodotto cartesiano, `repeat` enorme, costante enorme, annidamento profondo, stream di un altro tenant, errore di sintassi, finestra oltre la conservazione, ciclo tra pipeline)
+**Quando** gira
+**Allora** ogni voce è rifiutata ed è un test di regressione
+
+**Dato** il ruolo inattivo
+**Quando** passa il tempo di inattività
+**Allora** si ferma, e riparte a freddo alla prima validazione
+
+### Story 11.3: Pipeline stream definita in SQL
 
 Come tenant,
 voglio definire una pipeline stream con una query SQL sui miei stream e mandare le righe emesse su un mio stream,
 così che trasformo eventi in risultati senza scrivere codice.
 
-**Rispetta:** AD-6, AD-11 (SQL validato solo da un processo ausiliario), AD-13 (un processo per tenant); C-7
+**Rispetta:** AD-6, AD-11 (SQL validato solo da un processo ausiliario), AD-13 (dialetto chiuso, quattro barriere, un processo per tenant); C-4, C-7
 **Requisiti:** FR-19, FR-24 (destinazione stream), FR-38 (pipeline via SDK), NFR-8, NFR-14; AR-19
 **Prova per l'utente:** salvare dall'SDK una pipeline che filtra gli eventi di «indicatori» e scrive su «sospetti»; le ultime righe emesse si leggono via API. Una query con un errore di sintassi è rifiutata con riga e colonna.
 **Docs utente:** dialetto SQL delle pipeline stream.
@@ -3616,24 +3687,45 @@ così che trasformo eventi in risultati senza scrivere codice.
 
 **Dato** una query sugli stream del tenant con le sole funzioni del dialetto chiuso
 **Quando** il tenant la salva
-**Allora** viene validata a secco in un processo ausiliario e la pipeline parte nel processo del tenant
+**Allora** viene validata a secco dal ruolo ausiliario della validazione a secco (storia 11.2) e la pipeline parte nel processo delle pipeline del tenant
 **E** le righe emesse arrivano sullo stream di destinazione e le ultime si leggono via API
+
+**Dato** un riavvio dal checkpoint
+**Quando** la pipeline rifà righe già emesse verso lo stream di destinazione
+**Allora** le righe rifatte arrivano una volta sola (stessa chiave C-4)
+**E** come raggruppare le righe in blocchi verso lo stream di destinazione è quanto fissato nella spec, dopo la domanda aperta su questo punto, decisa prima di questa storia
 
 **Dato** un errore di sintassi o uno stream inesistente
 **Quando** la query viene salvata
 **Allora** l'errore indica riga e colonna
 **E** uno stream di un altro tenant è trattato come inesistente
 
-**Dato** una query con DDL, tabelle esterne, connettori, lettura o scrittura di file, accesso alla rete o funzioni definite dall'utente
+**Dato** una query con DDL, DML, ogni altra istruzione, tabelle esterne, connettori, lettura o scrittura di file, accesso alla rete, funzioni definite dall'utente, join, sottoquery, CTE, `ORDER BY`, `LIMIT`, `OVER`, funzioni di tabella o funzioni fuori dall'elenco
 **Quando** viene salvata
 **Allora** è rifiutata con un errore di validazione
-**E** le query ostili (tabella esterna su `/etc/passwd`, `COPY` verso un file, connettore verso l'indirizzo del bus, UDF) entrano nel test di NFR-8
+**E** le query ostili della lista dello spike (tabella esterna su `/etc/passwd`, `COPY` verso un file, connettore verso l'indirizzo del bus, UDF) sono un test di regressione del controllo sull'albero e di NFR-8
+
+**Dato** il testo di una query di 16 KiB, e uno di 16 KiB + 1 byte; un letterale di 1 KiB, e uno di 1 KiB + 1 byte; una profondità di 64, e una di 65
+**Quando** vengono salvati
+**Allora** il valore al limite è accettato e quello oltre è rifiutato con un errore di validazione
+
+**Dato** una funzione o una clausola nuova del dialetto
+**Quando** entra nell'elenco chiuso
+**Allora** passa dalla lista delle query ostili prima di essere ammessa
+
+**Dato** una query che il controllo sull'albero non fermasse
+**Quando** arriva al processo delle pipeline
+**Allora** la fermano le altre barriere, in quest'ordine: `SQLOptions` senza DDL, DML né istruzioni, contesto con solo gli stream del tenant, limiti di memoria
+
+**Dato** il ritardo tollerato e l'intervallo dei checkpoint
+**Quando** il tenant li dichiara
+**Allora** sono campi della pipeline, fuori dal SQL, e un tipo fuori da testo, intero a 64 bit, decimale esatto, booleano e istante UTC è rifiutato
 
 **Dato** due pipeline dello stesso tenant che formerebbero un ciclo (una scrive sullo stream da cui legge l'altra, fino a tornare alla prima)
 **Quando** si salva la seconda
 **Allora** è rifiutata con le pipeline coinvolte
 
-### Story 11.3: Finestre, aggregazioni e watermark
+### Story 11.4: Finestre, aggregazioni e watermark
 
 Come tenant,
 voglio aggregare gli eventi su finestre di tempo dell'evento e dichiarare quanto ritardo tollero,
@@ -3655,18 +3747,32 @@ così che conto gli indicatori per ASN ogni 5 minuti anche con eventi in ritardo
 **Quando** la stessa chiave arriva più volte nella finestra
 **Allora** è emessa una sola volta per finestra
 
-**Dato** un ritardo tollerato dichiarato
+**Dato** una finestra con la somma di una colonna decimale
+**Quando** la finestra si chiude
+**Allora** la somma è un decimale esatto, mai `f64`
+
+**Dato** un ritardo tollerato dichiarato (predefinito 10 secondi)
 **Quando** il watermark supera la fine della finestra più il ritardo tollerato
 **Allora** la finestra si chiude
 **E** gli eventi che arrivano dopo la chiusura della loro finestra sono scartati e contati in una metrica
 
-**Dato** un evento con un tempo oltre la tolleranza nel futuro (per esempio un anno avanti)
+**Dato** un evento con un tempo oltre 60 secondi nel futuro rispetto al suo arrivo (per esempio un anno avanti)
 **Quando** arriva
-**Allora** non sposta il watermark, non fa scartare gli eventi successivi, non chiude finestre ed è contato in una metrica
+**Allora** è scartato e contato in una metrica, non sposta il watermark, non fa scartare gli eventi successivi e non chiude finestre
+**E** un evento a 60 secondi nel futuro è accettato, uno a 61 secondi è scartato
 
-**Dato** uno stream che smette di ricevere eventi
-**Quando** passa il tempo documentato (NFR-14)
-**Allora** le finestre aperte si chiudono comunque e l'ultima finestra dell'ondata emette le sue righe
+**Dato** uno stream letto da una pipeline attiva che smette di ricevere eventi
+**Quando** passano 30 secondi di quiete dall'ultimo blocco (con il segnale durevole scritto dal motore dopo 1 secondo senza blocchi)
+**Allora** le finestre aperte si chiudono comunque e l'ultima finestra dell'ondata emette le sue righe entro ritardo tollerato più quiete dopo la sua fine, senza garanzia di meno
+**E** su uno stream senza pipeline attive il motore non scrive alcun segnale
+
+**Dato** uno stream rielaborato dallo stesso log, nello stesso ordine
+**Quando** la pipeline lo rilegge
+**Allora** chiude le stesse finestre ed emette le stesse righe
+
+**Dato** una pipeline con più stream (`UNION ALL`) o senza finestra
+**Quando** si calcola il watermark
+**Allora** vale la regola fissata nella spec, dopo la domanda aperta sul watermark con più stream e sulle pipeline senza finestra, decisa prima di questa storia
 
 **Dato** il benchmark di base
 **Quando** misura la pipeline di filtro e conteggio su finestra fissa
@@ -3676,7 +3782,7 @@ così che conto gli indicatori per ASN ogni 5 minuti anche con eventi in ritardo
 **Quando** viene salvata
 **Allora** è rifiutata con i due valori
 
-### Story 11.4: Stato e checkpoint che sopravvivono ai riavvii
+### Story 11.5: Stato e checkpoint che sopravvivono ai riavvii
 
 Come tenant,
 voglio che lo stato della pipeline sopravviva a un riavvio,
@@ -3690,25 +3796,38 @@ così che un crash a metà finestra non perde il conteggio.
 **Acceptance Criteria:**
 
 **Dato** una pipeline attiva
-**Quando** passa l'intervallo dei checkpoint (predefinito 10 secondi, assunzione del PRD)
-**Allora** lo stato è salvato nell'archivio dei payload, cifrato con la chiave del tenant
+**Quando** passa l'intervallo dei checkpoint (predefinito 10 secondi, campo della pipeline), tra due lotti
+**Allora** lo stato è salvato tramite la porta dell'archivio dei payload, cifrato con la chiave del tenant
+**E** il checkpoint contiene la posizione letta, il watermark, le chiavi dei blocchi viste (solo entro la conservazione), lo stato delle finestre aperte e le righe in attesa di consegna, mai lo stato di sospensione
 
 **Dato** un riavvio della pipeline o del motore
 **Quando** la pipeline riparte
 **Allora** riparte dall'ultimo checkpoint, rielabora gli eventi successivi e nessuna finestra perde eventi già accettati
 **E** rielaborata sugli stessi eventi, emette le stesse righe
 
+**Dato** un blocco già visto prima del crash
+**Quando** la pipeline riparte
+**Allora** il processo lo scarta usando le chiavi dei blocchi nel checkpoint
+
+**Dato** un crash a metà scrittura del checkpoint (per esempio un file temporaneo senza la rinomina)
+**Quando** la pipeline riparte
+**Allora** vale l'ultimo checkpoint intero
+
+**Dato** l'archivio dei payload su RustFS
+**Quando** il processo scrive un checkpoint
+**Allora** il percorso è quello fissato nella spec, dopo la domanda aperta su come il checkpoint passa al motore, decisa prima di questa storia
+
 **Dato** un tenant eliminato
 **Quando** passa il tempo massimo documentato
 **Allora** la ricerca di un valore sentinella non lo trova nemmeno nei checkpoint
 
-### Story 11.5: Attivare, sospendere, modificare ed eliminare una pipeline
+### Story 11.6: Attivare, sospendere, modificare ed eliminare una pipeline
 
 Come tenant,
 voglio gestire il ciclo di vita delle mie pipeline stream,
 così che le fermo quando non servono senza perdere eventi in silenzio.
 
-**Rispetta:** AD-13
+**Rispetta:** AD-2, AD-6, AD-13
 **Requisiti:** FR-23, FR-38 (pipeline via SDK)
 **Prova per l'utente:** sospendere la pipeline di UJ-3 per un minuto mentre arrivano eventi e riprenderla: elabora gli eventi arrivati nel frattempo; modificarne la query crea una versione nuova con stato vuoto.
 **Docs utente:** gestire le pipeline stream.
@@ -3719,26 +3838,35 @@ così che le fermo quando non servono senza perdere eventi in silenzio.
 **Quando** il tenant la sospende
 **Allora** non consuma CPU
 
+**Dato** il processo delle pipeline che segnala sull'IPC un codice per una pipeline
+**Quando** il motore riceve la segnalazione
+**Allora** è il motore a sospenderla e a scrivere l'evento di stato (AD-2); il processo non cambia mai lo stato da solo
+
+**Dato** il riavvio del processo o del motore
+**Quando** il processo riparte
+**Allora** il motore gli ripassa le pipeline attive con la loro versione, e lo stato di sospensione non sta nel checkpoint
+
 **Dato** una pipeline sospesa
 **Quando** il tenant la riprende
 **Allora** elabora gli eventi arrivati nel frattempo e ancora conservati
-**E** se una parte è uscita dalla conservazione, compare un errore visibile al tenant e all'operatore, mai in silenzio
+**E** se una parte è uscita dalla conservazione, la ripresa fallisce con un codice del catalogo (C-7) visibile al tenant e all'operatore, la posizione resta e nessun evento si perde in silenzio
 
 **Dato** una pipeline attiva
 **Quando** il tenant ne modifica la query
 **Allora** nasce una nuova versione con stato vuoto
+**E** da quale posizione dello stream parte la nuova versione è quanto fissato nella spec, dopo la domanda aperta su questo punto, decisa prima di questa storia
 
 **Dato** una pipeline
 **Quando** il tenant la elimina
 **Allora** il suo processo smette di elaborarla e il suo stato viene rimosso
 
-### Story 11.6: Righe che avviano un workflow
+### Story 11.7: Righe che avviano un workflow
 
 Come tenant,
 voglio che ogni riga emessa da una pipeline avvii un mio workflow con la riga come input,
 così che un'ondata sospetta fa partire da sola l'analisi, una volta per ASN.
 
-**Rispetta:** AD-5, AD-18 (righe e avvii via IPC con identificativo deterministico); C-4
+**Rispetta:** AD-5, AD-6, AD-13 (consegna sull'IPC a gruppi, decisione riga per riga), AD-18 (righe e avvii via IPC con identificativo deterministico); C-4
 **Requisiti:** FR-24 (destinazione workflow), FR-6 (avvio da riga di pipeline stream), FR-26 (proprietario del trigger), FR-30 (righe trattenute nell'arretrato); AR-108 (C-4)
 **Prova per l'utente:** con la pipeline di UJ-3 e la destinazione «avvia il workflow di arricchimento», un'ondata per un ASN produce una sola esecuzione con origine «pipeline stream»; uccidendo il processo prima del checkpoint, dopo la ripresa le esecuzioni non raddoppiano.
 **Docs utente:** pipeline stream che avviano workflow.
@@ -3750,6 +3878,19 @@ così che un'ondata sospetta fa partire da sola l'analisi, una volta per ASN.
 **Allora** la riga dà esattamente un avvio, anche dopo un riavvio dal checkpoint: un'esecuzione accettata o un rifiuto registrato con il motivo
 **E** la chiave è pipeline + versione + fine finestra + chiave di gruppo, o la posizione nello stream senza finestra (C-4)
 
+**Dato** un gruppo di 1.000 righe con esiti misti (accettate, già viste, oltre quota)
+**Quando** il processo lo consegna sull'IPC
+**Allora** il motore decide ogni riga sul percorso di avvio normale (idempotenza C-4, quote FR-30, concorrenza FR-13) e risponde riga per riga
+**E** ne accetta una parte senza annullare le altre: un gruppo non è mai tutto o niente
+
+**Dato** più di 1.000 righe da consegnare
+**Quando** il processo le consegna
+**Allora** le consegna in più gruppi di al più 1.000 righe
+
+**Dato** la durata delle chiavi C-4 e le righe in attesa di consegna
+**Quando** si fissano nella spec
+**Allora** la finestra di idempotenza copre almeno la conservazione dello stream più l'intervallo dei checkpoint, e la spec decide se le righe in attesa contano nella quota di stato (domande aperte)
+
 **Dato** due righe distinte con lo stesso contenuto, per esempio lo stesso conteggio in due finestre
 **Quando** vengono emesse
 **Allora** producono due avvii
@@ -3760,8 +3901,8 @@ così che un'ondata sospetta fa partire da sola l'analisi, una volta per ASN.
 
 **Dato** il tenant oltre la quota di esecuzioni
 **Quando** la pipeline emette righe
-**Allora** le righe in eccesso sono trattenute entro il tetto dell'arretrato, non perse
-**E** oltre il tetto la pipeline smette di emettere con un errore visibile al tenant e all'operatore
+**Allora** le righe rifiutate per quota restano nel processo e si riprovano entro il tetto dell'arretrato, non perse
+**E** oltre il tetto vale quanto fissato nella spec, dopo la domanda aperta sulle righe in attesa sotto un rifiuto per quota prolungato, decisa prima di questa storia
 
 **Dato** le esecuzioni avviate dalla pipeline
 **Quando** partono
@@ -3771,7 +3912,7 @@ così che un'ondata sospetta fa partire da sola l'analisi, una volta per ASN.
 **Quando** si prova a eliminarlo
 **Allora** è rifiutato con l'elenco delle pipeline che lo usano (storia 2.10)
 
-### Story 11.7: Isolamento e quote delle pipeline stream
+### Story 11.8: Isolamento e quote delle pipeline stream
 
 Come integratore,
 voglio quote per tenant sulle pipeline attive, sulla memoria di stato e sulla CPU,
@@ -3779,18 +3920,25 @@ così che la pipeline pesante di un tenant non rallenta quelle degli altri.
 
 **Rispetta:** AD-6, AD-13
 **Requisiti:** FR-25, FR-17 (limiti delle query), FR-30 (quote delle pipeline), NFR-2, NFR-8; AR-19 (limite di memoria di sistema, spill)
-**Prova per l'utente:** dare ad «acme» una quota di memoria di stato piccola e avviare la pipeline con troppi gruppi: la pipeline di «acme» viene sospesa con un errore visibile, mentre quella di «globex» elabora al ritmo di arrivo.
+**Prova per l'utente:** dare ad «acme» una quota di memoria di stato piccola e avviare la pipeline con troppi gruppi: la pipeline di «acme» viene sospesa con un codice visibile, mentre quella di «globex» elabora al ritmo di arrivo.
 **Docs utente:** quote delle pipeline stream.
 
 **Acceptance Criteria:**
 
-**Dato** un tenant oltre la quota di memoria di stato
+**Dato** una pipeline oltre la sua quota di memoria di stato (predefinita 64 MiB per pipeline, NFR-14)
 **Quando** la pipeline cresce
-**Allora** viene sospesa con un errore visibile al tenant e all'operatore
+**Allora** il motore la sospende con un codice del catalogo (C-7) visibile al tenant e all'operatore
+**E** le altre pipeline dello stesso processo continuano
+**E** la quota è superabile di poco: la sospensione avviene entro il margine dichiarato al tenant, fissato nella spec dopo la domanda aperta su questo punto, decisa prima di questa storia
 
-**Dato** un tenant oltre la quota di CPU
+**Dato** una pipeline oltre il budget di CPU per micro-lotto
 **Quando** la pipeline gira
-**Allora** viene rallentata o sospesa con un errore visibile al tenant e all'operatore
+**Allora** il motore la sospende con un codice del catalogo (C-7) visibile al tenant e all'operatore, e le altre pipeline del processo continuano
+**E** il valore del budget è quello riprovato in questa storia (domanda aperta sul budget di CPU)
+
+**Dato** il processo delle pipeline di un tenant
+**Quando** si ispeziona
+**Allora** ha Landlock con la sola porta del bus (e la sola cartella dei checkpoint del tenant quando li scrive su disco), `RLIMIT_NOFILE` 512 e i filtri seccomp attivi prima che tocchi il contenuto del tenant
 
 **Dato** una pipeline di un tenant al limite
 **Quando** girano le pipeline degli altri tenant
@@ -3798,13 +3946,15 @@ così che la pipeline pesante di un tenant non rallenta quelle degli altri.
 
 **Dato** query ostili (un `repeat` enorme, un prodotto cartesiano, costanti enormi)
 **Quando** girano
-**Allora** sono fermate dai limiti di CPU e di memoria, compresa la memoria di sistema oltre al pool di DataFusion, e il motore non si ferma
+**Allora** sono rifiutate dal controllo sull'albero al salvataggio e, se arrivassero al processo, dal controllo al caricamento
+**E** i limiti di CPU e di memoria (pool di DataFusion, quota di stato, `RLIMIT_DATA`) sono la rete di sicurezza, e il motore non si ferma
+**E** ogni funzione o clausola nuova del dialetto passa dalla lista delle query ostili
 
 **Dato** un tenant oltre il numero massimo di pipeline attive
 **Quando** ne attiva un'altra
 **Allora** riceve un errore di quota
 
-### Story 11.8: Pipeline stream nella dashboard
+### Story 11.9: Pipeline stream nella dashboard
 
 Come operatore,
 voglio vedere le pipeline stream attive, rallentate e sospese con la causa e le metriche,
@@ -3819,7 +3969,8 @@ così che capisco subito quale pipeline è in difficoltà e perché.
 
 **Dato** pipeline in vari stati
 **Quando** l'operatore apre «Pipeline stream»
-**Allora** vede per ciascuna lo stato (attiva, rallentata, sospesa) con icona e parola, la causa, il ritardo sul watermark, gli eventi al secondo, la memoria di stato, gli eventi in ritardo scartati e l'ultimo checkpoint
+**Allora** vede per ciascuna lo stato (attiva, rallentata, sospesa) con icona e parola, la causa con il suo codice (quota di stato, budget di CPU, righe rifiutate oltre il tetto, conservazione superata, stream mancante), il ritardo sul watermark, gli eventi al secondo, la memoria di stato, gli eventi in ritardo scartati e l'ultimo checkpoint
+**E** una pipeline per ciascuna causa mostra il codice corrispondente
 
 **Dato** righe rifiutate da una pipeline con destinazione workflow
 **Quando** l'operatore apre la pipeline
@@ -4028,6 +4179,11 @@ così che creo la pipeline di UJ-3 senza usare l'SDK.
 **Allora** gli errori di validazione compaiono con riga e colonna prima del salvataggio, dalla validazione a secco del motore
 **E** «Salva e attiva» resta bloccato finché ci sono errori
 
+**Dato** una validazione a secco che fallisce per limite di risorse
+**Quando** il tenant salva
+**Allora** il kit mostra l'errore con il suo codice e l'editor resta usabile
+**E** nessun testo nomina il processo o il motore
+
 **Dato** una query valida
 **Quando** il tenant sceglie la destinazione («Stream del tenant» o «Workflow») e preme «Salva e attiva»
 **Allora** la pipeline parte e il kit mostra stato e ultime righe emesse
@@ -4057,7 +4213,7 @@ così che seguo i rilasci senza fermare i miei clienti più del necessario.
 
 **Rispetta:** AD-2, AD-4 (ogni cambio della spec OWS è una migrazione), AD-17
 **Requisiti:** FR-51, NFR-6; AR-95 (versione del formato di messaggi del bus, payload, checkpoint ed export), AR-72
-**Prova per l'utente:** con esecuzioni in corso e una pipeline stream attiva, aggiornare il motore e il bus alla versione successiva seguendo la guida: dopo il riavvio le esecuzioni riprendono, la pipeline riparte dal checkpoint e il benchmark conta zero perdite.
+**Prova per l'utente:** con esecuzioni in corso e una pipeline stream attiva, aggiornare il motore e il bus alla versione successiva seguendo la guida: dopo il riavvio le esecuzioni riprendono, la pipeline riparte dal checkpoint, come deciso dalla spec della prima storia di aggiornamento, e il benchmark conta zero perdite.
 **Docs utente:** aggiornare topictoast.
 
 **Acceptance Criteria:**
@@ -4069,7 +4225,11 @@ così che seguo i rilasci senza fermare i miei clienti più del necessario.
 **Dato** l'aggiornamento di un qualunque componente, bus compreso
 **Quando** finisce
 **Allora** nessuna attività accettata e nessuna esecuzione in corso va persa
-**E** il motore nuovo rilegge messaggi del bus, payload e checkpoint scritti dalla versione precedente, nel formato versionato deciso per AR-95
+**E** il motore nuovo rilegge payload e checkpoint scritti dalla versione precedente, nel formato versionato deciso per AR-95
+
+**Dato** una pipeline stream attiva
+**Quando** il bus è aggiornato
+**Allora** il comportamento sugli eventi non ancora letti e sulle chiavi C-4 senza finestra è quello deciso dalla spec della prima storia di aggiornamento (domanda aperta sull'aggiornamento)
 
 **Dato** un workflow accettato da una versione
 **Quando** gira su una versione successiva della stessa major
@@ -4131,7 +4291,11 @@ così che verifico da solo i numeri promessi.
 
 **Dato** il rapporto
 **Quando** viene prodotto
-**Allora** dichiara forma del carico, dimensione dei payload, insieme di dati e modalità di scrittura, e riporta senza obiettivo la RAM sotto carico, la RAM per pipeline attiva e il tempo di riavvio a freddo dei processi ausiliari
+**Allora** dichiara forma del carico, dimensione dei payload, insieme di dati e modalità di scrittura, e riporta senza obiettivo la RAM sotto carico, la RAM per pipeline attiva e il tempo di riavvio a freddo dei processi ausiliari, incluso il ruolo della validazione a secco
+
+**Dato** la corsa a carico misto
+**Quando** una validazione a secco con una query ostile gira mentre le pipeline elaborano
+**Allora** non le ferma
 
 ### Story 13.4: Guida rapida: primo workflow in 15 minuti
 
@@ -4164,7 +4328,7 @@ Come integratore,
 voglio che prima del primo rilascio pubblico giri la suite completa di sicurezza,
 così che rilascio sapendo che tenant, sandbox e segreti reggono i casi noti.
 
-**Rispetta:** AD-5, AD-6, AD-7, AD-19
+**Rispetta:** AD-5, AD-6, AD-7, AD-13, AD-19
 **Requisiti:** NFR-7, NFR-8
 **Prova per l'utente:** lanciare la suite di sicurezza con il comando documentato: il rapporto elenca per ogni tipo di risorsa e punto di accesso il test tra tenant, i test di codice ostile ai due livelli della sandbox e il test dei payload di script, tutti verdi.
 **Docs utente:** modello di sicurezza di topictoast.
@@ -4178,6 +4342,15 @@ così che rilascio sapendo che tenant, sandbox e segreti reggono i casi noti.
 **Dato** la sandbox ai due livelli
 **Quando** gira il codice ostile noto (fuga, esaurimento delle risorse, rete interna, lettura della chiave)
 **Allora** nessun caso riesce
+
+**Dato** la lista delle query ostili (SQL)
+**Quando** gira
+**Allora** il controllo sull'albero le rifiuta tutte e ogni voce nuova del dialetto passa da lì
+
+**Dato** un processo ausiliario per ruolo (validazione a secco, pipeline stream)
+**Quando** la suite lo ispeziona
+**Allora** la validazione a secco non ha accesso al bus e le pipeline non hanno accesso a stream di altri tenant
+**E** una destinazione stream o uno stream di un altro tenant dà lo stesso errore di uno inesistente
 
 **Dato** un payload di script salvato in ogni campo testuale di un tenant
 **Quando** si apre ogni pagina della dashboard e ogni componente del kit, con entrambi i ruoli del kit
