@@ -12,7 +12,7 @@ Workflow orchestrator (in the style of Hatchet and Argo Workflows) with first-cl
 the task logs, FR-59, on 2026-11-23) in `_bmad-output/planning-artifacts/`
 (`briefs/`, `prds/`, `ux-designs/`). Architecture spine (accepted, merged 2026-11-21):
 `docs/architecture/architecture-topictoast-2026-11-20/ARCHITECTURE-SPINE.md`, ADRs in
-`docs/decisions/`. Epics and stories (approved by the user on 2026-11-23): 13 epics, 91 stories in
+`docs/decisions/`. Epics and stories (approved by the user on 2026-11-23; one story added after S-3 on 2026-11-28): 13 epics, 92 stories in
 `_bmad-output/planning-artifacts/epics.md`, numbered in implementation order; each epic lists the
 decisions that block it, closed in the sprint before it starts. Next bmad step:
 `bmad-sprint-planning`, after the spikes below. Before the first design-system story, align the UX
