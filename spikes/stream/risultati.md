@@ -18,7 +18,10 @@ non arriva un caso reale). Non c'è il motore vero: la sua RAM in M1 è la stima
 
 - **49 corse misurate**, tutte valide secondo le regole: cancello di quiete passato (nessun `[macchina non ferma]`), lo
   stesso sha256 prima e dopo ogni corsa, `runner_github=12` prima e dopo in ogni file, pavimento di `fdatasync`
-  registrato (3,2-6,0 ms per scrittura). Nessuna corsa scartata, nessuna rifatta.
+  registrato (2,0-9,0 ms per scrittura, prima e dopo). Dati vuoti all'inizio: `reset.sh` cancella dati di Iggy,
+  checkpoint e database degli avvii prima di ogni corsa (letto nello script); nei file la testa del log è pari ai
+  blocchi accettati più i segnali. Nessuna corsa scartata, nessuna rifatta.
+- Regole committate in `32c446f` alle 20:23:34; prima riga `[stato prima]` delle corse che contano alle 20:23:47.
 - File grezzi `risultati/stream-<riga>-<n>-minisheep.txt` (e `-ctrl-` per i controlli positivi di V2, V3, A2). Le corse
   di prova (`-smoke-`) e i file di diagnosi (`diag-*`) non contano e restano nei file.
 - Script delle corse, committati prima: `ms-misura.sh` (ordine), `ms-driver.sh`, `ms-row.sh` (semi), `smoke2.sh`,
@@ -31,7 +34,7 @@ non arriva un caso reale). Non c'è il motore vero: la sua RAM in M1 è la stima
 |---|---|---|
 | V1 | **supera** | 63 su 63 classificate come scritto; errore di sintassi con riga e colonna (riga 3, colonna 14); lo stream di un altro tenant dà `unknown_stream` come uno inesistente (`stream-v1-1`) |
 | V2 | **non supera** | con il controllo sull'albero spento, `literal_huge` e `join_self` arrivano in fondo, `repeat_huge` fa cadere il processo (segnale 6), `copy_to_file` si ferma solo per «nessun formato di file registrato» e `deep_parens` per il limite di ricorsione del parser; con lo strato 3 da solo: 0 file letti, 0 connessioni (`stream-v2-ctrl-1`) |
-| V3 | **supera** | pipeline `hog` sospesa con `state_quota_exceeded` a 67.316.744 byte, le altre esatte; validazione a secco ostile con il dialetto acceso: `function_not_allowed` in 0,25 ms; motore vivo (`stream-v3-1`) |
+| V3 | **da leggere con Marco** | a runtime: pipeline `hog` sospesa con `state_quota_exceeded` a 67.316.744 byte, le altre esatte (`stream-v3-1`). Validazione a secco ostile: con il dialetto acceso `function_not_allowed` in 0,25 ms; oltre il limite del sistema (controllo sull'albero spento, `RLIMIT_DATA` 1 GiB) errore con codice `validation_process_died`, motore vivo, ma il processo per tenant cade (segnale 31) e le sue pipeline ripartono dal checkpoint: «intatte» non vale alla lettera (`stream-v3-ctrl-1`); con il solo pool di DataFusion la stessa validazione arriva a 283 MB di RSS |
 | C1 | **supera** | 3 su 3: 0 differenze dall'oracolo su 88.610, 87.231, 85.444 righe (finestra fissa, scorrevole, `DISTINCT`, filtro) |
 | C2 | **supera** | 3 su 3: ritardatari 1.166, 1.159, 1.255 e futuri 291, 294, 294, contati uguali dall'oracolo e dalla pipeline; l'evento a un anno nel futuro (il n. 12345 del generatore) cade tra i futuri e le righe restano uguali all'oracolo |
 | C3 | **supera** | 3 su 3: ultima finestra chiusa al massimo in 39,94, 39,87, 39,87 s contro 42 s; coppie con e senza kill identiche |
@@ -75,8 +78,8 @@ stima di 26,5 MB dello spike del bus (stima, altro binario).
 
 Ognuno è nell'emendamento datato; nessuna soglia è cambiata.
 
-1. **Avvii a lotti** (parte 2c). Il motore scriveva un avvio per richiesta con un fsync ciascuno: circa 300 avvii/s su
-   minisheep, e i controlli con 150.000 righe scadevano con righe in attesa. Ora fino a 1.000 righe per transazione
+1. **Avvii a lotti** (parte 2c). Il motore scriveva un avvio per richiesta con un fsync ciascuno: circa 260 avvii/s su
+   minisheep (stima: 124.119 consegnati in circa 8 minuti, `stream-smoke-c6-c-minisheep.txt`), e i controlli con 150.000 righe scadevano con righe in attesa. Ora fino a 1.000 righe per transazione
    (svuotamento in 1-3 s). «misurata»: `stream-smoke-c4-minisheep.txt` (prima), `stream-smoke-c1-2c-minisheep.txt` (dopo).
 2. **C4 a tempo reale** (Marco, memlog 184). Con il tempo dell'evento compresso 20 volte le riprove sfasate del
    generatore dopo un kill del motore facevano scartare blocchi come in ritardo (8 e 4 righe diverse, 0 persi, 0 doppi,

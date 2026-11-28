@@ -70,8 +70,9 @@ state cambiate dopo prove fallite e prima della prima corsa misurata, senza tocc
 7. **Stream fermo (M-34), deterministico.** Su uno stream senza blocchi il motore scrive ogni
    secondo un segnale durevole con l'istante di arrivo; dopo 30 s di quiete il watermark avanza con
    l'orologio dei segnali. Il tempo entra nel log, quindi una rielaborazione chiude le stesse
-   finestre allo stesso punto. Tempo documentato: l'ultima finestra si chiude entro ritardo + quiete
-   dalla sua fine (40 s con i predefiniti; misurato al più 39,9 s).
+   finestre allo stesso punto. Tempo documentato: l'ultima finestra si chiude circa ritardo + quiete
+   dopo la sua fine, più la lettura (con i predefiniti al più 39,9 s nelle corse misurate, fino a
+   41,5 s in prove con binari precedenti; la soglia di C3 era 42 s). Non si promette 40 s.
 8. **Checkpoint (FR-22, AD-17).** Ogni 10 s, tra due lotti: posizione letta, watermark, chiavi dei
    blocchi viste, stato delle finestre aperte, righe in attesa di consegna; cifrato con la chiave
    del tenant (C-12), scritto con file temporaneo, `fdatasync`, rinomina e `fsync` della cartella.
@@ -80,8 +81,10 @@ state cambiate dopo prove fallite e prima della prima corsa misurata, senza tocc
    C-4 (pipeline, versione, fine della finestra, chiave del gruppo); le righe rifatte dopo un
    riavvio hanno la stessa chiave e il motore le assorbe. Il processo consegna le righe a gruppi
    (fino a 1.000 per richiesta), che il motore accetta in una transazione: una riga per richiesta
-   regge circa 300 avvii/s su minisheep. Un rifiuto per quota trattiene le righe e le riprova. La
-   destinazione stream scrive un blocco per riga con la chiave C-4 come `Idempotency-Key`.
+   reggeva circa 260 avvii/s su minisheep (stima: 124.119 avvii consegnati in circa 8 minuti,
+   `stream-smoke-c6-c-minisheep.txt`). Un rifiuto per quota trattiene le righe e le riprova. La
+   destinazione stream ha una chiave di idempotenza C-4 per riga; nello spike scrive un blocco per
+   riga (scorciatoia, misurata solo la correttezza): come raggrupparla è un punto aperto.
 10. **Ciclo di vita (FR-23).** Sospensione e ripresa esatta; una pipeline sospesa oltre la
     conservazione non riprende: errore `retention_exceeded`, posizione tenuta, nessuna perdita
     silenziosa; una nuova versione della query parte con lo stato vuoto.
@@ -91,15 +94,19 @@ state cambiate dopo prove fallite e prima della prima corsa misurata, senza tocc
 12. **Processo per tenant (AD-6, AD-13).** Ruolo `stream`, un processo per tenant, attivo solo se il
     tenant ha pipeline attive. Riceve solo la chiave del suo tenant e legge Iggy con la credenziale
     di sola lettura. Confinamento prima del primo byte del tenant: descrittori e limiti
-    (`RLIMIT_CORE` 0, `RLIMIT_NOFILE` 512, `PR_SET_NO_NEW_PRIVS`), runtime caldo (DataFusion e
+    (`RLIMIT_CORE` 0, `RLIMIT_NOFILE` 512 in proposta, `PR_SET_NO_NEW_PRIVS`), runtime caldo (DataFusion e
     client di Iggy), Landlock su tutti i thread (sola cartella dei checkpoint del tenant, sole porte
     del bus e del motore), `PR_SET_DUMPABLE` 0, seccomp con una lista di 38 syscall riscoperta su
     DataFusion vero e sul client di Iggy. Senza Landlock il ruolo usa il ripiego dell'ADR della
     sandbox (punto 7).
 13. **Validazione a secco in un processo separato** (Marco, 2026-11-28, contro la raccomandazione
     della sessione). La validazione a secco del SQL non gira nel processo delle pipeline ma in un
-    processo per tenant a parte, confinato come gli altri ausiliari e senza accesso al bus: una validazione ostile non fa mai
-    cadere le pipeline in corsa. Cambia l'ultima frase di AD-13.
+    processo per tenant a parte: una validazione ostile non fa mai cadere le pipeline in corsa.
+    Proposta della sessione: è il ruolo `validazione` già previsto da AD-6 (uno per tenant, a
+    richiesta, fermato per inattività), che carica anche DataFusion, senza accesso al bus; se
+    resta un ruolo a parte lo decide l'Update della spine. Cambiano l'ultima frase di AD-13, la
+    frase di AD-6 sulla validazione a secco «nello stesso ruolo» e la riga corrispondente dell'ADR
+    della sandbox, che questo ADR sostituisce su questo punto.
 
 ## Esito dei criteri di S-3
 
@@ -109,7 +116,8 @@ state cambiate dopo prove fallite e prima della prima corsa misurata, senza tocc
 | Guasto iniettato senza eventi accettati persi (NFR-6) | T2 a 105.000 eventi/s con kill del processo per tenant e del motore: 0 persi, 0 doppi, un avvio per riga, 2 su 2; ripresa in 318 ms e 1.215 ms | rispettato |
 | FR-19…FR-25 sul caso | C1-C7 in 3 corse su 3 ciascuna: 0 differenze dall'oracolo; ritardatari e futuri contati esatti; 5 kill per corsa con righe identiche alla corsa senza guasti; ciclo di vita; rifiuti per quota senza perdite; destinazione stream una volta per riga | rispettato |
 | Riavvio dal checkpoint senza perdere eventi (FR-22) e un solo avvio per riga (FR-24, C-4) | C4 (3 coppie, 137.142-137.941 righe identiche) e T2 | rispettato |
-| Il SQL dei tenant non raggiunge tabelle esterne né funzioni di file o di rete | V1 63 su 63; con lo strato 3 da solo 0 file e 0 connessioni; V2 non supera (punto 5) | rispettato con il controllo sull'albero; **mancato** senza |
+| Il SQL dei tenant non raggiunge tabelle esterne né funzioni di file o di rete | V1 63 su 63; 0 file e 0 connessioni con tutti gli strati, con il controllo sull'albero spento e con lo strato 3 da solo; file letti solo con gli strati 1-3 spenti | rispettato |
+| Query ostili di risorse (`repeat` enorme, prodotto cartesiano, costanti enormi) | fermate dal controllo sull'albero; senza, la costante enorme e la tabella unita con sé stessa arrivano in fondo e `repeat` fa cadere il processo (V2) | **mancato** senza il controllo sull'albero (punto 5) |
 | FR-25 con un secondo tenant ostile | I1: ritmo di A 0,9999-1,0002 del controllo, ritardo senza crescita; B sospesa con un codice | rispettato |
 | NFR-1 con DataFusion nel binario e nessuna pipeline attiva | motore con DataFusion e nessun tenant: 24,6 MB RSS (10,3 MB senza DataFusion) | misurato sul motore dello spike |
 | RAM di ogni processo per tenant | a riposo con una pipeline 63,7 MB RSS (53,6 MB PSS); a 100.000 eventi/s 70-75 MB; stato di UJ-3 0,6-1,3 MB | misurato, contro NFR-1 vedi «Punti aperti» |
@@ -126,7 +134,7 @@ state cambiate dopo prove fallite e prima della prima corsa misurata, senza tocc
 | Niente DDL, DML né istruzioni | fissato in due strati (albero e `SQLOptions`) |
 | Nessun catalogo di file né archivio di oggetti registrato | fissato (strato 3); 0 file e 0 connessioni con lo strato da solo |
 | Versamento su disco spento | fissato (strato 3) |
-| Limite di memoria del sistema oltre al pool di DataFusion, anche per la validazione a secco | `RLIMIT_DATA` sul processo; con il solo pool di DataFusion la validazione a secco ostile arriva a 283 MB di RSS (V3, controllo) |
+| Limite di memoria del sistema oltre al pool di DataFusion, anche per la validazione a secco | `RLIMIT_DATA` sul processo: oltre il limite il processo cade (segnale 31) con errore `validation_process_died` e il motore lo riavvia; con il solo pool di DataFusion la validazione ostile arriva a 283 MB di RSS (V3, controllo). Con la validazione nel processo separato (punto 13) le pipeline non ne risentono |
 | Casi ostili: `repeat` enorme, prodotto cartesiano, costanti enormi | fermati dal controllo sull'albero; senza, `repeat` fa cadere il processo e la costante enorme passa (punto 5) |
 
 ## Cambi prima delle corse
@@ -134,7 +142,7 @@ state cambiate dopo prove fallite e prima della prima corsa misurata, senza tocc
 Fatti dopo prove fallite, scritti nell'emendamento datato prima della prima corsa misurata, nessuna
 soglia cambiata:
 
-1. avvii consegnati a gruppi in una transazione (prima circa 300 avvii/s su minisheep);
+1. avvii consegnati a gruppi in una transazione (prima circa 260 avvii/s su minisheep, stima);
 2. C4 con il tempo dell'evento al ritmo dell'orologio (Marco): con il tempo compresso 20 volte le
    riprove sfasate del generatore facevano scartare blocchi come in ritardo («ipotesi» sul codice);
 3. scrittura del motore su Iggy in gruppi, come fissa l'ADR del bus (prima 70.000-89.000 eventi/s);
@@ -170,7 +178,7 @@ soglia cambiata:
   incrementale di UJ-3 misurato è 0,6-1,3 MB.
 - **Un messaggio per chiamata verso Iggy**: 70.000-89.000 eventi/s sul disco di minisheep, sotto
   NFR-5.
-- **Un avvio per richiesta**: circa 300 avvii/s su minisheep, e il controllo scadeva con righe in
+- **Un avvio per richiesta**: circa 260 avvii/s su minisheep (stima), e il controllo scadeva con righe in
   attesa.
 - **Deduplicazione all'ingresso** nel motore: si perde al riavvio senza una tabella durevole in più.
 - **Eventi in JSON libero** interpretati dalla pipeline: sposta la validazione nel processo del
@@ -194,7 +202,15 @@ soglia cambiata:
   (stima da una prova): con 64 MiB regge circa 5,7 milioni di eventi per finestra.
 - **Capacità di scrittura condivisa**: in I1 B ha avuto circa 50.000 dei 100.000 eventi/s offerti
   mentre A teneva i suoi 50.000. Un tenant che offre più della sua parte non è stato misurato; come
-  si divide la scrittura tra tenant è da decidere.
+  si divide la scrittura tra tenant è da decidere. Nel prodotto la stessa connessione del motore
+  verso Iggy, con i suoi 4 gruppi in volo, porta anche le scritture di stato dei workflow (ADR del
+  bus): il carico insieme non è misurato.
+- **Stato del disco**: senza i gruppi, una corsa partita dopo una pausa ha tenuto 105.000 eventi/s
+  per 5 minuti e un'altra, partita dopo scritture pesanti, 72.000 fin dall'inizio; la causa non è
+  misurata. T1 senza tetto fa 242.647 eventi/s di media su 10 minuti contro 404.472 in una prova da
+  60 s: la serie per minuto non è registrata.
+- **Destinazione stream**: un blocco per riga nello spike; come raggruppare le righe verso uno
+  stream di destinazione è da decidere nella storia (stessa forma che non reggeva per gli avvii).
 - **RAM per tenant contro NFR-1**: NFR-1 si misura a riposo, senza pipeline attive (motore con
   DataFusion 24,6 MB); ogni tenant con pipeline attive aggiunge circa 64 MB, più il processo di
   validazione quando valida. Il totale con pipeline attive va scritto accanto a NFR-1.
